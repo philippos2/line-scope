@@ -212,9 +212,11 @@ Frontendは、AIとの対話から工場の状況・依存関係・影響経路�
 現時点では画面・操作・Frontend frameworkの詳細を推測で確定しない。後続フェーズでUI要件・設計・受入基準を具体化する。
 Frontendの追加で、認証・権限・人によるApproval / requesterによるExecuteの既存境界は変更しない。
 
-### 13.1 オペレーション・コンソールの方向性
+### 13.1 オペレーション・コンソール案（候補）
 
-2026-10-09のPO提示案に基づき、Graphを中心にObject / Graph / Evidence / Actionを同一ワークスペースで関連付ける。AI対話は自然言語の分析入口・結果説明を担う。最初のUI目標は、一画面で依存Graph・AI分析・業務Actionの関係が伝わること。
+2026-10-09にPOが共有したChatGPTの案を、有力なUI候補の一つとして保持する。POは内容を妥当と評価しているが、案全体の採用・UI仕様の確定ではない。後続UI設計で他案とも比較し、採否を判断する。以下のレイアウト・表示方針・技術候補はこの案の内容であり、認証・権限・Graph同期・承認等の既存仕様はどのUI案にも適用する。
+
+本案はGraphを中心にObject / Graph / Evidence / Actionを同一ワークスペースで関連付ける。AI対話は自然言語の分析入口・結果説明を担う。最初のUI目標は、一画面で依存Graph・AI分析・業務Actionの関係が伝わること。
 
 候補レイアウトは左Object Explorer、中央Graph Canvas、右AI Agent Panel、下部Action / Approval Drawer、上部の簡潔な状態表示。Graphを主な表示面積とし、Object選択・Graph上の強調・Evidence・Tool結果を連動させる。面積比・詳細操作・レスポンシブ構成は後続UI設計で検証する。初回UIはObject Explorer / Graph / Agent Panelを優先し、Action Drawerは次のUI反復で追加する候補とする。
 

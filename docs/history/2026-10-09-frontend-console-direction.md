@@ -1,6 +1,6 @@
 # Frontendコンソール方針の記録
 
-2026-10-09。POから提示されたObject Explorer / Graph Canvas / AI Agent Panel / Action Drawer / Status Bar案を、サーバサイド完成後のUI方向性として記録した。画面実装は再開していない。
+2026-10-09。POが共有し内容を妥当と評価したChatGPTのUI案を、有力候補の一つとして保持する。採用・UI仕様の確定ではない。Object Explorer / Graph Canvas / AI Agent Panel / Action Drawer / Status Bar案を、サーバサイド完成後のUI方向性として記録した。画面実装は再開していない。
 
 対象はrequirements §13.1、frontend/README、履歴index。19文書外に新しい仕様正本を作らず、既存要件へ方向性を追記した。検索Read Toolの実装PRとは別のdocs branch/PRへ分けた。
 

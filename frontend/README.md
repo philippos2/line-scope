@@ -4,9 +4,10 @@ LineScopeのFrontendはBackendと同じリポジトリで管理し、サーバ�
 現在は方針文書のみで、画面コード・build設定・packageは追加していない。
 仕様の正本は[19文書](../docs/deliverables.md)、UI方向性は[要件 §13](../docs/requirements/requirements.md#13-後続frontendフェーズ)。
 
-## オペレーション・コンソール
+## オペレーション・コンソール案（候補）
 
-Graphを主役としてObject / Graph / Evidence / Actionがつながるワークスペースを目指す。
+POが共有したChatGPT案は、内容を妥当と評価された有力候補の一つ。案全体の採用確定ではなく、後続UI設計で他案と比較する。
+本案ではGraphを主役としてObject / Graph / Evidence / Actionがつながるワークスペースを目指す。
 AIP Analystの見た目・機能の忠実な再現ではなく、LineScopeの製造業務と承認境界を画面で説明する。
 
 | 領域 | 設計候補 |
