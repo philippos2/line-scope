@@ -2,13 +2,24 @@
 
 from dataclasses import dataclass
 from datetime import datetime, timezone
+from typing import Annotated, Literal
 from uuid import UUID
 
 import psycopg
 from psycopg import sql
-from pydantic import AwareDatetime, BaseModel, ConfigDict, ValidationError, create_model
+from pydantic import (
+    AwareDatetime,
+    BaseModel,
+    ConfigDict,
+    Field,
+    StrictBool,
+    StrictStr,
+    ValidationError,
+    create_model,
+)
 
 from .execution import ExecutionContext
+from .pagination import CursorCodec
 
 
 class ToolError(Exception):
@@ -54,6 +65,62 @@ SCHEMAS["get_operation_equipment_assignments"] = create_model(
 )
 
 
+class EquipmentFilter(Arguments):
+    equipment_code: StrictStr = None
+    name: StrictStr = None
+
+
+class PlanFilter(Arguments):
+    equipment_id: UUID = None
+    plan_code: StrictStr = None
+    plan_status: Literal["PLANNED", "CANCELLED"] = None
+
+
+class RecordFilter(Arguments):
+    equipment_id: UUID = None
+    record_code: StrictStr = None
+    maintenance_plan_id: UUID | None = None
+
+
+class TypedEntity(Arguments):
+    entity_type: Literal[
+        "Equipment", "Process", "ProductionOperation", "Product", "InfrastructureResource"
+    ]
+    entity_id: UUID
+
+
+class RelationFilter(Arguments):
+    source: TypedEntity = None
+    target: TypedEntity = None
+    relation_type: Literal[
+        "DEPENDS_ON", "PRECEDES", "SUPPLIES", "CONTROLS", "PRODUCES", "CAN_SUBSTITUTE"
+    ] = None
+    active: StrictBool = None
+
+
+class PageArguments(Arguments):
+    page_size: Annotated[int, Field(strict=True, ge=1, le=100)] = 20
+    cursor: Annotated[StrictStr | None, Field(min_length=1, max_length=2048)] = None
+
+
+SEARCH_TOOLS = {
+    "search_equipment": ("equipment", "equipment_id", EquipmentFilter),
+    "search_maintenance_plans": ("maintenance_plan", "maintenance_plan_id", PlanFilter),
+    "search_maintenance_records": ("maintenance_record", "maintenance_record_id", RecordFilter),
+    "search_dependency_relations": (
+        "dependency_relation",
+        "dependency_relation_id",
+        RelationFilter,
+    ),
+}
+for name, (_, _, filter_model) in SEARCH_TOOLS.items():
+    SCHEMAS[name] = create_model(
+        name + "_arguments",
+        __base__=PageArguments,
+        filter=(filter_model, Field(default_factory=filter_model)),
+    )
+
+
 def json_value(value):
     if isinstance(value, UUID):
         return str(value)
@@ -71,6 +138,7 @@ def json_value(value):
 class ReadTools:
     def __init__(self, database):
         self.database = database
+        self.cursors = CursorCodec()
 
     def schemas(self):
         return {name: model.model_json_schema() for name, model in SCHEMAS.items()}
@@ -96,6 +164,19 @@ class ReadTools:
         explicit_as_of = getattr(values, "explicit_as_of", None)
         if explicit_as_of is not None and explicit_as_of > datetime.now(timezone.utc):
             raise ToolError("INVALID_ARGUMENT", "Future explicit_as_of is not supported")
+        binding = None
+        after = None
+        if tool in SEARCH_TOOLS:
+            binding = self.cursors.binding(
+                context,
+                tool,
+                values.filter.model_dump(mode="json", exclude_unset=True),
+            )
+            if values.cursor is not None:
+                try:
+                    after = self.cursors.decode(values.cursor, binding)
+                except ValueError as error:
+                    raise ToolError("INVALID_ARGUMENT", "Invalid or expired cursor") from error
         try:
             with self.database.transaction() as connection:
                 connection.execute("SET TRANSACTION ISOLATION LEVEL READ COMMITTED, READ ONLY")
@@ -111,6 +192,8 @@ class ReadTools:
                         raise ToolError("TARGET_NOT_FOUND", "Requested record does not exist")
                     observed_at = row.pop("_observed_at")
                     data = row
+                elif tool in SEARCH_TOOLS:
+                    data, observed_at = self._search(connection, tool, values, binding, after)
                 else:
                     # One statement gives parent version and all assignments the same snapshot.
                     rows = connection.execute(
@@ -161,3 +244,49 @@ class ReadTools:
                 "consistency": "LATEST_PER_CALL",
             },
         )
+
+    def _search(self, connection, tool, values, binding, after):
+        table, key, _ = SEARCH_TOOLS[tool]
+        clauses = []
+        parameters = []
+        for field, value in values.filter.model_dump(exclude_unset=True).items():
+            if field in ("source", "target"):
+                for suffix, member in (("entity_type", "entity_type"), ("entity_id", "entity_id")):
+                    clauses.append(sql.SQL("{}=%s").format(sql.Identifier(field + "_" + suffix)))
+                    parameters.append(value[member])
+            elif field == "name":
+                # Literal substring: percent/underscore are never wildcard operators.
+                clauses.append(sql.SQL("strpos(lower(equipment_name), lower(%s)) > 0"))
+                parameters.append(value)
+            elif value is None:
+                clauses.append(sql.SQL("{} IS NULL").format(sql.Identifier(field)))
+            else:
+                clauses.append(sql.SQL("{}=%s").format(sql.Identifier(field)))
+                parameters.append(value)
+        if after is not None:
+            clauses.append(sql.SQL("{}>%s").format(sql.Identifier(key)))
+            parameters.append(after)
+        condition = sql.SQL(" AND ").join(clauses) if clauses else sql.SQL("TRUE")
+        parameters.append(values.page_size + 1)
+        rows = connection.execute(
+            sql.SQL("""WITH page AS (
+                SELECT * FROM {} WHERE {} ORDER BY {} LIMIT %s
+            ) SELECT p.*, statement_timestamp() AS _observed_at
+              FROM (SELECT 1) observation LEFT JOIN page p ON TRUE ORDER BY p.{}""").format(
+                sql.Identifier(table),
+                condition,
+                sql.Identifier(key),
+                sql.Identifier(key),
+            ),
+            parameters,
+        ).fetchall()
+        observed_at = rows[0]["_observed_at"]
+        items = [
+            {field: value for field, value in row.items() if field != "_observed_at"}
+            for row in rows
+            if row[key] is not None
+        ]
+        has_more = len(items) > values.page_size
+        items = items[: values.page_size]
+        cursor = self.cursors.encode(binding, items[-1][key]) if has_more else None
+        return {"items": items, "next_cursor": cursor}, observed_at

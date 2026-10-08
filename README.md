@@ -3,7 +3,7 @@
 製造業務の状況把握・依存分析・人による承認付き更新を支援するプロダクト。
 仕様の正本は[19文書の成果物一覧](docs/deliverables.md)。文書レビュー履歴は[docs/history](docs/history/README.md)。
 
-このチェックポイントはPython / FastAPI / PostgreSQL基盤、業務正本10テーブル、内部Read Tool 9種を含む。
+このチェックポイントはPython / FastAPI / PostgreSQL基盤、業務正本10テーブル、内部Read Tool 13種を含む。
 業務API、Approval / Execute、Graph、Outbox、RAG、LLM、UIは含まない。
 
 ## ディレクトリ構成
@@ -106,11 +106,12 @@ Contextのuser / role / request_idはAPI認証層が生成し、Tool引数から
 現在状態が未登録の設備へUNKNOWNを推測補完しない。
 
 これは後続Agentから呼び出す内部Tool層。現在のHTTP endpointはhealth / readinessのみ。
-検索・ページング・設備状態履歴・更新履歴と`POST /agent`はまだ未実装。
+設備・保全予定・保全実績・依存関係の検索4種も実装済み。page_sizeは1〜100（default 20）、ID順のcursor pagingで各ページは最新正本を返す。
+署名cursorはuser・role・Tool・filterに拘束し、APIプロセス再起動後は無効となる。設備状態履歴・更新履歴と`POST /agent`はまだ未実装。
 
 ## 次のチェックポイント
 
-検索Read Tools・業務ルール検証、Prepare / Approval / Execute、Outbox / Projection、Graph分析、RAG / Agentを機能単位で実装・テスト・commitする。
+履歴参照・業務ルール検証、Prepare / Approval / Execute、Outbox / Projection、Graph分析、RAG / Agentを機能単位で実装・テスト・commitする。
 先行実装はGit stashへ退避し、レビューして必要な部分を段階的に取り込む。
 stashは再構成前のパスを保持しているため、取り込むコードを`backend/`の構成へ合わせる。
 LLM / embeddingの製品選定・品質評価、受入基準全体の検証は未完了。
