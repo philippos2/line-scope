@@ -83,23 +83,17 @@ def test_environment_and_secrets_hidden_in_repr(monkeypatch):
 
 
 @pytest.mark.integration
-def test_real_postgresql_readiness_and_no_business_tables(db):
+def test_real_postgresql_readiness(db):
     with TestClient(create_app(settings(), db)) as client:
         response = client.get("/health/ready", headers={"Authorization": "Bearer test-token"})
     assert response.status_code == 200 and response.json()["data"]["postgresql"] == "available"
-    db.migrate()
-    with db.transaction() as connection:
-        tables = connection.execute(
-            "SELECT tablename FROM pg_tables WHERE schemaname=current_schema()"
-        ).fetchall()
-    assert tables == [{"tablename": "schema_migration"}]
 
 
 @pytest.mark.integration
 def test_concurrent_migration_once_and_checksum_guard(db):
     with ThreadPoolExecutor(2) as pool:
         results = list(pool.map(lambda _: db.migrate(), range(2)))
-    assert sorted(results, key=len) == [[], ["001_bootstrap.sql"]]
+    assert sorted(results, key=len) == [[], ["001_bootstrap.sql", "002_business_schema.sql"]]
     assert db.migrate() == []
     with pytest.raises(ValueError, match="Applied migration was modified"):
         db.migrate([("001_bootstrap.sql", "SELECT 2;")])

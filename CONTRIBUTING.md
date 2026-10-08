@@ -25,7 +25,7 @@ GitHub設定を変更する際は既存保護・required checksを維持し、�
 ## CI
 
 現在のrequired checksは`Tests and migrations`と`PR title`とする。
-Backend CIはlint / format、実PostgreSQLでの全基盤テスト・migration検証、CLI疎通を実行する。
+Backend CIはlint / format、実PostgreSQLでの基盤・業務DB制約テスト・migration検証、CLI疎通を実行する。
 全PRでCIを実行し、required jobをpath filterで省略しない。
 依存はbackend/requirements-dev.lockで固定し、変更時に更新・検証する。
 
@@ -38,3 +38,9 @@ LogiScopeの同名checkや既存保護は、このリポジトリの設定作業
 基盤は`feat/backend-foundation`からPRとしてレビューし、承認後にSquash mergeする。
 既存のローカルcheckpoint commitを保全するため、初回だけ空のmain初期化履歴を作業ブランチへ接続する。
 これはmainへのPR mergeではなく、mainに基盤コードを直接入れる操作でもない。
+
+## merge後のローカル更新
+
+PR merge後は`git fetch --prune origin`、`git switch main`、`git pull --ff-only origin main`で追従する。
+不要ブランチが溜まったら、Squash済みPRと未push変更の有無を確認して枝打ちする。
+退避中のstashや未反映の実装を一緒に削除しない。
