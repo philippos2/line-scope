@@ -50,4 +50,7 @@ DBテストは明示された接続先に一時schemaを作成し、終了時に
 先行実装はGit stashへ退避し、レビューして必要な部分を段階的に取り込む。
 LLM / embeddingの製品選定・品質評価、Docker起動、CI、受入基準全体の検証は未完了。
 
+サーバサイド完成後に、Palantir AIP Analystを参考にした、LogiScopeよりリッチなFrontendを構築する。
+UI要件・画面設計・frameworkはそのフェーズで具体化する。現在のチェックポイントには含めない。
+
 開発ブランチでは意味のあるチェックポイントcommitを残す。mainへは原則1 PR＝1 Squash commit、Conventional Commit形式で反映し、merge後にfeature branchを削除する。既存履歴をrewriteしない。

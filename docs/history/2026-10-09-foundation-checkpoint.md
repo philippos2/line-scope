@@ -28,3 +28,10 @@ PostgreSQL 18.6の一時schemaで疎通・並行migration・改変検出・DDL r
 `pytest`は16件成功・skipなし。`ruff check`と`ruff format --check`も成功。
 FastAPI TestClientにはhttpxに関する非推奨警告が1件あり、テストは成功した。
 業務機能・製品全体の受入完了を意味しない。
+
+## 後続FrontendのPO指示
+
+基盤commit後、利用者は「サーバサイド完成後にAIP Analystのような、LogiScopeよりリッチなFrontendを構築する」と明示した。
+requirements.md §11 / §13、architecture.md §12、READMEへ反映した。
+以前のUI除外は現在のサーバ実装フェーズに限定し、Frontendを後続計画として記録する。
+Frontendの実装・具体framework選定はこの文書変更では行っていない。

@@ -101,7 +101,8 @@ Rebuild controllerは単一workerと同じleader lockを取得してOutboxをdra
 | 構造依存の派生モデル | Neo4j | CURRENT時の依存探索。後続のGraphチェックポイントで実装する |
 | 非構造文書の派生Index | Qdrant | embeddingによる文書検索。後続のRAGチェックポイントで実装する |
 | LLM / embedding model | 評価後に選定 | プロダクト・model versionは未確定。試作アダプターを採用確定・品質承認と扱わない |
-| Client | HTTP / curl等 | v1ではUIを実装しないため、Reactは未採用 |
+| Client（サーバ実装フェーズ） | HTTP / curl等 | Backendの実装・検証を先に完了する |
+| Frontend（後続フェーズ） | frameworkは後続設計時に確定 | サーバサイド完成後、AIP Analystを参考にLogiScopeよりリッチなUIを構築する。現チェックポイントには含めない |
 
 pgvectorはこの構成では採用しない。ベクトル検索の責務はQdrantに置く既存設計を維持する。
 LogiScopeの技術構成を継承したものではなく、LineScopeの責務定義に基づく構成とする。

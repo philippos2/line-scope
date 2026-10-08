@@ -183,7 +183,7 @@ ProductionOperationとEquipmentの割当情報は単一の正本から管理し�
 - 在庫・受注・BOM完全管理
 - 実設備制御
 - 本番MES/ERP接続
-- UI
+- UIは現在のサーバサイド実装フェーズには含めない。サーバサイド完成後の後続フェーズで構築する（§13）
 - 複数工場・マルチテナント
 
 ## 12. v1業務入力・状態値
@@ -202,3 +202,10 @@ planned_start < planned_end、effective_from < 非NULL effective_toを要求す�
 保全実績登録は設備状態・保全予定・生産予定を自動変更しない。maintenance_plan_id指定時は同じequipment_idの既存計画であることを要求する。DependencyRelationのrequired未使用種別はfalseを要求し、true入力を拒否する。関係自体の必須性はdomain-modelの規則で評価する。
 
 EquipmentState更新の現在状態・履歴は同一Transactionで保存し、現在状態の更新時刻と履歴effective_at / recorded_atは確定実行のサーバ時刻を記録する。過去・未来の状態登録機能は追加しない。UUID・監査時刻・version等の技術メタデータ生成と業務値の推測を区別する。
+
+## 13. 後続Frontendフェーズ
+
+2026-10-09のプロダクトオーナー指示により、Frontendはプロダクト全体の計画へ含める。
+サーバサイドを先に完成させ、その後、Palantir AIP Analystを参考にした、LogiScopeよりリッチなFrontendを構築する。
+現時点では画面・操作・Frontend frameworkの詳細を推測で確定しない。後続フェーズでUI要件・設計・受入基準を具体化する。
+Frontendの追加で、認証・権限・人によるApproval / requesterによるExecuteの既存境界は変更しない。
