@@ -1,0 +1,30 @@
+name: PR conventions
+
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, edited, synchronize, reopened, ready_for_review]
+
+permissions:
+  contents: read
+
+jobs:
+  title:
+    name: PR title
+    runs-on: ubuntu-24.04
+    timeout-minutes: 2
+    env:
+      PR_TITLE: ${{ github.event.pull_request.title }}
+    steps:
+      - name: Validate Conventional Commit title
+        run: |
+          python3 - <<'PY'
+          import os
+          import re
+          import sys
+          title = os.environ['PR_TITLE']
+          pattern = r'(feat|fix|docs|test|refactor|chore)(\([a-zA-Z0-9_./-]+\))?!?: \S(?:[^\r\n]*\S)?'
+          if not re.fullmatch(pattern, title):
+              print('PR title must use feat:, fix:, docs:, test:, refactor:, or chore:.')
+              sys.exit(1)
+          PY

@@ -33,7 +33,8 @@ Python 3.12以上とPostgreSQLを用意する。検証環境はPython 3.14.4 / P
 
 ```sh
 python3 -m venv .venv
-.venv/bin/pip install -e './backend[dev]'
+.venv/bin/pip install -r backend/requirements-dev.lock
+.venv/bin/pip install --no-deps -e ./backend
 ```
 
 `LINESCOPE_DSN`へ接続先、`LINESCOPE_USERS`へサーバ側のデモ認証設定を渡す。
@@ -71,9 +72,11 @@ DBテストは明示された接続先に一時schemaを作成し、終了時に
 業務モデル・migration、Read Tools、Prepare / Approval / Execute、Outbox / Projection、Graph分析、RAG / Agentを機能単位で実装・テスト・commitする。
 先行実装はGit stashへ退避し、レビューして必要な部分を段階的に取り込む。
 stashは再構成前のパスを保持しているため、取り込むコードを`backend/`の構成へ合わせる。
-LLM / embeddingの製品選定・品質評価、Docker起動、CI、受入基準全体の検証は未完了。
+LLM / embeddingの製品選定・品質評価、Docker起動、受入基準全体の検証は未完了。
 
 サーバサイド完成後に、Palantir AIP Analystを参考にした、LogiScopeよりリッチなFrontendを構築する。
 UI要件・画面設計・frameworkはそのフェーズで具体化する。現在のチェックポイントには含めない。
 
 開発ブランチでは意味のあるチェックポイントcommitを残す。mainへは原則1 PR＝1 Squash commit、Conventional Commit形式で反映し、merge後にfeature branchを削除する。既存履歴をrewriteしない。
+CIとGitHub設定の責務・required checksは[開発・PR運用](CONTRIBUTING.md)を参照する。
+Backend CIは全PRで実PostgreSQLを使う`Tests and migrations`、PRタイトル規則は`PR title`で検証する。
