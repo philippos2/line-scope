@@ -1,0 +1,13 @@
+**
+!backend/
+!backend/**
+!scripts/
+!scripts/*.py
+backend/.env
+backend/.env.*
+backend/**/__pycache__/
+backend/**/.pytest_cache/
+backend/**/.ruff_cache/
+backend/**/*.egg-info/
+backend/build/
+backend/dist/

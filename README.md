@@ -26,56 +26,80 @@ line-scope/
 `backend/src/linescope`の`linescope`はPythonのimport名。Frontendはサーバサイド完成後に実装する。
 Backendのpackage・依存・テスト設定は`backend/pyproject.toml`で管理する。
 
-## 起動
+## Docker起動
 
-Python 3.12以上とPostgreSQLを用意する。検証環境はPython 3.14.4 / PostgreSQL 18.6。
-以下のコマンドはリポジトリのルートで実行する。
+Docker EngineとCompose v2以降を用意し、リポジトリのルートで実行する。
+API・migrationはPython 3.14.4の非rootコンテナ、PostgreSQLは18.6のコンテナで動作する。
+
+```sh
+python3 scripts/create_demo_env.py
+docker compose up --build -d --wait api
+```
+
+初回の資格情報生成はPython標準ライブラリだけを使用する。既存`.env`は上書きしない。
+`.env`は権限600で作成され、Git・Docker build contextへ入らない。各ロール1名、manager2名のランダムtokenを保持する。
+`LINESCOPE_API_PORT`でホスト側portを変更できる（既定8000、127.0.0.1のみ）。
+Bearer tokenはローカル`.env`の`LINESCOPE_USERS`から取得する。credentialをPRやログへ貼らない。
+
+PostgreSQLのhealthcheck成功後にmigrationを実行し、成功後にAPIを起動する。
+APIのhealthcheckもBearer認証付きreadinessを検証する。DB portはホストへ公開しない。
+DBはCompose projectの`postgres-data` volumeへ保持する（PostgreSQL 18の配置に合わせ`/var/lib/postgresql`）。
+
+```sh
+docker compose logs api
+docker compose run --rm migrate
+docker compose down
+```
+
+`down`はDB volumeを保持する。通常停止時に`--volumes`を付けない。
+`.env`のDBパスワードを変更しても既存volume内のパスワードは自動変更されない。
+
+`GET /health`はプロセス応答、`GET /health/ready`はPostgreSQL接続を確認する。
+両方にBearer認証を要求し、DB利用不可のreadinessは503、認証なしは401。
+このreadinessは業務API・Graph・RAGの準備完了を意味しない。
+
+migrationはadvisory lock下の単一トランザクションでSQLを順に適用し、checksumを記録する。
+001は疎通用、002は業務正本の10テーブル。再実行はskipし、適用後のSQL改変は拒否する。
+設備状態履歴はUpdateRequestへの必須FKを含むため、更新スキーマのチェックポイントで追加する。
+期間重複、混在循環、Relation参照先の存在・active、保全計画と実績の設備一致は後続の更新トランザクションで検証する。
+
+## Docker検証
+
+テスト用Composeは独立した設定で、デモ資格情報や永続volumeを使用しない。
+テスト用PostgreSQLはtmpfs、DB portは非公開。テストは一時schemaだけを作成・削除する。
+
+```sh
+docker compose -f compose.test.yaml build tests
+docker compose -f compose.test.yaml run --rm --no-deps tests ruff check backend scripts
+docker compose -f compose.test.yaml run --rm --no-deps tests ruff format --check backend scripts
+docker compose -f compose.test.yaml run --rm tests
+docker compose -f compose.test.yaml down --volumes --remove-orphans
+```
+
+Backend CIもこの方法で全テストを実行し、実行用imageの起動・同梱migration再実行を確認する。
+Runtime依存は`backend/requirements.lock`、開発依存は`backend/requirements-dev.lock`で固定する。
+
+## ホストでの補助的な開発
+
+Python 3.12以上での編集・軽い確認も可能。標準の実行・検証経路はDockerとする。
 
 ```sh
 python3 -m venv .venv
 .venv/bin/pip install -r backend/requirements-dev.lock
 .venv/bin/pip install --no-deps -e ./backend
-```
-
-`LINESCOPE_DSN`へ接続先、`LINESCOPE_USERS`へサーバ側のデモ認証設定を渡す。
-形式は`{"<secret-token>":{"user_id":"<user>","role":"floor|maintenance|production|manager"}}`。
-実際のcredentialは環境変数または非管理の`.env`へ保管する。`.env`は自動では読み込まない。
-設定例は`backend/.env.example`に置く。
-空のユーザー設定では全HTTP要求が401となる。
-
-```sh
-.venv/bin/linescope migrate
-.venv/bin/linescope serve
-```
-
-Bearer認証付き`GET /health`はプロセスの応答、`GET /health/ready`はPostgreSQL接続を確認する。
-後者はDB利用不可時503。共通Response Envelopeを返し、接続先・credentialは返さない。
-このreadinessは業務テーブルやGraphの準備完了を意味しない。
-
-migrationはadvisory lock下の単一トランザクションでSQLを順に適用し、checksumを記録する。
-再実行は適用済みをskipし、適用後のSQL改変は拒否する。001は疎通用、002は設備・現在状態・保全予定/実績・工程・生産作業・製品・インフラ・設備割当・依存関係を作成する。
-設備状態履歴はUpdateRequestへの必須FKを含むため、更新スキーマのチェックポイントで追加する。
-期間重複、混在循環、Relation参照先の存在・active、保全計画と実績の設備一致は後続の更新トランザクションで検証する。
-現在のDB制約だけで業務更新全体の安全性が成立したとは扱わない。
-
-## 検証
-
-```sh
-.venv/bin/ruff check backend
-.venv/bin/ruff format --check backend
+.venv/bin/ruff check backend scripts
 .venv/bin/pytest backend/tests -q
-LINESCOPE_TEST_DSN='<test PostgreSQL connection>' .venv/bin/pytest backend/tests -q
 ```
 
-DBテストは明示された接続先に一時schemaを作成し、終了時にそのschemaだけを削除する。
-未指定時はDBテストがskipされる。既存の業務DBでmigrationを試さず、専用の空DBを利用する。
+ホストでDBテストを行う場合は専用DBの`LINESCOPE_TEST_DSN`を指定する。未指定時はDBテストがskipされる。
+ホスト起動の`LINESCOPE_DSN`・`LINESCOPE_USERS`の例は`backend/.env.example`。ホストでは`.env`を自動読込しない。
 
 ## 次のチェックポイント
 
-Docker起動、業務ルール検証・Read Tools、Prepare / Approval / Execute、Outbox / Projection、Graph分析、RAG / Agentを機能単位で実装・テスト・commitする。
+業務ルール検証・Read Tools、Prepare / Approval / Execute、Outbox / Projection、Graph分析、RAG / Agentを機能単位で実装・テスト・commitする。
 先行実装はGit stashへ退避し、レビューして必要な部分を段階的に取り込む。
 stashは再構成前のパスを保持しているため、取り込むコードを`backend/`の構成へ合わせる。
-LLM / embeddingの製品選定・品質評価、Docker起動、受入基準全体の検証は未完了。
+LLM / embeddingの製品選定・品質評価、受入基準全体の検証は未完了。
 
 サーバサイド完成後に、Palantir AIP Analystを参考にした、LogiScopeよりリッチなFrontendを構築する。
 UI要件・画面設計・frameworkはそのフェーズで具体化する。現在のチェックポイントには含めない。
