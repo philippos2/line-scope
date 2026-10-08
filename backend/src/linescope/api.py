@@ -1,5 +1,5 @@
 import logging
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 import psycopg
 from fastapi import FastAPI, Request
@@ -7,6 +7,8 @@ from fastapi.responses import JSONResponse
 from starlette.exceptions import HTTPException
 
 from .database import Database
+from .execution import ExecutionContext
+from .reads import ReadTools
 from .settings import Settings
 
 logger = logging.getLogger(__name__)
@@ -33,6 +35,7 @@ def create_app(settings=None, database=None):
     database = database or Database(settings)
     app = FastAPI(title="LineScope", docs_url=None, redoc_url=None, openapi_url=None)
     app.state.database = database
+    app.state.read_tools = ReadTools(database)
 
     @app.middleware("http")
     async def authenticate(request, call_next):
@@ -43,6 +46,11 @@ def create_app(settings=None, database=None):
         if not user:
             return response(request, code="AUTHENTICATION_REQUIRED", status_code=401)
         request.state.user = user
+        request.state.execution_context = ExecutionContext(
+            authenticated_user_id=user["user_id"],
+            role=user["role"],
+            request_id=UUID(request.state.request_id),
+        )
         try:
             return await call_next(request)
         except Exception:

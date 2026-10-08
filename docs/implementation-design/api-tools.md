@@ -172,6 +172,7 @@ SPOFは不完全時 `determination=INDETERMINATE`。
 - INTERNAL_ERROR
 - INVALID_ARGUMENT
 - AUTHENTICATION_REQUIRED
+- DEPENDENCY_UNAVAILABLE
 - INVALID_UPDATE_STATE
 - CONTEXT_EXPIRED
 - RESOURCE_BUSY
@@ -189,7 +190,7 @@ Approve / Reject成功は両statusとID・時刻を返す。Rejectは空Body、P
 
 errors[]は{code, message, details}、warnings[]も{code, message, details}。非CURRENTはevidenceに同期状態だけを返し、経路・到達結果を付けない。更新失敗は保存済み要求IDとstatusを返せるが成功結果を生成しない。
 
-HTTP status: 成功200（Prepareを含む）、探索部分結果200かつstatus=partial、schema不正400、認証なし401、権限不足 / 非owner403、不存在404、状態・hash・version・CREATE・冪等性競合409、承認期限切れ410、業務制約違反422、Graph非CURRENT・Neo4j / PostgreSQL等の利用不可503、内部不整合500。状態不正はINVALID_UPDATE_STATE。400はINVALID_ARGUMENT、401はAUTHENTICATION_REQUIRED、context失効は409 CONTEXT_EXPIREDを追加する。ロックtimeoutは503 RESOURCE_BUSYで、業務変更なし。Tool数・Agent deadline超過は503 AGENT_LIMIT_REACHED。内部ToolはHTTPに依存せず同じcodeとdataで返す。
+HTTP status: 成功200（Prepareを含む）、探索部分結果200かつstatus=partial、schema不正400、認証なし401、権限不足 / 非owner403、不存在404、状態・hash・version・CREATE・冪等性競合409、承認期限切れ410、業務制約違反422、Graph非CURRENT・Neo4j / PostgreSQL等の利用不可503、内部不整合500。状態不正はINVALID_UPDATE_STATE。400はINVALID_ARGUMENT、401はAUTHENTICATION_REQUIRED、context失効は409 CONTEXT_EXPIREDを追加する。ロックtimeoutは503 RESOURCE_BUSYで、業務変更なし。Tool数・Agent deadline超過は503 AGENT_LIMIT_REACHED。PostgreSQLの接続不可はDEPENDENCY_UNAVAILABLEとし、credential・接続先・内部SQLを返さない。内部ToolはHTTPに依存せず同じcodeとdataで返す。
 
 Tool schemaは未知fieldを拒否し、日時はtimezone付きISO 8601、IDはUUID、entity_typeはdomain-modelの型集合、versionは正整数。業務必須・許可値はrequirements §12。省略と明示NULLを区別し、patchのNULLで必須項目を消さない。
 
