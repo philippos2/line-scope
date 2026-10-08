@@ -260,7 +260,7 @@ def test_unknown_tools_and_missing_context_fail_closed():
 
 def test_schema_has_no_trusted_context_arguments():
     schemas = ReadTools(NoDatabase()).schemas()
-    assert len(schemas) == 9
+    assert len(schemas) == 13
     for schema in schemas.values():
         assert schema["additionalProperties"] is False
         assert not {"role", "authenticated_user_id", "request_id"} & schema["properties"].keys()
