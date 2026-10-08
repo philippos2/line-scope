@@ -211,3 +211,19 @@ Frontendは、AIとの対話から工場の状況・依存関係・影響経路�
 対話・分析結果・根拠・更新案・承認状況を関連付けて確認できる体験とする。AIP Analystの実画面や機能の忠実な再現は要求しない。
 現時点では画面・操作・Frontend frameworkの詳細を推測で確定しない。後続フェーズでUI要件・設計・受入基準を具体化する。
 Frontendの追加で、認証・権限・人によるApproval / requesterによるExecuteの既存境界は変更しない。
+
+### 13.1 オペレーション・コンソールの方向性
+
+2026-10-09のPO提示案に基づき、Graphを中心にObject / Graph / Evidence / Actionを同一ワークスペースで関連付ける。AI対話は自然言語の分析入口・結果説明を担う。最初のUI目標は、一画面で依存Graph・AI分析・業務Actionの関係が伝わること。
+
+候補レイアウトは左Object Explorer、中央Graph Canvas、右AI Agent Panel、下部Action / Approval Drawer、上部の簡潔な状態表示。Graphを主な表示面積とし、Object選択・Graph上の強調・Evidence・Tool結果を連動させる。面積比・詳細操作・レスポンシブ構成は後続UI設計で検証する。初回UIはObject Explorer / Graph / Agent Panelを優先し、Action Drawerは次のUI反復で追加する候補とする。
+
+色は装飾より状態・選択・影響経路の意味に使用する。charcoal / graphite・dark navy・off-white・細い境界線を基本候補とし、CURRENT=緑、LAGGING=黄、ERROR=赤、REBUILDING=青を文字ラベルとともに表す。色だけで判定させない。
+
+Graphはサーバの同期状態・complete / limit_reason・Evidenceに従い、非CURRENTを正常な最新分析として表示しない。エッジ保存方向と論理的な影響方向を混同せず、Toolが返した経路だけを強調する。Graph分析を許可されない現場ロールには通常Read中心の表示を提供し、UI操作で権限を拡張しない。
+
+Object Detailは正本の項目・状態・version・観測時刻を表示する。Equipment本体versionと現在状態versionを区別する。例示にあったDEGRADED / MAINTENANCEやLocation等を未定義の状態・属性として追加しない。更新例は許可状態値（例えばRUNNING → UNDER_MAINTENANCE）と、その対象の更新権限を満たす主体を使う。
+
+Action表示はAI RecommendationとHuman Approvalを区別し、サーバ保存canonical Snapshotのbefore / proposed、requester・approver・承認状態を確認可能にする。確定済みafterとその後のcurrent valueを区別する。人によるApproval専用APIと元requesterによるExecute専用APIの境界を維持する。Tool Traceは公開可能なTool名・入出力・根拠を対象とし、LLM内部推論・秘密情報・内部SQL/Cypherを公開しない。
+
+状態バーは検証済みの状態だけを示し、未実装・未確認をReady / Connectedと表示しない。LLM名も採用・接続が確定した設定を参照し、提示例のQwenを選定確定と扱わない。React / TypeScript / React Flow、TanStack Query、Context / Zustandは候補として後続設計で評価し、現段階では採用・依存追加を行わない。
