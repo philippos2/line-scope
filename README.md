@@ -109,6 +109,12 @@ Contextのuser / role / request_idはAPI認証層が生成し、Tool引数から
 設備・保全予定・保全実績・依存関係の検索4種も実装済み。page_sizeは1〜100（default 20）、ID順のcursor pagingで各ページは最新正本を返す。
 署名cursorはuser・role・Tool・filterに拘束し、APIプロセス再起動後は無効となる。設備状態履歴・更新履歴と`POST /agent`はまだ未実装。
 
+## Canonical JSON基盤
+
+`linescope.canonical`はtransaction-design §15・20の直列化・SHA-256・厳格なJSON読込みと、型指定されたUUID / UTC日時 / ID集合の正規化を提供する。
+通常文字列のUnicodeやordered arrayを勝手に正規化しない。重複key、float / decimal、surrogate、timezoneなし・microsecondを超える精度の日時を拒否する。
+Snapshotの業務schema、hash対象の選定・監査項目の除外、Target順序・schema version検証、CREATE時ID固定、保存後の照合は次のSnapshot構築工程で実装する。
+
 ## 次のチェックポイント
 
 履歴参照・業務ルール検証、Prepare / Approval / Execute、Outbox / Projection、Graph分析、RAG / Agentを機能単位で実装・テスト・commitする。
