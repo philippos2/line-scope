@@ -3,7 +3,7 @@
 製造業務の状況把握・依存分析・人による承認付き更新を支援するプロダクト。
 仕様の正本は[19文書の成果物一覧](docs/deliverables.md)。文書レビュー履歴は[docs/history](docs/history/README.md)。
 
-このチェックポイントはPython / FastAPI / PostgreSQLの基盤だけを含む。
+このチェックポイントはPython / FastAPI / PostgreSQLの基盤と業務正本の10テーブルを含む。
 業務API、Approval / Execute、Graph、Outbox、RAG、LLM、UIは含まない。
 
 ## ディレクトリ構成
@@ -53,7 +53,10 @@ Bearer認証付き`GET /health`はプロセスの応答、`GET /health/ready`は
 このreadinessは業務テーブルやGraphの準備完了を意味しない。
 
 migrationはadvisory lock下の単一トランザクションでSQLを順に適用し、checksumを記録する。
-再実行は適用済みをskipし、適用後のSQL改変は拒否する。初期SQLは疎通用で、業務テーブルは作成しない。
+再実行は適用済みをskipし、適用後のSQL改変は拒否する。001は疎通用、002は設備・現在状態・保全予定/実績・工程・生産作業・製品・インフラ・設備割当・依存関係を作成する。
+設備状態履歴はUpdateRequestへの必須FKを含むため、更新スキーマのチェックポイントで追加する。
+期間重複、混在循環、Relation参照先の存在・active、保全計画と実績の設備一致は後続の更新トランザクションで検証する。
+現在のDB制約だけで業務更新全体の安全性が成立したとは扱わない。
 
 ## 検証
 
@@ -69,7 +72,7 @@ DBテストは明示された接続先に一時schemaを作成し、終了時に
 
 ## 次のチェックポイント
 
-業務モデル・migration、Read Tools、Prepare / Approval / Execute、Outbox / Projection、Graph分析、RAG / Agentを機能単位で実装・テスト・commitする。
+Docker起動、業務ルール検証・Read Tools、Prepare / Approval / Execute、Outbox / Projection、Graph分析、RAG / Agentを機能単位で実装・テスト・commitする。
 先行実装はGit stashへ退避し、レビューして必要な部分を段階的に取り込む。
 stashは再構成前のパスを保持しているため、取り込むコードを`backend/`の構成へ合わせる。
 LLM / embeddingの製品選定・品質評価、Docker起動、受入基準全体の検証は未完了。
