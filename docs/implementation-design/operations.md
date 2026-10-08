@@ -97,7 +97,11 @@ Restore等でactive_generationが存在せず未処理Outboxが残る場合、co
 Pythonの対応範囲はbackend/pyproject.tomlで管理し、基盤検証環境はPython 3.14.4 / PostgreSQL 18.6。
 package versionはbackend/pyproject.tomlに記録する。Neo4j / Qdrant / LLMの接続は最初の基盤コミットへ含めない。
 
-起動は`linescope migrate`、`linescope serve`。この段階のmigrationは管理表と疎通用SQLのみで、業務テーブル・seedを作らない。
+初回基盤PRは管理表と疎通用SQLのみ。後続の業務スキーマPRで10テーブルを追加済みであり、seed・業務APIは未実装。
+標準起動はDocker Compose。`python3 scripts/create_demo_env.py`でGit管理外の資格情報を生成し、`docker compose up --build -d --wait api`でPostgreSQL → migration → APIの順に起動する。
+API・migrationは非rootコンテナ、DB portは非公開、APIは127.0.0.1に公開。通常の`docker compose down`は正本volumeを保持する。
+テストは独立した`compose.test.yaml`とtmpfs PostgreSQLで実行し、デモの永続volumeを共有しない。
+資格情報・ホストport・volume保持・Dockerテストの具体手順はREADME.mdを正とする。
 `GET /health`はプロセス応答、`GET /health/ready`はPostgreSQL接続を確認する。両方にBearer認証を要求し、共通Envelopeを返す。
 認証なしは401、readinessのDB利用不可は503。接続先・credentialをResponseへ返さない。
 health / readinessは基盤の運用Endpointであり、Agent Toolへ公開しない。詳細な設定・テスト手順はREADME.mdを参照する。
