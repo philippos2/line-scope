@@ -3,7 +3,7 @@
 製造業務の状況把握・依存分析・人による承認付き更新を支援するプロダクト。
 仕様の正本は[19文書の成果物一覧](docs/deliverables.md)。文書レビュー履歴は[docs/history](docs/history/README.md)。
 
-このチェックポイントはPython / FastAPI / PostgreSQLの基盤と業務正本の10テーブルを含む。
+このチェックポイントはPython / FastAPI / PostgreSQL基盤、業務正本10テーブル、内部Read Tool 9種を含む。
 業務API、Approval / Execute、Graph、Outbox、RAG、LLM、UIは含まない。
 
 ## ディレクトリ構成
@@ -94,9 +94,23 @@ python3 -m venv .venv
 ホストでDBテストを行う場合は専用DBの`LINESCOPE_TEST_DSN`を指定する。未指定時はDBテストがskipされる。
 ホスト起動の`LINESCOPE_DSN`・`LINESCOPE_USERS`の例は`backend/.env.example`。ホストでは`.env`を自動読込しない。
 
+## 内部Read Tools
+
+設備、現在状態、保全予定、工程、生産作業、製品、インフラ、依存関係のID参照と、生産作業のactive設備割当参照を実装済み。
+`ReadTools.schemas()`が入力JSON Schema、`ReadTools.run(context, tool, arguments)`が正本recordと構造化Evidenceを返す。
+Contextのuser / role / request_idはAPI認証層が生成し、Tool引数から指定できない。
+全参照はREAD COMMITTED / READ ONLYで実行し、不存在・schema不正・DB障害を構造化エラーとして返す。
+
+設備割当と親versionは同じstatement Snapshotから取得する。`explicit_as_of`指定時だけ`[start, end)`で絞り込み、
+現在登録されているactive行を評価する。過去状態の復元機能ではない。未指定時は全active割当を返す。
+現在状態が未登録の設備へUNKNOWNを推測補完しない。
+
+これは後続Agentから呼び出す内部Tool層。現在のHTTP endpointはhealth / readinessのみ。
+検索・ページング・設備状態履歴・更新履歴と`POST /agent`はまだ未実装。
+
 ## 次のチェックポイント
 
-業務ルール検証・Read Tools、Prepare / Approval / Execute、Outbox / Projection、Graph分析、RAG / Agentを機能単位で実装・テスト・commitする。
+検索Read Tools・業務ルール検証、Prepare / Approval / Execute、Outbox / Projection、Graph分析、RAG / Agentを機能単位で実装・テスト・commitする。
 先行実装はGit stashへ退避し、レビューして必要な部分を段階的に取り込む。
 stashは再構成前のパスを保持しているため、取り込むコードを`backend/`の構成へ合わせる。
 LLM / embeddingの製品選定・品質評価、受入基準全体の検証は未完了。
