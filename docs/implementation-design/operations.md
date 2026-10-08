@@ -94,11 +94,12 @@ Restore等でactive_generationが存在せず未処理Outboxが残る場合、co
 ## 11. Backend基盤チェックポイント
 
 実装言語・HTTP基盤はPython / FastAPI、PostgreSQL driverはPsycopg 3、ASGI serverはUvicornとする。
-Pythonの対応範囲はpyproject.tomlで管理し、基盤検証環境はPython 3.14.4 / PostgreSQL 18.6。
-package versionはpyproject.tomlに記録する。Neo4j / Qdrant / LLMの接続は最初の基盤コミットへ含めない。
+Pythonの対応範囲はbackend/pyproject.tomlで管理し、基盤検証環境はPython 3.14.4 / PostgreSQL 18.6。
+package versionはbackend/pyproject.tomlに記録する。Neo4j / Qdrant / LLMの接続は最初の基盤コミットへ含めない。
 
 起動は`linescope migrate`、`linescope serve`。この段階のmigrationは管理表と疎通用SQLのみで、業務テーブル・seedを作らない。
 `GET /health`はプロセス応答、`GET /health/ready`はPostgreSQL接続を確認する。両方にBearer認証を要求し、共通Envelopeを返す。
 認証なしは401、readinessのDB利用不可は503。接続先・credentialをResponseへ返さない。
 health / readinessは基盤の運用Endpointであり、Agent Toolへ公開しない。詳細な設定・テスト手順はREADME.mdを参照する。
+依存のインストールはルートから`pip install -e './backend[dev]'`、テストは`pytest backend/tests`。設定例はbackend/.env.example。
 最終製品の初期化・復旧手順は§10を維持し、基盤だけのreadinessをGraph CURRENT・RAG準備完了の根拠にしない。

@@ -6,18 +6,40 @@
 このチェックポイントはPython / FastAPI / PostgreSQLの基盤だけを含む。
 業務API、Approval / Execute、Graph、Outbox、RAG、LLM、UIは含まない。
 
+## ディレクトリ構成
+
+Backend / Frontend / 仕様文書を同じGitリポジトリで管理する。
+
+```text
+line-scope/
+├── backend/
+│   ├── pyproject.toml
+│   ├── .env.example
+│   ├── src/linescope/
+│   │   └── migrations/
+│   └── tests/
+├── frontend/           # 現在は後続開発の案内のみ
+├── docs/               # 19文書と変更履歴
+└── README.md
+```
+
+`backend/src/linescope`の`linescope`はPythonのimport名。Frontendはサーバサイド完成後に実装する。
+Backendのpackage・依存・テスト設定は`backend/pyproject.toml`で管理する。
+
 ## 起動
 
 Python 3.12以上とPostgreSQLを用意する。検証環境はPython 3.14.4 / PostgreSQL 18.6。
+以下のコマンドはリポジトリのルートで実行する。
 
 ```sh
 python3 -m venv .venv
-.venv/bin/pip install -e '.[dev]'
+.venv/bin/pip install -e './backend[dev]'
 ```
 
 `LINESCOPE_DSN`へ接続先、`LINESCOPE_USERS`へサーバ側のデモ認証設定を渡す。
 形式は`{"<secret-token>":{"user_id":"<user>","role":"floor|maintenance|production|manager"}}`。
 実際のcredentialは環境変数または非管理の`.env`へ保管する。`.env`は自動では読み込まない。
+設定例は`backend/.env.example`に置く。
 空のユーザー設定では全HTTP要求が401となる。
 
 ```sh
@@ -35,10 +57,10 @@ migrationはadvisory lock下の単一トランザクションでSQLを順に適�
 ## 検証
 
 ```sh
-.venv/bin/ruff check src tests
-.venv/bin/ruff format --check src tests
-.venv/bin/pytest -q
-LINESCOPE_TEST_DSN='<test PostgreSQL connection>' .venv/bin/pytest -q
+.venv/bin/ruff check backend
+.venv/bin/ruff format --check backend
+.venv/bin/pytest backend/tests -q
+LINESCOPE_TEST_DSN='<test PostgreSQL connection>' .venv/bin/pytest backend/tests -q
 ```
 
 DBテストは明示された接続先に一時schemaを作成し、終了時にそのschemaだけを削除する。
@@ -48,6 +70,7 @@ DBテストは明示された接続先に一時schemaを作成し、終了時に
 
 業務モデル・migration、Read Tools、Prepare / Approval / Execute、Outbox / Projection、Graph分析、RAG / Agentを機能単位で実装・テスト・commitする。
 先行実装はGit stashへ退避し、レビューして必要な部分を段階的に取り込む。
+stashは再構成前のパスを保持しているため、取り込むコードを`backend/`の構成へ合わせる。
 LLM / embeddingの製品選定・品質評価、Docker起動、CI、受入基準全体の検証は未完了。
 
 サーバサイド完成後に、Palantir AIP Analystを参考にした、LogiScopeよりリッチなFrontendを構築する。

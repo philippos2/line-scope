@@ -207,5 +207,7 @@ EquipmentState更新の現在状態・履歴は同一Transactionで保存し、�
 
 2026-10-09のプロダクトオーナー指示により、Frontendはプロダクト全体の計画へ含める。
 サーバサイドを先に完成させ、その後、Palantir AIP Analystを参考にした、LogiScopeよりリッチなFrontendを構築する。
+Frontendは、AIとの対話から工場の状況・依存関係・影響経路・根拠を確認し、更新案の確認・承認・実行へ進める分析ワークスペースを目指す。
+対話・分析結果・根拠・更新案・承認状況を関連付けて確認できる体験とする。AIP Analystの実画面や機能の忠実な再現は要求しない。
 現時点では画面・操作・Frontend frameworkの詳細を推測で確定しない。後続フェーズでUI要件・設計・受入基準を具体化する。
 Frontendの追加で、認証・権限・人によるApproval / requesterによるExecuteの既存境界は変更しない。

@@ -35,3 +35,13 @@ FastAPI TestClientにはhttpxに関する非推奨警告が1件あり、テス�
 requirements.md §11 / §13、architecture.md §12、READMEへ反映した。
 以前のUI除外は現在のサーバ実装フェーズに限定し、Frontendを後続計画として記録する。
 Frontendの実装・具体framework選定はこの文書変更では行っていない。
+
+## 単一リポジトリの再構成
+
+利用者の指示で、後続Frontendを前提にBackendをbackend/配下へ移動した。
+pyproject.toml / .env.example / src / testsを移動し、frontend/には計画の案内だけを置いた。
+README、architecture.md §13、operations.md §11のパスと実行手順を更新した。
+Python import名・API・DB・migration内容は変更していない。
+先行実装のstashは元のパスのまま保全し、取り込み時に新構成へ合わせる。
+続く利用者確認で、対話から工場状況・依存Graph・根拠を確認し、更新案・承認・実行へ進む分析ワークスペースというFrontend方針が支持された。
+requirements.md §13とfrontend/README.mdに方向性を記録し、画面・frameworkの詳細は後続設計へ残した。

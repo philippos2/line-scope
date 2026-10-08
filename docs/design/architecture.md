@@ -106,5 +106,12 @@ Rebuild controllerは単一workerと同じleader lockを取得してOutboxをdra
 
 pgvectorはこの構成では採用しない。ベクトル検索の責務はQdrantに置く既存設計を維持する。
 LogiScopeの技術構成を継承したものではなく、LineScopeの責務定義に基づく構成とする。
-採用packageのversionはpyproject.toml、検証環境と起動手順はoperations.md / README.mdに記録する。
+採用Backend packageのversionはbackend/pyproject.toml、検証環境と起動手順はoperations.md / README.mdに記録する。
 基盤チェックポイントのhealth / readiness成功は、業務API・Graph・RAGの実装完了を意味しない。
+
+## 13. リポジトリ構成
+
+LineScopeは単一リポジトリとし、ルートにbackend / frontend / docsを置く。
+Python packageはbackend/src/linescope、Backendテストはbackend/tests、package・依存・Tool設定はbackend/pyproject.tomlで管理する。
+frontendは後続UIの配置先とし、サーバサイド完成前は実装を追加しない。
+docsは仕様の正本と変更履歴を保持する。実装ディレクトリの分離でDB・認証・Approval / Executeの責務を変更しない。
