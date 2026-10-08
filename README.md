@@ -113,7 +113,8 @@ Contextのuser / role / request_idはAPI認証層が生成し、Tool引数から
 
 `linescope.canonical`はtransaction-design §15・20の直列化・SHA-256・厳格なJSON読込みと、型指定されたUUID / UTC日時 / ID集合の正規化を提供する。
 通常文字列のUnicodeやordered arrayを勝手に正規化しない。重複key、float / decimal、surrogate、timezoneなし・microsecondを超える精度の日時を拒否する。
-Snapshotの業務schema、hash対象の選定・監査項目の除外、Target順序・schema version検証、CREATE時ID固定、保存後の照合は次のSnapshot構築工程で実装する。
+`linescope.snapshot`は設備状態UPDATEのCanonical Snapshot v1を構築・検証する。before / afterの全業務項目、expected_versionとversion増分、ID一致、Target順序・重複、schema version、明示NULL、canonical textとhashの一致を検証し、監査時刻を除外する。requesterはTrusted Execution Contextから取得する。
+保存形式を再読込みしても同じ検証を行い、取得したdataの変更ではSnapshotを変更できない。これは純粋な構築層であり、正本の取得・権限検証・DB保存・Approval / Executeは後続工程。その他の更新カテゴリとCREATEは未対応として拒否する。
 
 ## 次のチェックポイント
 
