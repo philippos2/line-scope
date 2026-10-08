@@ -25,9 +25,9 @@ GitHub設定を変更する際は既存保護・required checksを維持し、�
 ## CI
 
 現在のrequired checksは`Tests and migrations`と`PR title`とする。
-Backend CIはlint / format、実PostgreSQLでの基盤・業務DB制約テスト・migration検証、CLI疎通を実行する。
+Backend CIはDocker内でlint / format、実PostgreSQLでの基盤・業務DB制約テスト・migration検証、runtime imageの起動・CLI疎通を実行する。
 全PRでCIを実行し、required jobをpath filterで省略しない。
-依存はbackend/requirements-dev.lockで固定し、変更時に更新・検証する。
+Runtime依存はbackend/requirements.lock、開発依存はbackend/requirements-dev.lockで固定し、共通packageのversionを揃えて更新・検証する。
 
 Frontendはサーバサイド完成後に追加し、その実装時に`Frontend tests and build`をCI・required checksへ追加する。
 LogiScopeの同名checkや既存保護は、このリポジトリの設定作業では変更しない。
