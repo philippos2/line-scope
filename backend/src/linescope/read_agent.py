@@ -37,11 +37,14 @@ class ReadAgentResult:
 
 
 class ReadAgent:
-    def __init__(self, dispatcher, llm, *, clock=monotonic):
+    def __init__(self, dispatcher, llm, *, clock=monotonic, event_logger=None):
         self.dispatcher, self.llm, self.clock = dispatcher, llm, clock
+        self.events = event_logger
 
     def run(self, context, request, *, previous_messages=None):
-        session = AgentToolSession(context, request, self.dispatcher, clock=self.clock)
+        session = AgentToolSession(
+            context, request, self.dispatcher, clock=self.clock, event_logger=self.events
+        )
         # These modes require the future context/update/temporal orchestrator.
         if (
             (request.context_id and previous_messages is None)
@@ -96,7 +99,12 @@ class ReadAgent:
                 result, failure = None, None
                 for attempt in range(3):  # Initial attempt plus at most two transient retries.
                     try:
-                        result = session.run(call.name, call.arguments)
+                        result = session.run(
+                            call.name,
+                            call.arguments,
+                            tool_call_id=call.call_id,
+                            attempt_count=attempt + 1,
+                        )
                         if not isinstance(result, ReadResult):
                             raise ToolError(
                                 "INTERNAL_ERROR", "Read Tool returned an invalid result"
