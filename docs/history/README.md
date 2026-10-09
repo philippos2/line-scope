@@ -272,3 +272,13 @@ PR #35 merge後、POST /agent接続に先立つ内部受付基盤を追加した
 Dockerで追加31件と既存Proposal保存・再送を合わせた113テスト成功、ruff check / format、git diff --check成功。入力正規化と各hash要素、秘密field注入、owner境界、コピー隔離、更新起点TTLと期限一致、読むだけでの非延長、Context失効後の永続Prepare再送を確認した。agent-design §4 / 12、operations §10の設定表、transaction-design §15 / 20、T-R02 / R03 / R17の内部境界部分に対応する。全体回帰はCIで検証する。
 
 POST /agent、LLM、意思確認、Tool実行上限・deadline、Context候補の正本再検証、HTTP再送の順序制御への接続は後続。保存済み要求の照合をContext検証より先に行う責務は将来orchestratorへ残す。この基盤だけでAgentが動作したとは扱わない。仕様・DB / migration・依存・Frontendは変更せず、LogiScopeコードの再利用もない。
+
+## Agent Tool実行予算チェックポイント
+
+PR #36 merge後、既存ToolDispatcherへのAgentToolSessionを追加した。trusted ExecutionContextと受付済みAgentInputを保持し、retry key・Agent hash・明示置換IDを別引数で注入する。既定Tool上限12回、時間予算60秒で、開始前・終了後の期限一致もAGENT_LIMIT_REACHEDとして拒否する。未登録Tool、未知の管理操作、Approval / Executeをdispatchしない。拒否・失敗した呼出しも予算へ含める。
+
+Prepareはdefaultでschema非公開・呼出し拒否とし、将来orchestratorのサーバ側意思確認結果だけで有効化する。LLM引数から有効化しない。今回の制御では一turnにつきPrepare試行を最大1回とする。失敗後の自動retryは行わず、後続turnでは永続retry照合を用いる。並行admissionもlock下で回数・Prepare枠を確保する。
+
+Prepare保存後のdeadline到達時もSavedProposalを保持し、error detailsにupdate_request_id / approval_id / statusを含める。保存済み提案を失敗によって消したり二重生成したりせず、成功回答へ偽装しない。Dockerで追加25件と既存受付・dispatcherを合わせた93テスト成功、ruff check / format、git diff --check成功。実PostgreSQLで既存dispatcherのRead / Prepare・業務状態非変更、期限超過後の保存済み要求の再送も検証した。agent-design §12、operations §10、T-R17とAC-02 / 05 / 14の内部制御部分に対応する。
+
+時間予算は同期Toolの開始前・終了後の判定であり、実行途中の強制中断を保証しない。LLM timeoutと下流dependency timeoutへの残予算伝播、明示更新意思の判定、HTTP / Agent接続、Tool trace / operation log、Read一時障害のbounded retryは後続。これだけで60秒以内のHTTP終了やAgent全体完成とは扱わない。正式仕様・DB / migration・依存・Frontendは変更せず、LogiScopeコードの再利用、Astraレビューもない。

@@ -23,7 +23,7 @@ AIによる自律的な最終判断・承認・実行、実設備制御、在庫
 | PostgreSQL | 業務10テーブルと更新要求・Target・承認の3テーブル、DB制約、checksum付きmigrationを実装 |
 | 正本参照 | ID参照・設備割当参照・検索の内部Read Tool 13種を実装 |
 | Tool呼出し | Read 13種・Prepare 6種の固定dispatcherを実装。単一／複数入力とカテゴリ境界を検証。Agent・HTTP接続は後続 |
-| Agent受付基盤 | 厳密な入力検証・再送hash、本人限定の30分Contextを内部実装。POST /agent・LLM接続は後続 |
+| Agent受付基盤 | 厳密な入力検証・再送hash、本人限定の30分Context、Tool回数・期限境界・Prepare制限を内部実装。POST /agent・LLM接続は後続 |
 | 更新提案 | 設備状態、保全予定・実績、生産作業の予定値・設備割当、依存関係のCanonical Snapshotを構築・検証 |
 | Prepare / Approval / Execute | 設備状態UPDATE、保全の予定UPDATE・予定／実績CREATE混在、生産作業の予定値UPDATE・設備割当置換、依存関係CREATE／UPDATE／DISABLEの内部Prepareを実装。正本の一貫参照・権限・業務制約・Snapshot保存、再送、原子的な置換に対応。Prepare API / Tool公開、承認／実行処理は後続 |
 | Graph / Outbox | Neo4j Projection、同期管理、依存・影響分析は後続 |
