@@ -9,6 +9,8 @@ from starlette.concurrency import run_in_threadpool
 from starlette.exceptions import HTTPException
 
 from .agent_input import AgentInput, ConversationStore
+from .approvals import EquipmentApproval
+from .canonical import strict_json
 from .database import Database
 from .equipment_command import EquipmentCommandPrepare
 from .http_logging import RequestMiddleware
@@ -78,6 +80,7 @@ def create_app(settings=None, database=None, event_logger=None, *, llm=None, con
     app.state.database = database
     app.state.read_tools = ReadTools(database)
     equipment_prepare = EquipmentCommandPrepare(database, event_logger=events)
+    equipment_approval = EquipmentApproval(database, event_logger=events)
 
     conversations = conversations or ConversationStore()
     if llm is None and settings.llm_model:
@@ -121,6 +124,45 @@ def create_app(settings=None, database=None, event_logger=None, *, llm=None, con
             }.get(error.code, 500)
             return response(request, code=error.code, status_code=status)
         return response(request, json_value(data))
+
+    @app.post("/approvals/{approval_id}/approve")
+    async def approve(request: Request, approval_id: str):
+        try:
+            if (
+                request.headers.get("content-type", "").split(";")[0].strip().lower()
+                != "application/json"
+            ):
+                raise ValueError("JSON required")
+            body = strict_json(await request.body())
+            if type(body) is not dict or set(body) != {"snapshot_hash"}:
+                raise ValueError("Only Snapshot hash is accepted")
+        except (ValueError, TypeError):
+            return response(request, code="INVALID_ARGUMENT", status_code=400)
+        try:
+            result = await run_in_threadpool(
+                equipment_approval.approve,
+                request.state.execution_context,
+                approval_id,
+                body["snapshot_hash"],
+            )
+        except ProposalError as error:
+            code = "APPROVAL_HASH_MISMATCH" if error.code == "APPROVAL_MISMATCH" else error.code
+            return response(request, code=code, status_code=error_status(code))
+        return response(request, json_value(result))
+
+    @app.post("/approvals/{approval_id}/reject")
+    async def reject(request: Request, approval_id: str):
+        if await request.body():
+            return response(request, code="INVALID_ARGUMENT", status_code=400)
+        try:
+            result = await run_in_threadpool(
+                equipment_approval.reject,
+                request.state.execution_context,
+                approval_id,
+            )
+        except ProposalError as error:
+            return response(request, code=error.code, status_code=error_status(error.code))
+        return response(request, json_value(result))
 
     async def prepared_response(request, context, saved):
         try:
@@ -266,6 +308,8 @@ def error_status(code):
         "DUPLICATE_REQUEST": 409,
         "CONTEXT_EXPIRED": 409,
         "INVALID_UPDATE_STATE": 409,
+        "APPROVAL_HASH_MISMATCH": 409,
+        "VERSION_CONFLICT": 409,
         "BUSINESS_RULE_VIOLATION": 422,
         "RESOURCE_BUSY": 503,
         "DEPENDENCY_UNAVAILABLE": 503,
