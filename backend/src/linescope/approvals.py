@@ -312,6 +312,32 @@ class MaintenancePlanCreateApproval(_HumanApproval):
         return "CREATE_CONFLICT" if row["conflict"] else None
 
 
+class MaintenanceRecordCreateApproval(_HumanApproval):
+    """Internal record CREATE approval; reference revalidation belongs to Execute."""
+
+    @staticmethod
+    def _require_scope(category, saved):
+        if category != "MAINTENANCE" or any(
+            t["target_type"] != "MaintenanceRecord" or t["operation_type"] != "CREATE"
+            for t in saved.snapshot.data["targets"]
+        ):
+            raise ProposalError(
+                "INVALID_ARGUMENT", "This transaction supports maintenance record CREATE only"
+            )
+
+    @staticmethod
+    def _conflict_code(connection, targets):
+        row = connection.execute(
+            "SELECT EXISTS(SELECT 1 FROM maintenance_record "
+            "WHERE maintenance_record_id=ANY(%s::uuid[]) OR record_code=ANY(%s::text[])) AS conflict",
+            (
+                [t["target_id"] for t in targets],
+                [t["after"]["record_code"] for t in targets],
+            ),
+        ).fetchone()
+        return "CREATE_CONFLICT" if row["conflict"] else None
+
+
 class HumanApproval(_HumanApproval):
     """Dispatch only supported saved Targets, inside the shared locked transaction."""
 
