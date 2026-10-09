@@ -10,6 +10,10 @@ from .assignments import _record as assignment_record
 from .relations import _record as relation_record
 
 
+class DependencyCycleError(ValueError):
+    """A valid final row set contains a prohibited structural cycle."""
+
+
 def validate_dependency_cycles(relations, assignments):
     """Reject structural cycles, regardless of effective periods or required.
 
@@ -69,4 +73,4 @@ def validate_dependency_cycles(relations, assignments):
             if incoming[target] == 0:
                 ready.append(target)
     if removed != len(incoming):
-        raise ValueError("Prohibited structural dependency cycle")
+        raise DependencyCycleError("Prohibited structural dependency cycle")
