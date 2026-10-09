@@ -6,7 +6,7 @@ from psycopg.types.json import Jsonb
 
 from .approvals import MaintenancePlanUpdateApproval
 from .audit import failed_attempt
-from .canonical import normalize_uuid
+from .canonical import normalize_timestamp, normalize_uuid
 from .execute_policy import ApprovalFacts, validate_new_execute
 from .execution import ExecutionContext
 from .logging import EventLogger, request_context
@@ -371,3 +371,56 @@ class MaintenancePlanUpdateExecute(_UpdateExecute):
             )
             if updated.rowcount != 1:
                 raise ProposalError("VERSION_CONFLICT", "Maintenance plan version has changed")
+
+    def observe_current(self, result):
+        """Read the whole current plan set separately from the confirmed result."""
+        targets = result["targets"]
+        if not targets or any(
+            t["target_type"] != "MaintenancePlan" or t["operation_type"] != "UPDATE"
+            for t in targets
+        ):
+            raise ProposalError("INVALID_ARGUMENT", "Maintenance plan UPDATE result required")
+        ids = [target["target_id"] for target in targets]
+        with self.store._transaction(read_only=True) as c:
+            row = c.execute(
+                "SELECT statement_timestamp() AS observed_at, "
+                "(SELECT jsonb_agg(to_jsonb(p) ORDER BY maintenance_plan_id) "
+                "FROM (SELECT maintenance_plan_id,plan_code,equipment_id,planned_start,planned_end,plan_status,version "
+                "FROM maintenance_plan WHERE maintenance_plan_id=ANY(%s::uuid[])) p) AS plans",
+                (ids,),
+            ).fetchone()
+        plans = row["plans"] or []
+        if len(plans) != len(targets):
+            raise ProposalError("TARGET_NOT_FOUND", "A current plan is unavailable")
+        plans = [
+            {
+                **p,
+                "planned_start": normalize_timestamp(p["planned_start"]),
+                "planned_end": normalize_timestamp(p["planned_end"]),
+            }
+            for p in plans
+        ]
+        confirmed = {t["target_id"]: t["after"]["version"] for t in targets}
+        return {
+            "current_snapshot": {
+                "targets": [
+                    {
+                        "target_type": "MaintenancePlan",
+                        "target_id": p["maintenance_plan_id"],
+                        "snapshot": p,
+                    }
+                    for p in plans
+                ]
+            },
+            "current_versions": [
+                {
+                    "target_type": "MaintenancePlan",
+                    "target_id": p["maintenance_plan_id"],
+                    "version": p["version"],
+                    "confirmed_version": confirmed[p["maintenance_plan_id"]],
+                    "version_delta": p["version"] - confirmed[p["maintenance_plan_id"]],
+                }
+                for p in plans
+            ],
+            "observed_at": row["observed_at"],
+        }
