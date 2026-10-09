@@ -38,3 +38,7 @@
 ## 設備状態Snapshotチェックポイント
 
 2026-10-09、PR #8 merge後にmainを更新し、設備状態UPDATEに限定してCanonical Snapshot v1の構築・再検証を実装した。transaction-design §15・20に従い、業務項目・version・ID・Target順序・重複・明示NULL・hashを検証する。Docker内で293テスト（既存239 + 追加54）とlint/format成功。AC-07 / T-R03のSnapshot境界に対応する部分実装であり、正本読込・権限・永続化・Approval / Execute・その他カテゴリは後続。READMEの実装状況だけを更新し、19文書の仕様正本は変更していない。LogiScopeコードの再利用はない。
+
+## 保全予定UPDATE Snapshotチェックポイント
+
+2026-10-09、PR #9 merge後、api-tools §16に従い保全予定UPDATEのSnapshot構築・再読込み検証を追加した。変更可能な3項目、全業務項目・version、業務キー、UTC日時・期間、一要求一カテゴリを検証する。Docker内で333テスト（追加40）とlint/format成功。AC-07 / T-R03のhash・schema境界、T-R07のカテゴリ拒否部分を検証した。Prepare・権限・保存・Approval / Execute、CREATEと他カテゴリは後続。仕様正本の変更・LogiScopeコードの再利用はない。

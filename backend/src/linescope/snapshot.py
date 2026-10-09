@@ -1,4 +1,4 @@
-"""Canonical Snapshot v1 for equipment-state UPDATEs.
+"""Canonical Snapshot v1 for equipment-state and maintenance-plan UPDATEs.
 
 This pure construction/validation layer does not authorize, persist or execute
 updates. Prepare must supply current PostgreSQL state and check permissions.
@@ -10,7 +10,7 @@ import hmac
 import re
 from dataclasses import dataclass
 
-from .canonical import canonical_json, normalize_uuid, strict_json
+from .canonical import canonical_json, normalize_timestamp, normalize_uuid, strict_json
 from .execution import ExecutionContext
 
 MAX_VERSION = 2**63 - 1
@@ -68,7 +68,7 @@ def equipment_state_target(current, state_code):
     }
 
 
-def _target(value):
+def _state_target(value):
     _exact(value, TARGET_FIELDS)
     if value["target_type"] != "EquipmentState" or value["operation_type"] != "UPDATE":
         raise ValueError("Unsupported Snapshot target or operation")
@@ -95,6 +95,100 @@ def _target(value):
     }
 
 
+PLAN_FIELDS = {
+    "maintenance_plan_id",
+    "plan_code",
+    "equipment_id",
+    "planned_start",
+    "planned_end",
+    "plan_status",
+    "version",
+}
+PLAN_PATCH_FIELDS = {"planned_start", "planned_end", "plan_status"}
+
+
+def _plan_record(value):
+    _exact(value, PLAN_FIELDS)
+    if type(value["plan_code"]) is not str:
+        raise ValueError("Plan code must be text")
+    if type(value["plan_status"]) is not str or value["plan_status"] not in {
+        "PLANNED",
+        "CANCELLED",
+    }:
+        raise ValueError("Invalid maintenance plan status")
+    start = normalize_timestamp(value["planned_start"])
+    end = normalize_timestamp(value["planned_end"])
+    if start >= end:
+        raise ValueError("Maintenance plan start must precede end")
+    return {
+        "maintenance_plan_id": normalize_uuid(value["maintenance_plan_id"]),
+        "plan_code": value["plan_code"],
+        "equipment_id": normalize_uuid(value["equipment_id"]),
+        "planned_start": start,
+        "planned_end": end,
+        "plan_status": value["plan_status"],
+        "version": _version(value["version"]),
+    }
+
+
+def maintenance_plan_target(current, patch):
+    """Apply only Tool-contract fields to a trusted complete PostgreSQL row."""
+    before = _plan_record(current)
+    if type(patch) is not dict or not patch or not set(patch) <= PLAN_PATCH_FIELDS:
+        raise ValueError("Invalid maintenance plan patch")
+    after = _plan_record({**before, **patch, "version": before["version"] + 1})
+    return _plan_target(
+        {
+            "target_type": "MaintenancePlan",
+            "target_id": before["maintenance_plan_id"],
+            "business_key": {"plan_code": before["plan_code"]},
+            "operation_type": "UPDATE",
+            "before": before,
+            "after": after,
+            "expected_version": before["version"],
+        }
+    )
+
+
+def _plan_target(value):
+    _exact(value, TARGET_FIELDS)
+    if value["target_type"] != "MaintenancePlan" or value["operation_type"] != "UPDATE":
+        raise ValueError("Unsupported maintenance plan operation")
+    identifier = normalize_uuid(value["target_id"])
+    _exact(value["business_key"], {"plan_code"})
+    before, after = _plan_record(value["before"]), _plan_record(value["after"])
+    if identifier != before["maintenance_plan_id"] or identifier != after["maintenance_plan_id"]:
+        raise ValueError("Snapshot maintenance plan IDs disagree")
+    if value["business_key"]["plan_code"] != before["plan_code"]:
+        raise ValueError("Snapshot maintenance plan business key disagrees")
+    for field in {"plan_code", "equipment_id"}:
+        if before[field] != after[field]:
+            raise ValueError("Maintenance plan immutable field changed")
+    expected = _version(value["expected_version"])
+    if before["version"] != expected or after["version"] != expected + 1:
+        raise ValueError("Snapshot versions disagree")
+    if all(before[field] == after[field] for field in PLAN_PATCH_FIELDS):
+        raise ValueError("Maintenance plan update must change a business value")
+    return {
+        "target_type": "MaintenancePlan",
+        "target_id": identifier,
+        "business_key": {"plan_code": before["plan_code"]},
+        "operation_type": "UPDATE",
+        "before": before,
+        "after": after,
+        "expected_version": expected,
+    }
+
+
+def _target(value):
+    _exact(value, TARGET_FIELDS)
+    if value["target_type"] == "EquipmentState":
+        return _state_target(value)
+    if value["target_type"] == "MaintenancePlan":
+        return _plan_target(value)
+    raise ValueError("Unsupported Snapshot target category")
+
+
 def _snapshot(value):
     _exact(value, ROOT_FIELDS)
     if type(value["schema_version"]) is not int or value["schema_version"] != 1:
@@ -104,6 +198,8 @@ def _snapshot(value):
     if type(value["targets"]) is not list or not value["targets"]:
         raise ValueError("Snapshot requires at least one target")
     targets = [_target(target) for target in value["targets"]]
+    if len({target["target_type"] for target in targets}) != 1:
+        raise ValueError("Snapshot must contain one business category")
     identities = [(target["target_type"], target["target_id"]) for target in targets]
     if len(set(identities)) != len(identities):
         raise ValueError("Duplicate Snapshot target")
@@ -145,6 +241,14 @@ class CanonicalSnapshot:
 
 
 def build_equipment_state_snapshot(context, targets, supersedes_update_request_id=None):
+    return _build_snapshot(context, targets, supersedes_update_request_id, "EquipmentState")
+
+
+def build_maintenance_plan_snapshot(context, targets, supersedes_update_request_id=None):
+    return _build_snapshot(context, targets, supersedes_update_request_id, "MaintenancePlan")
+
+
+def _build_snapshot(context, targets, supersedes_update_request_id, category):
     if not isinstance(context, ExecutionContext):
         raise ValueError("Trusted execution context is required")
     value = _snapshot(
@@ -155,5 +259,7 @@ def build_equipment_state_snapshot(context, targets, supersedes_update_request_i
             "targets": targets,
         }
     )
+    if any(target["target_type"] != category for target in value["targets"]):
+        raise ValueError("Snapshot builder category mismatch")
     text = canonical_json(value)
     return CanonicalSnapshot(text, hashlib.sha256(text.encode("utf-8")).hexdigest())
