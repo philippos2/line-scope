@@ -2,9 +2,10 @@
 
 from uuid import uuid4
 
+from psycopg.errors import ForeignKeyViolation, UniqueViolation
 from psycopg.types.json import Jsonb
 
-from .approvals import HumanApproval, MaintenancePlanUpdateApproval
+from .approvals import HumanApproval, MaintenancePlanCreateApproval, MaintenancePlanUpdateApproval
 from .audit import failed_attempt
 from .canonical import normalize_timestamp, normalize_uuid
 from .execute_policy import ApprovalFacts, validate_new_execute
@@ -13,6 +14,16 @@ from .logging import EventLogger, request_context
 from .proposals import LOOKUP, ProposalError, ProposalStore, _saved
 from .reads import json_value
 from .snapshot import CATEGORIES
+
+RETIRE_CODES = frozenset(
+    {
+        "VERSION_CONFLICT",
+        "CREATE_CONFLICT",
+        "BUSINESS_RULE_VIOLATION",
+        "APPROVAL_EXPIRED",
+        "APPROVAL_INVALIDATED",
+    }
+)
 
 
 class _UpdateExecute:
@@ -66,7 +77,7 @@ class _UpdateExecute:
         try:
             return self._execute(context, request_id, attempt)
         except ProposalError as error:
-            if error.code in {"VERSION_CONFLICT", "APPROVAL_EXPIRED", "APPROVAL_INVALIDATED"}:
+            if error.code in RETIRE_CODES:
                 replay = self._retire(context, request_id)
                 if replay is not None:
                     attempt["replayed"] = True
@@ -173,11 +184,7 @@ class _UpdateExecute:
                 self._validate(c, context, saved, approval)
                 self._targets(c, saved)
             except ProposalError as error:
-                if error.code not in {
-                    "VERSION_CONFLICT",
-                    "APPROVAL_EXPIRED",
-                    "APPROVAL_INVALIDATED",
-                }:
+                if error.code not in RETIRE_CODES:
                     raise
                 status = "EXPIRED" if error.code == "APPROVAL_EXPIRED" else "INVALIDATED"
                 c.execute(
@@ -424,6 +431,68 @@ class MaintenancePlanUpdateExecute(_UpdateExecute):
             ],
             "observed_at": row["observed_at"],
         }
+
+
+class MaintenancePlanCreateExecute(_UpdateExecute):
+    """Internal plan CREATE with fixed Snapshot IDs and DB uniqueness defense."""
+
+    @staticmethod
+    def _require_scope(saved):
+        category = CATEGORIES[saved.snapshot.data["targets"][0]["target_type"]]
+        MaintenancePlanCreateApproval._require_scope(category, saved)
+
+    @staticmethod
+    def _targets(c, saved):
+        targets = saved.snapshot.data["targets"]
+        if MaintenancePlanCreateApproval._conflict_code(c, targets):
+            raise ProposalError(
+                "CREATE_CONFLICT", "Maintenance plan ID or business key already exists"
+            )
+        equipment_ids = sorted({t["after"]["equipment_id"] for t in targets})
+        # Stabilize FK references until commit, without inventing an active-state
+        # requirement or treating unrelated Equipment changes as plan conflicts.
+        references = c.execute(
+            "SELECT equipment_id FROM equipment WHERE equipment_id=ANY(%s::uuid[]) "
+            "ORDER BY equipment_id FOR KEY SHARE",
+            (equipment_ids,),
+        ).fetchall()
+        if {str(r["equipment_id"]) for r in references} != set(equipment_ids):
+            raise ProposalError(
+                "BUSINESS_RULE_VIOLATION", "Maintenance equipment reference is missing"
+            )
+        return targets
+
+    @staticmethod
+    def _apply(c, request_id, targets, executed_at):
+        # CREATE has no existing row lock. Acquire unique business keys in a
+        # stable order so overlapping multi-plan requests do not insert them
+        # in opposite orders. Canonical Target/history order stays unchanged.
+        for target in sorted(targets, key=lambda t: (t["after"]["plan_code"], t["target_id"])):
+            after = target["after"]
+            try:
+                inserted = c.execute(
+                    "INSERT INTO maintenance_plan(maintenance_plan_id,plan_code,equipment_id,"
+                    "planned_start,planned_end,plan_status,version) VALUES(%s,%s,%s,%s,%s,%s,%s)",
+                    (
+                        after["maintenance_plan_id"],
+                        after["plan_code"],
+                        after["equipment_id"],
+                        after["planned_start"],
+                        after["planned_end"],
+                        after["plan_status"],
+                        after["version"],
+                    ),
+                )
+            except UniqueViolation as error:
+                raise ProposalError(
+                    "CREATE_CONFLICT", "Maintenance plan uniqueness conflict"
+                ) from error
+            except ForeignKeyViolation as error:
+                raise ProposalError(
+                    "BUSINESS_RULE_VIOLATION", "Maintenance reference is invalid"
+                ) from error
+            if inserted.rowcount != 1:
+                raise ProposalError("INTERNAL_ERROR", "Maintenance plan was not inserted")
 
 
 class HumanExecute(_UpdateExecute):
