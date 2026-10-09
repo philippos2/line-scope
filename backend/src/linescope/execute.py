@@ -1,4 +1,4 @@
-"""Internal equipment-state Execute. HTTP and current-value observation follow."""
+"""Equipment-state execution and separate post-commit current-value observation."""
 
 from uuid import uuid4
 
@@ -276,3 +276,39 @@ class EquipmentExecute:
                 after_status="COMPLETED",
             )
             return result
+
+    def observe_current(self, result):
+        """One statement observes all current targets after the execution commit."""
+        targets = result["targets"]
+        ids = [target["target_id"] for target in targets]
+        with self.store._transaction(read_only=True) as c:
+            row = c.execute(
+                "SELECT statement_timestamp() AS observed_at, "
+                "(SELECT jsonb_agg(jsonb_build_object('equipment_id',equipment_id,"
+                "'state_code',state_code,'version',version,'updated_at',updated_at) ORDER BY equipment_id) "
+                "FROM equipment_current_state WHERE equipment_id=ANY(%s::uuid[])) AS states",
+                (ids,),
+            ).fetchone()
+        states = row["states"] or []
+        if len(states) != len(targets):
+            raise ProposalError("TARGET_NOT_FOUND", "A current target is unavailable")
+        confirmed = {t["target_id"]: t["after"]["version"] for t in targets}
+        return {
+            "current_snapshot": {
+                "targets": [
+                    {"target_type": "EquipmentState", "target_id": s["equipment_id"], "snapshot": s}
+                    for s in states
+                ]
+            },
+            "current_versions": [
+                {
+                    "target_type": "EquipmentState",
+                    "target_id": s["equipment_id"],
+                    "version": s["version"],
+                    "confirmed_version": confirmed[s["equipment_id"]],
+                    "version_delta": s["version"] - confirmed[s["equipment_id"]],
+                }
+                for s in states
+            ],
+            "observed_at": row["observed_at"],
+        }
