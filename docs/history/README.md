@@ -200,3 +200,15 @@ T-R02 / R03 / R21とAC-07 / 13 / 14 / 16の内部Prepare・Snapshot・要求保�
 Docker内で926テスト成功（既存906 + 追加20）、ruff check / format、git diff --check成功。単一種別・自己・混在循環、保存方向と上流方向の差、inactiveによる循環解消、非重複期間・optional関係の循環拒否、許容循環除外、USES / PRECEDESの組合せ、typed UUID、並行edge、不正入力・重複ID、2,000段の非再帰処理と末尾閉路を検証した。AC-G12のtype / cycle検証部品に対応し、登録経路全体の受入完了ではない。
 
 設備割当Prepareの全正本取得・区間差分への接続、DependencyRelation Prepare、Approval / Execute時のGraph mutation lock下での最終集合再検証、API / Tool公開は後続。業務要件・DB・migration・依存・Frontendは変更せず、LogiScopeコードの再利用はない。
+
+## 生産作業・設備割当の内部Prepareチェックポイント
+
+2026-10-09、PR #29 mergeを確認しローカルmainをfast-forwardした後、POの指示でProductionPrepareを追加した。従来のProductionSchedulePrepareは同じ共通処理の予定値専用入口とし、入力schema制限と保存済みretry hashを保持する。新入口は予定値のみ、割当置換のみ、同時変更、同カテゴリ複数親を受け付ける。認可・正規化・再送照合を正本読込より先に行い、指定設備不存在・不正期間・不正patch・no-opは要求全体を拒否する。
+
+割当を含む場合、対象生産作業の全業務値・version、全Assignment（inactiveも含む）、全DependencyRelation、指定設備の存在を単一statement Snapshotで取得する。既存の区間差分・Snapshot構築を使い、明示[start,end)外を保持し、inactive業務キーはversion付きUPDATEで再利用する。親は変更前後の全active集合を固定し、予定値との同時変更でもversion増分は1。全対象の差分適用後にAssignment集合の一意性・期間重複と混在禁止循環を検証し、一Snapshotを保存する。新IDが対象外の既存Assignment IDと衝突する場合も拒否する。禁止循環と入力行不整合は型付き例外で区別する。
+
+Docker内の実PostgreSQLで962テスト成功（既存926 + 追加36）、ruff check / format、git diff --check成功。期間外の両側保持、空集合・明示NULL、inactiveキー再利用、予定値との同時変更・親version、no-op、指定設備不存在・不正入力・全Target拒否、権限、正規化再送・旧入口互換・正本変更後のID保持、4並行同key、全差分が最終循環検証へ渡ること、対象外の既存循環拒否、単一statement・非lock、Assignment版数上限・読込後の直接SQL変更・不正source重複・生成ID衝突、複数親の置換保存途中失敗による全rollbackと同key再試行、timeout・接続障害を確認した。既存テストを保持した。
+
+T-R02 / R03 / R08 / R21、AC-07 / 13 / 14 / 16 / 18 / G12の内部Prepare・Snapshot・要求保存・置換部分に対応する。Assignment業務行は更新せず、Graph USES ProjectionやExecute途中失敗は未実装。AC-18全体の完了ではない。正本観測後の競合はApproval / Executeで再検証し、Graph mutation lock下で最終集合検証する。
+
+現状の利用者向けHTTPはhealth / readinessのままで、業務API公開は後続。次は依存関係Prepareと、その後のTool / API接続を進める。デモseedとLLM / embedding疎通は未実施。PO-B、業務要件、DB / migration、依存、Frontendは変更せず、LogiScopeコードの再利用はない。
