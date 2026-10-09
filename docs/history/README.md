@@ -212,3 +212,13 @@ Docker内の実PostgreSQLで962テスト成功（既存926 + 追加36）、ruff 
 T-R02 / R03 / R08 / R21、AC-07 / 13 / 14 / 16 / 18 / G12の内部Prepare・Snapshot・要求保存・置換部分に対応する。Assignment業務行は更新せず、Graph USES ProjectionやExecute途中失敗は未実装。AC-18全体の完了ではない。正本観測後の競合はApproval / Executeで再検証し、Graph mutation lock下で最終集合検証する。
 
 現状の利用者向けHTTPはhealth / readinessのままで、業務API公開は後続。次は依存関係Prepareと、その後のTool / API接続を進める。デモseedとLLM / embedding疎通は未実施。PO-B、業務要件、DB / migration、依存、Frontendは変更せず、LogiScopeコードの再利用はない。
+
+## 依存関係の最終集合検証チェックポイント
+
+2026-10-09、POから残りリソースで完了できる小タスクを求められ、依存関係Prepareの前提となるnormalize_relation_setを追加した。domain-model §14と既存DB UNIQUEに従い、全Target適用後の完全な行集合で、行IDと業務キーの重複をinactiveも含めて拒否する。同じtyped source / target / relation_typeのactive行について半開区間の期間重複を拒否する。境界だけ接する期間は許可し、NULL endは無期限とする。requiredの差は別の論理関係とは扱わない。
+
+既存の行schema検証とUTC / UUID正規化を使い、監査時刻を除く正規化行をID順で返す。入力は変更しない。RelationSetConflictで集合の業務制約違反を不正行schemaと区別する。Prepare / Executeの呼出し側は、変更前の行と差分を並べるのではなく、全変更を適用した最終集合を一貫した正本から供給する責務を持つ。
+
+Docker内で984テスト成功（既存962 + 追加22）、ruff check / format、git diff --check成功。半開境界・無期限・包含を含む重複、typed endpoint / 関係種別 / 保存方向の区別、required差、inactiveの期間重複と業務キー一意性、行ID重複、timezone同値キー、縮小／DISABLE後の最終集合、入力非変更・監査除外、不正配列・行・期間・boolを確認した。
+
+AC-11 / G12とdomain-model §14の業務キー・型・期間検証部品に対応する。DB読込・保存、endpointの存在 / active、権限、禁止循環、Graph mutation lock、API / Tool接続はこの部品の責務外で、受入基準全体の完成ではない。次回はこの部品と禁止循環検証を依存関係Prepareへ接続する。要件・DB / migration・依存・Frontendは変更せず、LogiScopeコードの再利用はない。

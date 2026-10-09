@@ -198,3 +198,46 @@ def dependency_relation_target(current, patch=None, *, operation_type="UPDATE"):
             "expected_version": before["version"],
         }
     )
+
+
+class RelationSetConflict(ValueError):
+    """A final relation set violates identity, business-key or interval rules."""
+
+
+def normalize_relation_set(relations):
+    """Validate a complete final set; return normalized rows ordered by ID.
+
+    Callers supply all rows after every proposed change, including inactive rows.
+    This does not apply targets, fetch/lock DB rows, check endpoint existence or
+    detect cycles. Periods use [start,end); NULL end is positive infinity.
+    """
+    if type(relations) is not list:
+        raise ValueError("Complete relation array is required")
+    rows, identifiers, keys = [], set(), set()
+    logical_fields = sorted(KEY_FIELDS - {"effective_from"})
+    groups = {}
+    for value in relations:
+        if type(value) is not dict:
+            raise ValueError("Relation must be a record")
+        row = _record(
+            {key: item for key, item in value.items() if key not in {"created_at", "updated_at"}}
+        )
+        identifier = row["dependency_relation_id"]
+        logical = tuple(row[field] for field in logical_fields)
+        key = (logical, row["effective_from"])
+        if identifier in identifiers or key in keys:
+            raise RelationSetConflict("Duplicate relation ID or business key")
+        identifiers.add(identifier)
+        keys.add(key)
+        rows.append(row)
+        if row["active"]:
+            groups.setdefault(logical, []).append(row)
+    for group in groups.values():
+        group.sort(key=lambda row: row["effective_from"])
+        for previous, current in zip(group, group[1:]):
+            if (
+                previous["effective_to"] is None
+                or current["effective_from"] < previous["effective_to"]
+            ):
+                raise RelationSetConflict("Overlapping active relation periods")
+    return sorted(rows, key=lambda row: row["dependency_relation_id"])
