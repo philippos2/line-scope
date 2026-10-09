@@ -416,12 +416,12 @@ def test_stored_corruption_is_rejected_without_repair_or_state_change(db_store, 
     assert counts(db) == before
 
 
-def test_wrong_requester_invalid_snapshot_and_replacement_do_not_persist(db_store):
+def test_wrong_requester_invalid_snapshot_and_missing_replacement_do_not_persist(db_store):
     db, store = db_store
     for candidate, expected in [
         (snapshot(context("other")), "AUTHORIZATION_DENIED"),
         ("text", "INVALID_ARGUMENT"),
-        (snapshot(supersedes=str(uuid4())), "INVALID_ARGUMENT"),
+        (snapshot(supersedes=str(uuid4())), "TARGET_NOT_FOUND"),
     ]:
         with pytest.raises(ProposalError) as caught:
             save(store, candidate)
@@ -504,3 +504,299 @@ def test_real_retry_key_lock_timeout_leaves_no_proposal(db_store):
         finally:
             connection.execute("ROLLBACK")
     assert counts(db)["requests"] == 0
+
+
+def replace_proposal(store, old, *, identity=None, key=None, version=2, **changes):
+    identity = identity or context()
+    return save(
+        store,
+        snapshot(identity, version=version, supersedes=str(old.update_request_id)),
+        identity,
+        key,
+        agent_input_hash=canonical_hash(
+            {
+                "message": "Prepare changed stop",
+                "replace_update_request_id": str(old.update_request_id),
+            }
+        ),
+        **changes,
+    )
+
+
+def set_proposal_state(db, proposal, state, approval_state):
+    with db.transaction() as connection:
+        connection.execute(
+            "UPDATE update_request SET status=%s,execution_result=%s WHERE update_request_id=%s",
+            (
+                state,
+                Jsonb({"committed": True}) if state == "COMPLETED" else None,
+                proposal.update_request_id,
+            ),
+        )
+        approved = state in {"APPROVED", "EXPIRED", "COMPLETED"}
+        connection.execute(
+            "UPDATE approval SET status=%s,approver_id=%s,approved_at=%s,expires_at=%s,"
+            "consumed_at=%s WHERE update_request_id=%s",
+            (
+                approval_state,
+                "maintenance1" if approved or state == "REJECTED" else None,
+                NOW if approved else None,
+                NOW + timedelta(minutes=30) if approved else None,
+                NOW + timedelta(seconds=1) if state == "COMPLETED" else None,
+                proposal.update_request_id,
+            ),
+        )
+
+
+def proposal_rows(db, proposal):
+    with db.transaction() as connection:
+        return (
+            connection.execute(
+                "SELECT * FROM update_request WHERE update_request_id=%s",
+                (proposal.update_request_id,),
+            ).fetchone(),
+            connection.execute(
+                "SELECT * FROM approval WHERE update_request_id=%s", (proposal.update_request_id,)
+            ).fetchone(),
+        )
+
+
+@pytest.mark.parametrize("approved", [False, True])
+def test_replacement_invalidates_old_bundle_preserving_content_and_business_state(
+    db_store, approved
+):
+    db, store = db_store
+    old = save(store)
+    if approved:
+        set_proposal_state(db, old, "APPROVED", "APPROVED")
+    before = proposal_rows(db, old)
+    new = replace_proposal(store, old)
+    after = proposal_rows(db, old)
+    assert (after[0]["status"], after[1]["status"]) == ("INVALIDATED", "INVALIDATED")
+    for original, changed in zip(before, after, strict=True):
+        assert {k: v for k, v in original.items() if k not in {"status", "updated_at"}} == {
+            k: v for k, v in changed.items() if k not in {"status", "updated_at"}
+        }
+    assert new.update_request_id != old.update_request_id
+    assert new.approval_id != old.approval_id
+    assert (new.status, new.approval_status) == ("WAITING_APPROVAL", "PENDING")
+    assert new.snapshot.data["supersedes_update_request_id"] == str(old.update_request_id)
+    assert new.snapshot.snapshot_hash != old.snapshot.snapshot_hash
+    assert counts(db) == {"requests": 2, "targets": 2, "approvals": 2}
+    with db.transaction() as connection:
+        assert connection.execute(
+            "SELECT state_code,version FROM equipment_current_state"
+        ).fetchone() == {"state_code": "RUNNING", "version": 1}
+
+
+@pytest.mark.parametrize(
+    "state,approval_state",
+    [
+        ("REJECTED", "REJECTED"),
+        ("EXPIRED", "EXPIRED"),
+        ("COMPLETED", "CONSUMED"),
+        ("INVALIDATED", "INVALIDATED"),
+        ("FAILED", "INVALIDATED"),
+    ],
+)
+def test_terminal_replacement_rejected_without_changes(db_store, state, approval_state):
+    db, store = db_store
+    old = save(store)
+    set_proposal_state(db, old, state, approval_state)
+    before = proposal_rows(db, old)
+    with pytest.raises(ProposalError) as caught:
+        replace_proposal(store, old)
+    assert caught.value.code == "INVALID_UPDATE_STATE"
+    assert proposal_rows(db, old) == before
+    assert counts(db) == {"requests": 1, "targets": 1, "approvals": 1}
+
+
+@pytest.mark.parametrize("identity", [context("other"), context(role="production")])
+def test_replacement_checks_owner_and_current_request_permission(db_store, identity):
+    db, store = db_store
+    old = save(store)
+    before = proposal_rows(db, old)
+    with pytest.raises(ProposalError) as caught:
+        replace_proposal(store, old, identity=identity)
+    assert caught.value.code == "AUTHORIZATION_DENIED"
+    assert proposal_rows(db, old) == before and counts(db)["requests"] == 1
+
+
+@pytest.mark.parametrize("approved", [False, True])
+@pytest.mark.parametrize("failure_at", ["new_approval", "old_approval"])
+def test_replacement_failure_rolls_back_new_save_and_old_invalidation(
+    db_store, approved, failure_at
+):
+    db, store = db_store
+    old = save(store)
+    if approved:
+        set_proposal_state(db, old, "APPROVED", "APPROVED")
+    before = proposal_rows(db, old)
+    key = uuid4()
+    event = "INSERT" if failure_at == "new_approval" else "UPDATE"
+    with db.transaction() as connection:
+        connection.execute("""CREATE FUNCTION reject_replacement() RETURNS trigger LANGUAGE plpgsql
+        AS $$ BEGIN RAISE EXCEPTION USING ERRCODE='23514', MESSAGE='private injected failure';
+        END $$;""")
+        connection.execute(
+            f"CREATE TRIGGER injected_replacement_failure BEFORE {event} ON approval "
+            "FOR EACH ROW EXECUTE FUNCTION reject_replacement()"
+        )
+    with pytest.raises(ProposalError) as caught:
+        replace_proposal(store, old, key=key)
+    assert caught.value.code == "INTERNAL_ERROR" and "private" not in str(caught.value)
+    assert proposal_rows(db, old) == before
+    assert counts(db) == {"requests": 1, "targets": 1, "approvals": 1}
+    with db.transaction() as connection:
+        connection.execute("DROP TRIGGER injected_replacement_failure ON approval")
+    assert not replace_proposal(store, old, key=key).replayed
+    assert proposal_rows(db, old)[0]["status"] == "INVALIDATED"
+
+
+@pytest.mark.parametrize("change", ["approval_hash", "target", "missing_approval", "state_pair"])
+def test_replacement_rejects_old_integrity_failure_without_repair(db_store, change):
+    db, store = db_store
+    old = save(store)
+    with db.transaction() as connection:
+        if change == "approval_hash":
+            connection.execute("UPDATE approval SET snapshot_hash=%s", ("0" * 64,))
+        elif change == "target":
+            connection.execute("UPDATE update_target SET expected_version=9")
+        elif change == "missing_approval":
+            connection.execute("DELETE FROM approval")
+        else:
+            connection.execute("UPDATE update_request SET status='APPROVED'")
+    before = proposal_rows(db, old)
+    with pytest.raises(ProposalError) as caught:
+        replace_proposal(store, old)
+    assert caught.value.code == "INTERNAL_ERROR"
+    assert proposal_rows(db, old) == before and counts(db)["requests"] == 1
+
+
+@pytest.mark.parametrize("approved", [False, True])
+@pytest.mark.parametrize("same_key", [False, True])
+def test_parallel_replacements_serialize_with_one_winner(db_store, approved, same_key):
+    db, store = db_store
+    old = save(store)
+    if approved:
+        set_proposal_state(db, old, "APPROVED", "APPROVED")
+    key, barrier = uuid4(), Barrier(2)
+
+    def submit(index):
+        barrier.wait(timeout=5)
+        try:
+            return replace_proposal(store, old, key=key if same_key else uuid4(), version=index + 2)
+        except ProposalError as error:
+            return error
+
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        results = list(pool.map(submit, range(2)))
+    if same_key:
+        assert not any(isinstance(result, ProposalError) for result in results)
+        assert results[0].update_request_id == results[1].update_request_id
+        assert results[0].snapshot == results[1].snapshot
+        assert sorted(result.replayed for result in results) == [False, True]
+    else:
+        assert sum(not isinstance(result, ProposalError) for result in results) == 1
+        assert [r.code for r in results if isinstance(r, ProposalError)] == ["INVALID_UPDATE_STATE"]
+    assert counts(db) == {"requests": 2, "targets": 2, "approvals": 2}
+    assert (proposal_rows(db, old)[0]["status"], proposal_rows(db, old)[1]["status"]) == (
+        "INVALIDATED",
+        "INVALIDATED",
+    )
+
+
+def test_parallel_replacements_same_key_different_input_rejects_loser(db_store):
+    db, store = db_store
+    old = save(store)
+    key, barrier = uuid4(), Barrier(2)
+
+    def submit(index):
+        barrier.wait(timeout=5)
+        try:
+            return replace_proposal(
+                store, old, key=key, prepare_input_hash="0" * 64 if index else PREPARE_HASH
+            )
+        except ProposalError as error:
+            return error
+
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        results = list(pool.map(submit, range(2)))
+    assert sum(not isinstance(r, ProposalError) for r in results) == 1
+    assert [r.code for r in results if isinstance(r, ProposalError)] == ["DUPLICATE_REQUEST"]
+    assert counts(db)["requests"] == 2
+
+
+@pytest.mark.parametrize("terminal", [False, True])
+def test_replacement_replay_and_chain_keep_original_saved_snapshot(db_store, terminal):
+    db, store = db_store
+    old = save(store)
+    key = uuid4()
+    first = replace_proposal(store, old, key=key)
+    if terminal:
+        set_proposal_state(db, first, "COMPLETED", "CONSUMED")
+    else:
+        second = replace_proposal(store, first, version=3)
+        assert second.snapshot.data["supersedes_update_request_id"] == str(first.update_request_id)
+    before = proposal_rows(db, old), proposal_rows(db, first)
+    again = replace_proposal(store, old, key=key, version=100, identity=context(role="production"))
+    assert again.replayed and again.update_request_id == first.update_request_id
+    assert again.snapshot == first.snapshot
+    assert (proposal_rows(db, old), proposal_rows(db, first)) == before
+    assert again.status == ("COMPLETED" if terminal else "INVALIDATED")
+
+
+@pytest.mark.parametrize("locked_table", ["update_request", "approval"])
+def test_replacement_lock_timeout_preserves_old_and_creates_no_new_request(db_store, locked_table):
+    db, _ = db_store
+    store = ProposalStore(Database(Settings(dsn=db.settings.dsn, lock_ms=40)))
+    old = save(store)
+    before = proposal_rows(db, old)
+    with db.transaction() as blocker:
+        blocker.execute(
+            f"SELECT * FROM {locked_table} WHERE update_request_id=%s FOR UPDATE",
+            (old.update_request_id,),
+        )
+        with pytest.raises(ProposalError) as caught:
+            replace_proposal(store, old)
+        assert caught.value.code == "RESOURCE_BUSY"
+    assert proposal_rows(db, old) == before and counts(db)["requests"] == 1
+
+
+def test_parallel_same_retry_key_for_different_old_requests_invalidates_only_one(db_store):
+    db, store = db_store
+    old_requests = [save(store), save(store)]
+    key, barrier = uuid4(), Barrier(2)
+
+    def submit(old):
+        barrier.wait(timeout=5)
+        try:
+            return replace_proposal(store, old, key=key)
+        except ProposalError as error:
+            return error
+
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        results = list(pool.map(submit, old_requests))
+    assert sum(not isinstance(r, ProposalError) for r in results) == 1
+    assert [r.code for r in results if isinstance(r, ProposalError)] == ["DUPLICATE_REQUEST"]
+    assert sorted(proposal_rows(db, old)[0]["status"] for old in old_requests) == [
+        "INVALIDATED",
+        "WAITING_APPROVAL",
+    ]
+    assert sorted(proposal_rows(db, old)[1]["status"] for old in old_requests) == [
+        "INVALIDATED",
+        "PENDING",
+    ]
+    assert counts(db) == {"requests": 3, "targets": 3, "approvals": 3}
+
+
+def test_old_retry_returns_invalidated_original_without_replacing_again(db_store):
+    db, store = db_store
+    key = uuid4()
+    old = save(store, key=key)
+    replace_proposal(store, old)
+    replay = save(store, key=key)
+    assert replay.replayed and replay.update_request_id == old.update_request_id
+    assert replay.snapshot == old.snapshot
+    assert (replay.status, replay.approval_status) == ("INVALIDATED", "INVALIDATED")
+    assert counts(db)["requests"] == 2
