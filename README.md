@@ -19,6 +19,7 @@ AIによる自律的な最終判断・承認・実行、実設備制御、在庫
 | 領域 | 現在の状態 |
 |---|---|
 | API基盤 | FastAPI、Bearer認証、Trusted Execution Context、共通Response Envelopeを実装 |
+| 運用ログ | JSON出力、要求ID相関・HTTP結果・秘匿済み例外診断、ログレベル、Docker容量制限を実装。DB監査は後続 |
 | PostgreSQL | 業務10テーブルと更新要求・Target・承認の3テーブル、DB制約、checksum付きmigrationを実装 |
 | 正本参照 | ID参照・設備割当参照・検索の内部Read Tool 13種を実装 |
 | 更新提案 | 設備状態、保全予定・実績、生産作業の予定値・設備割当、依存関係のCanonical Snapshotを構築・検証 |
@@ -138,6 +139,24 @@ readinessでPostgreSQLへ接続できなければHTTP 503、`DEPENDENCY_UNAVAILA
 参照はREAD COMMITTED / READ ONLYで実行し、正本recordと構造化Evidenceを返します。過去時刻の割当参照は現在登録情報の期間評価であり、当時の状態の完全復元ではありません。
 
 `linescope.snapshot`はCanonical JSON / SHA-256、型・業務値・version・Targetの整合を検証します。設備割当は明示した半開期間だけを置換し、期間外を保持します。予定値と割当の同時変更でも親versionの増分は1です。[API / Tool契約](docs/implementation-design/api-tools.md)、[Snapshotの保存形式](docs/design/data-model.md)、[期間置換の業務ルール](docs/requirements/domain-model.md#152-equipment集合変更)を参照してください。
+
+## 運用ログ
+
+標準CLI / Docker起動ではAPIの起動・終了、HTTP結果、拒否・障害を1行JSONでstdoutへ記録します。Responseのrequest_idで追跡でき、認証済みactor、固定route、結果code、所要時間を含みます。URLの実パラメータ・本文・token・Snapshot・SQL・例外messageは出力しません。例外の診断はクラス名と最大20 frameのmodule / function / lineです。
+
+```sh
+docker compose logs --no-log-prefix --since 10m api
+```
+
+既定はLINESCOPE_LOG_LEVEL=INFO。正常なhealth / readinessのpollはDEBUGに抑え、拒否はINFO、一時依存障害はWARNING、内部障害はERRORです。必要なら起動済み環境で次のようにAPIを再作成してDEBUGにできます。DEBUGでも本文やcredentialは記録しません。
+
+```sh
+LINESCOPE_LOG_LEVEL=DEBUG docker compose up -d --no-deps api
+```
+
+runtime各サービスはDocker local driverの10m / 3 filesで容量を制限します。APIは構造化イベント、PostgreSQLは既存のnativeログです。容量制限は日数保証ではなく、コンテナ削除で運用ログは失われ得ます。DB監査・成功履歴は別の正本で、実装は後続です。Tool / workerイベントとcommit監査の統合も各機能で追加します。
+
+Uvicorn raw access logと依存loggerの制御は標準のlinescope serve起動で設定します。create_appだけを独自ASGI環境へ組み込む場合、起動側にも同じlogger設定が必要です。通常ログをAgentや一般ユーザーへ公開しません。設計・受入範囲は[ログ設計](docs/implementation-design/operations.md#13-ログ設計)を参照してください。
 
 ## テストとCI
 
