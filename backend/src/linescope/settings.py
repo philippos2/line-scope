@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import os
 from dataclasses import dataclass, field
+from urllib.parse import urlsplit
 
 ROLES = {"floor", "maintenance", "production", "manager"}
 
@@ -15,8 +16,26 @@ class Settings:
     statement_ms: int = 5000
     lock_ms: int = 5000
     log_level: str = "INFO"
+    llm_base_url: str = field(default="http://127.0.0.1:11434", repr=False)
+    llm_model: str = field(default="", repr=False)
 
     def __post_init__(self):
+        if type(self.llm_base_url) is not str or type(self.llm_model) is not str:
+            raise ValueError("Invalid LLM configuration")
+        url = urlsplit(self.llm_base_url)
+        if (
+            url.scheme not in {"http", "https"}
+            or not url.hostname
+            or url.username
+            or url.password
+            or url.query
+            or url.fragment
+            or url.path not in {"", "/"}
+        ):
+            raise ValueError("Invalid Ollama server URL")
+        _ = url.port
+        if self.llm_model != self.llm_model.strip():
+            raise ValueError("Invalid model name")
         if type(self.log_level) is not str or self.log_level not in {
             "DEBUG",
             "INFO",
@@ -57,7 +76,7 @@ class Settings:
                     json.loads(raw)
                     if name == "users"
                     else raw
-                    if name in {"dsn", "log_level"}
+                    if name in {"dsn", "log_level", "llm_base_url", "llm_model"}
                     else int(raw)
                 )
         return cls(**values)
