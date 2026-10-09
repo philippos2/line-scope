@@ -6,7 +6,7 @@
 
 設備・工程・生産作業・製品・インフラの関係から、停止時の影響や依存先を調べ、根拠を確認して業務更新へ進めるシステムを目指しています。AIは調査と更新提案を支援し、承認と実行は認証済みの人が操作します。
 
-> **現在はバックエンドを段階的に開発中です。** PostgreSQLの業務スキーマ、内部Read Tools、更新提案のSnapshot構築・検証と内部保存・再送・提案置換処理まで実装しています。HTTPから試せるのは認証付きhealth / readinessです。Agent・承認・実行・Graph・RAGの接続は後続工程です。
+> **現在はバックエンドを段階的に開発中です。** PostgreSQLの業務スキーマ、内部Read Tools、更新提案のSnapshot構築・検証と内部保存・再送・提案置換処理と固定Tool dispatcherまで実装しています。HTTPから試せるのは認証付きhealth / readinessです。Agent・承認・実行・Graph・RAGの接続は後続工程です。
 
 ## プロダクトの範囲
 
@@ -22,6 +22,7 @@ AIによる自律的な最終判断・承認・実行、実設備制御、在庫
 | 運用ログ | JSON出力、要求ID相関・HTTP結果・秘匿済み例外診断、ログレベル、Docker容量制限を実装。DB監査は後続 |
 | PostgreSQL | 業務10テーブルと更新要求・Target・承認の3テーブル、DB制約、checksum付きmigrationを実装 |
 | 正本参照 | ID参照・設備割当参照・検索の内部Read Tool 13種を実装 |
+| Tool呼出し | Read 13種・Prepare 6種の固定dispatcherを実装。単一／複数入力とカテゴリ境界を検証。Agent・HTTP接続は後続 |
 | 更新提案 | 設備状態、保全予定・実績、生産作業の予定値・設備割当、依存関係のCanonical Snapshotを構築・検証 |
 | Prepare / Approval / Execute | 設備状態UPDATE、保全の予定UPDATE・予定／実績CREATE混在、生産作業の予定値UPDATE・設備割当置換、依存関係CREATE／UPDATE／DISABLEの内部Prepareを実装。正本の一貫参照・権限・業務制約・Snapshot保存、再送、原子的な置換に対応。Prepare API / Tool公開、承認／実行処理は後続 |
 | Graph / Outbox | Neo4j Projection、同期管理、依存・影響分析は後続 |
