@@ -86,3 +86,13 @@ Docker内660テスト（追加54）、lint/format成功。同一／異入力の�
 ## 業務判断支援ユースケース・Business Scenarioの追加
 
 [追加・整合性レビュー記録](2026-10-09-business-scenarios-review.md)に、PO提示案の反映、補足ケース、PO判断待ち、数値・対応表・責務境界の確認を記録した。Business Scenarioの独立文書を追加し、正本文書は従来19から20文書になった。実装は停止したままであり、コード・設定は変更していない。
+
+## 更新提案の原子的な置換チェックポイント
+
+2026-10-09、PR #19 mergeと業務判断支援の文書整備後、利用者の指示でバックエンド実装を再開した。transaction-design §19の確定済み仕様に従い、ProposalStoreのsupersedes_update_request_idについて旧要求・承認のINVALIDATEDと新しいSnapshot / Target / PENDING Approval保存を一Transactionへ統合した。元requesterのみ、旧WAITING_APPROVAL / PENDINGまたはAPPROVED / APPROVEDのみ許可する。旧UpdateRequest → Approval順でrow lockを取得し、保存済みcanonical・Target・hash・状態組を照合する。新保存が失敗すれば旧失効もrollbackする。旧Snapshot・Target・承認hash・承認時刻は編集しない。
+
+同retry keyの並行置換ではold lock待機後に保存済み新要求を再検索して元結果を返す。別keyで同旧要求を置換する競合は一要求だけ成功し、異内容の同keyはDUPLICATE_REQUEST。異なる旧要求に同keyを使う競合でも、失敗側の旧要求を失効させない。終端旧要求・非owner・現在要求権限不足・保存データ不整合を拒否し、実DBのRequest / Approval lock timeoutでRESOURCE_BUSYを返す。
+
+Docker内の実PostgreSQLで688テスト成功（既存660 + 追加28）、ruff check / formatとgit diff --check成功。新承認INSERT時と旧承認UPDATE時の障害で、旧状態・時刻の保持、新行全rollback、同key再試行を検証した。置換後の旧retry、置換連鎖、新要求終端後再送も元SnapshotとIDを維持する。T-R03 / R05の置換・hash・終端保護、T-R02のowner scope・再送、AC-07 / 09 / 13 / 16の内部保存境界に対応する。受入基準全体の完了とは扱わない。
+
+READMEの実装状況を更新した。仕様正本・migration・依存・Frontendは変更していない。Prepare Tool / HTTP、正本の一貫取得・業務制約検証、入力hash生成、Approval / Execute、監査・履歴・Graph / Outbox、Agentは後続。今回の失効は内部保存処理に限定し、一般の承認・失効APIや監査保存の完成を意味しない。PO-Bの未決定ルールは補完していない。LogiScopeコードの再利用はない。
