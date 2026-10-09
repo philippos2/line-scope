@@ -1,4 +1,4 @@
-"""Plan CREATE approval is internal and observes uniqueness without inserting plans."""
+"""Plan CREATE approval observes uniqueness without inserting plans."""
 
 import io
 import json
@@ -165,13 +165,13 @@ def test_other_operations_and_record_targets_stay_outside_scope(prepared, kind):
 
 
 @pytest.mark.parametrize("action", ["approve", "reject"])
-def test_create_is_not_exposed_on_http_approval_yet(prepared, action):
+def test_create_http_approval_and_rejection_follow_the_saved_request(prepared, action):
     db, _, saved = prepared
     with client_for(db) as client:
         result = act(client, saved, action)
-        assert result.status_code == 400
-        assert result.json()["errors"][0]["code"] == "INVALID_ARGUMENT"
-    assert current(db, saved)["status"] == "WAITING_APPROVAL"
+        assert result.status_code == 200
+        assert result.json()["data"]["approval_id"] == str(saved.approval_id)
+    assert current(db, saved)["status"] == ("APPROVED" if action == "approve" else "REJECTED")
 
 
 @pytest.mark.parametrize("conflict", [False, True])
