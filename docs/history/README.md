@@ -104,3 +104,11 @@ READMEの実装状況を更新した。仕様正本・migration・依存・Front
 Python標準logging、Docker local driverの10m / 3 filesという小規模な方式はCodexの技術判断。新しい収集製品や業務状態は追加しない。業務監査のTransaction・閲覧境界を維持し、例外stackのmessage / args / locals等を出さない方式を指定した。保持は運用ログ容量とDB正本を分離し、DB監査の自動期限削除は導入しない。
 
 文書間の正本責務、秘匿、commit / rollback / 結果不明、相関、既存監査との整合、ローカルリンク・fence、追加IDとAC → Test、git diffを確認する。コード・設定・依存・migrationは変更しておらず、ログ設計は未実装・試験未実行。基本実装は次の独立PRで、DB監査やOutbox等は対応する業務機能のPRで導入する方針を推奨する。
+
+## プロダクトの範囲と要件の順序
+
+2026-10-09、PR #21 merge後、POの依頼で「やること／やらないこと」をrequirements §9〜11へ整理した。既存の対象業務・スコープ外に、確定済みの意思決定支援要件を対応させた。Frontendをスコープ外の列挙から後続フェーズへ移し、PO判断待ち・未実装・下位設計の限界を対象外と区別した。READMEへ概要、deliverablesへ正本の責務を反映した。新機能やPO-Bの未定義規則は追加確定していない。
+
+POが示した業務目的 → Use Case → 受入Scenario → Ontology / DB / API → Outbox / Projection / lockの順序と、Safety / SecurityのHard Constraintを除き上位意図を優先して下位再設計する方針をrequirements §2.1とdeliverablesへ明記した。既存設計を変更不可としたものではなく、変更は契約・AC・Testへ明示反映する。コード・設定・UIは変更せず、ログ基盤実装は別チェックポイントとした。
+
+文書の目的・対象内外・フェーズ区分をUC-B / R-B / Scenarioと照合し、ローカルリンク・fence・既存ID保持・git diffを検証する。新しい試験を追加せず、文書PRのCIで既存Backend / migrationを検証する。
