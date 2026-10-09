@@ -70,3 +70,9 @@
 2026-10-09、PR #15 merge後、DependencyRelationのCREATE / UPDATE / DISABLE Target構築とCanonical Snapshot保存形式の検証を追加した。endpoint型表・required未使用種別のfalse要求、明示NULL期間、現在versionと増分、ID固定、無効化・非変更拒否、同カテゴリ複数Targetを検証する。業務キー変更を許す既存要件に従いafterキーをTargetへ固定し旧キーをbeforeに保持する技術判断をCodexが行い、data-model §12とapi-tools §16へ必要な保存形式・入力補足を反映した。業務の関係意味・権限・承認条件は変更していない。
 
 Docker内552テスト（追加61）、lint/format成功。独立した型表に基づく400組合せのSnapshot検証と350組合せのPostgreSQL CHECK照合、再計算hash付きschema改変の拒否、業務キー交換を検証した。T-R03 / R07のSnapshot・カテゴリ境界に対応し、AC全体の完了とは扱わない。正本全体のendpoint存在・active、期間重複・循環・最終一意性、Prepare・永続化・権限・Approval / Execute・Graph / Outboxは後続。LogiScopeコードの再利用はない。
+
+## 更新要求・Target・承認DB基盤チェックポイント
+
+2026-10-09、PR #16 merge後、migration 003でupdate_request / update_target / approvalの3テーブルを追加した。requester単位retry key、global idempotency key、一要求一承認、Target ID・業務キーの重複、FK、状態列挙・操作種別、CREATE / UPDATEのNULL・version形状、hash形状、完了結果・承認期限・消費時刻をDB制約で防御する。既存migrationは変更せず、READMEとdata-modelの適用状況だけ更新した。状態遷移・要求と承認の許容組・権限・canonical/hash照合・Snapshot不変性は後続サービス層の責務で、今回のDB列挙制約だけで承認／実行機能の完了とは扱わない。
+
+Docker内606テスト（追加54）、lint/format成功。業務行保持を含む002から003へのupgrade、再migration、保存3行のround-trip、保存途中失敗の全rollback、並行同retry keyの一意性、user scopeと終端要求のkey保持、孤立FK拒否、30分期限・消費境界を検証した。T-R02 / R04のDB防御部分に対応し、Prepare・Approval API・Execute、履歴・Outboxは後続。利用者の既存方針に従い、merge済み3ブランチは各squash commitとのtree一致確認後にローカル削除した。元の先行実装stashは保持した。LogiScopeコードの再利用はない。

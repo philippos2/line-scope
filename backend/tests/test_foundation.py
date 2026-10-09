@@ -93,7 +93,10 @@ def test_real_postgresql_readiness(db):
 def test_concurrent_migration_once_and_checksum_guard(db):
     with ThreadPoolExecutor(2) as pool:
         results = list(pool.map(lambda _: db.migrate(), range(2)))
-    assert sorted(results, key=len) == [[], ["001_bootstrap.sql", "002_business_schema.sql"]]
+    assert sorted(results, key=len) == [
+        [],
+        ["001_bootstrap.sql", "002_business_schema.sql", "003_update_request_schema.sql"],
+    ]
     assert db.migrate() == []
     with pytest.raises(ValueError, match="Applied migration was modified"):
         db.migrate([("001_bootstrap.sql", "SELECT 2;")])

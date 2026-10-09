@@ -319,7 +319,7 @@ Neo4j generation markerはgeneration、validated BOOLEAN、snapshot_hash、valid
 
 ## 13. 適用済み業務スキーマのER図
 
-以下はmigration `002_business_schema.sql`で適用済みの業務10テーブルを示す。migration管理用の`schema_migration`は含めない。equipment_state_history、UpdateRequest、Approval、Outbox、KnowledgeDocument等は本書で設計済みだが、DB実装は後続工程であり、この図には含めない。
+以下はmigration `002_business_schema.sql`で適用済みの業務10テーブルを示す。migration管理用の`schema_migration`は含めない。更新要求・Target・Approvalの3テーブルはmigration `003_update_request_schema.sql`で適用済みだが、この業務ER図には含めない。equipment_state_history、履歴、Outbox、KnowledgeDocumentのDB実装は後続工程。
 
 ```mermaid
 erDiagram
