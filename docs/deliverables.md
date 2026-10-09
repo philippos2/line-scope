@@ -41,7 +41,7 @@
 
 | 事項 | 正本文書 |
 |---|---|
-| 業務要件 | `requirements.md` |
+| 業務目的・プロダクト範囲・業務要件 | `requirements.md` |
 | 業務概念・Graph意味論 | `domain-model.md` |
 | ロール・承認・履歴閲覧範囲 | `access-control.md` |
 | 業務フロー | `use-cases.md` |
@@ -62,6 +62,8 @@
 | 実装支援Agent作業規則 | `AGENTS.md` |
 
 同じ事項を複数文書が説明する場合、上表の正本文書に従う。下位文書が上位要件を暗黙変更してはならない。
+
+要件と実現方式の順序はrequirements §2.1を正とする。業務目的 → Use Case → Business Scenario受入仕様 → Ontology / DB / API設計 → Outbox / Projection / lock等の方式とする。Safety / SecurityのHard Constraintを除き上位意図を優先し、矛盾する下位設計を明示改訂する。各事項の正本責務と、この意図優先の順序を混同しない。
 
 ## 6. v1デモ実装スコープ
 
