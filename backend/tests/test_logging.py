@@ -55,11 +55,13 @@ def completed(output):
 )
 def test_http_completion_is_correlated_bounded_json_without_raw_url(path, status, code, level):
     app, output, _ = captured_app()
+    client_id = str(UUID(int=1))
     with TestClient(app) as client:
-        result = client.get(path, headers={**AUTH, "X-Request-ID": str(uuid4())})
+        result = client.get(path, headers={**AUTH, "X-Request-ID": client_id})
     (entry,) = completed(output)
     assert (entry["http_status"], entry["result_code"], entry["level"]) == (status, code, level)
     assert entry["request_id"] == result.json()["request_id"]
+    assert entry["request_id"] != client_id
     assert entry["actor_id"] == "floor1" and entry["role"] == "floor"
     assert entry["duration_ms"] >= 0 and type(entry["duration_ms"]) is int
     assert entry["timestamp"].endswith("Z") and entry["log_schema_version"] == 1
@@ -266,7 +268,8 @@ def test_context_identity_cannot_be_overridden_and_values_are_json_escaped():
     assert len(output.getvalue().splitlines()) == 1
     (entry,) = rows(output)
     assert entry["request_id"] == str(identity) and entry["actor_id"] == "trusted\nactor"
-    assert entry["role"] == "manager" and entry["update_request_id"].islower()
+    assert entry["role"] == "manager"
+    assert entry["update_request_id"] == str(UUID(entry["update_request_id"]))
 
 
 @pytest.mark.parametrize("invalid", ["secret-value", "info", "CRITICAL", "", True, None])
