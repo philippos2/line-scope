@@ -38,6 +38,7 @@ STATE_PAIRS = {
 # One statement observes request, approval and every target together.
 LOOKUP = """
 SELECT r.*, a.approval_id, a.status AS approval_status,
+       a.approved_at, a.expires_at,
        a.snapshot_hash AS approval_hash,
        (SELECT jsonb_agg(jsonb_build_object(
            'target_type',t.target_type,'target_id',t.target_id,
@@ -133,6 +134,56 @@ def _saved(row, prepare_hash, agent_hash, *, replayed):
 class ProposalStore:
     def __init__(self, database):
         self.database = database
+
+    def get(self, context, request_id):
+        """Read an immutable proposal under the history visibility boundary."""
+        if not isinstance(context, ExecutionContext):
+            raise ProposalError("AUTHENTICATION_REQUIRED", "Trusted execution context is required")
+        try:
+            request_id = normalize_uuid(request_id)
+        except ValueError as error:
+            raise ProposalError("INVALID_ARGUMENT", "Invalid update request ID") from error
+        with self._transaction(read_only=True) as connection:
+            row = connection.execute(
+                LOOKUP.replace(
+                    "WHERE r.requester_id=%s AND r.prepare_retry_key=%s",
+                    "WHERE r.update_request_id=%s",
+                ),
+                (request_id,),
+            ).fetchone()
+            if row is None:
+                raise ProposalError("TARGET_NOT_FOUND", "Update request was not found")
+            # Do not expose any stored content before authorizing the reader.
+            allowed = {
+                "floor": set(),
+                "maintenance": {"EQUIPMENT_STATE", "MAINTENANCE"},
+                "production": {"PRODUCTION_OPERATION"},
+                "manager": set(REQUEST_ROLES),
+            }[context.role]
+            try:
+                categories = {CATEGORIES[t["target_type"]] for t in row["targets"]}
+                if len(categories) != 1:
+                    raise ValueError("Invalid categories")
+                category = next(iter(categories))
+            except (KeyError, TypeError, ValueError) as error:
+                raise ProposalError("INTERNAL_ERROR", "Stored categories are invalid") from error
+            if row["requester_id"] != context.authenticated_user_id and category not in allowed:
+                raise ProposalError("AUTHORIZATION_DENIED", "Update request visibility is required")
+            saved = _saved(row, None, None, replayed=False)
+            if CATEGORIES[saved.snapshot.data["targets"][0]["target_type"]] != category:
+                raise ProposalError("INTERNAL_ERROR", "Stored category disagrees with Snapshot")
+            return {
+                "update_request_id": saved.update_request_id,
+                "approval_id": saved.approval_id,
+                "status": saved.status,
+                "approval_status": saved.approval_status,
+                "canonical_snapshot": saved.snapshot.data,
+                "snapshot_hash": saved.snapshot.snapshot_hash,
+                "snapshot_schema_version": saved.snapshot.data["schema_version"],
+                "prepare_retry_key": row["prepare_retry_key"],
+                "approved_at": row["approved_at"],
+                "expires_at": row["expires_at"],
+            }
 
     @contextmanager
     def _transaction(self, *, read_only=False):
