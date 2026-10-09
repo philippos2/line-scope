@@ -1,7 +1,7 @@
 """Human approval transactions with explicit category/operation admission.
 
-HTTP admission supports equipment state and maintenance plan UPDATE. Plan
-CREATE approval is internal; execution, records and Graph validation follow.
+HTTP admission supports equipment state and pure maintenance plan UPDATE or
+CREATE requests. Mixed operations, records and Graph validation follow.
 """
 
 from uuid import uuid4
@@ -87,8 +87,9 @@ class _HumanApproval:
             raise error
         return result
 
-    def _conflict_code(self, connection, targets):
-        return "VERSION_CONFLICT" if self._targets_changed(connection, targets) else None
+    @classmethod
+    def _conflict_code(cls, connection, targets):
+        return "VERSION_CONFLICT" if cls._targets_changed(connection, targets) else None
 
     @staticmethod
     def _locked_proposal(connection, approval_id):
@@ -314,22 +315,23 @@ class MaintenancePlanCreateApproval(_HumanApproval):
 class HumanApproval(_HumanApproval):
     """Dispatch only supported saved Targets, inside the shared locked transaction."""
 
-    @staticmethod
-    def _require_scope(category, saved):
-        if category == "EQUIPMENT_STATE":
-            EquipmentApproval._require_scope(category, saved)
-        elif category == "MAINTENANCE":
-            MaintenancePlanUpdateApproval._require_scope(category, saved)
-        else:
-            raise ProposalError("INVALID_ARGUMENT", "This approval category is not supported yet")
+    @classmethod
+    def _require_scope(cls, category, saved):
+        cls._handler(saved.snapshot.data["targets"])._require_scope(category, saved)
 
     @staticmethod
-    def _targets_changed(connection, targets):
-        # Canonical validation enforces one category; _require_scope has checked
-        # every Target before any business row is read or transition is written.
-        handler = (
-            EquipmentApproval
-            if targets[0]["target_type"] == "EquipmentState"
-            else MaintenancePlanUpdateApproval
-        )
-        return handler._targets_changed(connection, targets)
+    def _handler(targets):
+        handlers = {
+            ("EquipmentState", "UPDATE"): EquipmentApproval,
+            ("MaintenancePlan", "UPDATE"): MaintenancePlanUpdateApproval,
+            ("MaintenancePlan", "CREATE"): MaintenancePlanCreateApproval,
+        }
+        key = (targets[0]["target_type"], targets[0]["operation_type"]) if targets else None
+        if key not in handlers:
+            raise ProposalError("INVALID_ARGUMENT", "This approval category is not supported yet")
+        # The selected scope validates every Target, including operation type.
+        return handlers[key]
+
+    @classmethod
+    def _conflict_code(cls, connection, targets):
+        return cls._handler(targets)._conflict_code(connection, targets)

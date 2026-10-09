@@ -380,61 +380,67 @@ class MaintenancePlanUpdateExecute(_UpdateExecute):
                 raise ProposalError("VERSION_CONFLICT", "Maintenance plan version has changed")
 
     def observe_current(self, result):
-        """Read the whole current plan set separately from the confirmed result."""
-        targets = result["targets"]
-        if not targets or any(
-            t["target_type"] != "MaintenancePlan" or t["operation_type"] != "UPDATE"
-            for t in targets
-        ):
-            raise ProposalError("INVALID_ARGUMENT", "Maintenance plan UPDATE result required")
-        ids = [target["target_id"] for target in targets]
-        with self.store._transaction(read_only=True) as c:
-            row = c.execute(
-                "SELECT statement_timestamp() AS observed_at, "
-                "(SELECT jsonb_agg(to_jsonb(p) ORDER BY maintenance_plan_id) "
-                "FROM (SELECT maintenance_plan_id,plan_code,equipment_id,planned_start,planned_end,plan_status,version "
-                "FROM maintenance_plan WHERE maintenance_plan_id=ANY(%s::uuid[])) p) AS plans",
-                (ids,),
-            ).fetchone()
-        plans = row["plans"] or []
-        if len(plans) != len(targets):
-            raise ProposalError("TARGET_NOT_FOUND", "A current plan is unavailable")
-        plans = [
-            {
-                **p,
-                "planned_start": normalize_timestamp(p["planned_start"]),
-                "planned_end": normalize_timestamp(p["planned_end"]),
-            }
-            for p in plans
-        ]
-        confirmed = {t["target_id"]: t["after"]["version"] for t in targets}
-        return {
-            "current_snapshot": {
-                "targets": [
-                    {
-                        "target_type": "MaintenancePlan",
-                        "target_id": p["maintenance_plan_id"],
-                        "snapshot": p,
-                    }
-                    for p in plans
-                ]
-            },
-            "current_versions": [
+        return _observe_current_plans(self.store, result, "UPDATE")
+
+
+def _observe_current_plans(store, result, operation_type):
+    """Read the whole current plan set separately from the confirmed result."""
+    targets = result["targets"]
+    if not targets or any(
+        t["target_type"] != "MaintenancePlan" or t["operation_type"] != operation_type
+        for t in targets
+    ):
+        raise ProposalError(
+            "INVALID_ARGUMENT", f"Maintenance plan {operation_type} result required"
+        )
+    ids = [target["target_id"] for target in targets]
+    with store._transaction(read_only=True) as c:
+        row = c.execute(
+            "SELECT statement_timestamp() AS observed_at, "
+            "(SELECT jsonb_agg(to_jsonb(p) ORDER BY maintenance_plan_id) "
+            "FROM (SELECT maintenance_plan_id,plan_code,equipment_id,planned_start,planned_end,plan_status,version "
+            "FROM maintenance_plan WHERE maintenance_plan_id=ANY(%s::uuid[])) p) AS plans",
+            (ids,),
+        ).fetchone()
+    plans = row["plans"] or []
+    if len(plans) != len(targets):
+        raise ProposalError("TARGET_NOT_FOUND", "A current plan is unavailable")
+    plans = [
+        {
+            **p,
+            "planned_start": normalize_timestamp(p["planned_start"]),
+            "planned_end": normalize_timestamp(p["planned_end"]),
+        }
+        for p in plans
+    ]
+    confirmed = {t["target_id"]: t["after"]["version"] for t in targets}
+    return {
+        "current_snapshot": {
+            "targets": [
                 {
                     "target_type": "MaintenancePlan",
                     "target_id": p["maintenance_plan_id"],
-                    "version": p["version"],
-                    "confirmed_version": confirmed[p["maintenance_plan_id"]],
-                    "version_delta": p["version"] - confirmed[p["maintenance_plan_id"]],
+                    "snapshot": p,
                 }
                 for p in plans
-            ],
-            "observed_at": row["observed_at"],
-        }
+            ]
+        },
+        "current_versions": [
+            {
+                "target_type": "MaintenancePlan",
+                "target_id": p["maintenance_plan_id"],
+                "version": p["version"],
+                "confirmed_version": confirmed[p["maintenance_plan_id"]],
+                "version_delta": p["version"] - confirmed[p["maintenance_plan_id"]],
+            }
+            for p in plans
+        ],
+        "observed_at": row["observed_at"],
+    }
 
 
 class MaintenancePlanCreateExecute(_UpdateExecute):
-    """Internal plan CREATE with fixed Snapshot IDs and DB uniqueness defense."""
+    """Plan CREATE with fixed Snapshot IDs and DB uniqueness defense."""
 
     @staticmethod
     def _require_scope(saved):
@@ -494,6 +500,9 @@ class MaintenancePlanCreateExecute(_UpdateExecute):
             if inserted.rowcount != 1:
                 raise ProposalError("INTERNAL_ERROR", "Maintenance plan was not inserted")
 
+    def observe_current(self, result):
+        return _observe_current_plans(self.store, result, "CREATE")
+
 
 class HumanExecute(_UpdateExecute):
     """Route saved Targets under the common locks, without shared mutable routing state."""
@@ -506,12 +515,14 @@ class HumanExecute(_UpdateExecute):
     @staticmethod
     def _handler(targets):
         handlers = {
-            "EquipmentState": EquipmentExecute,
-            "MaintenancePlan": MaintenancePlanUpdateExecute,
+            ("EquipmentState", "UPDATE"): EquipmentExecute,
+            ("MaintenancePlan", "UPDATE"): MaintenancePlanUpdateExecute,
+            ("MaintenancePlan", "CREATE"): MaintenancePlanCreateExecute,
         }
-        if not targets or targets[0]["target_type"] not in handlers:
+        key = (targets[0]["target_type"], targets[0]["operation_type"]) if targets else None
+        if key not in handlers:
             raise ProposalError("INVALID_ARGUMENT", "This execution category is not supported yet")
-        return handlers[targets[0]["target_type"]]
+        return handlers[key]
 
     @classmethod
     def _targets(cls, c, saved):
