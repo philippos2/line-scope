@@ -1,9 +1,10 @@
-"""Equipment-state execution and separate post-commit current-value observation."""
+"""Shared update execution with explicit equipment and plan-UPDATE admission."""
 
 from uuid import uuid4
 
 from psycopg.types.json import Jsonb
 
+from .approvals import MaintenancePlanUpdateApproval
 from .audit import failed_attempt
 from .canonical import normalize_uuid
 from .execute_policy import ApprovalFacts, validate_new_execute
@@ -11,9 +12,10 @@ from .execution import ExecutionContext
 from .logging import EventLogger, request_context
 from .proposals import LOOKUP, ProposalError, ProposalStore, _saved
 from .reads import json_value
+from .snapshot import CATEGORIES
 
 
-class EquipmentExecute:
+class _UpdateExecute:
     def __init__(self, database, settings, event_logger=None):
         self.store = ProposalStore(database)
         self.events = event_logger or EventLogger()
@@ -50,32 +52,9 @@ class EquipmentExecute:
             approval["consumed_at"],
         )
         now = c.execute("SELECT clock_timestamp() AS now").fetchone()["now"]
-        if validate_new_execute(context, saved, facts, now=now) != "EQUIPMENT_STATE":
-            raise ProposalError("INVALID_ARGUMENT", "Equipment state only")
+        validate_new_execute(context, saved, facts, now=now)
+        self._require_scope(saved)
         return now
-
-    @staticmethod
-    def _targets(c, saved):
-        targets = saved.snapshot.data["targets"]
-        conflict = False
-        for target in targets:
-            current = c.execute(
-                "SELECT equipment_id,state_code,version FROM equipment_current_state WHERE equipment_id=%s FOR UPDATE",
-                (target["target_id"],),
-            ).fetchone()
-            if (
-                current is None
-                or {
-                    "equipment_id": str(current["equipment_id"]),
-                    "state_code": current["state_code"],
-                    "version": current["version"],
-                }
-                != target["before"]
-            ):
-                conflict = True
-        if conflict:
-            raise ProposalError("VERSION_CONFLICT", "Equipment state has changed")
-        return targets
 
     def _run(self, context, request_id, attempt):
         if not isinstance(context, ExecutionContext):
@@ -100,35 +79,14 @@ class EquipmentExecute:
             attempt["approval_id"] = saved.approval_id
             if row["requester_id"] != context.authenticated_user_id:
                 raise ProposalError("AUTHORIZATION_DENIED", "Only requester may execute")
+            self._require_scope(saved)
             if saved.status == "COMPLETED":
                 attempt["replayed"] = True
                 return row["execution_result"]
             self._validate(c, context, saved, approval)
             targets = self._targets(c, saved)
             executed_at = self._validate(c, context, saved, approval)
-            for target in targets:
-                result = c.execute(
-                    "UPDATE equipment_current_state SET state_code=%s,version=version+1,updated_at=%s WHERE equipment_id=%s AND version=%s",
-                    (
-                        target["after"]["state_code"],
-                        executed_at,
-                        target["target_id"],
-                        target["expected_version"],
-                    ),
-                )
-                if result.rowcount != 1:
-                    raise ProposalError("VERSION_CONFLICT", "Equipment version has changed")
-                c.execute(
-                    "INSERT INTO equipment_state_history(history_id,equipment_id,update_request_id,state_code,effective_at,recorded_at) VALUES(%s,%s,%s,%s,%s,%s)",
-                    (
-                        uuid4(),
-                        target["target_id"],
-                        request_id,
-                        target["after"]["state_code"],
-                        executed_at,
-                        executed_at,
-                    ),
-                )
+            self._apply(c, request_id, targets, executed_at)
             history_id = uuid4()
             result = json_value(
                 {
@@ -152,23 +110,31 @@ class EquipmentExecute:
                 for side in ("before", "after")
             ]
             c.execute(
-                "INSERT INTO business_update_history(history_id,update_request_id,approval_id,requester_id,approver_id,category,before_snapshot,after_snapshot,result,occurred_at) VALUES(%s,%s,%s,%s,%s,'EQUIPMENT_STATE',%s,%s,'OK',%s)",
+                "INSERT INTO business_update_history(history_id,update_request_id,approval_id,requester_id,approver_id,category,before_snapshot,after_snapshot,result,occurred_at) VALUES(%s,%s,%s,%s,%s,%s,%s,%s,'OK',%s)",
                 (
                     history_id,
                     request_id,
                     saved.approval_id,
                     row["requester_id"],
                     approval["approver_id"],
+                    self.category,
                     Jsonb(snapshots[0]),
                     Jsonb(snapshots[1]),
                     executed_at,
                 ),
             )
-            consumed_at = self._validate(c, context, saved, approval)
-            c.execute(
-                "UPDATE approval SET status='CONSUMED',consumed_at=%s,updated_at=%s WHERE approval_id=%s",
-                (consumed_at, consumed_at, saved.approval_id),
-            )
+            self._validate(c, context, saved, approval)
+            consumed = c.execute(
+                "WITH t AS MATERIALIZED (SELECT clock_timestamp() AS at) "
+                "UPDATE approval SET status='CONSUMED',consumed_at=t.at,updated_at=t.at "
+                "FROM t WHERE approval_id=%s AND t.at<expires_at RETURNING consumed_at",
+                (saved.approval_id,),
+            ).fetchone()
+            if consumed is None:
+                raise ProposalError(
+                    "APPROVAL_EXPIRED", "Approval deadline reached before consumption"
+                )
+            consumed_at = consumed["consumed_at"]
             c.execute(
                 "UPDATE update_request SET status='COMPLETED',execution_result=%s,updated_at=%s WHERE update_request_id=%s",
                 (Jsonb(result), consumed_at, request_id),
@@ -198,6 +164,7 @@ class EquipmentExecute:
             row, saved, approval = self._load(c, request_id)
             if row["requester_id"] != context.authenticated_user_id:
                 return None
+            self._require_scope(saved)
             if saved.status == "COMPLETED":
                 return row["execution_result"]
             if (saved.status, saved.approval_status) != ("APPROVED", "APPROVED"):
@@ -277,6 +244,64 @@ class EquipmentExecute:
             )
             return result
 
+
+class EquipmentExecute(_UpdateExecute):
+    category = "EQUIPMENT_STATE"
+
+    @staticmethod
+    def _require_scope(saved):
+        if CATEGORIES[saved.snapshot.data["targets"][0]["target_type"]] != "EQUIPMENT_STATE":
+            raise ProposalError("INVALID_ARGUMENT", "Equipment state only")
+
+    @staticmethod
+    def _targets(c, saved):
+        targets = saved.snapshot.data["targets"]
+        conflict = False
+        for target in targets:
+            current = c.execute(
+                "SELECT equipment_id,state_code,version FROM equipment_current_state WHERE equipment_id=%s FOR UPDATE",
+                (target["target_id"],),
+            ).fetchone()
+            if (
+                current is None
+                or {
+                    "equipment_id": str(current["equipment_id"]),
+                    "state_code": current["state_code"],
+                    "version": current["version"],
+                }
+                != target["before"]
+            ):
+                conflict = True
+        if conflict:
+            raise ProposalError("VERSION_CONFLICT", "Equipment state has changed")
+        return targets
+
+    @staticmethod
+    def _apply(c, request_id, targets, executed_at):
+        for target in targets:
+            result = c.execute(
+                "UPDATE equipment_current_state SET state_code=%s,version=version+1,updated_at=%s WHERE equipment_id=%s AND version=%s",
+                (
+                    target["after"]["state_code"],
+                    executed_at,
+                    target["target_id"],
+                    target["expected_version"],
+                ),
+            )
+            if result.rowcount != 1:
+                raise ProposalError("VERSION_CONFLICT", "Equipment version has changed")
+            c.execute(
+                "INSERT INTO equipment_state_history(history_id,equipment_id,update_request_id,state_code,effective_at,recorded_at) VALUES(%s,%s,%s,%s,%s,%s)",
+                (
+                    uuid4(),
+                    target["target_id"],
+                    request_id,
+                    target["after"]["state_code"],
+                    executed_at,
+                    executed_at,
+                ),
+            )
+
     def observe_current(self, result):
         """One statement observes all current targets after the execution commit."""
         targets = result["targets"]
@@ -312,3 +337,37 @@ class EquipmentExecute:
             ],
             "observed_at": row["observed_at"],
         }
+
+
+class MaintenancePlanUpdateExecute(_UpdateExecute):
+    category = "MAINTENANCE"
+
+    @staticmethod
+    def _require_scope(saved):
+        category = CATEGORIES[saved.snapshot.data["targets"][0]["target_type"]]
+        MaintenancePlanUpdateApproval._require_scope(category, saved)
+
+    @staticmethod
+    def _targets(c, saved):
+        targets = saved.snapshot.data["targets"]
+        if MaintenancePlanUpdateApproval._targets_changed(c, targets):
+            raise ProposalError("VERSION_CONFLICT", "Maintenance plan has changed")
+        return targets
+
+    @staticmethod
+    def _apply(c, request_id, targets, executed_at):
+        for target in targets:
+            after = target["after"]
+            updated = c.execute(
+                "UPDATE maintenance_plan SET planned_start=%s,planned_end=%s,plan_status=%s,"
+                "version=version+1 WHERE maintenance_plan_id=%s AND version=%s",
+                (
+                    after["planned_start"],
+                    after["planned_end"],
+                    after["plan_status"],
+                    target["target_id"],
+                    target["expected_version"],
+                ),
+            )
+            if updated.rowcount != 1:
+                raise ProposalError("VERSION_CONFLICT", "Maintenance plan version has changed")
