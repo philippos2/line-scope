@@ -13,6 +13,7 @@ from .approvals import EquipmentApproval
 from .canonical import strict_json
 from .database import Database
 from .equipment_command import EquipmentCommandPrepare
+from .execute import EquipmentExecute
 from .http_logging import RequestMiddleware
 from .llm import OllamaClient
 from .logging import EventLogger, request_context
@@ -81,6 +82,7 @@ def create_app(settings=None, database=None, event_logger=None, *, llm=None, con
     app.state.read_tools = ReadTools(database)
     equipment_prepare = EquipmentCommandPrepare(database, event_logger=events)
     equipment_approval = EquipmentApproval(database, event_logger=events)
+    equipment_execute = EquipmentExecute(database, settings, event_logger=events)
 
     conversations = conversations or ConversationStore()
     if llm is None and settings.llm_model:
@@ -163,6 +165,53 @@ def create_app(settings=None, database=None, event_logger=None, *, llm=None, con
         except ProposalError as error:
             return response(request, code=error.code, status_code=error_status(error.code))
         return response(request, json_value(result))
+
+    @app.post("/update-requests/{request_id}/execute")
+    async def execute(request: Request, request_id: str):
+        if await request.body():
+            return response(request, code="INVALID_ARGUMENT", status_code=400)
+        try:
+            result = await run_in_threadpool(
+                equipment_execute.execute, request.state.execution_context, request_id
+            )
+        except ProposalError as error:
+            return response(request, code=error.code, status_code=error_status(error.code))
+        data = {
+            "update_request_id": str(UUID(request_id)),
+            "approval_id": result["approval_id"],
+            "status": "COMPLETED",
+            "approval_status": "CONSUMED",
+            "execution_result": result,
+        }
+        try:
+            observation = await run_in_threadpool(equipment_execute.observe_current, result)
+        except Exception as error:
+            code = error.code if isinstance(error, ProposalError) else "INTERNAL_ERROR"
+            if not isinstance(error, ProposalError):
+                events.emit(
+                    "runtime.diagnostic",
+                    component="proposal",
+                    outcome="failure",
+                    result_code=code,
+                    level="ERROR",
+                    error=error,
+                    update_request_id=request_id,
+                )
+            data.update(current_snapshot=None, current_versions=None, observed_at=None)
+            return response(
+                request,
+                json_value(data),
+                partial=True,
+                warnings=[
+                    {
+                        "code": code,
+                        "message": "Current values could not be observed; execution is completed.",
+                        "details": {},
+                    }
+                ],
+            )
+        data.update(observation)
+        return response(request, json_value(data))
 
     async def prepared_response(request, context, saved):
         try:
@@ -310,6 +359,9 @@ def error_status(code):
         "INVALID_UPDATE_STATE": 409,
         "APPROVAL_HASH_MISMATCH": 409,
         "VERSION_CONFLICT": 409,
+        "APPROVAL_INVALIDATED": 409,
+        "APPROVAL_ALREADY_CONSUMED": 409,
+        "APPROVAL_EXPIRED": 410,
         "BUSINESS_RULE_VIOLATION": 422,
         "RESOURCE_BUSY": 503,
         "DEPENDENCY_UNAVAILABLE": 503,
