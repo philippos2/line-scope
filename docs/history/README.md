@@ -190,3 +190,13 @@ Docker内の実PostgreSQLで906テスト成功（既存866 + 追加40）、ruff 
 T-R02 / R03 / R21とAC-07 / 13 / 14 / 16の内部Prepare・Snapshot・要求保存・置換部分に対応する。業務受入全体、HTTP再送、承認時のversion失効、二重Execute防止の完成ではない。
 
 今回の内部入口は予定値だけを扱い、assignment_replacementを拒否する。正式Tool契約の割当置換・予定値との同時変更を削除したものではない。割当変更にはUSESと依存関係を合わせた禁止循環検証が必要なため、正本取得・区間差分・循環検証を次の実装単位へ分けた。Prepare API / Tool公開、設備割当・依存関係Prepare、Approval / Execute、DB監査・Toolログ、Graph / Outboxは後続。要件・PO-B・migration・依存・Frontendは変更せず、LogiScopeコードも再利用していない。
+
+## 禁止循環の共通検証チェックポイント
+
+2026-10-09、PR #28 mergeを確認してローカルmainをfast-forwardし、POの指示で設備割当Prepareの前提となる純粋な禁止循環検証を追加した。domain-model §4 / 8 / 9 / 15.4に従い、DEPENDS_ONと割当由来USESは保存方向、PRECEDES / CONTROLSは逆方向に揃え、typed IDの共通論理依存グラフを検証する。activeな全期間の関係をrequiredの値にかかわらず対象とし、SUPPLIES / CAN_SUBSTITUTEは除外する。PRODUCESは既存endpoint検証によりProductで終端する。現在の許可endpointではEquipment側からProductionOperationへ戻る経路を作れず、USES自体は循環を閉じないが共通集合に含める。
+
+既存のRelation / Assignment行schema検証を使い、重複行IDや不正入力を拒否する。並行edgeを同一論理edgeへ集約し、再帰を使わないトポロジカル除去で禁止循環を検出する。入力行は変更しない。呼出し側は全Target適用後の、完全かつ一貫したPostgreSQL業務行集合を渡す責務を持つ。今回の関数だけで集合完全性、endpointの存在・active、業務キー一意性、期間重複、権限、lock、Graph CURRENTを保証したことにはならない。
+
+Docker内で926テスト成功（既存906 + 追加20）、ruff check / format、git diff --check成功。単一種別・自己・混在循環、保存方向と上流方向の差、inactiveによる循環解消、非重複期間・optional関係の循環拒否、許容循環除外、USES / PRECEDESの組合せ、typed UUID、並行edge、不正入力・重複ID、2,000段の非再帰処理と末尾閉路を検証した。AC-G12のtype / cycle検証部品に対応し、登録経路全体の受入完了ではない。
+
+設備割当Prepareの全正本取得・区間差分への接続、DependencyRelation Prepare、Approval / Execute時のGraph mutation lock下での最終集合再検証、API / Tool公開は後続。業務要件・DB・migration・依存・Frontendは変更せず、LogiScopeコードの再利用はない。
