@@ -4,7 +4,7 @@ from uuid import uuid4
 
 from psycopg.types.json import Jsonb
 
-from .approvals import MaintenancePlanUpdateApproval
+from .approvals import HumanApproval, MaintenancePlanUpdateApproval
 from .audit import failed_attempt
 from .canonical import normalize_timestamp, normalize_uuid
 from .execute_policy import ApprovalFacts, validate_new_execute
@@ -117,7 +117,7 @@ class _UpdateExecute:
                     saved.approval_id,
                     row["requester_id"],
                     approval["approver_id"],
-                    self.category,
+                    CATEGORIES[targets[0]["target_type"]],
                     Jsonb(snapshots[0]),
                     Jsonb(snapshots[1]),
                     executed_at,
@@ -424,3 +424,33 @@ class MaintenancePlanUpdateExecute(_UpdateExecute):
             ],
             "observed_at": row["observed_at"],
         }
+
+
+class HumanExecute(_UpdateExecute):
+    """Route saved Targets under the common locks, without shared mutable routing state."""
+
+    @staticmethod
+    def _require_scope(saved):
+        category = CATEGORIES[saved.snapshot.data["targets"][0]["target_type"]]
+        HumanApproval._require_scope(category, saved)
+
+    @staticmethod
+    def _handler(targets):
+        handlers = {
+            "EquipmentState": EquipmentExecute,
+            "MaintenancePlan": MaintenancePlanUpdateExecute,
+        }
+        if not targets or targets[0]["target_type"] not in handlers:
+            raise ProposalError("INVALID_ARGUMENT", "This execution category is not supported yet")
+        return handlers[targets[0]["target_type"]]
+
+    @classmethod
+    def _targets(cls, c, saved):
+        return cls._handler(saved.snapshot.data["targets"])._targets(c, saved)
+
+    @classmethod
+    def _apply(cls, c, request_id, targets, executed_at):
+        cls._handler(targets)._apply(c, request_id, targets, executed_at)
+
+    def observe_current(self, result):
+        return self._handler(result["targets"]).observe_current(self, result)

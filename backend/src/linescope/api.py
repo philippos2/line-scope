@@ -13,7 +13,7 @@ from .approvals import HumanApproval
 from .canonical import strict_json
 from .database import Database
 from .equipment_command import EquipmentCommandPrepare
-from .execute import EquipmentExecute
+from .execute import HumanExecute
 from .http_logging import RequestMiddleware
 from .llm import OllamaClient
 from .logging import EventLogger, request_context
@@ -82,7 +82,7 @@ def create_app(settings=None, database=None, event_logger=None, *, llm=None, con
     app.state.read_tools = ReadTools(database)
     equipment_prepare = EquipmentCommandPrepare(database, event_logger=events)
     human_approval = HumanApproval(database, event_logger=events)
-    equipment_execute = EquipmentExecute(database, settings, event_logger=events)
+    human_execute = HumanExecute(database, settings, event_logger=events)
 
     conversations = conversations or ConversationStore()
     if llm is None and settings.llm_model:
@@ -172,7 +172,7 @@ def create_app(settings=None, database=None, event_logger=None, *, llm=None, con
             return response(request, code="INVALID_ARGUMENT", status_code=400)
         try:
             result = await run_in_threadpool(
-                equipment_execute.execute, request.state.execution_context, request_id
+                human_execute.execute, request.state.execution_context, request_id
             )
         except ProposalError as error:
             return response(request, code=error.code, status_code=error_status(error.code))
@@ -184,7 +184,7 @@ def create_app(settings=None, database=None, event_logger=None, *, llm=None, con
             "execution_result": result,
         }
         try:
-            observation = await run_in_threadpool(equipment_execute.observe_current, result)
+            observation = await run_in_threadpool(human_execute.observe_current, result)
         except Exception as error:
             code = error.code if isinstance(error, ProposalError) else "INTERNAL_ERROR"
             if not isinstance(error, ProposalError):
