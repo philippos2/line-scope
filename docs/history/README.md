@@ -162,3 +162,15 @@ Docker内の実PostgreSQLで839テスト成功（既存795 + 追加44）、ruff 
 T-R02 / R03 / R21、AC-07 / 11 / 13 / 14 / 16の内部Prepare・Snapshot・要求保存・置換部分に対応する。Prepareは業務キーを予約しない。読込後の正本変更・CREATE競合はApproval / Executeで再検証し、Executeの業務DB UNIQUEが最終防御となる。CREATE重複防止や業務受入全体の完成ではない。
 
 Prepare API / Tool公開、保全UPDATEとCREATEを混ぜる統合経路、生産作業・依存関係Prepare、Approval / Execute、DB監査・Toolログ、Graph / Outboxは後続。業務テーブルへINSERTせず、設備状態・既存予定状態を自動変更しない。要件・PO-B・migration・依存・Frontendは変更せず、LogiScopeコードも再利用していない。
+
+## 保全UPDATE・CREATEの内部Prepare統合チェックポイント
+
+2026-10-09、PR #26 merge後、POの指示でMaintenancePrepareへ保全予定UPDATE・予定CREATE・実績CREATEを統合した。既存のUPDATE専用MaintenancePlanPrepareとCREATE専用MaintenanceCreatePrepareは、従来入力schemaと対象Tool制限を保持する互換入口として共通処理へ委譲する。UPDATEだけの要求は従来のTool名＋対象入力配列のhash形式、CREATEだけの要求は従来のTool付き対象配列のhash形式を維持する。保存済みretry key・Snapshotを再生成せず、旧要求の移行やDB変更を行わない。
+
+混在要求も単一カテゴリMAINTENANCEとして認可し、正規化対象集合・明示入力・置換IDをhashへ固定する。UPDATE対象と実績参照先の全業務値・version、設備参照、CREATE業務キー衝突を単一statement Snapshotで取得する。UPDATE ID重複、CREATE同種キー重複、異種カテゴリ、不存在・設備不一致・不正patch・期間・no-op・業務キー衝突は全体拒否する。全UPDATE検証後にCREATE IDを生成し、明示差分を一Snapshotへ含め、一回のProposalStore.saveでTarget・承認を保存する。UPDATEとCREATEの混在はCOMPOSITEになる。
+
+Docker内の実PostgreSQLで866テスト成功（既存839 + 追加27）。保全関連113件の先行確認、ruff check / format、git diff --check、変更Markdownのリンク・fence確認を行った。3種混在の一要求化・業務正本非変更、権限、全体拒否・正規化後のUPDATE重複、UPDATE不正時のCREATE ID非生成、並び順・UUID・timezoneを正規化した再送、明示内容変更／Target省略／置換IDの不一致、旧保存hashを直接構築した互換再送を検証した。単一statement観測と観測後の直接SQL変更、4並行同keyの同Snapshot化、混在置換中Approval INSERT障害で全rollback・旧状態保持・同key再試行、読込timeout・接続障害も確認した。既存のUPDATE・CREATE・設備状態Prepareテストを削除していない。
+
+T-R02 / R03 / R21、AC-07 / 11 / 13 / 14 / 16の内部Prepare・Snapshot・要求保存・置換部分に対応する。直接SQL変更のfixtureは読込後の競合を検証するためであり、設備IDを変更するAPIを許可したものではない。実績だけによる設備／予定状態の自動更新や、新規予定への自動参照解決は行わない。
+
+Prepare API / Tool公開、呼出しTool名と先頭Targetの一致確認を含むTool dispatcher、生産作業・依存関係Prepare、Approval / Execute、DB監査・Toolログ、Graph / Outboxは後続。Prepareの正本観測後に生じるversion変化・CREATE競合はApproval / Executeで再検証する。業務受入全体やExecuteの完成ではない。要件・PO-B・migration・依存・Frontendは変更せず、LogiScopeコードも再利用していない。
