@@ -6,7 +6,7 @@
 
 設備・工程・生産作業・製品・インフラの関係から、停止時の影響や依存先を調べ、根拠を確認して業務更新へ進めるシステムを目指しています。AIは調査と更新提案を支援し、承認と実行は認証済みの人が操作します。
 
-> **現在はバックエンドを段階的に開発中です。** PostgreSQLの業務スキーマ、内部Read Tools、更新提案のSnapshot構築・検証まで実装しています。HTTPから試せるのは認証付きhealth / readinessです。Agent・承認・実行・Graph・RAGの接続は後続工程です。
+> **現在はバックエンドを段階的に開発中です。** PostgreSQLの業務スキーマ、内部Read Tools、更新提案のSnapshot構築・検証と内部保存・再送処理まで実装しています。HTTPから試せるのは認証付きhealth / readinessです。Agent・承認・実行・Graph・RAGの接続は後続工程です。
 
 ## 主な機能と実装状況
 
@@ -16,7 +16,7 @@
 | PostgreSQL | 業務10テーブルと更新要求・Target・承認の3テーブル、DB制約、checksum付きmigrationを実装 |
 | 正本参照 | ID参照・設備割当参照・検索の内部Read Tool 13種を実装 |
 | 更新提案 | 設備状態、保全予定・実績、生産作業の予定値・設備割当、依存関係のCanonical Snapshotを構築・検証 |
-| Prepare / Approval / Execute | 保存用テーブルを実装。保存サービス・権限判定・承認／実行処理は後続 |
+| Prepare / Approval / Execute | Snapshot・Target・PENDING承認の内部保存、カテゴリ別要求権限、retry key再送を実装。正本取得・Prepare統合・承認／実行処理は後続 |
 | Graph / Outbox | Neo4j Projection、同期管理、依存・影響分析は後続 |
 | RAG / Agent | Qdrant連携とLLM / embedding modelの評価・選定は後続 |
 | Frontend | サーバサイド完成後に構築。Graph中心のオペレーション画面は候補の一つ |
