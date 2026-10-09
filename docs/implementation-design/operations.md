@@ -117,3 +117,7 @@ python3 -m venv .venv
 
 ホストDBテストは専用DBのLINESCOPE_TEST_DSNを明示指定する。未指定時はDBテストがskipされる。ホストAPI起動の設定例はbackend/.env.exampleで、ホストでは.envを自動読込みしない。Dockerの資格情報はルート.envを使い、PostgreSQL 18の永続volumeは/var/lib/postgresqlへmountする。Python packageのimport名はlinescope、配置先はbackend/src/linescope。
 最終製品の初期化・復旧手順は§10を維持し、基盤だけのreadinessをGraph CURRENT・RAG準備完了の根拠にしない。
+
+## 12. 業務判断支援の運用前提
+
+新しい入力・計算・基準が未確定または未実装なら、その機能をReadyや受入済みとして表示しない。運用・受入記録でPASS / FAIL / BLOCKED / NOT_IMPLEMENTEDを区別する。比較には入力version・観測時刻・評価期間を残し、後続の正本変更で過去の評価を現在の確定値と誤認させない。履歴保持や安全基準の登録・更新主体はPO-B04・06・07確定後に手順化する。既存のOutbox / Graph復旧手順は維持する。

@@ -171,7 +171,7 @@ line-scope/
 
 ## 設計・検証資料
 
-- [19文書の成果物一覧・各文書の責務](docs/deliverables.md)
+- [仕様文書の成果物一覧・各文書の責務](docs/deliverables.md)
 - [要件とスコープ](docs/requirements/requirements.md)
 - [業務モデル・Graph意味論](docs/requirements/domain-model.md)
 - [権限・承認](docs/requirements/access-control.md)
