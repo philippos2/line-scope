@@ -1,6 +1,6 @@
 # 文書レビュー・変更履歴
 
-このディレクトリはLineScopeの文書レビュー、仕様判断、変更経緯を保存する。現在の仕様は[deliverables.md](../deliverables.md)が指定する19文書を正本とする。履歴にある過去の指摘・未決定事項を現在の仕様として扱わない。
+このディレクトリはLineScopeの文書レビュー、仕様判断、変更経緯を保存する。現在の仕様は[deliverables.md](../deliverables.md)が指定する文書群を正本とする。履歴にある過去の指摘・未決定事項を現在の仕様として扱わない。
 
 ## 2026-10-09
 
@@ -82,3 +82,7 @@ Docker内606テスト（追加54）、lint/format成功。業務行保持を含�
 2026-10-09、PR #17 merge後、ProposalStoreでCanonical Snapshot・全Target・PENDING Approvalを一Transactionで保存する内部処理を追加した。requesterはTrusted Execution Contextに拘束し、単一カテゴリの更新要求権限を保存前に確認する。同retry keyの同正規化入力hashは元のID・Snapshot・状態を返し、異入力はDUPLICATE_REQUEST。保存Targetからhashを再構成しRequest / Approvalのhash・requester・operation_type・状態組も照合する。新規要求の置換は、原子的な旧失効を後続実装するまで明示拒否する。仕様正本は変更せずREADMEの実装状況だけ更新した。
 
 Docker内660テスト（追加54）、lint/format成功。同一／異入力の並行再送、CREATE ID・before / versionの再取得後も元Snapshot保持、terminal再送、owner scope、全カテゴリ×ロールの要求権限、複数Target一括保存、承認保存失敗の全rollbackと同キー再試行、保存データ改変・不正状態組拒否、実DBロックtimeout・エラー秘匿を検証した。T-R02 / R03 / R07の内部保存・再送・hash・要求権限部分に対応する。Prepare Tool / HTTP公開、正本の一貫した取得と業務検証、正規化入力hashの生成・Agent受付、要求置換、Approval / Execute、履歴・Graph / Outboxは後続。内部保存をPrepare全体の完了とは扱わない。LogiScopeコードの再利用はない。
+
+## 業務判断支援ユースケース・Business Scenarioの追加
+
+[追加・整合性レビュー記録](2026-10-09-business-scenarios-review.md)に、PO提示案の反映、補足ケース、PO判断待ち、数値・対応表・責務境界の確認を記録した。Business Scenarioの独立文書を追加し、正本文書は従来19から20文書になった。実装は停止したままであり、コード・設定は変更していない。

@@ -51,3 +51,7 @@ access_classはFACTORY_INTERNALのみで認証済み全ロールに許可。meta
 citationはdocument_id / document_version / section / chunk_id / source_uriをサーバが根拠として保持する。Toolはretrieve_knowledge(query, equipment_id?, limit?)でitems（認可済みchunkとcitation）を返す。既定limit=5、system最大20。最終認可で全件除外ならitems=[]とし、根拠がないことを明示する。
 
 検索結果のchunk本文はQdrant返却textをそのまま採用せず、hash確認済み正本ファイルを同じchunking_versionで復元・照合して取得する。metadata hash一致だけで改変chunk本文を信頼しない。embedding / chunking versionはIndex metadataとして記録し、変更時はIndexを再構築する。
+
+## 9. 判断支援の文書根拠
+
+安全基準、修理手順、交換資料等は認可・active version・citationを確認して取得する。Retrieved textをそのまま安全許容判定・計算用正本の確定値として採用しない。適用対象・有効期間・承認されたルールや入力との対応が未定義なら参考資料と不足情報を示す。LLMによる抽出だけで費用・能力・安全条件を業務DBへ自動登録しない。正本とIndexの境界、Injection防御、再認可は維持する。

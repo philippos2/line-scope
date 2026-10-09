@@ -250,3 +250,13 @@ as_ofを明示する場合は受信時サーバ時刻以前を要求し、未来
 Read paginationは一呼出し時点の最新正本を返し、ページ間で正本変更があり得ることを示す。複数ページを一つの更新Snapshotと扱わず、Prepareの単一statement Snapshotで確定対象を再取得する。
 
 retry key scope / 永続性はtransaction-design §20に固定する。context_idは補足会話識別子であり、更新要求・承認・冪等性キーの代用ではない。Snapshotでは整数以外の数値型を拒否する。一要求の全Targetの要求権限・承認権限・自己承認条件を満たさない場合は全体拒否し、一部だけの承認・実行を行わない。
+
+## 19. Decision Package追加契約の設計境界
+
+UC-Bの実現には、能力・経済入力のRead、決定論的計算、対応案比較、安全基準・履歴の参照に関する契約追加が必要である。現行Tool一覧やPOST /agentのschemaが既に対応済みとは扱わない。具体Tool名、request / response shape、HTTP status、error code、retryはPO-B01〜07に基づく契約改訂時に固定し、未定義のendpointや引数を実装しない。
+
+追加契約は、対象typed ID、評価期間、製品・単位・通貨、入力source / version / 観測時刻、定義済みルール、仮定を検証し、結果・計算式・Evidence・unknowns・各評価のcompletenessを構造化して返す。Graph completeと経済incomplete、候補availabilityと能力充足、安全・実行可能性を別項目で扱う。feasible / infeasibleだけで未知を表さず、判定不能の理由を保持する。
+
+未来の評価期間は既存as_ofから分離する。現在のas_ofの未来値拒否は維持し、将来分析用入力契約を別途確定する。LLM生成引数へ任意SQL / Cypherや認証主体を含めない。認可は新情報のEvidence・入力まで適用する。
+
+Decision Packageの評価結果を、そのままcanonical SnapshotのafterまたはApprovalとして扱わない。既存context_id / approval_id / update_request_id、Prepare retry key、1カテゴリ・全Target権限、冪等性は維持する。新計算の数量型・単位・丸めは明示し、decimal / floatを既存Snapshot v1へ暗黙追加しない。

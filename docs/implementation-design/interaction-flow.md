@@ -58,3 +58,9 @@ Execute: exclusive mutation lock（必要時） → Request / Approval → 業�
 割当: 明示[start, end)と新集合 → 既存区間分割を含む全差分Snapshot → 承認 → 同一TransactionでCREATE / UPDATE / DISABLEと親version更新 → USES Projection。期間外の割当は保持する。
 
 Rebuild: 通常worker停止・leader引継ぎ → REBUILDING → 排他mutation lock → controllerがOutbox drain → 単一statement正本Snapshot → 新generation検証 → 切替 → lock / leader解放 → 状態再判定。
+
+## 11. 意思決定支援フロー
+
+対象特定・認可 → 分析条件と評価期間の確認 → CURRENT下の影響探索 → 正本の状態・能力・経済・計画・安全・履歴入力取得 → 決定論的計算 → 制約と案比較 → Evidence / Unknowns付きDecision Packageを提示する。追加入力・計算契約はPO判断後に確定する。
+
+不足時は既知部分と評価別の不完全性を提示する。分析だけではPrepareしない。利用者が明示的に変更準備を要求した場合のみ、権限・カテゴリ・対象・業務値を再検証して既存Prepareフローへ進む。将来停止の方式はPO-B05を解決するまで補完しない。人のApproval APIと元requesterのExecute APIはAgent対話から独立した確定操作として維持する。

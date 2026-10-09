@@ -2,7 +2,7 @@
 
 ## 1. 目的
 
-本書はLineScopeの設計・実装に使用する19文書の体系と責務を定義する。
+本書はLineScopeの設計・実装に使用する20文書の体系と責務を定義する。
 
 文書群は `requirements`（要件定義）、`design`（設計）、`implementation-design`（実装設計）の3群に分ける。
 
@@ -11,7 +11,7 @@
 1. `requirements/requirements.md` — 機能要件・業務要件
 2. `requirements/domain-model.md` — 業務概念・関係意味論
 3. `requirements/access-control.md` — 権限・承認要件
-4. `requirements/use-cases.md` — UC-01〜UC-21
+4. `requirements/use-cases.md` — 既存処理UC-01〜UC-21、業務目的UC-B01〜UC-B17
 5. `requirements/non-functional-requirements.md` — 非機能要件
 6. `requirements/acceptance-criteria.md` — 受入基準・要件トレーサビリティ
 
@@ -33,7 +33,9 @@
 17. `implementation-design/operations.md` — 運用・監視・復旧
 18. `implementation-design/AGENTS.md` — Codex等の実装支援Agent向け規則
 
-本書自身を含めて合計19文書とする。
+19. `implementation-design/business-scenarios.md` — BS-01〜19、BS-G01、固定fixture期待値・UC ↔ BS ↔ AC対応
+
+本書自身を含めて合計20文書とする。従来19文書を保持し、Use Caseと業務受入試験を分離するため本書改訂で1文書を追加した。
 
 ## 5. 責務の正本
 
@@ -54,7 +56,8 @@
 | LLM指示 | `prompt-design.md` |
 | RAG | `rag-design.md` |
 | AI評価 | `evals.md` |
-| 決定論的テスト | `test-plan.md` |
+| 決定論的テスト・試験階層 | `test-plan.md` |
+| Business Scenario・fixture期待値・UC ↔ BS ↔ AC | `business-scenarios.md` |
 | 運用 | `operations.md` |
 | 実装支援Agent作業規則 | `AGENTS.md` |
 
@@ -63,7 +66,7 @@
 ## 6. v1デモ実装スコープ
 
 - 単一工場
-- UIなし、HTTP API / curl中心
+- 現サーバサイド実装フェーズはHTTP API / curl中心。Frontendはサーバサイド完成後に構築する
 - 固定デモユーザーによる認証を許容
 - PostgreSQLを業務正本とする
 - Neo4jを依存関係探索用派生Read Modelとする
@@ -75,4 +78,10 @@
 
 ## 7. レビュー記録
 
-docs/history配下のレビュー・変更履歴は19文書外の記録であり仕様正本ではない。履歴一覧は[history/README.md](history/README.md)を参照する。PO判断待ちは各正本文書に記載し、推測で操作を有効化しない。確定後API / DB / AC / Testも更新する。
+docs/history配下のレビュー・変更履歴は正本文書外の記録であり仕様正本ではない。履歴一覧は[history/README.md](history/README.md)を参照する。PO判断待ちは各正本文書に記載し、推測で操作を有効化しない。確定後API / DB / AC / Testも更新する。
+
+## 8. 業務判断支援追加の適用方針
+
+POはUC-B01〜15とBusiness Scenarioの意図を既存仕様との不整合時に優先する方針を確定した。能力・リスク・経済評価・対応案比較をプロダクト要件に含める。確定済みの要件、PO未決定事項、設計契約、実装・試験状況を区別する。
+
+未決定業務ルールの正本はrequirements §14.3（PO-B01〜08）。新機能の物理スキーマ、Tool契約、更新カテゴリを未決定のまま既存v1へ追加しない。基本の正本／派生モデル、人間のApproval / Execute、Outbox、Graph同期境界は維持する。

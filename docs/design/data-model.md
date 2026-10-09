@@ -423,3 +423,11 @@ erDiagram
 線はSQLのFKだけを表す。DependencyRelationのsource / targetは通常のFKではなく、Equipment・Process・ProductionOperation・Product・InfrastructureResourceへの型付き論理参照であり、参照先の存在・activeや混在循環等は後続の更新Transactionで検証する。図のProduct・InfrastructureResourceがFK線を持たないことは、業務上の依存関係がないことを意味しない。依存の保存方向・影響方向・Neo4j Projectionはdomain-modelと本書§4〜6を正とする。
 
 maintenance_plan_idのNULLは計画との関連なしを表す。計画を指定した実績のequipment_id一致、active期間重複などの業務制約は、単独のFKとは別に更新Transactionで検証する。
+
+## 14. 業務判断支援で必要なデータ拡張（未確定）
+
+現在の主要テーブルは能力・経済・安全・故障分析の全入力を保持しない。requirements §14.2のA / B / C分類を正とする。追加要件を対象外にはしないが、未決定のテーブル・列・DEFAULT・値域を既存ER図へ実装済みとして追加しない。
+
+拡張の設計入力は、製品・期間別の能力／負荷／必要量、通貨・適用期間付き損失率、稼働calendar、修理／交換案の費用・時間・lead time、計画種別、劣化観測、適用安全基準と判定根拠、故障／修理／過去停止影響、buffer・納期である。意味・登録主体・権限はPO-B01〜07で確定する。
+
+計算入力にはsource object / record、version、観測時刻、適用期間、単位、推定／確定の区別を追跡可能にする。欠損値を0やFALSEで初期化しない。MaintenanceRecord.resultや文書citationは説明根拠として使えても、定義済み数値列・安全判定ルールを自動代替しない。新数量のscale・丸め・保存型は意味確定後に定義する。既存canonical Snapshot v1のdecimal / float拒否は維持し、必要なら明示した新schemaを設計する。
