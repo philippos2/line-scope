@@ -222,3 +222,17 @@ T-R02 / R03 / R08 / R21、AC-07 / 13 / 14 / 16 / 18 / G12の内部Prepare・Snap
 Docker内で984テスト成功（既存962 + 追加22）、ruff check / format、git diff --check成功。半開境界・無期限・包含を含む重複、typed endpoint / 関係種別 / 保存方向の区別、required差、inactiveの期間重複と業務キー一意性、行ID重複、timezone同値キー、縮小／DISABLE後の最終集合、入力非変更・監査除外、不正配列・行・期間・boolを確認した。
 
 AC-11 / G12とdomain-model §14の業務キー・型・期間検証部品に対応する。DB読込・保存、endpointの存在 / active、権限、禁止循環、Graph mutation lock、API / Tool接続はこの部品の責務外で、受入基準全体の完成ではない。次回はこの部品と禁止循環検証を依存関係Prepareへ接続する。要件・DB / migration・依存・Frontendは変更せず、LogiScopeコードの再利用はない。
+
+## 依存関係CREATE・UPDATE・DISABLEの内部Prepareチェックポイント
+
+2026-10-09、PR #31 mergeを確認してローカルmainをfast-forwardし、POの再開指示でDependencyPrepareを追加した。保全・生産管理・工場管理のtrusted contextだけを許可し、既存Tool契約のCREATE全業務入力、UPDATEの非空patch、DISABLEのIDだけを受け付ける。USES直接登録、ID・versionの自己申告変更、不正型・時刻を拒否する。正規化した明示入力・Tool名・置換IDをhashへ固定し、観測before / version・生成IDを含めない。対象集合をCREATE業務キーまたは既存IDで整列し、同一行への複数操作・CREATE同一キーを全体拒否する。
+
+単一statement Snapshotで全DependencyRelation・全Assignment・5種類のtyped endpointの存在 / activeを取得する。全対象の変更後の型・required・期間、endpoint存在 / active、実変更・DISABLE対象active・version増分を検証してからCREATE IDを生成する。既存IDや他CREATE IDとの衝突を拒否し、全Targetを適用した最終集合で業務キー一意性・active期間重複・混在禁止循環を検証する。業務キー交換、期間縮小後のCREATE、DISABLEによる循環回避は途中集合で拒否しない。変更後のtyped参照の存在・active検証はDISABLEを含む全Targetへ適用する。要件の例外は推測追加していない。
+
+保存済み再送を正本読込より先に返し、終端要求・正本変更後も生成済みIDと確定Snapshotを保持する。既存ProposalStoreで要求・全Target・承認を保存し、明示した旧要求の失効と新保存を原子的に行う。Prepareでは業務Relation行を変更せず、Graph mutation lockも取得しない。
+
+Docker内の実PostgreSQLで1,034テスト成功（既存984 + 追加50）、ruff check / format、git diff --check成功。3操作混在と全業務項目・version保持、業務正本非変更、権限、不正schema / period / required / endpoint組合せ、重複・不存在・inactive・no-opの全Target拒否、業務キー交換、半開境界・期間縮小後CREATE、禁止循環とDISABLE回避、SUPPLIES許容循環を確認した。再送正規化・終端保存結果・ID非再生成・内容 / Agent / 置換ID不一致・owner scope / 権限喪失、4並行同key、旧要求置換中のApproval INSERT失敗による全rollbackと同key再試行、単一statement / 非lock、typed UUID取り違え、CREATE前の全対象検証、生成ID衝突、version上限、読込後のSQL変更、timeout・接続障害も検証した。
+
+T-R02 / R03 / R07 / R21と、複数Graph Targetの最終集合検証に関するtest-plan補足、AC-05 / 07 / 11 / 13 / 14 / 16 / G12の内部Prepare部分に対応する。承認・Execute・Projectionや受入基準全体の完成ではない。Dependency自己承認不可と工場管理者だけの承認規則は後続Approval APIで適用する。
+
+全カテゴリの内部Prepareが揃った。次は既存Tool契約に沿うdispatcher / API接続と、curlで試せる一連の流れへ進める。HTTPはまだhealth / readinessだけ。デモseed、LLM / embedding疎通、Approval / Execute、DB監査・Toolログ、Graph / Outboxは後続。PO-B、業務要件、DB / migration、依存、Frontendは変更せず、LogiScopeコードの再利用はない。
