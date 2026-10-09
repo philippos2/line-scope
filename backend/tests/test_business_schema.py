@@ -53,6 +53,7 @@ def test_schema_boundary_and_upgrade_from_foundation(db):
         "002_business_schema.sql",
         "003_update_request_schema.sql",
         "004_update_audit_events.sql",
+        "005_execution_history.sql",
     ]
     assert db.migrate() == []
     with db.transaction() as c:
@@ -65,6 +66,8 @@ def test_schema_boundary_and_upgrade_from_foundation(db):
             "update_target",
             "approval",
             "update_audit_event",
+            "business_update_history",
+            "equipment_state_history",
         }
         columns = c.execute(
             "SELECT column_name FROM information_schema.columns "
