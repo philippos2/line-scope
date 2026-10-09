@@ -8,14 +8,18 @@ propagation and the LLM deadline are separate integration work.
 
 from math import isfinite
 from threading import Lock
-from time import monotonic
+from time import monotonic, monotonic_ns
+from uuid import UUID, uuid4
 
 from .agent_input import AgentInput
 from .execution import ExecutionContext
+from .logging import CODES, request_context
 from .proposals import SavedProposal
-from .reads import ToolError
+from .reads import GET_TOOLS, ToolError
 from .tools import PREPARE_CATEGORIES
 from .update_intent import assess_update_intent
+
+TARGET_ID_FIELDS = {key for _, key in GET_TOOLS.values()} | {"maintenance_record_id"}
 
 
 class AgentToolSession:
@@ -29,6 +33,7 @@ class AgentToolSession:
         max_calls=12,
         deadline_seconds=60,
         clock=monotonic,
+        event_logger=None,
     ):
         if not isinstance(context, ExecutionContext):
             raise ToolError("AUTHENTICATION_REQUIRED", "Trusted execution context is required")
@@ -48,6 +53,7 @@ class AgentToolSession:
         self.update_intent = assess_update_intent(request)
         self.prepare_authorized = prepare_authorized and self.update_intent.confirmed
         self.max_calls, self.clock = max_calls, clock
+        self.events = event_logger
         self.deadline = clock() + deadline_seconds
         self.calls = 0
         self._prepare_started = False
@@ -91,7 +97,77 @@ class AgentToolSession:
             }
         )
 
-    def run(self, tool, arguments):
+    def run(self, tool, arguments, *, tool_call_id=None, attempt_count=1):
+        # These identifiers are supplied by the server orchestrator, not Tool JSON.
+        try:
+            call_id = UUID(str(tool_call_id)) if tool_call_id is not None else uuid4()
+        except ValueError:
+            call_id = uuid4()
+        started = monotonic_ns()
+        code, outcome, level = "OK", "success", "INFO"
+        result = None
+        try:
+            result = self._run(tool, arguments)
+            return result
+        except ToolError as error:
+            code = (
+                error.code if type(error.code) is str and error.code in CODES else "INTERNAL_ERROR"
+            )
+            if code == "INTERNAL_ERROR":
+                outcome, level = "failure", "ERROR"
+            elif code in {"DEPENDENCY_UNAVAILABLE", "RESOURCE_BUSY"}:
+                outcome, level = "failure", "WARNING"
+            else:
+                outcome = (
+                    "partial"
+                    if code == "AGENT_LIMIT_REACHED" and self.saved_proposal is not None
+                    else "rejected"
+                )
+            raise
+        except Exception:
+            code, outcome, level = "INTERNAL_ERROR", "failure", "ERROR"
+            raise
+        except BaseException:
+            code, outcome, level = "REQUEST_ABORTED", "unknown", "WARNING"
+            raise
+        finally:
+            if self.events is not None:
+                metadata = {
+                    "tool": tool,
+                    "tool_call_id": call_id,
+                    "attempt_count": attempt_count,
+                    "context_id": self.request.context_id,
+                    "duration_ms": (monotonic_ns() - started) // 1_000_000,
+                }
+                # Never copy arguments wholesale, even at DEBUG. Only known UUID
+                # target fields are candidates; the logger validates their values.
+                if type(arguments) is dict:
+                    metadata.update(
+                        {key: arguments[key] for key in TARGET_ID_FIELDS if key in arguments}
+                    )
+                proposal = result if isinstance(result, SavedProposal) else self.saved_proposal
+                if proposal is not None:
+                    metadata.update(
+                        update_request_id=proposal.update_request_id,
+                        approval_id=proposal.approval_id,
+                        snapshot_hash=proposal.snapshot.snapshot_hash,
+                        replayed=proposal.replayed,
+                    )
+                with request_context(
+                    self.context.request_id,
+                    actor_id=self.context.authenticated_user_id,
+                    role=self.context.role,
+                ):
+                    self.events.emit(
+                        "tool.call.completed",
+                        component="tool",
+                        outcome=outcome,
+                        result_code=code,
+                        level=level,
+                        **metadata,
+                    )
+
+    def _run(self, tool, arguments):
         with self._lock:
             if self.clock() >= self.deadline or self.calls >= self.max_calls:
                 raise self._limit_error()

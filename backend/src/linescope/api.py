@@ -79,7 +79,9 @@ def create_app(settings=None, database=None, event_logger=None, *, llm=None, con
     conversations = conversations or ConversationStore()
     if llm is None and settings.llm_model:
         llm = OllamaClient(base_url=settings.llm_base_url, model=settings.llm_model)
-    read_agent = ReadAgent(ToolDispatcher(database), llm) if llm is not None else None
+    read_agent = (
+        ReadAgent(ToolDispatcher(database), llm, event_logger=events) if llm is not None else None
+    )
     app.state.conversations = conversations
     app.state.events = events
     app.add_middleware(RequestMiddleware, settings=settings, events=events, response=response)
