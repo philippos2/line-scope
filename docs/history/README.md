@@ -282,3 +282,13 @@ Prepareはdefaultでschema非公開・呼出し拒否とし、将来orchestrator
 Prepare保存後のdeadline到達時もSavedProposalを保持し、error detailsにupdate_request_id / approval_id / statusを含める。保存済み提案を失敗によって消したり二重生成したりせず、成功回答へ偽装しない。Dockerで追加25件と既存受付・dispatcherを合わせた93テスト成功、ruff check / format、git diff --check成功。実PostgreSQLで既存dispatcherのRead / Prepare・業務状態非変更、期限超過後の保存済み要求の再送も検証した。agent-design §12、operations §10、T-R17とAC-02 / 05 / 14の内部制御部分に対応する。
 
 時間予算は同期Toolの開始前・終了後の判定であり、実行途中の強制中断を保証しない。LLM timeoutと下流dependency timeoutへの残予算伝播、明示更新意思の判定、HTTP / Agent接続、Tool trace / operation log、Read一時障害のbounded retryは後続。これだけで60秒以内のHTTP終了やAgent全体完成とは扱わない。正式仕様・DB / migration・依存・Frontendは変更せず、LogiScopeコードの再利用、Astraレビューもない。
+
+## 明示更新意思のサーバ判定チェックポイント
+
+PR #37 merge後、元AgentInput.messageだけを対象とするversion付き単一命令形の判定を追加した。設備状態・保全予定／実績・生産作業予定・依存関係無効化の限定した文型を全文一致で確認する。確認結果はルールversion、業務カテゴリ、元message hash、元文字列の根拠範囲を保持する。引用・否定・質問・仮定・複合指示・非対応表現は許可せず補足確認へ残す。LLM / Retrieved本文の意思宣言を根拠にしない。
+
+AgentToolSessionはサーバの有効化flagだけではPrepareを許可しなくなった。元messageの判定成立とカテゴリ一致を追加条件にし、非対応カテゴリのPrepareをschemaにも公開しない。業務権限・対象解決・Snapshot検証は既存または後続処理の責務であり、この文型判定で代替しない。
+
+Dockerで追加37件と既存Agent受付・Tool制御を合わせた93テスト成功、ruff check / format、git diff --check成功。対応する命令形の根拠追跡、引用・code block・否定・質問・仮定・複合文・Approval / Execute誘導、元messageの迂回拒否とカテゴリ不一致を確認した。agent-design §12、prompt-designの明示更新制約、evals §6の固定安全ケースとT-R17 / AC-02の内部境界部分に対応する。固定ケースの成功を自由な日本語一般や実LLM Evalsの完了とは扱わない。
+
+単一の限定文型のみ対応し、複数対象や「次回保全で停止する変更準備」のような複合表現は明示指示の追加確認を要する。業務要件から削除したものではなく、後続Context／orchestratorで補足する。対象ID・変更値と指示内容の照合、補足会話と元意思の関連付け、HTTP / LLM接続は後続。正式仕様・DB / migration・依存・Frontendは変更せず、LogiScopeコードの再利用、Astraレビューもない。
