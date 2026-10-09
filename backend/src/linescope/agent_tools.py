@@ -1,7 +1,7 @@
 """Per-request Agent Tool admission, accounting and saved-proposal preservation.
 
-prepare_authorized is a trusted server decision, never an LLM argument. The
-future orchestrator must establish explicit update intent before enabling it.
+prepare_authorized is a trusted server enable switch, never an LLM argument.
+Original-message intent must also pass the conservative server grammar.
 This synchronous boundary checks deadlines between calls; dependency timeout
 propagation and the LLM deadline are separate integration work.
 """
@@ -15,6 +15,7 @@ from .execution import ExecutionContext
 from .proposals import SavedProposal
 from .reads import ToolError
 from .tools import PREPARE_CATEGORIES
+from .update_intent import assess_update_intent
 
 
 class AgentToolSession:
@@ -44,7 +45,8 @@ class AgentToolSession:
         ):
             raise ValueError("Agent deadline must be positive and finite")
         self.context, self.request, self.dispatcher = context, request, dispatcher
-        self.prepare_authorized = prepare_authorized
+        self.update_intent = assess_update_intent(request)
+        self.prepare_authorized = prepare_authorized and self.update_intent.confirmed
         self.max_calls, self.clock = max_calls, clock
         self.deadline = clock() + deadline_seconds
         self.calls = 0
@@ -81,7 +83,11 @@ class AgentToolSession:
             {
                 name: schema
                 for name, schema in self._schemas.items()
-                if self.prepare_authorized or name not in PREPARE_CATEGORIES
+                if name not in PREPARE_CATEGORIES
+                or (
+                    self.prepare_authorized
+                    and PREPARE_CATEGORIES[name] == self.update_intent.category
+                )
             }
         )
 
@@ -94,7 +100,10 @@ class AgentToolSession:
             if type(tool) is not str or tool not in self._schemas:
                 raise ToolError("INVALID_ARGUMENT", "Unknown Agent Tool")
             prepare = tool in PREPARE_CATEGORIES
-            if prepare and not self.prepare_authorized:
+            if prepare and (
+                not self.prepare_authorized
+                or PREPARE_CATEGORIES[tool] != self.update_intent.category
+            ):
                 raise ToolError("AUTHORIZATION_DENIED", "Explicit update intent must be confirmed")
             if prepare:
                 if self._prepare_started:

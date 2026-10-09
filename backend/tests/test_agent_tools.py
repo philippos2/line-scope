@@ -30,7 +30,12 @@ class Dispatcher:
 def session(dispatcher=None, **kwargs):
     owner = context()
     request = AgentInput.parse(
-        owner, '{"message":"設備を検索"}', received_at=NOW, idempotency_key=str(UUID(int=1))
+        owner,
+        '{"message":"設備M-204の状態をSTOPPEDに変更して"}'
+        if kwargs.get("prepare_authorized") is True
+        else '{"message":"設備を検索"}',
+        received_at=NOW,
+        idempotency_key=str(UUID(int=1)),
     )
     return AgentToolSession(owner, request, dispatcher or Dispatcher(), **kwargs)
 
@@ -146,7 +151,9 @@ def test_saved_prepare_is_preserved_if_deadline_expires(db):
     db.migrate()
     now = [0]
     owner = context()
-    request = AgentInput.parse(owner, '{"message":"設備状態を変更"}', received_at=NOW)
+    request = AgentInput.parse(
+        owner, '{"message":"設備M-204の状態をSTOPPEDに変更して"}', received_at=NOW
+    )
 
     def action():
         saved = ProposalStore(db).save(
