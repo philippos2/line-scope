@@ -20,7 +20,7 @@ APPROVAL_ROLES = {
 }
 
 
-def validate_approve(context, proposal, snapshot_hash):
+def _validate_pending_human_action(context, proposal):
     """Return the authorized category, without changing any state or deadline."""
     if not isinstance(context, ExecutionContext):
         raise ProposalError("AUTHENTICATION_REQUIRED", "Trusted execution context is required")
@@ -46,9 +46,22 @@ def validate_approve(context, proposal, snapshot_hash):
     ):
         raise ProposalError("AUTHORIZATION_DENIED", "Self approval is not permitted")
     if (proposal.status, proposal.approval_status) != ("WAITING_APPROVAL", "PENDING"):
-        raise ProposalError("INVALID_UPDATE_STATE", "Only pending requests may be approved")
+        raise ProposalError(
+            "INVALID_UPDATE_STATE", "Only pending requests may be approved or rejected"
+        )
+    return category
+
+
+def validate_approve(context, proposal, snapshot_hash):
+    """Validate human admission and the submitted approval hash."""
+    category = _validate_pending_human_action(context, proposal)
     if type(snapshot_hash) is not str or not re.fullmatch(r"[0-9a-f]{64}", snapshot_hash):
         raise ProposalError("INVALID_ARGUMENT", "A canonical Snapshot hash is required")
-    if not hmac.compare_digest(snapshot_hash, verified.snapshot_hash):
+    if not hmac.compare_digest(snapshot_hash, proposal.snapshot.snapshot_hash):
         raise ProposalError("APPROVAL_MISMATCH", "Submitted Snapshot hash does not match")
     return category
+
+
+def validate_reject(context, proposal):
+    """Validate human rejection using the same role and self-approval rules."""
+    return _validate_pending_human_action(context, proposal)
