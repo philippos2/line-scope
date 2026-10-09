@@ -392,6 +392,8 @@ def test_stored_corruption_is_rejected_without_repair_or_state_change(db_store, 
         elif change == "missing_target":
             connection.execute("DELETE FROM update_target")
         elif change == "missing_approval":
+            # Remove referencing audit fixtures before simulating storage damage.
+            connection.execute("DELETE FROM update_audit_event")
             connection.execute("DELETE FROM approval")
         elif change in {"canonical", "requester"}:
             payload = first.snapshot.data
@@ -663,6 +665,7 @@ def test_replacement_rejects_old_integrity_failure_without_repair(db_store, chan
         elif change == "target":
             connection.execute("UPDATE update_target SET expected_version=9")
         elif change == "missing_approval":
+            connection.execute("DELETE FROM update_audit_event")
             connection.execute("DELETE FROM approval")
         else:
             connection.execute("UPDATE update_request SET status='APPROVED'")
