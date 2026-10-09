@@ -9,7 +9,8 @@ from starlette.exceptions import HTTPException
 from .database import Database
 from .http_logging import RequestMiddleware
 from .logging import EventLogger, request_context
-from .reads import ReadTools
+from .proposals import ProposalError, ProposalStore
+from .reads import ReadTools, json_value
 from .settings import Settings
 
 
@@ -71,5 +72,21 @@ def create_app(settings=None, database=None, event_logger=None):
         except psycopg.Error:
             return response(request, code="DEPENDENCY_UNAVAILABLE", status_code=503)
         return response(request, {"service": "linescope", "postgresql": "available"})
+
+    @app.get("/update-requests/{request_id}")
+    def update_request(request: Request, request_id: str):
+        try:
+            data = ProposalStore(database).get(request.state.execution_context, request_id)
+        except ProposalError as error:
+            status = {
+                "INVALID_ARGUMENT": 400,
+                "AUTHENTICATION_REQUIRED": 401,
+                "AUTHORIZATION_DENIED": 403,
+                "TARGET_NOT_FOUND": 404,
+                "RESOURCE_BUSY": 503,
+                "DEPENDENCY_UNAVAILABLE": 503,
+            }.get(error.code, 500)
+            return response(request, code=error.code, status_code=status)
+        return response(request, json_value(data))
 
     return app

@@ -6,7 +6,7 @@
 
 設備・工程・生産作業・製品・インフラの関係から、停止時の影響や依存先を調べ、根拠を確認して業務更新へ進めるシステムを目指しています。AIは調査と更新提案を支援し、承認と実行は認証済みの人が操作します。
 
-> **現在はバックエンドを段階的に開発中です。** PostgreSQLの業務スキーマ、内部Read Tools、更新提案のSnapshot構築・検証と内部保存・再送・提案置換処理と固定Tool dispatcherまで実装しています。HTTPから試せるのは認証付きhealth / readinessです。Agent・承認・実行・Graph・RAGの接続は後続工程です。
+> **現在はバックエンドを段階的に開発中です。** PostgreSQLの業務スキーマ、内部Read Tools、更新提案のSnapshot構築・検証と内部保存・再送・提案置換処理と固定Tool dispatcherまで実装しています。HTTPからは認証付きhealth / readinessと保存済み更新要求の閲覧を試せます。Agent・承認・実行・Graph・RAGの接続は後続工程です。
 
 ## プロダクトの範囲
 
@@ -122,7 +122,16 @@ curl -sS -i "$BASE_URL/health"
 unset LINESCOPE_TOKEN
 ```
 
-readinessでPostgreSQLへ接続できなければHTTP 503、`DEPENDENCY_UNAVAILABLE`です。Graph・RAG・業務APIの準備完了を表すものではありません。`POST /agent`や更新APIのcurl例は、そのAPIの実装時に追加します。
+readinessでPostgreSQLへ接続できなければHTTP 503、`DEPENDENCY_UNAVAILABLE`です。Graph・RAG・業務APIの準備完了を表すものではありません。`POST /agent`と承認・実行APIは後続です。
+
+保存済みUpdateRequestは次のAPIで確認できます。本人は自身の要求を、他者はロールごとの履歴閲覧範囲で参照できます。
+
+```sh
+curl -sS -i "$BASE_URL/update-requests/$UPDATE_REQUEST_ID" \
+  -H "Authorization: Bearer $TOKEN"
+```
+
+成功時は200で、確定済みcanonical Snapshot、hash、要求・承認状態、承認時刻・期限を返します。現在の業務値でSnapshotを再生成しません。不正IDは400、不存在は404、閲覧権限不足は403です。デモseedとHTTP Prepareは未実装のため、起動直後には参照する更新要求がありません。
 
 ## 内部Toolsと更新提案
 
