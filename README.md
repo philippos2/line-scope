@@ -27,7 +27,7 @@ AIによる自律的な最終判断・承認・実行、実設備制御、在庫
 | 更新提案 | 設備状態、保全予定・実績、生産作業の予定値・設備割当、依存関係のCanonical Snapshotを構築・検証 |
 | Prepare / Approval / Execute | 設備状態UPDATE、保全の予定UPDATE・予定／実績CREATE混在、生産作業の予定値UPDATE・設備割当置換、依存関係CREATE／UPDATE／DISABLEの内部Prepareを実装。正本の一貫参照・権限・業務制約・Snapshot保存、再送、原子的な置換に対応。Prepare API / Tool公開、承認／実行処理は後続 |
 | Graph / Outbox | Neo4j Projection、同期管理、依存・影響分析は後続 |
-| RAG / Agent | Qdrant連携とLLM / embedding modelの評価・選定は後続 |
+| RAG / Agent | Ollama試作アダプターと実Qwenの架空Tool疎通を検証。業務Agent・Qdrant・embedding接続とモデル採用評価は後続 |
 | Frontend | サーバサイド完成後に構築。Graph中心のオペレーション画面は候補の一つ |
 
 Snapshotは提案内容を固定するためのデータです。構築できることと、承認済み・実行済みであることは別です。設備状態・更新履歴の参照も後続工程です。
@@ -220,3 +220,16 @@ line-scope/
 - [レビュー・実装チェックポイントの履歴](docs/history/README.md)
 
 現在は単一工場のデモ実装を進めています。性能・実モデルの品質・製品全体の受入完了は、各機能の実装と評価後に確認します。
+
+## ローカルLLMの事前疎通
+
+ホストのOllamaで候補モデルを用意した後、Linuxでは次のコマンドでDocker内から架空Read Toolの2ターン試験を実行できます。モデルの自動取得や業務データ更新は行いません。
+
+```sh
+docker compose -f compose.test.yaml build tests
+docker run --rm --network host linescope-test-tests \
+  python /workspace/scripts/verify_local_llm.py \
+  --model qwen3:30b-a3b-instruct-2507-q4_K_M
+```
+
+接続先は既定で `http://127.0.0.1:11434`、変更時は `--base-url` を指定します。試験は架空設備M-204のTool引数と結果の利用を確認し、成功・失敗と所要時間だけを出力します。生応答・内部推論は保存しません。これは試作アダプターの疎通確認であり、モデル採用、POST /agent、実DB・RAG連携、回答品質全般の検証ではありません。Ollama native APIの[chat](https://docs.ollama.com/api/chat)と[Tool calling](https://docs.ollama.com/capabilities/tool-calling)に従います。
