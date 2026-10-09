@@ -167,6 +167,8 @@ class EquipmentApproval:
             "approval_id": saved.approval_id,
             "status": "REJECTED",
             "approval_status": "REJECTED",
+            "approved_at": None,
+            "expires_at": None,
         }
 
     def approve(self, context, approval_id, snapshot_hash):
