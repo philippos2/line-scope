@@ -19,8 +19,12 @@ STATUS = r"(?:PLANNED|CANCELLED|計画済み|取消済み)"
 TIMESTAMP = r"[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(?:\.[0-9]{1,6})?(?:Z|[+-][0-9]{2}:[0-9]{2})"
 # Full-message matching prevents directives inside quotations, questions,
 # conditional sentences or pasted documents from becoming permission evidence.
+EQUIPMENT_STATE_PATTERN = (
+    rf"(?:設備)?(?P<equipment_code>{IDENTIFIER})の状態を"
+    rf"(?P<state>{STATE})に(?:更新|変更){COMMAND}"
+)
 PATTERNS = [
-    ("EQUIPMENT_STATE", rf"(?:設備)?{IDENTIFIER}の状態を{STATE}に(?:更新|変更){COMMAND}"),
+    ("EQUIPMENT_STATE", EQUIPMENT_STATE_PATTERN),
     ("MAINTENANCE", rf"(?:設備)?{IDENTIFIER}の(?:保全予定|保全実績)を(?:登録|作成){COMMAND}"),
     (
         "MAINTENANCE",
@@ -44,6 +48,31 @@ class UpdateIntent:
     source_message_hash: str
     evidence_start: int | None
     evidence_end: int | None
+
+
+@dataclass(frozen=True)
+class EquipmentStateCommand:
+    intent: UpdateIntent
+    equipment_code: str
+    state_code: str
+
+
+def equipment_state_command(request):
+    """Extract values only from the same original-message permission evidence."""
+    intent = assess_update_intent(request)
+    if not intent.confirmed or intent.category != "EQUIPMENT_STATE":
+        return None
+    match = re.fullmatch(
+        EQUIPMENT_STATE_PATTERN, request.message[intent.evidence_start : intent.evidence_end]
+    )
+    states = {
+        "稼働中": "RUNNING",
+        "停止": "STOPPED",
+        "保全中": "UNDER_MAINTENANCE",
+        "不明": "UNKNOWN",
+    }
+    state = match["state"]
+    return EquipmentStateCommand(intent, match["equipment_code"], states.get(state, state))
 
 
 def assess_update_intent(request):
