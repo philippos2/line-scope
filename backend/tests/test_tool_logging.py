@@ -54,6 +54,19 @@ def test_success_has_trusted_identity_target_id_and_monotonic_duration(monkeypat
     assert current_request_id() is None
 
 
+def test_shutdown_flush_failure_is_sanitized(capsys):
+    from linescope.logging import SafeHandler
+
+    class Broken:
+        def flush(self):
+            raise RuntimeError(SECRET)
+
+    handler = SafeHandler(Broken())
+    handler.flush()
+    assert capsys.readouterr().err == "LineScope logging output failed\n"
+    handler.stream = None
+
+
 @pytest.mark.parametrize(
     "code,level,outcome",
     [
