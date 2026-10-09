@@ -11,14 +11,16 @@ from psycopg.types.json import Jsonb
 from .approval_policy import validate_approve, validate_reject
 from .canonical import normalize_uuid
 from .execution import ExecutionContext
+from .logging import EventLogger, request_context
 from .proposals import LOOKUP, ProposalError, ProposalStore, _saved
 
 
 class EquipmentApproval:
-    def __init__(self, database):
+    def __init__(self, database, event_logger=None):
         self.store = ProposalStore(database)
+        self.events = event_logger or EventLogger()
 
-    def approve(self, context, approval_id, snapshot_hash):
+    def _approve(self, context, approval_id, snapshot_hash):
         if not isinstance(context, ExecutionContext):
             raise ProposalError("AUTHENTICATION_REQUIRED", "Trusted execution context is required")
         try:
@@ -96,7 +98,9 @@ class EquipmentApproval:
             )
         # Invalidation must commit before reporting the conflict to the caller.
         if conflict:
-            raise ProposalError("VERSION_CONFLICT", "The prepared equipment state has changed")
+            error = ProposalError("VERSION_CONFLICT", "The prepared equipment state has changed")
+            error.update_request_id = request_id
+            raise error
         return result
 
     @staticmethod
@@ -123,7 +127,7 @@ class EquipmentApproval:
         row = connection.execute(query, (request_id,)).fetchone()
         return _saved(row, None, None, replayed=False)
 
-    def reject(self, context, approval_id):
+    def _reject(self, context, approval_id):
         """Reject a pending equipment proposal; never cancel an approval."""
         if not isinstance(context, ExecutionContext):
             raise ProposalError("AUTHENTICATION_REQUIRED", "Trusted execution context is required")
@@ -164,3 +168,113 @@ class EquipmentApproval:
             "status": "REJECTED",
             "approval_status": "REJECTED",
         }
+
+    def approve(self, context, approval_id, snapshot_hash):
+        return self._observed(context, approval_id, "APPROVE", snapshot_hash)
+
+    def reject(self, context, approval_id):
+        return self._observed(context, approval_id, "REJECT")
+
+    def _observed(self, context, approval_id, action, snapshot_hash=None):
+        if not isinstance(context, ExecutionContext):
+            raise ProposalError("AUTHENTICATION_REQUIRED", "Trusted execution context is required")
+        with request_context(
+            context.request_id, actor_id=context.authenticated_user_id, role=context.role
+        ):
+            try:
+                result = (
+                    self._approve(context, approval_id, snapshot_hash)
+                    if action == "APPROVE"
+                    else self._reject(context, approval_id)
+                )
+            except ProposalError as error:
+                # VERSION_CONFLICT already committed an INVALIDATE audit in _approve.
+                request_id = getattr(error, "update_request_id", None)
+                if error.code != "VERSION_CONFLICT":
+                    request_id = self._failure_audit(context, approval_id, action, error.code)
+                self.events.emit(
+                    "approval.completed",
+                    component="proposal",
+                    outcome="unknown"
+                    if error.code == "DEPENDENCY_UNAVAILABLE"
+                    else "failure"
+                    if error.code == "INTERNAL_ERROR"
+                    else "rejected",
+                    result_code=error.code,
+                    level="ERROR"
+                    if error.code == "INTERNAL_ERROR"
+                    else "WARNING"
+                    if error.code in {"DEPENDENCY_UNAVAILABLE", "RESOURCE_BUSY"}
+                    else "INFO",
+                    approval_id=approval_id,
+                    update_request_id=request_id,
+                    before_status="WAITING_APPROVAL" if error.code == "VERSION_CONFLICT" else None,
+                    after_status="INVALIDATED" if error.code == "VERSION_CONFLICT" else None,
+                    error=error if error.code == "INTERNAL_ERROR" else None,
+                )
+                raise
+            self.events.emit(
+                "approval.completed",
+                component="proposal",
+                outcome="success",
+                result_code="OK",
+                update_request_id=result["update_request_id"],
+                approval_id=result["approval_id"],
+                before_status="WAITING_APPROVAL",
+                after_status=result["status"],
+            )
+            return result
+
+    def _failure_audit(self, context, approval_id, action, code):
+        request_id = None
+        try:
+            try:
+                approval_id = normalize_uuid(approval_id)
+            except ValueError:
+                return None
+            # The original transaction has ended. Lock the existing parent first,
+            # then Approval; never change state or claim a rollback outcome here.
+            with self.store._transaction() as connection:
+                parent = connection.execute(
+                    "SELECT update_request_id FROM approval WHERE approval_id=%s", (approval_id,)
+                ).fetchone()
+                if parent is None:
+                    return None
+                request_id = parent["update_request_id"]
+                state = connection.execute(
+                    "SELECT status FROM update_request WHERE update_request_id=%s FOR UPDATE",
+                    (request_id,),
+                ).fetchone()
+                locked = connection.execute(
+                    "SELECT approval_id FROM approval WHERE approval_id=%s AND update_request_id=%s FOR UPDATE",
+                    (approval_id, request_id),
+                ).fetchone()
+                if state is None or locked is None:
+                    return None
+                connection.execute(
+                    "INSERT INTO update_audit_event(audit_event_id,request_id,update_request_id,approval_id,"
+                    "actor_id,action,before_status,after_status,result_code,details,occurred_at) "
+                    "VALUES(%s,%s,%s,%s,%s,'FAILURE',%s,%s,%s,%s,clock_timestamp())",
+                    (
+                        uuid4(),
+                        context.request_id,
+                        request_id,
+                        approval_id,
+                        context.authenticated_user_id,
+                        state["status"],
+                        state["status"],
+                        code,
+                        Jsonb({"attempted_action": action}),
+                    ),
+                )
+        except ProposalError:
+            self.events.emit(
+                "audit.persist_failed",
+                component="audit",
+                outcome="failure",
+                result_code="INTERNAL_ERROR",
+                level="ERROR",
+                approval_id=approval_id,
+                update_request_id=request_id,
+            )
+        return request_id
