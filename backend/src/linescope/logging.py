@@ -81,6 +81,14 @@ UUID_FIELDS = {
     "tool_call_id",
     "supersedes_update_request_id",
     "aggregate_id",
+    "equipment_id",
+    "maintenance_plan_id",
+    "maintenance_record_id",
+    "process_id",
+    "production_operation_id",
+    "product_id",
+    "infrastructure_resource_id",
+    "dependency_relation_id",
 }
 INTEGER_FIELDS = {"duration_ms", "attempt_count", "aggregate_version", "node_count", "event_count"}
 ENUM_FIELDS = {
@@ -129,6 +137,13 @@ def _fields(values):
             result[key] = value
         elif key in {"actor_id", "route"} and _string(value):
             result[key] = value
+        elif key == "tool" and type(value) is str:
+            # Resolve lazily: the Tool registry also uses the logging boundary.
+            from .reads import SCHEMAS
+            from .tools import PREPARE_CATEGORIES
+
+            if value in SCHEMAS or value in PREPARE_CATEGORIES:
+                result[key] = value
     return result
 
 
