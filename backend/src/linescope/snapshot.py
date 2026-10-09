@@ -1,4 +1,4 @@
-"""Canonical Snapshot v1 for equipment-state and maintenance proposals.
+"""Canonical Snapshot v1 for equipment, maintenance and production proposals.
 
 This pure construction/validation layer does not authorize, persist or execute
 updates. Prepare must supply current PostgreSQL state and check permissions.
@@ -30,6 +30,7 @@ CATEGORIES = {
     "EquipmentState": "EQUIPMENT_STATE",
     "MaintenancePlan": "MAINTENANCE",
     "MaintenanceRecord": "MAINTENANCE",
+    "ProductionOperation": "PRODUCTION_OPERATION",
 }
 
 
@@ -290,6 +291,101 @@ def maintenance_record_create_target(values):
     )
 
 
+OPERATION_FIELDS = {
+    "production_operation_id",
+    "operation_code",
+    "process_id",
+    "planned_status",
+    "planned_start",
+    "planned_end",
+    "active",
+    "version",
+}
+OPERATION_PATCH_FIELDS = {"planned_status", "planned_start", "planned_end"}
+
+
+def _operation_record(value):
+    _exact(value, OPERATION_FIELDS)
+    if type(value["operation_code"]) is not str or type(value["active"]) is not bool:
+        raise ValueError("Invalid production operation fields")
+    if type(value["planned_status"]) is not str or value["planned_status"] not in {
+        "PLANNED",
+        "CANCELLED",
+    }:
+        raise ValueError("Invalid production operation planned status")
+    start, end = (
+        normalize_timestamp(value["planned_start"]),
+        normalize_timestamp(value["planned_end"]),
+    )
+    if start >= end:
+        raise ValueError("Production operation start must precede end")
+    return {
+        "production_operation_id": normalize_uuid(value["production_operation_id"]),
+        "operation_code": value["operation_code"],
+        "process_id": normalize_uuid(value["process_id"]),
+        "planned_status": value["planned_status"],
+        "planned_start": start,
+        "planned_end": end,
+        "active": value["active"],
+        "version": _version(value["version"]),
+    }
+
+
+def production_operation_target(current, patch):
+    """Build a schedule-only UPDATE; assignment replacements are unsupported."""
+    if type(current) is not dict:
+        raise ValueError("Current production operation must be a record")
+    before = _operation_record(
+        {key: value for key, value in current.items() if key not in {"created_at", "updated_at"}}
+    )
+    if type(patch) is not dict or not patch or not set(patch) <= OPERATION_PATCH_FIELDS:
+        raise ValueError("Invalid production operation schedule patch")
+    after = _operation_record({**before, **patch, "version": before["version"] + 1})
+    return _operation_target(
+        {
+            "target_type": "ProductionOperation",
+            "target_id": before["production_operation_id"],
+            "business_key": {"operation_code": before["operation_code"]},
+            "operation_type": "UPDATE",
+            "before": before,
+            "after": after,
+            "expected_version": before["version"],
+        }
+    )
+
+
+def _operation_target(value):
+    _exact(value, TARGET_FIELDS)
+    if value["target_type"] != "ProductionOperation" or value["operation_type"] != "UPDATE":
+        raise ValueError("Unsupported production operation operation")
+    identifier = normalize_uuid(value["target_id"])
+    _exact(value["business_key"], {"operation_code"})
+    before, after = _operation_record(value["before"]), _operation_record(value["after"])
+    if (
+        identifier != before["production_operation_id"]
+        or identifier != after["production_operation_id"]
+    ):
+        raise ValueError("Snapshot production operation IDs disagree")
+    if value["business_key"]["operation_code"] != before["operation_code"]:
+        raise ValueError("Snapshot production operation business key disagrees")
+    if any(before[field] != after[field] for field in {"operation_code", "process_id", "active"}):
+        raise ValueError("Production operation immutable field changed")
+    expected = _version(value["expected_version"])
+    if before["version"] != expected or after["version"] != expected + 1:
+        raise ValueError("Snapshot versions disagree")
+    if all(before[field] == after[field] for field in OPERATION_PATCH_FIELDS):
+        raise ValueError("Production operation update must change a business value")
+    return {
+        "target_type": "ProductionOperation",
+        "target_id": identifier,
+        "business_key": {"operation_code": before["operation_code"]},
+        "operation_type": "UPDATE",
+        "before": before,
+        "after": after,
+        "expected_version": expected,
+    }
+
+
 def _target(value):
     _exact(value, TARGET_FIELDS)
     if value["target_type"] == "EquipmentState":
@@ -300,6 +396,8 @@ def _target(value):
         return _create_target(
             value, "MaintenanceRecord", _maintenance_record, "maintenance_record_id", "record_code"
         )
+    if value["target_type"] == "ProductionOperation":
+        return _operation_target(value)
     raise ValueError("Unsupported Snapshot target category")
 
 
@@ -371,6 +469,10 @@ def build_maintenance_snapshot(context, targets, supersedes_update_request_id=No
     return _build_snapshot(
         context, targets, supersedes_update_request_id, {"MaintenancePlan", "MaintenanceRecord"}
     )
+
+
+def build_production_operation_snapshot(context, targets, supersedes_update_request_id=None):
+    return _build_snapshot(context, targets, supersedes_update_request_id, {"ProductionOperation"})
 
 
 def _build_snapshot(context, targets, supersedes_update_request_id, target_types):
