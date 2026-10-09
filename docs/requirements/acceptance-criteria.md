@@ -235,3 +235,14 @@ UC ↔ BS ↔ ACの詳細は[business-scenarios.md](../implementation-design/bus
 ### 8.1 補足ユースケースの対応
 
 UC-B16はR-06・20・23、AC-03・04、BS-17に対応する。UC-B17はR-05・35〜38、AC-06〜10・12・15、BS-19に対応する。UC-B11の復旧期限はBS-13、UC-B14の現在状態PrepareはBS-14で補う。安全不明・加算不可・分析不能のvariantはBS-15・16・18で検証する。
+
+## 9. 運用ログの受入基準
+
+| AC | 判定 | 対応要件 |
+|---|---|---|
+| AC-L01 | HTTP結果・Tool・非同期試行を相関ID、code、所要時間で追跡でき、並行要求・retryを混同しない | NFR-L01 |
+| AC-L02 | 禁止項目がINFO / DEBUG / 例外時にも漏れず、未知field・改行・長さ・stackがoperations契約に従う | NFR-L03 |
+| AC-L03 | commit後のみsuccess、rollback / 結果不明 / replayを区別し、監査失敗・stdout失敗を混同しない | NFR-06、NFR-L02・04 |
+| AC-L04 | 運用ログ容量を制限し、DB監査・履歴の正本と閲覧境界を維持する | NFR-L02・04 |
+
+これらは追加受入目標であり未実装。既存AC-14・17、T-R20、重大Fail Gateを維持する。初回ログ基盤ではHTTPと出力制御の範囲を検証し、未実装Tool / worker / DB監査まで合格とはしない。

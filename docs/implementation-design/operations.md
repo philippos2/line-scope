@@ -121,3 +121,112 @@ python3 -m venv .venv
 ## 12. 業務判断支援の運用前提
 
 新しい入力・計算・基準が未確定または未実装なら、その機能をReadyや受入済みとして表示しない。運用・受入記録でPASS / FAIL / BLOCKED / NOT_IMPLEMENTEDを区別する。比較には入力version・観測時刻・評価期間を残し、後続の正本変更で過去の評価を現在の確定値と誤認させない。履歴保持や安全基準の登録・更新主体はPO-B04・06・07確定後に手順化する。既存のOutbox / Graph復旧手順は維持する。
+
+## 13. ログ設計
+
+### 13.1 目的・責務・規模
+
+要求がどう処理され、どこで拒否・失敗したかを調査できることを目的とする。個人開発の単一工場デモではJSON標準出力とDocker logsを基本とし、集中ログ基盤、APM、分散トレーシング製品、独自ログ検索UIは初期導入しない。必要が生じたら同じ構造化イベントを収集できるようにする。
+
+| 種類 | 内容 | 保存先と正本 |
+|---|---|---|
+| アプリケーション運用ログ | HTTP / Toolの結果・所要時間・拒否理由・依存障害 | JSON Linesでstdout。業務正本ではない |
+| 業務監査 | 主体、Prepare / Approve / Reject / Execute / Invalidate / Expire等、状態遷移、結果 | PostgreSQL update_audit_event。変更前後は保存Snapshot・成功履歴を参照 |
+| 非同期運用ログ | Projection試行・retry・DEAD、Rebuild開始・完了・失敗 | 同じJSON Lines。Outbox・control・監査のDB記録を状態正本とする |
+
+監査表・状態・Transactionはdata-model §9とtransaction-designを正とする。本節は新しい監査テーブルや状態遷移を追加しない。認証失敗などUpdateRequestがまだ存在しないイベントは運用ログへ記録し、存在しないFKを作らない。
+
+### 13.2 共通イベント形式
+
+UTF-8、1イベント1行JSON、loggerはPython標準loggingを基盤とする。Formatterとイベント出力関数で許可項目を制御し、任意dictやオブジェクトのreprをそのまま出力しない。イベント名・結果コードを固定して機械検索可能にする。
+
+| 項目 | 契約 |
+|---|---|
+| log_schema_version | 整数1。ログ形式の版でありSnapshot schemaとは別 |
+| timestamp | サーバUTC、ISO 8601の末尾Z、microsecond精度 |
+| level | DEBUG / INFO / WARNING / ERROR |
+| service / component | linescope / api・tool・proposal・projection・rebuild等の固定識別子 |
+| event | 固定イベント名。自由文や利用者入力を名前に使わない |
+| outcome | success / partial / rejected / failure / unknown。業務状態とは別 |
+| request_id | HTTP要求ごとにサーバ生成UUID。内部workerも試行・管理処理ごとにサーバ生成 |
+| duration_ms | 完了イベントで必須の非負整数。monotonic clock差から求める |
+| result_code | API / Toolの既存code、または固定した内部成功・障害code。自由な例外messageを使わない |
+
+必要に応じてcontext_id、update_request_id、approval_id、outbox_id、rebuild_id、graph_generation、tool_call_id、actor_id、role、snapshot_hash、attempt_count、dependency、http_method、route、http_status、before_status / after_status、supersedes_update_request_id、replayed、aggregate_type / aggregate_id / aggregate_version、件数の固定項目、graph_observed_at、state_observed_at、評価期間、exception_type / stack_framesを付ける。UUID・hash・enum等を型検証し、未確定のIDは省略する。技術メタデータ以外を自動補完しない。経路はFastAPI route template（例 /update-requests/{id}）を使い、未解決は固定値UNMATCHEDとする。raw URL / query stringを出さない。
+
+actor_id / roleは認証済みContextまたは内部サービス主体から取得する。非認証要求には付けず、入力されたBearer値や自己申告userを出さない。ログ全体をLLMや通常ユーザーへ公開しない。
+
+例（基盤healthの完了）:
+
+```json
+{"log_schema_version":1,"timestamp":"2026-10-09T05:00:00.000000Z","level":"DEBUG","service":"linescope","component":"api","event":"http.request.completed","outcome":"success","request_id":"00000000-0000-4000-8000-000000000001","duration_ms":2,"result_code":"OK","http_method":"GET","route":"/health","http_status":200}
+```
+
+### 13.3 相関と並行処理
+
+HTTPのrequest_idは受信ごとに新しく生成し、Response Envelopeと運用ログで一致させる。外部ヘッダーを正本request_idとして採用しない。middleware入口でContextを設定し、finallyで必ず解除する。async処理・threadpoolの境界ではContextを伝播させ、別要求へ漏らさない。内部Toolには既存Trusted Execution Contextのrequest_idを使う。Tool呼出しごとにローカルなtool_call_idを付ける。
+
+context_idは複数ターン、update_request_id / approval_idは変更準備から承認・実行、outbox_id / graph_generationは反映・分析を結ぶ。retryではrequest_idを使い回さず、同じ業務IDと試行番号で関連付ける。context_id・retry key・request_idを権限や冪等性の根拠として混同しない。prepare_retry_key / idempotency_keyの生値はログへ追加せず、保存されたUpdateRequest IDで追跡する。
+
+workerは新しい実行request_idとoutbox_id / update_request_idを記録する。元HTTPとの関係は業務IDと監査を経由して追えるようにし、未保存の元request_idを推測しない。Graph結果はgenerationと観測時刻、経済分析は入力観測時刻と評価期間を区別する。
+
+### 13.4 レベルとイベント
+
+| イベント | レベル・記録条件 | 必要な追加情報 |
+|---|---|---|
+| service.started / stopped | INFO、起動設定は秘密を除いた許可項目のみ | component、処理結果 |
+| http.request.completed | 通常成功・partial・入力／認証／権限拒否はINFO、一時依存障害はWARNING、内部障害はERROR | route、method、status、result_code、duration_ms |
+| health / readinessの正常完了 | DEBUG。失敗は原因に応じWARNING / ERROR | 同上。監視pollでINFOを埋めない |
+| tool.call.completed | 成功・業務上の拒否はINFO、一時障害／再試行予定はWARNING、内部不整合はERROR | allowlisted Tool名、tool_call_id、code、duration_ms、対象技術ID |
+| proposal.saved / replayed / replaced | commit後INFO | 要求・承認ID、hash、旧要求ID（replaced時）、replayed |
+| approval.completed / execute.completed | commit後INFO、拒否はINFO | 主体、要求・承認ID、前後状態、code |
+| execution.outcome_unknown | ERROR。commit結果を確認できないとき | 要求ID、code。成功／rollbackを断定しない |
+| projection.attempt.completed / retry_scheduled | 成功INFO、再試行WARNING | Outbox / aggregate ID・version、attempt_count、code、duration_ms |
+| projection.dead | ERROR | 同上。fatalな詳細は秘匿して固定code |
+| rebuild.started / completed / failed | 開始・完了INFO、失敗ERROR | rebuild_id、generation、件数、duration_ms（終了時） |
+| audit.persist_failed | ERROR | 関連要求ID、code。監査欠落を正常記録と扱わない |
+
+通常は終了イベントを1件記録し、全層で同じ例外stackを重複出力しない。長時間Rebuildは開始も残す。実装時にイベント名を固定し、未実装処理のイベントを架空に発行しない。想定された認証・権限拒否は個別にINFOとして残し、拒否の頻発を調査できるようにする。初期段階で検知サービスは追加しない。
+
+予期しない例外は責任を持つ境界でERRORを1件記録する。stack traceは例外クラスとframeのmodule / function / lineに限定した構造化診断にする。例外message・args・locals・source line・SQL・接続文字列・provider生応答は出さない。任意のexc_info=Trueやlogger.exceptionだけで秘匿済みとは扱わない。内部stack診断と完了イベントが同時に必要なら同じrequest_idで関連付け、詳細stackは1回だけにする。
+
+### 13.5 秘匿と出力量
+
+通常ログへ記録しないもの:
+
+- Authorization、token、password、secret、DSN、cookie、全HTTP headers。
+- request / response body、利用者発話、prompt、LLM内部推論、provider生応答、embedding。
+- 文書本文・検索chunk、Snapshot / before / after全文、Outbox payload全文。
+- 任意SQL / Cypher、自由な例外message、業務Objectのnameや自由記述。
+
+DEBUGでも禁止項目を許可しない。allowlistを主防御とし、単なるkey名置換やtoken文字列maskだけに依存しない。ID・hash・版・codeによって正本を参照する。監査detailsも必要な技術ID・理由code等へ限定し、Snapshotを重複コピーしない。
+
+event・result_code等は固定識別子、その他の文字列は最大256文字、stack frameは最大20件に制限する。許可されたfieldが型／長さ不正ならそのfieldを省略し、未知fieldは捨てる。JSON encoderで改行・制御文字をescapeし、1行に保つ。特にactor_id等の利用者設定値をevent名やログmessageへ連結しない。秘密を含む可能性がある不正値そのものをエラーとして再ログしない。
+
+Uvicornのraw access logは無効にしてHTTP完了イベントへ統一する。server起動・終了と依存ライブラリのloggerも設定を確認し、DEBUGのwire / SQL出力を有効化しない。アプリloggerの許可項目制御が第三者loggerも自動的に安全にするとは考えない。
+
+### 13.6 Transaction・監査との境界
+
+proposal保存・置換、Approval、ExecuteのsuccessログはTransactionのcommit成功後にだけ出す。rollback時はfailure / rejectedとして記録し、試行開始ログを更新完了と扱わない。COMPLETED再送はreplayedとして元結果を示し、二度目の業務更新成功と数えない。確定afterと後続current valueを混同しない。
+
+成功監査は業務変更・状態遷移と同一Transaction。監査INSERT失敗時はTransactionをrollbackし、成功ログを出さない。rollbackした試行の失敗監査は別Transaction、PostgreSQL不可ならaudit.persist_failed付き運用ログへfallbackする。Prepare失敗でUpdateRequestが存在しなければFKなしの架空監査を作らずrequest_idの運用ログで追跡する。
+
+stdout出力失敗は業務監査保存失敗とは別に扱う。logging経路の例外で確定済みcommitやHTTP結果を変えない。logging handlerの失敗診断はcredentialを含まない固定文でstderrへ最善努力し、ログの無限再帰や大量retryをしない。stdoutログだけで監査保存を済ませたことにしない。
+
+### 13.7 保存・閲覧・調査
+
+初期はDockerのlogging driverによる容量ローテーションを使う。技術既定値はlocal driver、max-size=10m、max-file=3を各サービスへ適用する設計とする。アプリはJSON標準出力へ書き、独自のコンテナ内ログファイル・volumeを追加しない。サイズ既定値は設定実装時に検証し、現在のComposeへ適用済みとは扱わない。容量制限であり日数保証ではない。コンテナ削除・rotationで運用ログは失われ得る。
+
+DB監査・成功履歴は正本backup対象で、Dockerログのrotationと連動して削除しない。v1では監査の自動期限削除は導入しない。将来の保持期間・公開／削除要件は運用方針として別途決める。開発デモDBの意図的resetと監査の通常運用を区別する。
+
+運用ログ閲覧は開発／運用管理者のDockerアクセスに限定する。通常APIやAgentから全ログを参照させず、外部共有時はactor・各種IDを含めて確認する。DB監査閲覧は既存access-controlの要求・カテゴリ境界を守り、一般のRead権限で全監査を公開しない。
+
+調査は①Response request_idでHTTP結果確認 → ②Tool / dependencyのcode確認 → ③UpdateRequest / Approval / auditの正本確認 → ④必要ならOutbox / generationを確認、の順で行う。成功監査やOutbox状態をstdoutの順序だけで復元しない。LOG_LEVELはINFOを既定とし、不正設定は起動拒否。依存サービスの接続先や全設定dumpを起動ログへ出さない。
+
+### 13.8 段階導入と今回の実装境界
+
+設計は本節、実装状況はREADMEとhistoryに分ける。現時点のapi.pyは限定的なlogger.errorのみであり、本節の構造化ログ・相関・ローテーション・DB監査は未実装。
+
+次の実装チェックポイントでは、JSONイベント／許可項目制御、Context設定・解除、ログ設定、HTTP完了・拒否・例外・readiness障害、Uvicorn access log統一、Docker容量制限、秘匿と並行要求のテストを導入する。API / Tool / workerが増える前に共通基盤を揃える価値がある。
+
+DB監査migrationとTransaction統合はPrepare / Approval / Executeの実装に合わせて別チェックポイントで行う。Toolの操作イベントは共通基盤導入後に対象処理へ接続し、Outbox / Rebuildのログは各機能の実装時に追加する。初回に全監査・非同期処理・収集製品を詰め込まない。ログの合格だけで業務Scenarioの受入完了とは扱わない。

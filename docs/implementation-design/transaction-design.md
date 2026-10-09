@@ -254,3 +254,9 @@ Decision Packageの計算結果・仮定・比較案は更新Transactionでは�
 UC-B14の将来停止はrequirements PO-B05確定まで既存EquipmentState UPDATEで予約しない。保全予定CREATEは設備を自動停止しない。新しい業務入力・予約更新・Hard Safety ConstraintのExecute時検証を導入する場合、カテゴリ、Snapshot schema、全Target検証、状態遷移、競合・期限・冪等性・Outbox要否を明示改訂する。未確定の新規則を、既存許可状態間の遷移へ暗黙に挿入しない。
 
 既存のApproval / Execute / Outbox / Rebuild遷移とlock取得順は変更しない。数値計算の完了や案の実行可能表示は承認・承認消費・更新commitを意味しない。
+
+## 22. 運用ログと監査の確定境界
+
+operations §13に従い、proposal.saved / replaced、approval.completed、execute.completedのsuccessはcommit成功後に出す。commit前rollback、確定結果不明、COMPLETED再送を区別する。stdout失敗を監査INSERT失敗と混同せず、確定済み結果を書き換えない。
+
+成功監査は状態遷移・業務変更と同一Transactionで失敗なら全rollback。失敗試行の監査はrollback後の別Transactionとし、保存不能は秘匿済みaudit.persist_failed運用ログへfallbackする。UpdateRequest未作成時は架空FKの監査を作らない。既存lock取得順、状態遷移、Outbox原子性は維持する。
