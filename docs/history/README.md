@@ -262,3 +262,13 @@ HTTP Prepare / Agent、Approval / Execute、デモseed、Graph / Outbox / RAG、
 PR #34 merge後の次工程確認で、api-tools §18に定義されたGETのeffective_statusが未実装であることを発見した。保存statusと表示状態を分離し、APPROVEDかつサーバ時刻 >= expires_atの場合に限りeffective_status=EXPIREDを返す。観測時刻は同じ取得statementのPostgreSQL statement_timestamp()とする。閲覧による要求・承認の失効更新、Snapshot再生成、承認期限延長は行わない。既存仕様の補完であり、要件・migrationは変更しない。
 
 追加11テストで期限直前・一致・直後、他の要求状態の保持、未承認表示、期限前／到達後のHTTP表示と再閲覧時の非更新を確認する。Proposal保存・再送と閲覧APIを合わせてDocker検証し、全体回帰はCIで実行する。Approval / Executeによる実失効処理は後続。Astraレビューは未実施。
+
+## Agent受付入力・会話Context基盤チェックポイント
+
+PR #35 merge後、POST /agent接続に先立つ内部受付基盤を追加した。認証済みExecutionContextを要求し、strict JSONで重複key・未知field・不正型・Unicode・未来as_of・timezoneなしを拒否する。messageは元文字列を保持し、明示as_of / context_id / replace_update_request_idを正規化したagent_input_hashを生成する。Idempotency-Keyは別のtrusted引数で受け、未指定時だけUUIDを生成する。hashにretry key、受信時刻、業務before / versionを含めない。
+
+会話Contextは単一プロセスのephemeral storeで、所有者user_idを固定し、候補ID・表示名等のサーバ側データをコピーして保持する。デフォルトTTLは最終更新から30分。読込では延長せず、期限到達・再起動後の未知IDはCONTEXT_EXPIRED、別userはAUTHORIZATION_DENIEDとする。ロールや承認権限の根拠にしない。期限切れデータを新規作成時に回収し、lockでstore操作を保護する。
+
+Dockerで追加31件と既存Proposal保存・再送を合わせた113テスト成功、ruff check / format、git diff --check成功。入力正規化と各hash要素、秘密field注入、owner境界、コピー隔離、更新起点TTLと期限一致、読むだけでの非延長、Context失効後の永続Prepare再送を確認した。agent-design §4 / 12、operations §10の設定表、transaction-design §15 / 20、T-R02 / R03 / R17の内部境界部分に対応する。全体回帰はCIで検証する。
+
+POST /agent、LLM、意思確認、Tool実行上限・deadline、Context候補の正本再検証、HTTP再送の順序制御への接続は後続。保存済み要求の照合をContext検証より先に行う責務は将来orchestratorへ残す。この基盤だけでAgentが動作したとは扱わない。仕様・DB / migration・依存・Frontendは変更せず、LogiScopeコードの再利用もない。
