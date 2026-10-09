@@ -54,3 +54,7 @@
 ## 設備割当期間置換・差分生成チェックポイント
 
 2026-10-09、PR #12 merge後、domain-model §15.2に従い半開期間の設備集合置換を純粋な差分生成として実装した。期間外保持、不要分割の回避、空集合・明示NULL無期限、同業務キーactive / inactive行再利用、各Targetのbefore / after・version・IDを検証する。Docker内457テスト（追加43、うち1件で1,008区間組合せを時点評価）、lint/format成功。T-R08の区間差分部分に対応する。親version・全active集合のSnapshot固定、Snapshot統合、正本取得・FK/Graph制約・権限・DB保存・ロック・全rollbackは後続。仕様正本の変更・LogiScopeコードの再利用はない。
+
+## ProductionOperation・割当Snapshot統合チェックポイント
+
+2026-10-09、PR #13 merge後、予定値と設備割当差分を一つのPRODUCTION_OPERATION Snapshotへ統合した。親version増分1、全active割当のbefore / after固定、各差分のbefore照合とafter集合再現、複数親・ID重複・孤立差分の拒否を実装。保存形式equipment_assignmentsをdata-model §12に固定し、既存Transaction要件の検証手順とT-R08を補足した。業務意味・権限・承認ルールは変更していない。Docker内491テスト（追加34）、lint/format成功。正本の一貫した取得・Execute時再検証、DB保存・ロック・rollback・Graph/Outbox・権限・Approvalは後続。LogiScopeコードの再利用はない。

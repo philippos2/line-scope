@@ -11,6 +11,11 @@ import re
 from dataclasses import dataclass
 from uuid import uuid4
 
+from .assignments import (
+    normalize_operation_assignments,
+    replacement_assignment_targets,
+    validate_assignment_target,
+)
 from .canonical import canonical_json, normalize_timestamp, normalize_uuid, strict_json
 from .execution import ExecutionContext
 
@@ -31,6 +36,7 @@ CATEGORIES = {
     "MaintenancePlan": "MAINTENANCE",
     "MaintenanceRecord": "MAINTENANCE",
     "ProductionOperation": "PRODUCTION_OPERATION",
+    "ProductionOperationEquipmentAssignment": "PRODUCTION_OPERATION",
 }
 
 
@@ -305,7 +311,11 @@ OPERATION_PATCH_FIELDS = {"planned_status", "planned_start", "planned_end"}
 
 
 def _operation_record(value):
-    _exact(value, OPERATION_FIELDS)
+    with_assignments = type(value) is dict and "equipment_assignments" in value
+    _exact(
+        value,
+        OPERATION_FIELDS | {"equipment_assignments"} if with_assignments else OPERATION_FIELDS,
+    )
     if type(value["operation_code"]) is not str or type(value["active"]) is not bool:
         raise ValueError("Invalid production operation fields")
     if type(value["planned_status"]) is not str or value["planned_status"] not in {
@@ -319,7 +329,7 @@ def _operation_record(value):
     )
     if start >= end:
         raise ValueError("Production operation start must precede end")
-    return {
+    result = {
         "production_operation_id": normalize_uuid(value["production_operation_id"]),
         "operation_code": value["operation_code"],
         "process_id": normalize_uuid(value["process_id"]),
@@ -329,6 +339,14 @@ def _operation_record(value):
         "active": value["active"],
         "version": _version(value["version"]),
     }
+    if with_assignments:
+        rows = normalize_operation_assignments(
+            result["production_operation_id"], value["equipment_assignments"]
+        )
+        if any(not row["active"] for row in rows):
+            raise ValueError("Parent Snapshot collection must contain only active assignments")
+        result["equipment_assignments"] = sorted(rows, key=lambda row: row["assignment_id"])
+    return result
 
 
 def production_operation_target(current, patch):
@@ -338,6 +356,8 @@ def production_operation_target(current, patch):
     before = _operation_record(
         {key: value for key, value in current.items() if key not in {"created_at", "updated_at"}}
     )
+    if "equipment_assignments" in before:
+        raise ValueError("Use the assignment-aware builder for assignment collections")
     if type(patch) is not dict or not patch or not set(patch) <= OPERATION_PATCH_FIELDS:
         raise ValueError("Invalid production operation schedule patch")
     after = _operation_record({**before, **patch, "version": before["version"] + 1})
@@ -373,7 +393,11 @@ def _operation_target(value):
     expected = _version(value["expected_version"])
     if before["version"] != expected or after["version"] != expected + 1:
         raise ValueError("Snapshot versions disagree")
-    if all(before[field] == after[field] for field in OPERATION_PATCH_FIELDS):
+    if ("equipment_assignments" in before) != ("equipment_assignments" in after):
+        raise ValueError("Parent assignment collections must appear on both sides")
+    if all(before[field] == after[field] for field in OPERATION_PATCH_FIELDS) and before.get(
+        "equipment_assignments"
+    ) == after.get("equipment_assignments"):
         raise ValueError("Production operation update must change a business value")
     return {
         "target_type": "ProductionOperation",
@@ -384,6 +408,109 @@ def _operation_target(value):
         "after": after,
         "expected_version": expected,
     }
+
+
+def production_operation_assignment_targets(current, current_assignments, replacement, patch=None):
+    """Build one parent plus every assignment diff from a trusted consistent read."""
+    if type(current) is not dict:
+        raise ValueError("Current production operation must be a record")
+    before = _operation_record(
+        {key: value for key, value in current.items() if key not in {"created_at", "updated_at"}}
+    )
+    if "equipment_assignments" in before:
+        raise ValueError("Supply assignment rows separately from the parent row")
+    changes = {} if patch is None else patch
+    if (
+        type(changes) is not dict
+        or not set(changes) <= OPERATION_PATCH_FIELDS
+        or (patch is not None and not patch)
+    ):
+        raise ValueError("Invalid production operation schedule patch")
+    after = _operation_record({**before, **changes, "version": before["version"] + 1})
+    if patch is not None and all(before[field] == after[field] for field in OPERATION_PATCH_FIELDS):
+        raise ValueError("Schedule patch must change a business value")
+    rows = normalize_operation_assignments(before["production_operation_id"], current_assignments)
+    diffs = replacement_assignment_targets(before["production_operation_id"], rows, replacement)
+    final = {row["assignment_id"]: row for row in rows if row["active"]}
+    for target in diffs:
+        final.pop(target["target_id"], None)
+        if target["after"]["active"]:
+            final[target["target_id"]] = target["after"]
+    before["equipment_assignments"] = sorted(
+        [row for row in rows if row["active"]], key=lambda row: row["assignment_id"]
+    )
+    after["equipment_assignments"] = sorted(final.values(), key=lambda row: row["assignment_id"])
+    parent = _operation_target(
+        {
+            "target_type": "ProductionOperation",
+            "target_id": before["production_operation_id"],
+            "business_key": {"operation_code": before["operation_code"]},
+            "operation_type": "UPDATE",
+            "before": before,
+            "after": after,
+            "expected_version": before["version"],
+        }
+    )
+    return [parent, *diffs]
+
+
+def _validate_production_assignments(targets):
+    parents = {
+        target["target_id"]: target
+        for target in targets
+        if target["target_type"] == "ProductionOperation"
+    }
+    children = {}
+    for target in targets:
+        if target["target_type"] == "ProductionOperationEquipmentAssignment":
+            operation_id = target["after"]["production_operation_id"]
+            if (
+                operation_id not in parents
+                or "equipment_assignments" not in parents[operation_id]["before"]
+            ):
+                raise ValueError(
+                    "Assignment Target requires a parent with fixed active collections"
+                )
+            children.setdefault(operation_id, []).append(target)
+    all_source_ids, created_ids = set(), set()
+    for operation_id, parent in parents.items():
+        if "equipment_assignments" not in parent["before"]:
+            continue
+        before = {row["assignment_id"]: row for row in parent["before"]["equipment_assignments"]}
+        source = list(before.values())
+        diffs = children.get(operation_id, [])
+        for target in diffs:
+            old = target["before"]
+            if old is not None:
+                if old["active"]:
+                    if before.get(target["target_id"]) != old:
+                        raise ValueError("Assignment before differs from parent collection")
+                else:
+                    source.append(old)
+        normalized_source = normalize_operation_assignments(operation_id, source)
+        source_ids = {row["assignment_id"] for row in normalized_source}
+        if all_source_ids & source_ids:
+            raise ValueError("Assignment source ID appears under multiple parents")
+        all_source_ids.update(source_ids)
+        source_keys = {(row["equipment_id"], row["effective_from"]) for row in normalized_source}
+        final = dict(before)
+        for target in diffs:
+            if target["operation_type"] == "CREATE":
+                created_ids.add(target["target_id"])
+            if target["operation_type"] == "CREATE" and (
+                target["target_id"] in source_ids
+                or (target["after"]["equipment_id"], target["after"]["effective_from"])
+                in source_keys
+            ):
+                raise ValueError("Assignment CREATE conflicts with fixed source rows")
+            final.pop(target["target_id"], None)
+            if target["after"]["active"]:
+                final[target["target_id"]] = target["after"]
+        expected = sorted(final.values(), key=lambda row: row["assignment_id"])
+        if expected != parent["after"]["equipment_assignments"]:
+            raise ValueError("Assignment diff does not reproduce parent after collection")
+    if created_ids & all_source_ids:
+        raise ValueError("Assignment CREATE ID conflicts with another parent's source")
 
 
 def _target(value):
@@ -398,6 +525,8 @@ def _target(value):
         )
     if value["target_type"] == "ProductionOperation":
         return _operation_target(value)
+    if value["target_type"] == "ProductionOperationEquipmentAssignment":
+        return validate_assignment_target(value)
     raise ValueError("Unsupported Snapshot target category")
 
 
@@ -420,6 +549,7 @@ def _snapshot(value):
     ]
     if len(set(business_keys)) != len(business_keys):
         raise ValueError("Duplicate Snapshot business key")
+    _validate_production_assignments(targets)
     targets.sort(key=lambda target: (target["target_type"], target["target_id"]))
     supersedes = value["supersedes_update_request_id"]
     return {
@@ -472,7 +602,12 @@ def build_maintenance_snapshot(context, targets, supersedes_update_request_id=No
 
 
 def build_production_operation_snapshot(context, targets, supersedes_update_request_id=None):
-    return _build_snapshot(context, targets, supersedes_update_request_id, {"ProductionOperation"})
+    return _build_snapshot(
+        context,
+        targets,
+        supersedes_update_request_id,
+        {"ProductionOperation", "ProductionOperationEquipmentAssignment"},
+    )
 
 
 def _build_snapshot(context, targets, supersedes_update_request_id, target_types):

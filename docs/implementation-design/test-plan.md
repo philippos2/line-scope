@@ -160,7 +160,7 @@ Isolation levelはREAD COMMITTEDで検証する。
 ### セルフレビューで追加した境界ケース
 
 - T-R03 / R05: replace_update_request_idのowner・終端拒否、新Prepare失敗で旧要求維持、失効と新保存の原子性（AC-07・09・13・16）。
-- T-R08: 同じoperation/equipment/effective_fromの区間分割で既存行UPDATEを使い、inactive業務キー再利用時もversion競合を検出（AC-10・11・18）。
+- T-R08: 同じoperation/equipment/effective_fromの区間分割で既存行UPDATEを使い、inactive業務キー再利用時もversion競合を検出（AC-10・11・18）。親equipment_assignmentsのbefore / afterと差分Targetを照合し、親欠落・差分欠落・集合改変・他親への割当ID重複を拒否する。予定値と割当の同時変更でも親version増分は1。
 - T-R11 / R12: NOT_INITIALIZEDから初期Rebuild成功、既存fatal_errorの復旧、検証後のみerror解除（AC-G11・16・17）。
 - T-R19 / R20: 全許容Request/Approval組、FAILED/INVALIDATEDと終端状態保護、context確認応答を成功更新と混同しない（AC-06・12・14・16）。
 

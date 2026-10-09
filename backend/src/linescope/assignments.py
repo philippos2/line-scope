@@ -125,7 +125,9 @@ def _overlaps(start, end, other_start, other_end):
     return (end is None or other_start < end) and (other_end is None or start < other_end)
 
 
-def _source(operation_id, assignments):
+def normalize_operation_assignments(operation_id, assignments):
+    """Normalize trusted rows and reject wrong parents, duplicates and overlap."""
+    operation_id = normalize_uuid(operation_id)
     if type(assignments) is not list:
         raise ValueError("Assignments must be a complete list")
     rows, ids, keys = [], set(), set()
@@ -180,7 +182,7 @@ def replacement_assignment_targets(production_operation_id, current_assignments,
     if end is not None and start >= end:
         raise ValueError("Replacement interval must be nonempty")
     equipment_ids = normalize_id_set(replacement["equipment_ids"])
-    rows = _source(operation_id, current_assignments)
+    rows = normalize_operation_assignments(operation_id, current_assignments)
     desired = {
         (row["equipment_id"], row["effective_from"]): row["effective_to"]
         for row in rows
