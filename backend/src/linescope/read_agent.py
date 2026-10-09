@@ -63,12 +63,21 @@ class ReadAgent:
             if not reply.tool_calls:
                 if not observations:
                     # No verified facts: never return an unsupported factual answer.
+                    needs_input = not errors or all(
+                        item["code"] in {"TARGET_NOT_FOUND", "TARGET_AMBIGUOUS", "INVALID_ARGUMENT"}
+                        for item in errors.values()
+                    )
+                    answer = (
+                        "対象を特定できる設備コード・IDなどを指定してください。"
+                        if needs_input
+                        else "参照要求を完了できませんでした。エラー情報を確認してください。"
+                    )
                     return ReadAgentResult(
-                        "対象を特定できる設備コード・IDなどを指定してください。",
+                        answer,
                         (),
                         tuple(trace),
                         tuple(errors.values()),
-                        True,
+                        needs_input,
                     )
                 if not reply.content.strip():
                     raise ToolError("INTERNAL_ERROR", "LLM did not provide an explanation")

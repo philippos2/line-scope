@@ -153,7 +153,7 @@ def test_exhausted_transient_retry_retains_error():
     result = ReadAgent(dispatcher, llm).run(context(), request())
     assert dispatcher.calls == 3
     assert result.errors[0]["code"] == "RESOURCE_BUSY"
-    assert len(result.trace) == 3 and result.needs_input
+    assert len(result.trace) == 3 and not result.needs_input
 
 
 def test_prepare_attempt_cannot_reach_dispatcher_even_with_update_message():
@@ -163,7 +163,7 @@ def test_prepare_attempt_cannot_reach_dispatcher_even_with_update_message():
         context(), request("設備M-204の状態をSTOPPEDに変更して")
     )
     assert dispatcher.calls == 0
-    assert result.needs_input and "変更しました" not in result.answer
+    assert not result.needs_input and "変更しました" not in result.answer
     assert result.errors[0]["code"] == "AUTHORIZATION_DENIED"
 
 
