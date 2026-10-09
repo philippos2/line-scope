@@ -40,10 +40,14 @@ class ReadAgent:
     def __init__(self, dispatcher, llm, *, clock=monotonic):
         self.dispatcher, self.llm, self.clock = dispatcher, llm, clock
 
-    def run(self, context, request):
+    def run(self, context, request, *, previous_messages=None):
         session = AgentToolSession(context, request, self.dispatcher, clock=self.clock)
         # These modes require the future context/update/temporal orchestrator.
-        if request.context_id or request.replace_update_request_id or request.explicit_as_of:
+        if (
+            (request.context_id and previous_messages is None)
+            or request.replace_update_request_id
+            or request.explicit_as_of
+        ):
             raise ToolError(
                 "INVALID_ARGUMENT", "This internal read loop accepts a new current-time query"
             )
@@ -51,6 +55,8 @@ class ReadAgent:
             {"role": "system", "content": SYSTEM_PROMPT},
             {"role": "user", "content": request.message},
         ]
+        if previous_messages:
+            messages[1:1] = [{"role": "user", "content": message} for message in previous_messages]
         observations, trace, errors = [], [], {}
         while True:
             session.check_deadline()
