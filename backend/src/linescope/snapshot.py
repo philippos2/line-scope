@@ -1,4 +1,4 @@
-"""Canonical Snapshot v1 for equipment-state and maintenance-plan UPDATEs.
+"""Canonical Snapshot v1 for equipment-state and maintenance proposals.
 
 This pure construction/validation layer does not authorize, persist or execute
 updates. Prepare must supply current PostgreSQL state and check permissions.
@@ -9,6 +9,7 @@ import hashlib
 import hmac
 import re
 from dataclasses import dataclass
+from uuid import uuid4
 
 from .canonical import canonical_json, normalize_timestamp, normalize_uuid, strict_json
 from .execution import ExecutionContext
@@ -25,6 +26,11 @@ TARGET_FIELDS = {
     "expected_version",
 }
 ROOT_FIELDS = {"schema_version", "requester_id", "supersedes_update_request_id", "targets"}
+CATEGORIES = {
+    "EquipmentState": "EQUIPMENT_STATE",
+    "MaintenancePlan": "MAINTENANCE",
+    "MaintenanceRecord": "MAINTENANCE",
+}
 
 
 def _exact(value, fields):
@@ -152,6 +158,10 @@ def maintenance_plan_target(current, patch):
 
 def _plan_target(value):
     _exact(value, TARGET_FIELDS)
+    if value["operation_type"] == "CREATE":
+        return _create_target(
+            value, "MaintenancePlan", _plan_record, "maintenance_plan_id", "plan_code"
+        )
     if value["target_type"] != "MaintenancePlan" or value["operation_type"] != "UPDATE":
         raise ValueError("Unsupported maintenance plan operation")
     identifier = normalize_uuid(value["target_id"])
@@ -180,12 +190,116 @@ def _plan_target(value):
     }
 
 
+def _create_target(value, target_type, record_validator, id_field, code_field):
+    _exact(value, TARGET_FIELDS)
+    if value["target_type"] != target_type or value["operation_type"] != "CREATE":
+        raise ValueError("Unsupported CREATE target")
+    if value["before"] is not None or value["expected_version"] is not None:
+        raise ValueError("CREATE before and expected_version must be null")
+    after = record_validator(value["after"])
+    identifier = normalize_uuid(value["target_id"])
+    _exact(value["business_key"], {code_field})
+    if identifier != after[id_field] or value["business_key"][code_field] != after[code_field]:
+        raise ValueError("CREATE identity or business key disagrees")
+    if after["version"] != 1:
+        raise ValueError("CREATE version must be 1")
+    return {
+        "target_type": target_type,
+        "target_id": identifier,
+        "business_key": {code_field: after[code_field]},
+        "operation_type": "CREATE",
+        "before": None,
+        "after": after,
+        "expected_version": None,
+    }
+
+
+def _new_target(values, fields, target_type, validator, id_field, code_field):
+    _exact(values, fields)
+    identifier = str(uuid4())
+    return _create_target(
+        {
+            "target_type": target_type,
+            "target_id": identifier,
+            "business_key": {code_field: values[code_field]},
+            "operation_type": "CREATE",
+            "before": None,
+            "after": {**values, id_field: identifier, "version": 1},
+            "expected_version": None,
+        },
+        target_type,
+        validator,
+        id_field,
+        code_field,
+    )
+
+
+def maintenance_plan_create_target(values):
+    """Generate an ID once; callers retain this target through Prepare retries."""
+    return _new_target(
+        values,
+        PLAN_FIELDS - {"maintenance_plan_id", "version"},
+        "MaintenancePlan",
+        _plan_record,
+        "maintenance_plan_id",
+        "plan_code",
+    )
+
+
+RECORD_FIELDS = {
+    "maintenance_record_id",
+    "record_code",
+    "equipment_id",
+    "performed_at",
+    "result",
+    "maintenance_plan_id",
+    "version",
+}
+
+
+def _maintenance_record(value):
+    _exact(value, RECORD_FIELDS)
+    if type(value["record_code"]) is not str:
+        raise ValueError("Maintenance record code must be text")
+    if type(value["result"]) is not str or not value["result"].strip():
+        raise ValueError("Maintenance result must be nonempty text")
+    plan_id = value["maintenance_plan_id"]
+    return {
+        "maintenance_record_id": normalize_uuid(value["maintenance_record_id"]),
+        "record_code": value["record_code"],
+        "equipment_id": normalize_uuid(value["equipment_id"]),
+        "performed_at": normalize_timestamp(value["performed_at"]),
+        "result": value["result"],
+        "maintenance_plan_id": normalize_uuid(plan_id) if plan_id is not None else None,
+        "version": _version(value["version"]),
+    }
+
+
+def maintenance_record_create_target(values):
+    """Build only a record proposal; do not infer state or plan changes."""
+    if type(values) is not dict:
+        raise ValueError("Maintenance record input must be an object")
+    values = {"maintenance_plan_id": None, **values}
+    return _new_target(
+        values,
+        RECORD_FIELDS - {"maintenance_record_id", "version"},
+        "MaintenanceRecord",
+        _maintenance_record,
+        "maintenance_record_id",
+        "record_code",
+    )
+
+
 def _target(value):
     _exact(value, TARGET_FIELDS)
     if value["target_type"] == "EquipmentState":
         return _state_target(value)
     if value["target_type"] == "MaintenancePlan":
         return _plan_target(value)
+    if value["target_type"] == "MaintenanceRecord":
+        return _create_target(
+            value, "MaintenanceRecord", _maintenance_record, "maintenance_record_id", "record_code"
+        )
     raise ValueError("Unsupported Snapshot target category")
 
 
@@ -198,11 +312,16 @@ def _snapshot(value):
     if type(value["targets"]) is not list or not value["targets"]:
         raise ValueError("Snapshot requires at least one target")
     targets = [_target(target) for target in value["targets"]]
-    if len({target["target_type"] for target in targets}) != 1:
+    if len({CATEGORIES[target["target_type"]] for target in targets}) != 1:
         raise ValueError("Snapshot must contain one business category")
     identities = [(target["target_type"], target["target_id"]) for target in targets]
     if len(set(identities)) != len(identities):
         raise ValueError("Duplicate Snapshot target")
+    business_keys = [
+        (target["target_type"], canonical_json(target["business_key"])) for target in targets
+    ]
+    if len(set(business_keys)) != len(business_keys):
+        raise ValueError("Duplicate Snapshot business key")
     targets.sort(key=lambda target: (target["target_type"], target["target_id"]))
     supersedes = value["supersedes_update_request_id"]
     return {
@@ -241,14 +360,20 @@ class CanonicalSnapshot:
 
 
 def build_equipment_state_snapshot(context, targets, supersedes_update_request_id=None):
-    return _build_snapshot(context, targets, supersedes_update_request_id, "EquipmentState")
+    return _build_snapshot(context, targets, supersedes_update_request_id, {"EquipmentState"})
 
 
 def build_maintenance_plan_snapshot(context, targets, supersedes_update_request_id=None):
-    return _build_snapshot(context, targets, supersedes_update_request_id, "MaintenancePlan")
+    return _build_snapshot(context, targets, supersedes_update_request_id, {"MaintenancePlan"})
 
 
-def _build_snapshot(context, targets, supersedes_update_request_id, category):
+def build_maintenance_snapshot(context, targets, supersedes_update_request_id=None):
+    return _build_snapshot(
+        context, targets, supersedes_update_request_id, {"MaintenancePlan", "MaintenanceRecord"}
+    )
+
+
+def _build_snapshot(context, targets, supersedes_update_request_id, target_types):
     if not isinstance(context, ExecutionContext):
         raise ValueError("Trusted execution context is required")
     value = _snapshot(
@@ -259,7 +384,7 @@ def _build_snapshot(context, targets, supersedes_update_request_id, category):
             "targets": targets,
         }
     )
-    if any(target["target_type"] != category for target in value["targets"]):
+    if any(target["target_type"] not in target_types for target in value["targets"]):
         raise ValueError("Snapshot builder category mismatch")
     text = canonical_json(value)
     return CanonicalSnapshot(text, hashlib.sha256(text.encode("utf-8")).hexdigest())
