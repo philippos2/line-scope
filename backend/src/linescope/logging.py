@@ -242,6 +242,13 @@ def _output_failed():
 
 
 class SafeHandler(logging.StreamHandler):
+    def flush(self):
+        # logging.shutdown calls flush directly, outside emit/handleError.
+        try:
+            super().flush()
+        except Exception:
+            _output_failed()
+
     def handleError(self, record):
         # logging's default handleError prints record.msg, args and the traceback.
         _output_failed()

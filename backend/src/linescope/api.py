@@ -1,6 +1,6 @@
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 import psycopg
 from fastapi import FastAPI, Request
@@ -10,6 +10,7 @@ from starlette.exceptions import HTTPException
 
 from .agent_input import AgentInput, ConversationStore
 from .database import Database
+from .equipment_command import EquipmentCommandPrepare
 from .http_logging import RequestMiddleware
 from .llm import OllamaClient
 from .logging import EventLogger, request_context
@@ -19,6 +20,7 @@ from .reads import ReadTools, ToolError, json_value
 from .settings import Settings
 from .snapshot import CATEGORIES
 from .tools import ToolDispatcher
+from .update_intent import equipment_state_command
 
 
 def response(
@@ -75,6 +77,7 @@ def create_app(settings=None, database=None, event_logger=None, *, llm=None, con
     )
     app.state.database = database
     app.state.read_tools = ReadTools(database)
+    equipment_prepare = EquipmentCommandPrepare(database, event_logger=events)
 
     conversations = conversations or ConversationStore()
     if llm is None and settings.llm_model:
@@ -119,6 +122,34 @@ def create_app(settings=None, database=None, event_logger=None, *, llm=None, con
             return response(request, code=error.code, status_code=status)
         return response(request, json_value(data))
 
+    async def prepared_response(request, context, saved):
+        try:
+            data = await run_in_threadpool(
+                ProposalStore(database).get, context, saved.update_request_id
+            )
+        except ProposalError as error:
+            # The proposal is already durable. A response-read failure must not
+            # hide its identity or imply rollback of the saved request.
+            return response(
+                request,
+                json_value(
+                    {
+                        "update_request_id": saved.update_request_id,
+                        "approval_id": saved.approval_id,
+                        "status": saved.status,
+                    }
+                ),
+                code=error.code,
+                status_code=error_status(error.code),
+            )
+        return response(
+            request,
+            json_value(data),
+            answer="保存済みの変更要求を返します。状態とSnapshotを確認してください。"
+            if saved.replayed
+            else "変更準備を作成しました。設備の現在状態は変更していません。人間による承認と実行が必要です。",
+        )
+
     @app.post("/agent")
     async def agent(request: Request):
         received_at = datetime.now(timezone.utc)
@@ -151,15 +182,15 @@ def create_app(settings=None, database=None, event_logger=None, *, llm=None, con
                         raise ToolError(
                             "AUTHORIZATION_DENIED", "Prepare retry permission is required"
                         )
-                    data = await run_in_threadpool(
-                        ProposalStore(database).get, context, saved.update_request_id
-                    )
-                    return response(request, json_value(data))
+                    return await prepared_response(request, context, saved)
             previous = (
                 conversations.get(context, incoming.context_id)["messages"]
                 if incoming.context_id
                 else []
             )
+            if equipment_state_command(incoming) is not None:
+                saved = await run_in_threadpool(equipment_prepare.run, context, incoming)
+                return await prepared_response(request, context, saved)
             if read_agent is None:
                 raise ToolError("DEPENDENCY_UNAVAILABLE", "LLM is not configured")
             result = await run_in_threadpool(
@@ -212,7 +243,15 @@ def create_app(settings=None, database=None, event_logger=None, *, llm=None, con
                 warnings=list(result.errors),
             )
         except (ProposalError, ToolError) as error:
-            return response(request, code=error.code, status_code=error_status(error.code))
+            data = {}
+            for key in ("update_request_id", "approval_id"):
+                value = getattr(error, "details", {}).get(key)
+                if type(value) is str:
+                    try:
+                        data[key] = str(UUID(value))
+                    except ValueError:
+                        pass
+            return response(request, data, code=error.code, status_code=error_status(error.code))
 
     return app
 
@@ -226,6 +265,8 @@ def error_status(code):
         "TARGET_AMBIGUOUS": 409,
         "DUPLICATE_REQUEST": 409,
         "CONTEXT_EXPIRED": 409,
+        "INVALID_UPDATE_STATE": 409,
+        "BUSINESS_RULE_VIOLATION": 422,
         "RESOURCE_BUSY": 503,
         "DEPENDENCY_UNAVAILABLE": 503,
         "AGENT_LIMIT_REACHED": 503,
