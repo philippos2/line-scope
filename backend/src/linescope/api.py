@@ -1,38 +1,61 @@
 from contextlib import asynccontextmanager
+from datetime import datetime, timezone
 from uuid import uuid4
 
 import psycopg
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
+from starlette.concurrency import run_in_threadpool
 from starlette.exceptions import HTTPException
 
+from .agent_input import AgentInput, ConversationStore
 from .database import Database
 from .http_logging import RequestMiddleware
+from .llm import OllamaClient
 from .logging import EventLogger, request_context
-from .proposals import ProposalError, ProposalStore
-from .reads import ReadTools, json_value
+from .proposals import REQUEST_ROLES, ProposalError, ProposalStore
+from .read_agent import ReadAgent
+from .reads import ReadTools, ToolError, json_value
 from .settings import Settings
+from .snapshot import CATEGORIES
+from .tools import ToolDispatcher
 
 
-def response(request, data=None, code=None, status_code=200, *, partial=False):
+def response(
+    request,
+    data=None,
+    code=None,
+    status_code=200,
+    *,
+    partial=False,
+    answer=None,
+    evidence=None,
+    errors=None,
+    warnings=None,
+    context_id=None,
+):
     request.state.result_code = code or "OK"
     request.state.response_status = "error" if code else "partial" if partial else "ok"
     return JSONResponse(
         {
             "request_id": request.state.request_id,
-            "context_id": None,
+            "context_id": context_id,
             "status": request.state.response_status,
-            "answer": None,
+            "answer": answer,
             "data": data or {},
-            "evidence": {},
-            "warnings": [],
-            "errors": [{"code": code, "message": code, "details": {}}] if code else [],
+            "evidence": evidence or {},
+            "warnings": warnings or [],
+            "errors": errors
+            if errors is not None
+            else [{"code": code, "message": code, "details": {}}]
+            if code
+            else [],
         },
         status_code=status_code,
     )
 
 
-def create_app(settings=None, database=None, event_logger=None):
+def create_app(settings=None, database=None, event_logger=None, *, llm=None, conversations=None):
     settings = settings or Settings.env()
     database = database or Database(settings)
     events = event_logger or EventLogger(settings.log_level)
@@ -53,6 +76,11 @@ def create_app(settings=None, database=None, event_logger=None):
     app.state.database = database
     app.state.read_tools = ReadTools(database)
 
+    conversations = conversations or ConversationStore()
+    if llm is None and settings.llm_model:
+        llm = OllamaClient(base_url=settings.llm_base_url, model=settings.llm_model)
+    read_agent = ReadAgent(ToolDispatcher(database), llm) if llm is not None else None
+    app.state.conversations = conversations
     app.state.events = events
     app.add_middleware(RequestMiddleware, settings=settings, events=events, response=response)
 
@@ -89,4 +117,114 @@ def create_app(settings=None, database=None, event_logger=None):
             return response(request, code=error.code, status_code=status)
         return response(request, json_value(data))
 
+    @app.post("/agent")
+    async def agent(request: Request):
+        received_at = datetime.now(timezone.utc)
+        try:
+            if (
+                request.headers.get("content-type", "").split(";")[0].strip().lower()
+                != "application/json"
+                or len(request.headers.getlist("idempotency-key")) > 1
+            ):
+                raise ToolError(
+                    "INVALID_ARGUMENT", "JSON request and a single retry key are required"
+                )
+            incoming = AgentInput.parse(
+                request.state.execution_context,
+                await request.body(),
+                received_at=received_at,
+                idempotency_key=request.headers.get("idempotency-key"),
+            )
+            context = request.state.execution_context
+            if request.headers.get("idempotency-key") is not None:
+                saved = await run_in_threadpool(
+                    ProposalStore(database).find_by_retry,
+                    context,
+                    incoming.retry_key,
+                    agent_input_hash=incoming.input_hash,
+                )
+                if saved is not None:
+                    category = CATEGORIES[saved.snapshot.data["targets"][0]["target_type"]]
+                    if context.role not in REQUEST_ROLES[category]:
+                        raise ToolError(
+                            "AUTHORIZATION_DENIED", "Prepare retry permission is required"
+                        )
+                    data = await run_in_threadpool(
+                        ProposalStore(database).get, context, saved.update_request_id
+                    )
+                    return response(request, json_value(data))
+            previous = (
+                conversations.get(context, incoming.context_id)["messages"]
+                if incoming.context_id
+                else []
+            )
+            if read_agent is None:
+                raise ToolError("DEPENDENCY_UNAVAILABLE", "LLM is not configured")
+            result = await run_in_threadpool(
+                read_agent.run,
+                context,
+                incoming,
+                previous_messages=previous if incoming.context_id else None,
+            )
+            context_id = incoming.context_id
+            if result.needs_input or context_id:
+                stored = {"messages": [*previous, incoming.message]}
+                if context_id:
+                    conversations.update(context, context_id, stored)
+                else:
+                    context_id = conversations.create(context, stored)
+            data = {
+                "needs_input": result.needs_input,
+                "tool_results": [
+                    {"tool_call_id": item.tool_call_id, "tool": item.tool, "data": item.result.data}
+                    for item in result.observations
+                ],
+                "tool_trace": list(result.trace),
+            }
+            if result.needs_input:
+                data.update(candidates=[], missing_fields=["target_identifier"])
+            evidence = {
+                "tool_results": [
+                    {"tool_call_id": item.tool_call_id, "tool": item.tool, **item.result.evidence}
+                    for item in result.observations
+                ]
+            }
+            if result.errors and not result.needs_input and not result.observations:
+                code = result.errors[0]["code"]
+                return response(
+                    request,
+                    data,
+                    code=code,
+                    status_code=error_status(code),
+                    errors=list(result.errors),
+                    evidence=evidence,
+                    context_id=context_id,
+                )
+            return response(
+                request,
+                data,
+                answer=result.answer,
+                evidence=evidence,
+                context_id=context_id,
+                partial=bool(result.errors and result.observations),
+                warnings=list(result.errors),
+            )
+        except (ProposalError, ToolError) as error:
+            return response(request, code=error.code, status_code=error_status(error.code))
+
     return app
+
+
+def error_status(code):
+    return {
+        "INVALID_ARGUMENT": 400,
+        "AUTHENTICATION_REQUIRED": 401,
+        "AUTHORIZATION_DENIED": 403,
+        "TARGET_NOT_FOUND": 404,
+        "TARGET_AMBIGUOUS": 409,
+        "DUPLICATE_REQUEST": 409,
+        "CONTEXT_EXPIRED": 409,
+        "RESOURCE_BUSY": 503,
+        "DEPENDENCY_UNAVAILABLE": 503,
+        "AGENT_LIMIT_REACHED": 503,
+    }.get(code, 500)

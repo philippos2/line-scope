@@ -15,6 +15,8 @@ x-backend: &backend
     LINESCOPE_DSN: postgresql://linescope:${LINESCOPE_POSTGRES_PASSWORD:?Generate .env with scripts/create_demo_env.py}@postgres:5432/linescope
     LINESCOPE_USERS: ${LINESCOPE_USERS:?Generate .env with scripts/create_demo_env.py}
     LINESCOPE_LOG_LEVEL: ${LINESCOPE_LOG_LEVEL:-INFO}
+    LINESCOPE_LLM_BASE_URL: ${LINESCOPE_LLM_BASE_URL:-http://host.docker.internal:11434}
+    LINESCOPE_LLM_MODEL: ${LINESCOPE_LLM_MODEL:-}
   init: true
   logging: *logging
 
@@ -41,6 +43,8 @@ services:
         condition: service_healthy
   api:
     <<: *backend
+    extra_hosts:
+      - host.docker.internal:host-gateway
     ports:
       - '127.0.0.1:${LINESCOPE_API_PORT:-8000}:8000'
     depends_on:
