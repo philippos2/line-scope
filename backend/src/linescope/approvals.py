@@ -1,7 +1,7 @@
 """Human approval transactions with explicit category/operation admission.
 
-HTTP admission supports equipment state and maintenance plan UPDATE. CREATE,
-records, assignment and Graph validation follow.
+HTTP admission supports equipment state and maintenance plan UPDATE. Plan
+CREATE approval is internal; execution, records and Graph validation follow.
 """
 
 from uuid import uuid4
@@ -35,9 +35,9 @@ class _HumanApproval:
             category = validate_approve(context, saved, snapshot_hash)
             self._require_scope(category, saved)
             targets = saved.snapshot.data["targets"]
-            conflict = self._targets_changed(connection, targets)
+            conflict = self._conflict_code(connection, targets)
             if conflict:
-                status, action, code = "INVALIDATED", "INVALIDATE", "VERSION_CONFLICT"
+                status, action, code = "INVALIDATED", "INVALIDATE", conflict
                 connection.execute(
                     "UPDATE approval SET status='INVALIDATED',updated_at=clock_timestamp() WHERE approval_id=%s",
                     (approval_id,),
@@ -81,10 +81,14 @@ class _HumanApproval:
             )
         # Invalidation must commit before reporting the conflict to the caller.
         if conflict:
-            error = ProposalError("VERSION_CONFLICT", "The prepared target has changed")
+            error = ProposalError(conflict, "The prepared target is no longer valid")
             error.update_request_id = request_id
+            error.transition_committed = True
             raise error
         return result
+
+    def _conflict_code(self, connection, targets):
+        return "VERSION_CONFLICT" if self._targets_changed(connection, targets) else None
 
     @staticmethod
     def _locked_proposal(connection, approval_id):
@@ -170,9 +174,10 @@ class _HumanApproval:
                     else self._reject(context, approval_id)
                 )
             except ProposalError as error:
-                # VERSION_CONFLICT already committed an INVALIDATE audit in _approve.
+                # A committed invalidation already has an atomic INVALIDATE audit.
                 request_id = getattr(error, "update_request_id", None)
-                if error.code != "VERSION_CONFLICT":
+                invalidated = getattr(error, "transition_committed", False)
+                if not invalidated:
                     request_id = self._failure_audit(context, approval_id, action, error.code)
                 self.events.emit(
                     "approval.completed",
@@ -190,8 +195,8 @@ class _HumanApproval:
                     else "INFO",
                     approval_id=approval_id,
                     update_request_id=request_id,
-                    before_status="WAITING_APPROVAL" if error.code == "VERSION_CONFLICT" else None,
-                    after_status="INVALIDATED" if error.code == "VERSION_CONFLICT" else None,
+                    before_status="WAITING_APPROVAL" if invalidated else None,
+                    after_status="INVALIDATED" if invalidated else None,
                     error=error if error.code == "INTERNAL_ERROR" else None,
                 )
                 raise
@@ -276,6 +281,34 @@ class MaintenancePlanUpdateApproval(_HumanApproval):
             if current != target["before"]:
                 conflict = True
         return conflict
+
+
+class MaintenancePlanCreateApproval(_HumanApproval):
+    """Approve saved plan CREATEs without inserting any business rows."""
+
+    @staticmethod
+    def _require_scope(category, saved):
+        if category != "MAINTENANCE" or any(
+            t["target_type"] != "MaintenancePlan" or t["operation_type"] != "CREATE"
+            for t in saved.snapshot.data["targets"]
+        ):
+            raise ProposalError(
+                "INVALID_ARGUMENT", "This transaction supports maintenance plan CREATE only"
+            )
+
+    @staticmethod
+    def _conflict_code(connection, targets):
+        # Nonexistent CREATE rows cannot be locked. This is the approval-time
+        # observation only; Execute must recheck and rely on DB UNIQUE at INSERT.
+        row = connection.execute(
+            "SELECT EXISTS(SELECT 1 FROM maintenance_plan "
+            "WHERE maintenance_plan_id=ANY(%s::uuid[]) OR plan_code=ANY(%s::text[])) AS conflict",
+            (
+                [t["target_id"] for t in targets],
+                [t["after"]["plan_code"] for t in targets],
+            ),
+        ).fetchone()
+        return "CREATE_CONFLICT" if row["conflict"] else None
 
 
 class HumanApproval(_HumanApproval):
