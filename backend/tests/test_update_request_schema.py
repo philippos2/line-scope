@@ -129,7 +129,11 @@ def test_upgrade_preserves_business_rows_and_packaged_migration(db):
             "VALUES(%s,'EQ1','Equipment','machine',true)",
             (UUID(int=1),),
         )
-    assert db.migrate() == ["003_update_request_schema.sql", "004_update_audit_events.sql"]
+    assert db.migrate() == [
+        "003_update_request_schema.sql",
+        "004_update_audit_events.sql",
+        "005_execution_history.sql",
+    ]
     assert db.migrate() == []
     with db.transaction() as connection:
         assert connection.execute("SELECT version FROM equipment").fetchone()["version"] == 1
