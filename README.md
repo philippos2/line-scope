@@ -13,10 +13,10 @@
 | 領域 | 現在の状態 |
 |---|---|
 | API基盤 | FastAPI、Bearer認証、Trusted Execution Context、共通Response Envelopeを実装 |
-| PostgreSQL | 業務10テーブル、DB制約、checksum付きmigrationを実装 |
+| PostgreSQL | 業務10テーブルと更新要求・Target・承認の3テーブル、DB制約、checksum付きmigrationを実装 |
 | 正本参照 | ID参照・設備割当参照・検索の内部Read Tool 13種を実装 |
 | 更新提案 | 設備状態、保全予定・実績、生産作業の予定値・設備割当、依存関係のCanonical Snapshotを構築・検証 |
-| Prepare / Approval / Execute | DB保存・権限判定・更新トランザクションは後続 |
+| Prepare / Approval / Execute | 保存用テーブルを実装。保存サービス・権限判定・承認／実行処理は後続 |
 | Graph / Outbox | Neo4j Projection、同期管理、依存・影響分析は後続 |
 | RAG / Agent | Qdrant連携とLLM / embedding modelの評価・選定は後続 |
 | Frontend | サーバサイド完成後に構築。Graph中心のオペレーション画面は候補の一つ |
