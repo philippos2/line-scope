@@ -1,4 +1,4 @@
-"""Canonical Snapshot v1 for equipment, maintenance and production proposals.
+"""Canonical Snapshot v1 for equipment, maintenance, production and relations.
 
 This pure construction/validation layer does not authorize, persist or execute
 updates. Prepare must supply current PostgreSQL state and check permissions.
@@ -18,6 +18,7 @@ from .assignments import (
 )
 from .canonical import canonical_json, normalize_timestamp, normalize_uuid, strict_json
 from .execution import ExecutionContext
+from .relations import validate_relation_target
 
 MAX_VERSION = 2**63 - 1
 STATE_CODES = {"RUNNING", "STOPPED", "UNDER_MAINTENANCE", "UNKNOWN"}
@@ -37,6 +38,7 @@ CATEGORIES = {
     "MaintenanceRecord": "MAINTENANCE",
     "ProductionOperation": "PRODUCTION_OPERATION",
     "ProductionOperationEquipmentAssignment": "PRODUCTION_OPERATION",
+    "DependencyRelation": "DEPENDENCY",
 }
 
 
@@ -527,6 +529,8 @@ def _target(value):
         return _operation_target(value)
     if value["target_type"] == "ProductionOperationEquipmentAssignment":
         return validate_assignment_target(value)
+    if value["target_type"] == "DependencyRelation":
+        return validate_relation_target(value)
     raise ValueError("Unsupported Snapshot target category")
 
 
@@ -608,6 +612,10 @@ def build_production_operation_snapshot(context, targets, supersedes_update_requ
         supersedes_update_request_id,
         {"ProductionOperation", "ProductionOperationEquipmentAssignment"},
     )
+
+
+def build_dependency_relation_snapshot(context, targets, supersedes_update_request_id=None):
+    return _build_snapshot(context, targets, supersedes_update_request_id, {"DependencyRelation"})
 
 
 def _build_snapshot(context, targets, supersedes_update_request_id, target_types):

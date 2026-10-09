@@ -64,3 +64,9 @@
 2026-10-09、利用者のREADME整理依頼を受け、PR #14 merge後の短い文書チェックポイントとして実施した。実装状況と試せるHTTP APIを明確にし、概要・構成・起動・curl・検証・資料の順に整理した。LogiScopeはREADMEの情報配置・導線だけを参考にし、コード・構成・業務仕様は再利用していない。data-model §13へ適用済み10テーブルのER図を追加し、SQL FKと多態的論理参照を区別した。ホスト開発の依存lock手順はoperations §11へ整理した。判断主体は、利用者が委任した優先順位・文書整理の範囲でCodex。
 
 独立した一時Docker環境で認証付きhealth / readinessの200と認証なし401をcurlで検証し、検証用環境・volumeを削除した。ERの業務列・7本のFKをmigrationと照合し、構成図・ER図のMermaid構文と変更文書のローカルファイルリンクを検証した。実装コード・設定・業務仕様の変更はなく、既存491テストのローカル再実行は省略する。PR CIで全テスト・migrationを検証する。残課題はDependencyRelation Snapshot、Prepare / Approval / Execute、Graph / Outbox、RAG / Agentなどのバックエンド実装で、Frontendはその完了後に進める。
+
+## DependencyRelation Snapshotチェックポイント
+
+2026-10-09、PR #15 merge後、DependencyRelationのCREATE / UPDATE / DISABLE Target構築とCanonical Snapshot保存形式の検証を追加した。endpoint型表・required未使用種別のfalse要求、明示NULL期間、現在versionと増分、ID固定、無効化・非変更拒否、同カテゴリ複数Targetを検証する。業務キー変更を許す既存要件に従いafterキーをTargetへ固定し旧キーをbeforeに保持する技術判断をCodexが行い、data-model §12とapi-tools §16へ必要な保存形式・入力補足を反映した。業務の関係意味・権限・承認条件は変更していない。
+
+Docker内552テスト（追加61）、lint/format成功。独立した型表に基づく400組合せのSnapshot検証と350組合せのPostgreSQL CHECK照合、再計算hash付きschema改変の拒否、業務キー交換を検証した。T-R03 / R07のSnapshot・カテゴリ境界に対応し、AC全体の完了とは扱わない。正本全体のendpoint存在・active、期間重複・循環・最終一意性、Prepare・永続化・権限・Approval / Execute・Graph / Outboxは後続。LogiScopeコードの再利用はない。

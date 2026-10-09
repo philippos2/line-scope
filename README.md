@@ -15,13 +15,13 @@
 | API基盤 | FastAPI、Bearer認証、Trusted Execution Context、共通Response Envelopeを実装 |
 | PostgreSQL | 業務10テーブル、DB制約、checksum付きmigrationを実装 |
 | 正本参照 | ID参照・設備割当参照・検索の内部Read Tool 13種を実装 |
-| 更新提案 | 設備状態、保全予定・実績、生産作業の予定値・設備割当のCanonical Snapshotを構築・検証 |
+| 更新提案 | 設備状態、保全予定・実績、生産作業の予定値・設備割当、依存関係のCanonical Snapshotを構築・検証 |
 | Prepare / Approval / Execute | DB保存・権限判定・更新トランザクションは後続 |
 | Graph / Outbox | Neo4j Projection、同期管理、依存・影響分析は後続 |
 | RAG / Agent | Qdrant連携とLLM / embedding modelの評価・選定は後続 |
 | Frontend | サーバサイド完成後に構築。Graph中心のオペレーション画面は候補の一つ |
 
-Snapshotは提案内容を固定するためのデータです。構築できることと、承認済み・実行済みであることは別です。DependencyRelationの更新Snapshotと設備状態・更新履歴の参照も後続工程です。
+Snapshotは提案内容を固定するためのデータです。構築できることと、承認済み・実行済みであることは別です。設備状態・更新履歴の参照も後続工程です。
 
 ## システム構成とデータの正本
 
