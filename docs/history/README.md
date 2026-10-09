@@ -174,3 +174,19 @@ Docker内の実PostgreSQLで866テスト成功（既存839 + 追加27）。保�
 T-R02 / R03 / R21、AC-07 / 11 / 13 / 14 / 16の内部Prepare・Snapshot・要求保存・置換部分に対応する。直接SQL変更のfixtureは読込後の競合を検証するためであり、設備IDを変更するAPIを許可したものではない。実績だけによる設備／予定状態の自動更新や、新規予定への自動参照解決は行わない。
 
 Prepare API / Tool公開、呼出しTool名と先頭Targetの一致確認を含むTool dispatcher、生産作業・依存関係Prepare、Approval / Execute、DB監査・Toolログ、Graph / Outboxは後続。Prepareの正本観測後に生じるversion変化・CREATE競合はApproval / Executeで再検証する。業務受入全体やExecuteの完成ではない。要件・PO-B・migration・依存・Frontendは変更せず、LogiScopeコードも再利用していない。
+
+## UI/UX意見書とAPIへの示唆
+
+[UI/UX意見書レビュー](2026-10-09-ui-ux-opinion-review.md)に、POが共有した参考意見の採用・修正・保留とAPI設計上の注意を記録した。構造化した比較・Evidence・Unknown・人間の操作境界を重視する。画面構成・新しい業務データを正式要件へ昇格させず、Frontend実装は後続とする。
+
+## 生産作業予定値UPDATEの内部Prepareチェックポイント
+
+2026-10-09、PR #27 merge後、POの指示でProductionSchedulePrepareを追加した。生産管理・工場管理のtrusted contextだけを許可し、対象IDとplanned_status / planned_start / planned_endの非空patchを受け付ける。全対象の全業務値・versionを単一statement Snapshotで取得し、UTC正規化後の開始 < 終了と実変更を検証する。operation_code / process_id / active / versionの自己申告変更を拒否する。正本からexpected_versionを導出し、確定afterのversionを1増分した提案を保存する。業務行への変更lockやUPDATE、設備割当変更は行わない。
+
+入力hashはTool名・ID順の対象集合・正規化した明示patch・明示置換IDから生成し、観測値・versionを含めない。保存済みretryは正本再読込より前に返す。複数対象の不正・不存在・no-opは全体拒否し、既存ProposalStoreで要求・Target・承認保存と旧要求失効を原子的に処理する。正本観測後のversion変化は後続のApproval / Executeで再検証する。
+
+Docker内の実PostgreSQLで906テスト成功（既存866 + 追加40）、ruff check / format成功。予定値の全項目保持と業務正本・割当非変更、権限、期間・禁止項目・全Target拒否、timezone、状態変更、終端再送と正本変更後のSnapshot保持、owner scope、異入力、4並行同keyの一要求化、置換中Approval INSERT失敗の全rollbackと再試行、単一statement観測後のversion変更、BIGINT増分不能、読込timeout・接続障害を検証した。
+
+T-R02 / R03 / R21とAC-07 / 13 / 14 / 16の内部Prepare・Snapshot・要求保存・置換部分に対応する。業務受入全体、HTTP再送、承認時のversion失効、二重Execute防止の完成ではない。
+
+今回の内部入口は予定値だけを扱い、assignment_replacementを拒否する。正式Tool契約の割当置換・予定値との同時変更を削除したものではない。割当変更にはUSESと依存関係を合わせた禁止循環検証が必要なため、正本取得・区間差分・循環検証を次の実装単位へ分けた。Prepare API / Tool公開、設備割当・依存関係Prepare、Approval / Execute、DB監査・Toolログ、Graph / Outboxは後続。要件・PO-B・migration・依存・Frontendは変更せず、LogiScopeコードも再利用していない。
