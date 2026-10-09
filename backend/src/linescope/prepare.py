@@ -11,8 +11,11 @@ from .snapshot import (
     STATE_CODES,
     build_equipment_state_snapshot,
     build_maintenance_plan_snapshot,
+    build_maintenance_snapshot,
     equipment_state_target,
+    maintenance_plan_create_target,
     maintenance_plan_target,
+    maintenance_record_create_target,
 )
 
 
@@ -216,6 +219,193 @@ class MaintenancePlanPrepare:
                     "INTERNAL_ERROR", "Maintenance plan current value is invalid"
                 ) from error
         snapshot = build_maintenance_plan_snapshot(context, changes, replacement)
+        return self.store.save(
+            context,
+            snapshot,
+            retry_key,
+            prepare_input_hash=input_hash,
+            agent_input_hash=agent_input_hash,
+        )
+
+
+PLAN_CREATE = "prepare_maintenance_plan_create"
+RECORD_CREATE = "prepare_maintenance_record_create"
+CREATE_FACTORIES = {
+    PLAN_CREATE: maintenance_plan_create_target,
+    RECORD_CREATE: maintenance_record_create_target,
+}
+
+
+def _maintenance_create_input(tool, values):
+    if tool not in CREATE_FACTORIES or type(values) is not dict:
+        raise ValueError("Unsupported maintenance CREATE input")
+    if tool == PLAN_CREATE:
+        fields = {"plan_code", "equipment_id", "planned_start", "planned_end", "plan_status"}
+        if set(values) != fields or type(values["plan_code"]) is not str:
+            raise ValueError("Invalid maintenance plan input")
+        if type(values["plan_status"]) is not str or values["plan_status"] not in {
+            "PLANNED",
+            "CANCELLED",
+        }:
+            raise ValueError("Invalid plan status")
+        return {
+            **values,
+            "equipment_id": normalize_uuid(values["equipment_id"]),
+            "planned_start": normalize_timestamp(values["planned_start"]),
+            "planned_end": normalize_timestamp(values["planned_end"]),
+        }
+    fields = {"record_code", "equipment_id", "performed_at", "result"}
+    if not fields <= set(values) or not set(values) <= fields | {"maintenance_plan_id"}:
+        raise ValueError("Invalid maintenance record fields")
+    if (
+        type(values["record_code"]) is not str
+        or type(values["result"]) is not str
+        or not values["result"].strip()
+    ):
+        raise ValueError("Invalid maintenance record text")
+    plan_id = values.get("maintenance_plan_id")
+    return {
+        **values,
+        "equipment_id": normalize_uuid(values["equipment_id"]),
+        "performed_at": normalize_timestamp(values["performed_at"]),
+        "maintenance_plan_id": normalize_uuid(plan_id) if plan_id is not None else None,
+    }
+
+
+class MaintenanceCreatePrepare:
+    """Prepare plan/record CREATEs; linked plans must already exist in the SoR."""
+
+    def __init__(self, database):
+        self.store = ProposalStore(database)
+
+    def prepare(
+        self, context, targets, retry_key, *, agent_input_hash, supersedes_update_request_id=None
+    ):
+        if not isinstance(context, ExecutionContext):
+            raise ProposalError("AUTHENTICATION_REQUIRED", "Trusted execution context is required")
+        if context.role not in REQUEST_ROLES["MAINTENANCE"]:
+            raise ProposalError(
+                "AUTHORIZATION_DENIED", "Maintenance request permission is required"
+            )
+        try:
+            if type(agent_input_hash) is not str or not re.fullmatch(
+                r"[0-9a-f]{64}", agent_input_hash
+            ):
+                raise ValueError("A normalized Agent input hash is required")
+            if type(targets) is not list or not targets:
+                raise ValueError("Targets must be a nonempty array")
+            normalized = []
+            for target in targets:
+                if type(target) is not dict or set(target) != {"prepare_tool", "input"}:
+                    raise ValueError("Invalid CREATE target fields")
+                tool = target["prepare_tool"]
+                if type(tool) is not str:
+                    raise ValueError("Invalid Prepare Tool name")
+                if tool in {
+                    "prepare_equipment_state_update",
+                    "prepare_production_operation_update",
+                    "prepare_dependency_relation_update",
+                }:
+                    raise ProposalError(
+                        "BUSINESS_RULE_VIOLATION", "A request must use one business category"
+                    )
+                normalized.append(
+                    {
+                        "prepare_tool": tool,
+                        "input": _maintenance_create_input(tool, target["input"]),
+                    }
+                )
+            replacement = (
+                normalize_uuid(supersedes_update_request_id)
+                if supersedes_update_request_id is not None
+                else None
+            )
+            normalized.sort(
+                key=lambda target: (
+                    target["prepare_tool"],
+                    target["input"].get("plan_code", target["input"].get("record_code")),
+                )
+            )
+            input_hash = canonical_hash(
+                {
+                    "targets": normalized,
+                    "supersedes_update_request_id": replacement,
+                }
+            )
+        except ValueError as error:
+            raise ProposalError(
+                "INVALID_ARGUMENT", "Invalid maintenance CREATE Prepare input"
+            ) from error
+        keys = [
+            (
+                target["prepare_tool"],
+                target["input"].get("plan_code", target["input"].get("record_code")),
+            )
+            for target in normalized
+        ]
+        if len(set(keys)) != len(keys):
+            raise ProposalError("BUSINESS_RULE_VIOLATION", "Duplicate CREATE business key")
+        replay = self.store.find_by_retry(
+            context, retry_key, prepare_input_hash=input_hash, agent_input_hash=agent_input_hash
+        )
+        if replay is not None:
+            return replay
+        for target in normalized:
+            values = target["input"]
+            if (
+                target["prepare_tool"] == PLAN_CREATE
+                and values["planned_start"] >= values["planned_end"]
+            ):
+                raise ProposalError(
+                    "BUSINESS_RULE_VIOLATION", "Maintenance plan start must precede end"
+                )
+        equipment_ids = sorted({target["input"]["equipment_id"] for target in normalized})
+        plan_ids = sorted(
+            {
+                target["input"]["maintenance_plan_id"]
+                for target in normalized
+                if target["prepare_tool"] == RECORD_CREATE
+                and target["input"]["maintenance_plan_id"] is not None
+            }
+        )
+        plan_codes = [
+            target["input"]["plan_code"]
+            for target in normalized
+            if target["prepare_tool"] == PLAN_CREATE
+        ]
+        record_codes = [
+            target["input"]["record_code"]
+            for target in normalized
+            if target["prepare_tool"] == RECORD_CREATE
+        ]
+        # References and business-key conflicts share one PostgreSQL statement snapshot.
+        with self.store._transaction(read_only=True) as connection:
+            facts = connection.execute(
+                "SELECT ARRAY(SELECT equipment_id::text FROM equipment WHERE equipment_id=ANY(%s::uuid[])) AS equipment_ids,"
+                "COALESCE((SELECT jsonb_object_agg(maintenance_plan_id::text,equipment_id::text) "
+                "FROM maintenance_plan WHERE maintenance_plan_id=ANY(%s::uuid[])),'{}'::jsonb) AS plans,"
+                "ARRAY(SELECT plan_code FROM maintenance_plan WHERE plan_code=ANY(%s::text[])) AS plan_conflicts,"
+                "ARRAY(SELECT record_code FROM maintenance_record WHERE record_code=ANY(%s::text[])) AS record_conflicts",
+                (equipment_ids, plan_ids, plan_codes, record_codes),
+            ).fetchone()
+        if set(facts["equipment_ids"]) != set(equipment_ids) or set(facts["plans"]) != set(
+            plan_ids
+        ):
+            raise ProposalError("TARGET_NOT_FOUND", "Maintenance reference was not found")
+        for target in normalized:
+            values = target["input"]
+            plan_id = values.get("maintenance_plan_id")
+            if plan_id is not None and facts["plans"][plan_id] != values["equipment_id"]:
+                raise ProposalError(
+                    "BUSINESS_RULE_VIOLATION", "Maintenance plan equipment does not match"
+                )
+        if facts["plan_conflicts"] or facts["record_conflicts"]:
+            raise ProposalError("CREATE_CONFLICT", "Maintenance business key already exists")
+        # IDs are generated only for a new validated proposal and never hashed as input.
+        changes = [
+            CREATE_FACTORIES[target["prepare_tool"]](target["input"]) for target in normalized
+        ]
+        snapshot = build_maintenance_snapshot(context, changes, replacement)
         return self.store.save(
             context,
             snapshot,
