@@ -112,3 +112,15 @@ Python標準logging、Docker local driverの10m / 3 filesという小規模な�
 POが示した業務目的 → Use Case → 受入Scenario → Ontology / DB / API → Outbox / Projection / lockの順序と、Safety / SecurityのHard Constraintを除き上位意図を優先して下位再設計する方針をrequirements §2.1とdeliverablesへ明記した。既存設計を変更不可としたものではなく、変更は契約・AC・Testへ明示反映する。コード・設定・UIは変更せず、ログ基盤実装は別チェックポイントとした。
 
 文書の目的・対象内外・フェーズ区分をUC-B / R-B / Scenarioと照合し、ローカルリンク・fence・既存ID保持・git diffを検証する。新しい試験を追加せず、文書PRのCIで既存Backend / migrationを検証する。
+
+## 構造化ログ基盤チェックポイント
+
+2026-10-09、PR #22 merge後、利用者の指示でログ設計operations §13の基本実装を行った。Python標準loggingのJSON Formatter / 安全なHandler / EventLoggerを追加し、イベント関数とFormatterの両方でallowlistを検証する。未知field・不正型・長い文字列を除外し、例外message / args / locals / source lineを出さず最大20 frameのmodule / function / lineだけを診断に使う。stdout書込・flush障害のstderr診断は固定文で、例外内容を再出力せずHTTP結果を変更しない。
+
+HTTP middlewareをASGI境界へ移し、認証前からサーバ生成request_idを設定・finally解除する。async / threadpool、並行要求、キャンセル、送信開始後の障害を検証する。Response Envelopeと相関し、route template / code / outcome / status / duration / 認証済み主体を記録する。正常healthはDEBUG、拒否INFO、依存障害WARNING、内部障害ERROR。partialは完全成功と区別する。サービスの起動・終了も記録する。LOG_LEVELは厳格検証し、appごとのloggerでhandler重複・レベル干渉を防ぐ。
+
+標準CLIではUvicorn raw access logを無効にし、既知依存loggerをWARNING以上へ制限する。第三者のmessage / args / 例外は固定runtime診断へ変換し、raw URL・SQL等を転送しない。独自ASGI起動の第三者logger設定は起動側の責務としてREADMEに明記した。runtime ComposeのAPI / migrate / PostgreSQLへlocal driverの10m / 3 filesを設定し、native PostgreSQLログとAPI JSONイベントを区別する。
+
+Docker内の実PostgreSQLで722テスト成功（既存688 + 追加34）、ruff check / format、git diff --check成功。秘密入りの認証・URL / query / body / response・例外・直接logger出力、Context解除・並行16要求・threadpool、stack上限、raw access抑制、ログ出力障害、partial、送信開始後の失敗を検証した。独立した一時Docker環境でmigration / API起動、認証200 / 未認証401、ResponseとJSONのrequest_id一致、ログのcredential不在、全3サービスの実際のlogging driver / 容量設定を確認し、検証用環境とvolumeを削除した。
+
+AC-L01 / 02 / 03 / 04とT-L01〜03 / 05 / 06のHTTP・共通出力部分に対応する。DB監査INSERT・commit / rollbackログ統合、Tool操作ログ、Outbox / Rebuildは後続であり、AC-L全体やT-L04 / 07の合格とは扱わない。業務仕様、PO-B、migration、依存、Frontendは変更しない。READMEとoperationsの実装状態を更新した。LogiScopeコードの再利用はない。

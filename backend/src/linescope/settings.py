@@ -14,8 +14,16 @@ class Settings:
     connect_seconds: int = 5
     statement_ms: int = 5000
     lock_ms: int = 5000
+    log_level: str = "INFO"
 
     def __post_init__(self):
+        if type(self.log_level) is not str or self.log_level not in {
+            "DEBUG",
+            "INFO",
+            "WARNING",
+            "ERROR",
+        }:
+            raise ValueError("LINESCOPE_LOG_LEVEL must be DEBUG, INFO, WARNING or ERROR")
         if not isinstance(self.dsn, str) or not self.dsn.strip():
             raise ValueError("LINESCOPE_DSN must be nonempty")
         for name in ("connect_seconds", "statement_ms", "lock_ms"):
@@ -46,6 +54,10 @@ class Settings:
             raw = os.getenv("LINESCOPE_" + name.upper())
             if raw is not None:
                 values[name] = (
-                    json.loads(raw) if name == "users" else raw if name == "dsn" else int(raw)
+                    json.loads(raw)
+                    if name == "users"
+                    else raw
+                    if name in {"dsn", "log_level"}
+                    else int(raw)
                 )
         return cls(**values)
