@@ -236,3 +236,15 @@ Docker内の実PostgreSQLで1,034テスト成功（既存984 + 追加50）、ruf
 T-R02 / R03 / R07 / R21と、複数Graph Targetの最終集合検証に関するtest-plan補足、AC-05 / 07 / 11 / 13 / 14 / 16 / G12の内部Prepare部分に対応する。承認・Execute・Projectionや受入基準全体の完成ではない。Dependency自己承認不可と工場管理者だけの承認規則は後続Approval APIで適用する。
 
 全カテゴリの内部Prepareが揃った。次は既存Tool契約に沿うdispatcher / API接続と、curlで試せる一連の流れへ進める。HTTPはまだhealth / readinessだけ。デモseed、LLM / embedding疎通、Approval / Execute、DB監査・Toolログ、Graph / Outboxは後続。PO-B、業務要件、DB / migration、依存、Frontendは変更せず、LogiScopeコードの再利用はない。
+
+## 内部Tool dispatcherチェックポイント
+
+2026-10-09、PR #32 merge後、POの指示でToolDispatcherを追加した。実装済みRead 13種とPrepare 6種だけをschema一覧と固定呼出し経路へ登録する。未実装Graph / RAG / 履歴Tool、Approval / Execute、任意SQL / Cypherを呼び出せる入口は追加しない。既存ReadResult / SavedProposalを返し、HTTP Response Envelopeへの変換やAgent実行を混ぜない。
+
+Prepareは単一入力かtargets配列のどちらかだけを受け付ける。各要素はprepare_tool / inputのみ、先頭Tool名は呼出しTool名と一致、全要素は既知Toolかつ同一カテゴリを要求する。混在可能な保全3種は既存MaintenancePrepareへまとめ、他カテゴリは既存の対象入力配列へ変換して委譲する。認証主体・retry key・Agent input hash・置換IDは別のtrusted引数とし、Tool引数による注入を拒否する。service側の認可・業務制約・再送・保存を保持し、ProposalErrorを共通ToolError codeへ変換する。
+
+Tool schemaは型・UUID / timezone時刻・許可状態・非空patch・明示NULL・単一 / 複数入力・未知field禁止を表す。型の組合せや期間・循環などの業務意味論はサーバ側既存検証を正とし、schemaだけで成立保証しない。一覧取得後のschema編集で後続一覧が変化しないよう独立コピーを返す。先頭Tool一致は実行時にも検証する。
+
+Docker内の実PostgreSQLで1,071テスト成功（既存1,034 + 追加37）、ruff check / format、git diff --check成功。6種の実Prepare到達と業務正本非変更、Read結果と非保存、保全混在、単一と一要素配列の同key再送、未登録・確定操作Tool拒否、不正wrapper・先頭不一致・異種カテゴリの事前拒否、信頼済み情報注入拒否、認証前拒否・認可error保持、schema一覧とコピー分離を確認した。
+
+api-tools §16、T-R02 / R07とAC-01 / 05 / 07 / 13の内部Tool境界部分に対応する。Agentによる実呼出し、HTTP、Approval / Execute、業務受入全体の完成ではない。Tool trace / operation log、LLM・Agent入力hash生成、context、デモseed、未実装Tool、RAG / Graph接続は後続。HTTPはhealth / readinessのまま。正式要件・API契約・DB / migration・依存・Frontendは変更せず、LogiScopeコードも再利用していない。
