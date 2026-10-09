@@ -173,7 +173,7 @@ APPROVED -> CONSUMED | INVALIDATED | EXPIRED
 
 Lock順序は、必要なGraph mutation lock → UpdateRequest → Approval → 業務行(target_type, target_id順)。Approve、Reject、別Transactionの失効もUpdateRequest → Approvalの順を守る。UPDATE / DISABLEは行ロック後にexpected_versionを確認し、さらにversion条件付き更新で影響行数1を要求する。CREATEはDB UNIQUE制約で最終防御する。禁止循環・期間重複はGraph mutation lock下で全Target適用後の予定集合を検証する。
 
-Assignment変更は親ProductionOperationを必ずロックし親versionを1増加する。予定値と同時変更しても親の増加は1回。変更するAssignmentのexpected_versionもSnapshotに含める。割当差分はdomain-model §15.2の期間置換規則に従い、親version・全active Assignment集合をprepare時に固定する。
+Assignment変更は親ProductionOperationを必ずロックし親versionを1増加する。予定値と同時変更しても親の増加は1回。変更するAssignmentのexpected_versionもSnapshotに含める。割当差分はdomain-model §15.2の期間置換規則に従い、親version・全active Assignment集合をprepare時に固定する。保存形状はdata-model §12のequipment_assignmentsを用い、親before集合と各Assignment Targetのbeforeの一致、および全差分適用後のactive集合と親after集合の一致を検証する。親Targetがない割当差分、一部差分の欠落、集合の重複・期間重複は拒否する。割当置換が実変更なしでも予定値に実変更があれば親だけを更新でき、両方に実変更がなければ要求を作成しない。
 
 失敗後の別Transactionは同じ順でlockを取り、状態・hash・期限・競合原因を再検証する。依然APPROVEDの同一Snapshotに失効原因が成立する場合だけINVALIDATED / EXPIREDにする。COMPLETED / CONSUMED等の終端状態を上書きしない。他Executeが成功済みなら既存結果を返す。
 
