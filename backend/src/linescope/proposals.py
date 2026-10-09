@@ -52,6 +52,14 @@ WHERE r.requester_id=%s AND r.prepare_retry_key=%s
 """
 
 
+def _effective_status(status, expires_at, observed_at):
+    return (
+        "EXPIRED"
+        if status == "APPROVED" and expires_at is not None and observed_at >= expires_at
+        else status
+    )
+
+
 class ProposalError(Exception):
     def __init__(self, code, message):
         super().__init__(message)
@@ -146,6 +154,8 @@ class ProposalStore:
         with self._transaction(read_only=True) as connection:
             row = connection.execute(
                 LOOKUP.replace(
+                    "SELECT r.*,", "SELECT statement_timestamp() AS observed_at, r.*,"
+                ).replace(
                     "WHERE r.requester_id=%s AND r.prepare_retry_key=%s",
                     "WHERE r.update_request_id=%s",
                 ),
@@ -176,6 +186,9 @@ class ProposalStore:
                 "update_request_id": saved.update_request_id,
                 "approval_id": saved.approval_id,
                 "status": saved.status,
+                "effective_status": _effective_status(
+                    saved.status, row["expires_at"], row["observed_at"]
+                ),
                 "approval_status": saved.approval_status,
                 "canonical_snapshot": saved.snapshot.data,
                 "snapshot_hash": saved.snapshot.snapshot_hash,
