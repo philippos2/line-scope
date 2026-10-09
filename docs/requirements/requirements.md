@@ -2,7 +2,7 @@
 
 ## 1. 目的
 
-LineScopeは、製造設備・生産工程・保全・依存関係に関する参照、分析、更新を自然言語で支援するAI Agentシステムである。
+LineScopeは、工場の設備・工程・製品・保全情報・依存関係を統合し、設備異常・故障・計画停止時の運用上の意思決定をEvidence付きで支援するシステムである。影響範囲、能力、リスク、経済的損失、対応策の費用・時間・残存リスク、不足情報を関連付けて提示する。最終意思決定、Approval、Executeは人間が行う。自然言語による参照・分析・変更準備はそのための手段とする。
 
 業務データ更新は、明示的な更新要求、対象特定、権限確認、変更前後提示、認証済み承認、実行時再検証を経て行う。
 
@@ -201,7 +201,7 @@ planned_start < planned_end、effective_from < 非NULL effective_toを要求す�
 
 保全実績登録は設備状態・保全予定・生産予定を自動変更しない。maintenance_plan_id指定時は同じequipment_idの既存計画であることを要求する。DependencyRelationのrequired未使用種別はfalseを要求し、true入力を拒否する。関係自体の必須性はdomain-modelの規則で評価する。
 
-EquipmentState更新の現在状態・履歴は同一Transactionで保存し、現在状態の更新時刻と履歴effective_at / recorded_atは確定実行のサーバ時刻を記録する。過去・未来の状態登録機能は追加しない。UUID・監査時刻・version等の技術メタデータ生成と業務値の推測を区別する。
+EquipmentState更新の現在状態・履歴は同一Transactionで保存し、現在状態の更新時刻と履歴effective_at / recorded_atは確定実行のサーバ時刻を記録する。既存のEquipmentState UPDATEは過去・未来の状態登録を行わない。将来停止を扱うUC-B14の方式は§14.3のPO-B05で確定するまで、このUPDATEへ予約実行の意味を付与しない。UUID・監査時刻・version等の技術メタデータ生成と業務値の推測を区別する。
 
 ## 13. 後続Frontendフェーズ
 
@@ -229,3 +229,68 @@ Object Detailは正本の項目・状態・version・観測時刻を表示する
 Action表示はAI RecommendationとHuman Approvalを区別し、サーバ保存canonical Snapshotのbefore / proposed、requester・approver・承認状態を確認可能にする。確定済みafterとその後のcurrent valueを区別する。人によるApproval専用APIと元requesterによるExecute専用APIの境界を維持する。Tool Traceは公開可能なTool名・入出力・根拠を対象とし、LLM内部推論・秘密情報・内部SQL/Cypherを公開しない。
 
 状態バーは検証済みの状態だけを示し、未実装・未確認をReady / Connectedと表示しない。LLM名も採用・接続が確定した設定を参照し、提示例のQwenを選定確定と扱わない。React / TypeScript / React Flow、TanStack Query、Context / Zustandは候補として後続設計で評価し、現段階では採用・依存追加を行わない。
+
+## 14. 業務判断支援の追加要件
+
+今回のUC-B01〜15とBS-01〜12 / BS-G01の意図を既存文書との不整合時に優先する。以下はプロダクト要件であり、現在の実装完了や物理スキーマ確定を意味しない。未決定事項は§14.3を正とし、既存の更新契約を暗黙に拡張しない。
+
+### 14.1 R-B01〜R-B10
+
+| ID | 要件 |
+|---|---|
+| R-B01 | 直接・間接影響、工程・製品、経路、関係種別、必須性、代替候補、探索の完全性を提示する。「影響なし」と「確認不能」を区別する |
+| R-B02 | 通常能力・残存能力・必要生産量・空き能力・不足量を評価する。構造上の代替関係と能力面の充足を区別する |
+| R-B03 | Safety / Production / Quality / Delivery / Cascade / Economic riskとuncertaintyを区別する。根拠のない総合スコアや将来故障確率を作らない |
+| R-B04 | 対象別・時間当たり・期間累積の損失を、入力、単位、期間、計算式、Evidence、推定／確定の区別とともに提示する。未知を0としない |
+| R-B05 | Repair / Replace / Continue until planned maintenance or replacement / Substituteを共通の比較条件で評価し、実行可能性、費用、時間、生産影響、残存リスク、前提、不明事項を示す |
+| R-B06 | Hard Safety Constraintに違反する案を実行可能候補から除外し、基準とEvidenceを示す。経済利益で安全条件を上書きしない |
+| R-B07 | 生産計画・納期についてbuffer、許容停止時間、復旧期限、不足量を根拠がある範囲で評価する |
+| R-B08 | 故障・保全履歴と過去の停止影響を考慮し、確認できる将来影響と判断不能な予測を区別する |
+| R-B09 | 判明分、計算不能項目、追加必要データ、各評価の完全性を示す。0 / FALSE / NONE / UNKNOWN / INDETERMINATE / NOT AVAILABLEを意味に応じて区別する |
+| R-B10 | Impact → Risk → Economic Impact → Options → Constraints → Comparison → Evidence → UnknownsをDecision Packageとして提示する。分析だけではPrepareしない。明示的更新要求後は既存のPrepare → Human Approval → requester Execute境界を守る |
+
+数値計算は決定論的なアプリケーション処理が行い、LLMへ委任しない。Golden Use CaseはUC-B09を中心とする。意思決定支援用の生産・費用・安全情報は対象に含むが、在庫・受注・BOMの完全管理、実設備制御、本番MES/ERP接続は引き続き対象外。
+
+### 14.2 必要データの仕様存在分類
+
+A=現仕様に存在、B=現仕様から一部導出可能、C=現仕様には必要な意味・構造が存在しない。実装済みかどうかとは別の分類である。自由記述や文書に記載できることだけでは、計算用正本の定義済みとは扱わない。
+
+| 項目 | 分類 | 根拠・不足 |
+|---|---|---|
+| loss per operating hour | C | Product等に損失率・通貨・適用条件なし |
+| operating hours/day | C | 稼働calendarなし。予定開始終了差は実稼働時間とは限らない |
+| production capacity | C | 製品・単位・期間別能力なし |
+| available capacity | C | 能力・使用中負荷・予約負荷なし |
+| required production volume | C | 生産量・需要・比較期間なし |
+| repair cost | C | 保全実績resultは費用項目ではない |
+| repair duration | C | 予定期間は修理所要時間の保証ではない |
+| replacement cost | C | 交換費用なし |
+| replacement duration | C | 交換作業期間なし |
+| parts lead time | C | 調達期間なし |
+| next planned maintenance | B | PLANNEDのMaintenancePlan期間から候補抽出可能。「次回」の選択条件はPO-B05 |
+| next planned replacement | C | MaintenancePlanに保全／交換の種別なし |
+| degradation / stopped distinction | C | STOPPEDは存在するが、劣化の観測・程度・継続条件なし |
+| safety stop criteria | C | 適用対象・停止基準・判定入力の契約なし |
+| permissible continued-operation conditions | C | 許容条件・有効期限・判断根拠なし |
+| failure history | C | 状態履歴は停止原因を示さず、STOPPEDを故障と同一視できない |
+| maintenance history | A | MaintenanceRecordと設備・実施時刻・result。費用・故障分類等は別途必要 |
+| quality loss | C | 不良量・金額・損失との重複規則なし |
+| production buffer | C | 在庫／工程余裕の意思決定用入力なし |
+| permissible downtime | C | 需要・buffer・納期との算出規則なし |
+
+### 14.3 PO Decision一覧（未決定）
+
+業務判断支援を採用すること自体は確定済み。以下は追加案に明記されていない業務意味を確定するための事項であり、Codexが実装時に補完しない。未決定の機能を正常利用可能と表示しない。
+
+| ID | 確定が必要な事項 | 影響範囲 |
+|---|---|---|
+| PO-B01 | 共通比較期間、稼働時間calendar、費用範囲（直接費／停止損失／共通の将来交換費等）、推定／確定の条件。BS-03の150日は単純費用回収期間として保持し、厳密な案比較との関係を確定する | BS-02・03・07・10・12・G01、経済AC、DB / 計算Tool |
+| PO-B02 | 損失率の定義、通貨、適用期間、完全停止と劣化の計算、独立加算条件、品質損失との二重計上防止 | BS-02・03・09・G01、Productと経済入力 |
+| PO-B03 | 製品別能力・単位・必要量・空き能力の期間と予約負荷、代替互換性、buffer・納期・復旧期限の導出規則 | BS-05・06・G01、UC-B02・03・11 |
+| PO-B04 | 劣化の観測情報、承認された安全基準と適用条件、継続許容の根拠・有効期間、リスク資料の信頼性。安全不明時の候補表示と、分析での除外を実更新時にも検証する範囲 | BS-03・04・11・G01、状態／安全入力、Execute業務制約 |
+| PO-B05 | 修理／交換計画の区別、所要時間と調達lead timeの区別、暫定案の期間、次回計画の選び方。UC-B14の「次回保全で停止」が保全予定作成か、将来状態変更の予約か | BS-03・07・G01、UC-B06〜08・14、計画／更新契約 |
+| PO-B06 | 故障・修理履歴、過去停止損失の正本と登録主体、履歴の対象期間、将来予測の根拠。現在Graphのas_ofで履歴を復元しない | BS-12、UC-B12、履歴DB / Tool |
+| PO-B07 | 新しい費用・能力・安全情報の登録／閲覧権限、更新カテゴリ、承認条件、Evidenceの公開範囲。既存Graph権限だけで新データの閲覧を許可しない | access-control、全Target / Snapshot / API |
+| PO-B08 | 「影響するInfrastructureResource」が被影響対象か、上流依存資源の提示か。現行関係表には設備からInfrastructureResourceへの通常の下流影響関係がない | UC-B01、関係モデル / Graph / AC |
+
+技術実装判断として、UCの番号分離、構造化結果による検証、計算をLLMから分離することを採用する。数量の単位・桁・丸めはPO-B01〜03の意味確定後に設計へ反映し、binary floatや新しいSnapshot形状を先行採用しない。PO判断確定時にはRequirements / Domain / Access / Data / API / Transaction / AC / Testを対応して更新する。

@@ -77,3 +77,9 @@ Agentが生成した説明文だけを承認対象としない。
 Prepare応答にUpdateRequest IDとApproval IDを返し、v1は人が承認者へ渡してGETで確認する。通知サービス・承認待ち一覧APIは追加しない。履歴検索は既存閲覧境界を守る。
 
 単一カテゴリ承認者は既存閲覧範囲でSnapshot確認可能。承認APIは閲覧権限・全Target承認権限・自己承認規則を確認。異種カテゴリ混在は拒否し、既存閲覧権限を拡張しない。
+
+## 11. 業務判断支援の追加情報
+
+UC-BのGraph部分は既存のGraph分析権限に従う。費用・能力・安全・故障情報の閲覧／登録／更新カテゴリと承認条件はrequirements §14.3 PO-B07で確定するまで許可を推測しない。Business ScenarioのActor記載は業務利用者の想定であり、新データの認可契約を代替しない。
+
+Decision Packageは結論だけでなくEvidence、Tool Trace、計算入力を含めて認可する。新Toolを既存Read権限だけで自動公開しない。複数Targetは全Targetの権限・承認条件を満たさなければ全体拒否し、1 UpdateRequest = 1業務カテゴリを維持する。分析の実行可能案という表示はApprovalの成立を意味しない。

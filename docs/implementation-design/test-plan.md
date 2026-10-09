@@ -170,3 +170,11 @@ Isolation levelはREAD COMMITTEDで検証する。
 - T-R02 / R03: retry scopeをuserごとに分離、終端再送・context TTL後再送で同要求、異内容409。decimal / 重複JSON key / surrogate / timezoneなし拒否、C0文字のcanonical byte一致。
 - T-R10 / R12: leader → mutation順、PROCESSING claimと分析競合、generation validated markerとcontrol pointerの切替前後crash復旧。
 - T-R14 / R15: OR候補のAVAILABLE優先、UNKNOWNのみ未確定、置換候補の依存を推移置換しない、除外前不成立をSPOFと断言しない。
+
+## 13. Business Scenarioを最上位受入試験に追加
+
+Business Scenario / Acceptance → Agent / Application E2E → Integration → Contract → Unitを業務受入の階層とする。Transaction / Concurrency / Projection / Graph / RAG / Security / Recoveryは引き続き下位で検証する。
+
+[Business Scenario仕様](business-scenarios.md)のBS-01〜19 / BS-G01、固定数値、UC ↔ BS ↔ AC対応を使用する。AC-B01〜11の主試験は同書§4。BS-13〜19の補足と将来停止variantの未確定事項は§4.1で追跡する。数値は決定論的に検証し、意味論的結果をassertする。
+
+試験記録はPASS / FAIL / BLOCKED / NOT_IMPLEMENTEDを区別し、PO未決定・未実装をPASSへ含めない。既存§11のMajor Fail GateとT-R01〜21を維持する。業務判断支援全体の受入にはGoldenを含む対象ケースの合格を必要とし、段階的PRの部分テスト合格を全体完成と扱わない。

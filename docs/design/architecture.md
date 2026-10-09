@@ -115,3 +115,11 @@ LineScopeは単一リポジトリとし、ルートにbackend / frontend / docs�
 Python packageはbackend/src/linescope、Backendテストはbackend/tests、package・依存・Tool設定はbackend/pyproject.tomlで管理する。
 frontendは後続UIの配置先とし、サーバサイド完成前は実装を追加しない。
 docsは仕様の正本と変更履歴を保持する。実装ディレクトリの分離でDB・認証・Approval / Executeの責務を変更しない。
+
+## 14. Decision Packageの責務
+
+PostgreSQLは新しい能力・費用・計画・安全・履歴情報についても業務正本を担う。必要な構造はPO-B01〜07とdata-modelで確定する。Neo4jは依存・経路の派生探索モデル、Qdrantは認可された文書の検索Indexに限定し、費用・安全判定の正本にしない。
+
+アプリケーションの決定論的計算処理が、認可された正本入力と定義済みルールから能力不足・損失・期間計算を行う。Agentは必要なRead / Graph / 計算処理を組み合わせて説明する。現行Tool一覧には計算Toolがないため、api-toolsの拡張契約確定後に実装する。LLMに算術・安全ルールの確定を委任しない。
+
+Decision Packageは各結果の観測時刻・version・Graph generation・評価期間を示す。既存のshared / exclusive Graph lockは構造探索の境界であり、全業務情報の同時Snapshotを保証しない。計算入力のversion付き観測結果を固定して評価し、評価後のcurrent valueと混同しない。将来予測・予定の意味と再評価条件は対応するPO判断とAPIで確定する。
