@@ -1,7 +1,7 @@
 """Human approval transactions with explicit category/operation admission.
 
-Equipment API admission stays equipment-only. Maintenance plan UPDATE has an
-internal entrypoint; CREATE, records, assignment and Graph validation follow.
+HTTP admission supports equipment state and maintenance plan UPDATE. CREATE,
+records, assignment and Graph validation follow.
 """
 
 from uuid import uuid4
@@ -111,7 +111,7 @@ class _HumanApproval:
         return _saved(row, None, None, replayed=False)
 
     def _reject(self, context, approval_id):
-        """Reject a pending equipment proposal; never cancel an approval."""
+        """Reject a pending proposal; never cancel an approval."""
         if not isinstance(context, ExecutionContext):
             raise ProposalError("AUTHENTICATION_REQUIRED", "Trusted execution context is required")
         try:
@@ -276,3 +276,27 @@ class MaintenancePlanUpdateApproval(_HumanApproval):
             if current != target["before"]:
                 conflict = True
         return conflict
+
+
+class HumanApproval(_HumanApproval):
+    """Dispatch only supported saved Targets, inside the shared locked transaction."""
+
+    @staticmethod
+    def _require_scope(category, saved):
+        if category == "EQUIPMENT_STATE":
+            EquipmentApproval._require_scope(category, saved)
+        elif category == "MAINTENANCE":
+            MaintenancePlanUpdateApproval._require_scope(category, saved)
+        else:
+            raise ProposalError("INVALID_ARGUMENT", "This approval category is not supported yet")
+
+    @staticmethod
+    def _targets_changed(connection, targets):
+        # Canonical validation enforces one category; _require_scope has checked
+        # every Target before any business row is read or transition is written.
+        handler = (
+            EquipmentApproval
+            if targets[0]["target_type"] == "EquipmentState"
+            else MaintenancePlanUpdateApproval
+        )
+        return handler._targets_changed(connection, targets)

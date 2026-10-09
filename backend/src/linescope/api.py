@@ -9,7 +9,7 @@ from starlette.concurrency import run_in_threadpool
 from starlette.exceptions import HTTPException
 
 from .agent_input import AgentInput, ConversationStore
-from .approvals import EquipmentApproval
+from .approvals import HumanApproval
 from .canonical import strict_json
 from .database import Database
 from .equipment_command import EquipmentCommandPrepare
@@ -81,7 +81,7 @@ def create_app(settings=None, database=None, event_logger=None, *, llm=None, con
     app.state.database = database
     app.state.read_tools = ReadTools(database)
     equipment_prepare = EquipmentCommandPrepare(database, event_logger=events)
-    equipment_approval = EquipmentApproval(database, event_logger=events)
+    human_approval = HumanApproval(database, event_logger=events)
     equipment_execute = EquipmentExecute(database, settings, event_logger=events)
 
     conversations = conversations or ConversationStore()
@@ -142,7 +142,7 @@ def create_app(settings=None, database=None, event_logger=None, *, llm=None, con
             return response(request, code="INVALID_ARGUMENT", status_code=400)
         try:
             result = await run_in_threadpool(
-                equipment_approval.approve,
+                human_approval.approve,
                 request.state.execution_context,
                 approval_id,
                 body["snapshot_hash"],
@@ -158,7 +158,7 @@ def create_app(settings=None, database=None, event_logger=None, *, llm=None, con
             return response(request, code="INVALID_ARGUMENT", status_code=400)
         try:
             result = await run_in_threadpool(
-                equipment_approval.reject,
+                human_approval.reject,
                 request.state.execution_context,
                 approval_id,
             )
