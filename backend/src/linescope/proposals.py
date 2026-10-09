@@ -197,6 +197,7 @@ class ProposalStore:
                 "prepare_retry_key": row["prepare_retry_key"],
                 "approved_at": row["approved_at"],
                 "expires_at": row["expires_at"],
+                "execution_result": row["execution_result"],
             }
 
     @contextmanager
