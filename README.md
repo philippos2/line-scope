@@ -113,8 +113,10 @@ Contextのuser / role / request_idはAPI認証層が生成し、Tool引数から
 
 `linescope.canonical`はtransaction-design §15・20の直列化・SHA-256・厳格なJSON読込みと、型指定されたUUID / UTC日時 / ID集合の正規化を提供する。
 通常文字列のUnicodeやordered arrayを勝手に正規化しない。重複key、float / decimal、surrogate、timezoneなし・microsecondを超える精度の日時を拒否する。
-`linescope.snapshot`は設備状態UPDATE・保全予定CREATE / UPDATE・保全実績CREATEのCanonical Snapshot v1を構築・検証する。before / afterの全業務項目、expected_versionとversion増分、ID一致、Target順序・重複、schema version、明示NULL、canonical textとhashの一致を検証し、監査時刻を除外する。requesterはTrusted Execution Contextから取得する。
+`linescope.snapshot`は設備状態UPDATE・保全予定CREATE / UPDATE・保全実績CREATE・ProductionOperation予定UPDATEのCanonical Snapshot v1を構築・検証する。before / afterの全業務項目、expected_versionとversion増分、ID一致、Target順序・重複、schema version、明示NULL、canonical textとhashの一致を検証し、監査時刻を除外する。requesterはTrusted Execution Contextから取得する。
 保存形式を再読込みしても同じ検証を行い、取得したdataの変更ではSnapshotを変更できない。これは純粋な構築層であり、正本の取得・権限検証・DB保存・Approval / Executeは後続工程。保全予定はplanned_start / planned_end / plan_statusだけを変更でき、UTC正規化後に開始 < 終了を検証する。plan_code / equipment_idは変更できない。保全予定と保全実績は同じMAINTENANCEカテゴリとして一Snapshotに含められる。異種カテゴリ混在と重複ID・業務キーは拒否する。CREATEはIDをサーバ生成し、before / expected_versionを明示NULL、afterのversionを1に固定する。保全実績の任意maintenance_plan_idは省略時もNULLとして保存し、本文は正規化しない。参照先の存在・設備一致と既存正本との一意性は後続Prepare / Executeで確認する。その他の更新カテゴリは未対応として拒否する。
+
+ProductionOperation予定UPDATEはplanned_status / planned_start / planned_endのみを変更する。operation_code / process_id / activeを保持し、created_at / updated_atはhash対象外とする。設備割当の期間置換とAssignment Targetは未対応として拒否する。
 
 ## 次のチェックポイント
 
