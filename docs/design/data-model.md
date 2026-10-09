@@ -314,3 +314,110 @@ Outbox payloadはschema_version、aggregate_type、aggregate_id、aggregate_vers
 Graph業務キーUNIQUEはDEFERRABLE INITIALLY IMMEDIATEとする。複数Relationの業務キー変更を伴う更新はTransaction内で該当制約をDEFERREDにし、最終集合の一意性を検証する。PKとOutbox・Prepareの冪等性UNIQUEは即時制約のまま。業務必須項目・状態値はrequirements §12に従いNOT NULL / CHECK制約で防御する。
 
 Neo4j generation markerはgeneration、validated BOOLEAN、snapshot_hash、validated_atを持つ。Rebuildは全投影検証後にvalidated=trueを保存してからPostgreSQL active_generationを切り替える。生成途中のmarkerはvalidated=false。Graph Toolはactive_generationのvalidated marker存在を確認する。
+
+## 13. 適用済み業務スキーマのER図
+
+以下はmigration `002_business_schema.sql`で適用済みの業務10テーブルを示す。migration管理用の`schema_migration`は含めない。equipment_state_history、UpdateRequest、Approval、Outbox、KnowledgeDocument等は本書で設計済みだが、DB実装は後続工程であり、この図には含めない。
+
+```mermaid
+erDiagram
+    equipment ||--o| equipment_current_state : equipment_id
+    equipment ||--o{ maintenance_plan : equipment_id
+    equipment ||--o{ maintenance_record : equipment_id
+    maintenance_plan |o--o{ maintenance_record : maintenance_plan_id
+    process ||--o{ production_operation : process_id
+    production_operation ||--o{ production_operation_equipment_assignment : production_operation_id
+    equipment ||--o{ production_operation_equipment_assignment : equipment_id
+
+    equipment {
+        uuid equipment_id PK
+        text equipment_code UK
+        text equipment_name
+        text equipment_type
+        boolean active
+        bigint version
+    }
+    equipment_current_state {
+        uuid equipment_id PK,FK
+        text state_code
+        bigint version
+    }
+    maintenance_plan {
+        uuid maintenance_plan_id PK
+        text plan_code UK
+        uuid equipment_id FK
+        timestamptz planned_start
+        timestamptz planned_end
+        text plan_status
+        bigint version
+    }
+    maintenance_record {
+        uuid maintenance_record_id PK
+        text record_code UK
+        uuid equipment_id FK
+        uuid maintenance_plan_id FK "NULL可"
+        timestamptz performed_at
+        text result
+        bigint version
+    }
+    process {
+        uuid process_id PK
+        text process_code UK
+        text process_name
+        boolean active
+        bigint version
+    }
+    production_operation {
+        uuid production_operation_id PK
+        text operation_code UK
+        uuid process_id FK
+        text planned_status
+        timestamptz planned_start
+        timestamptz planned_end
+        boolean active
+        bigint version
+    }
+    production_operation_equipment_assignment {
+        uuid assignment_id PK
+        uuid production_operation_id FK
+        uuid equipment_id FK
+        timestamptz effective_from
+        timestamptz effective_to "NULLは無期限"
+        boolean active
+        bigint version
+    }
+    product {
+        uuid product_id PK
+        text product_code UK
+        text product_name
+        boolean active
+        bigint version
+    }
+    infrastructure_resource {
+        uuid infrastructure_resource_id PK
+        text resource_code UK
+        text resource_name
+        text resource_type
+        boolean active
+        bigint version
+    }
+    dependency_relation {
+        uuid dependency_relation_id PK
+        text source_entity_type
+        uuid source_entity_id "多態的論理参照"
+        text target_entity_type
+        uuid target_entity_id "多態的論理参照"
+        text relation_type
+        timestamptz effective_from
+        timestamptz effective_to "NULLは無期限"
+        boolean required
+        boolean active
+        bigint version
+    }
+```
+
+監査時刻は図を簡潔にするため省略した。全列・制約の実装は[SQL migration](../../backend/src/linescope/migrations/002_business_schema.sql)を参照する。Assignmentの業務キーはproduction_operation_id / equipment_id / effective_from、DependencyRelationはsource型・ID / target型・ID / relation_type / effective_fromの複合一意である。
+
+線はSQLのFKだけを表す。DependencyRelationのsource / targetは通常のFKではなく、Equipment・Process・ProductionOperation・Product・InfrastructureResourceへの型付き論理参照であり、参照先の存在・activeや混在循環等は後続の更新Transactionで検証する。図のProduct・InfrastructureResourceがFK線を持たないことは、業務上の依存関係がないことを意味しない。依存の保存方向・影響方向・Neo4j Projectionはdomain-modelと本書§4〜6を正とする。
+
+maintenance_plan_idのNULLは計画との関連なしを表す。計画を指定した実績のequipment_id一致、active期間重複などの業務制約は、単独のFKとは別に更新Transactionで検証する。
