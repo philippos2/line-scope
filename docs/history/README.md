@@ -140,3 +140,13 @@ POとの議論を[スコープ境界メモ](2026-10-09-material-scope-boundary.m
 Docker内の実PostgreSQLで753テスト成功（既存722 + 追加31）。ruff check / format、git diff --checkを確認した。対象一括取得・業務値非変更、権限、全体拒否、4並行同keyの1要求化、異入力拒否、owner scope、終端再送と確定Snapshot保持、旧要求置換時のDB障害・rollback・同key再試行、読込後の正本変更、読込timeout / 接続障害の安全なエラーを検証した。T-R02 / R03の内部Prepare範囲とAC-07 / 13 / 14 / 16のSnapshot固定・要求保存・置換部分を検証した。HTTP再送、CREATE重複、二重Execute防止、Approval時のversion失効、AC全体の完了を意味しない。
 
 Prepare API / Tool公開、Agent入力hash生成、他カテゴリのPrepare、Approval / Execute、DB監査・Tool操作ログ、Graph / Outboxは後続。PO-B未決事項、材料関連の新機能、migration、依存、Frontendは変更していない。LogiScopeコードの再利用はない。
+
+## 保全予定UPDATEの内部Prepareチェックポイント
+
+2026-10-09、PR #24 merge後、POの指示でMaintenancePlanPrepareを追加した。保全・工場管理のtrusted contextだけを許可し、既存IDと非空patchを受け付ける。patchはplanned_start / planned_end / plan_statusのみ。日時をUTC・microsecondへ正規化し、全対象の全業務値・versionを単一statement Snapshotで取得する。全patch適用後の開始 < 終了と実変更を検証し、expected_versionを正本から導出する。設備ID・plan_code・versionの自己申告変更を拒否する。業務行の変更lock、保全予定や設備状態の更新は行わない。
+
+Prepare入力hashはTool名・ID順の対象集合・正規化した明示patch・明示置換IDから生成する。before / versionや現在値からの補完項目を含めず、明示項目の有無を保持する。UUID表記、集合順、同じ瞬間を表すtimezoneの差は同入力として扱い、追加の明示項目や変更値・Agent hash・置換IDの差はDUPLICATE_REQUESTとする。保存済み再送は正本読込前に返し、終端要求や正本変更後も確定Snapshotを保持する。既存ProposalStoreで新保存と旧要求失効を原子的に行う。
+
+Docker内の実PostgreSQLで795テスト成功（既存753 + 追加42）、ruff check / format、git diff --check成功。期間・timezone・no-op・禁止項目、全Target拒否、全業務項目保持と正本非変更、権限、retry owner scope・権限喪失・カテゴリ間key流用拒否、4並行同keyの1要求化、置換中Approval INSERT障害のrollbackと同key再試行、単一statement読込後のversion変化、BIGINT増分不能、読込timeout・接続障害を検証した。既存設備状態Prepareのテストも保持した。
+
+T-R02 / R03の内部PrepareとAC-07 / 13 / 14 / 16のSnapshot・要求保存・置換部分を検証する。HTTP再送、承認時のversion失効、二重Execute防止、業務受入全体の完成ではない。Prepare API / Tool公開、CREATE系・生産作業・依存関係のPrepare、Approval / Execute、DB監査・Toolログ、Graph / Outboxは後続。要件・PO-B・migration・依存・Frontendは変更せず、LogiScopeコードも再利用していない。
