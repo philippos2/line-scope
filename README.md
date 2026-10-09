@@ -1,72 +1,141 @@
 # LineScope
 
-製造業務の状況把握・依存分析・人による承認付き更新を支援するプロダクト。
-仕様の正本は[19文書の成果物一覧](docs/deliverables.md)。文書レビュー履歴は[docs/history](docs/history/README.md)。
+[![Backend CI](https://github.com/philippos2/line-scope/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/philippos2/line-scope/actions/workflows/ci.yml)
 
-このチェックポイントはPython / FastAPI / PostgreSQL基盤、業務正本10テーブル、内部Read Tool 13種を含む。
-業務API、Approval / Execute、Graph、Outbox、RAG、LLM、UIは含まない。
+**製造現場の業務Object・依存Graph・文書Evidence・承認付きActionをつなぐプロダクト。**
 
-## ディレクトリ構成
+設備・工程・生産作業・製品・インフラの関係から、停止時の影響や依存先を調べ、根拠を確認して業務更新へ進めるシステムを目指しています。AIは調査と更新提案を支援し、承認と実行は認証済みの人が操作します。
 
-Backend / Frontend / 仕様文書を同じGitリポジトリで管理する。
+> **現在はバックエンドを段階的に開発中です。** PostgreSQLの業務スキーマ、内部Read Tools、更新提案のSnapshot構築・検証まで実装しています。HTTPから試せるのは認証付きhealth / readinessです。Agent・承認・実行・Graph・RAGの接続は後続工程です。
 
-```text
-line-scope/
-├── backend/
-│   ├── pyproject.toml
-│   ├── .env.example
-│   ├── src/linescope/
-│   │   └── migrations/
-│   └── tests/
-├── frontend/           # 現在は後続開発の案内のみ
-├── docs/               # 19文書と変更履歴
-└── README.md
+## 主な機能と実装状況
+
+| 領域 | 現在の状態 |
+|---|---|
+| API基盤 | FastAPI、Bearer認証、Trusted Execution Context、共通Response Envelopeを実装 |
+| PostgreSQL | 業務10テーブル、DB制約、checksum付きmigrationを実装 |
+| 正本参照 | ID参照・設備割当参照・検索の内部Read Tool 13種を実装 |
+| 更新提案 | 設備状態、保全予定・実績、生産作業の予定値・設備割当のCanonical Snapshotを構築・検証 |
+| Prepare / Approval / Execute | DB保存・権限判定・更新トランザクションは後続 |
+| Graph / Outbox | Neo4j Projection、同期管理、依存・影響分析は後続 |
+| RAG / Agent | Qdrant連携とLLM / embedding modelの評価・選定は後続 |
+| Frontend | サーバサイド完成後に構築。Graph中心のオペレーション画面は候補の一つ |
+
+Snapshotは提案内容を固定するためのデータです。構築できることと、承認済み・実行済みであることは別です。DependencyRelationの更新Snapshotと設備状態・更新履歴の参照も後続工程です。
+
+## システム構成とデータの正本
+
+設計上の全体構成です。実線は現在のAPIとPostgreSQL、点線は後続で接続する機能を示します。
+
+```mermaid
+flowchart LR
+    Client[HTTP / curl] --> API[FastAPI / 認証]
+    API --> PG[(PostgreSQL / 業務正本)]
+    API -.-> Agent[Agent / LLM]
+    Agent -.-> Read[Read Tools]
+    Read -.-> PG
+    Agent -.-> Graph[Graph Tools]
+    Graph -.-> Neo4j[(Neo4j / 依存Graph)]
+    Agent -.-> RAG[RAG / 正本で再認可]
+    RAG -.-> Qdrant[(Qdrant / 文書索引)]
+    RAG -.-> PG
+    Agent -.-> Prepare[Prepare / 更新提案]
+    Prepare -.-> PG
+    Human[人による承認・実行] -.-> Update[Approval / Execute API]
+    Update -.-> PG
+    PG -.-> Outbox[Transactional Outbox / Projection]
+    Outbox -.-> Neo4j
 ```
 
-`backend/src/linescope`の`linescope`はPythonのimport名。Frontendはサーバサイド完成後に実装する。
-Backendのpackage・依存・テスト設定は`backend/pyproject.toml`で管理する。
+| 層 | 技術・責務 |
+|---|---|
+| Backend | Python / FastAPI / Uvicorn、Psycopg 3 |
+| 正本DB | PostgreSQL。業務データ・更新要求・承認・履歴・Outboxを保持 |
+| 依存Graph | Neo4j。PostgreSQLから再構築可能な派生Read Model |
+| 文書検索 | Qdrant。再生成可能な派生Vector Index |
+| 実行・検証 | Docker Compose、pytest、Ruff、GitHub Actions |
 
-## Docker起動
+Graph分析は同期状態CURRENTのときだけ正常利用します。設備状態などの現在値はPostgreSQLで確認します。LLMにApproval / Executeを操作させません。詳細は[アーキテクチャ](docs/design/architecture.md)と[トランザクション設計](docs/implementation-design/transaction-design.md)を参照してください。
 
-Docker EngineとCompose v2以降を用意し、リポジトリのルートで実行する。
-API・migrationはPython 3.14.4の非rootコンテナ、PostgreSQLは18.6のコンテナで動作する。
+## DBスキーマ・ER図
+
+設備を中心に、保全予定・実績と、生産作業の複数設備割当を管理します。Product・InfrastructureResourceなどとの依存関係は、型付きのDependencyRelationで表します。
+
+**[適用済み10テーブルのER図とデータ設計](docs/design/data-model.md#13-適用済み業務スキーマのer図)**
+
+ER図はSQLのFKを示します。DependencyRelationの多態的な参照やNeo4jの探索方向は、[ドメインモデル](docs/requirements/domain-model.md)を正とします。
+
+## 起動する
+
+Docker Engine、Docker Compose v2、資格情報生成用のPython 3を用意します。API・migrationはPython 3.14.4の非rootコンテナ、PostgreSQLは18.6で動作します。
 
 ```sh
+git clone https://github.com/philippos2/line-scope.git
+cd line-scope
 python3 scripts/create_demo_env.py
 docker compose up --build -d --wait api
 ```
 
-初回の資格情報生成はPython標準ライブラリだけを使用する。既存`.env`は上書きしない。
-`.env`は権限600で作成され、Git・Docker build contextへ入らない。各ロール1名、manager2名のランダムtokenを保持する。
-`LINESCOPE_API_PORT`でホスト側portを変更できる（既定8000、127.0.0.1のみ）。
-Bearer tokenはローカル`.env`の`LINESCOPE_USERS`から取得する。credentialをPRやログへ貼らない。
+PostgreSQLのhealthcheck後にmigrationを適用し、その成功後にAPIを起動します。現在はスキーマを作成するまでで、デモ用業務データのseedは未実装です。
 
-PostgreSQLのhealthcheck成功後にmigrationを実行し、成功後にAPIを起動する。
-APIのhealthcheckもBearer認証付きreadinessを検証する。DB portはホストへ公開しない。
-DBはCompose projectの`postgres-data` volumeへ保持する（PostgreSQL 18の配置に合わせ`/var/lib/postgresql`）。
+資格情報はGit管理外の`.env`へ権限600で生成します。既存`.env`は上書きしないので、作成済みなら生成コマンドを省略してください。各ロール1名と工場管理者2名の資格情報を生成します。
+
+APIは`127.0.0.1:8000`、DB portはホストに公開しません。API portは`.env`の`LINESCOPE_API_PORT`で変更できます。
+
+## curlで確認する
+
+`.env`の`LINESCOPE_USERS`は「Bearer token → user_id / role」のJSONです。生成済みtokenを下の変数へ設定します。実際のtokenをGitへ保存しないでください。
 
 ```sh
-docker compose logs api
-docker compose run --rm migrate
-docker compose down
+LINESCOPE_TOKEN='<.envにあるBearer token>'
+BASE_URL='http://127.0.0.1:8000'
+
+curl -sS -i "$BASE_URL/health" \
+  -H "Authorization: Bearer $LINESCOPE_TOKEN"
+
+curl -sS -i "$BASE_URL/health/ready" \
+  -H "Authorization: Bearer $LINESCOPE_TOKEN"
 ```
 
-`down`はDB volumeを保持する。通常停止時に`--volumes`を付けない。
-`.env`のDBパスワードを変更しても既存volume内のパスワードは自動変更されない。
+両方とも正常時はHTTP 200です。共通Envelopeの`status`は`ok`、`data`はそれぞれ次の内容になります。`request_id`は呼出しごとにサーバが生成します。
 
-`GET /health`はプロセス応答、`GET /health/ready`はPostgreSQL接続を確認する。
-両方にBearer認証を要求し、DB利用不可のreadinessは503、認証なしは401。
-このreadinessは業務API・Graph・RAGの準備完了を意味しない。
+```json
+{"service":"linescope","alive":true}
+```
 
-migrationはadvisory lock下の単一トランザクションでSQLを順に適用し、checksumを記録する。
-001は疎通用、002は業務正本の10テーブル。再実行はskipし、適用後のSQL改変は拒否する。
-設備状態履歴はUpdateRequestへの必須FKを含むため、更新スキーマのチェックポイントで追加する。
-期間重複、混在循環、Relation参照先の存在・active、保全計画と実績の設備一致は後続の更新トランザクションで検証する。
+```json
+{"service":"linescope","postgresql":"available"}
+```
 
-## Docker検証
+認証なしの呼出しはHTTP 401、`errors[0].code`は`AUTHENTICATION_REQUIRED`になります。
 
-テスト用Composeは独立した設定で、デモ資格情報や永続volumeを使用しない。
-テスト用PostgreSQLはtmpfs、DB portは非公開。テストは一時schemaだけを作成・削除する。
+```sh
+curl -sS -i "$BASE_URL/health"
+unset LINESCOPE_TOKEN
+```
+
+readinessでPostgreSQLへ接続できなければHTTP 503、`DEPENDENCY_UNAVAILABLE`です。Graph・RAG・業務APIの準備完了を表すものではありません。`POST /agent`や更新APIのcurl例は、そのAPIの実装時に追加します。
+
+## 内部Toolsと更新提案
+
+現在のRead ToolsはPythonの内部呼出しで、HTTP endpointとしては公開していません。
+
+| Tool | 動作 |
+|---|---|
+| `get_equipment` / `get_equipment_state` | 設備と現在状態をID参照 |
+| `get_maintenance_plan` | 保全予定をID参照 |
+| `get_process` / `get_production_operation` | 工程・生産作業をID参照 |
+| `get_product` / `get_infrastructure_resource` / `get_dependency_relation` | 製品・インフラ・依存関係をID参照 |
+| `get_operation_equipment_assignments` | 生産作業のactive設備割当と親versionを同じstatementで参照 |
+| `search_equipment` / `search_maintenance_plans` / `search_maintenance_records` / `search_dependency_relations` | 条件検索と署名cursorによるページング |
+
+参照はREAD COMMITTED / READ ONLYで実行し、正本recordと構造化Evidenceを返します。過去時刻の割当参照は現在登録情報の期間評価であり、当時の状態の完全復元ではありません。
+
+`linescope.snapshot`はCanonical JSON / SHA-256、型・業務値・version・Targetの整合を検証します。設備割当は明示した半開期間だけを置換し、期間外を保持します。予定値と割当の同時変更でも親versionの増分は1です。[API / Tool契約](docs/implementation-design/api-tools.md)、[Snapshotの保存形式](docs/design/data-model.md)、[期間置換の業務ルール](docs/requirements/domain-model.md#152-equipment集合変更)を参照してください。
+
+## テストとCI
+
+Docker内で実PostgreSQLを使って検証します。テスト用Composeは独立したproject・tmpfsを使い、デモの資格情報や永続volumeを共有しません。
 
 ```sh
 docker compose -f compose.test.yaml build tests
@@ -76,58 +145,42 @@ docker compose -f compose.test.yaml run --rm tests
 docker compose -f compose.test.yaml down --volumes --remove-orphans
 ```
 
-Backend CIもこの方法で全テストを実行し、実行用imageの起動・同梱migration再実行を確認する。
-Runtime依存は`backend/requirements.lock`、開発依存は`backend/requirements-dev.lock`で固定する。
+CIも同じ経路でlint・format・全テストを実行し、実行用imageの起動と同梱migrationを確認します。mainへの反映には`Tests and migrations`と`PR title`の成功を必須とし、人が確認してSquash mergeします。[開発・PR運用](CONTRIBUTING.md)を参照してください。
 
-## ホストでの補助的な開発
-
-Python 3.12以上での編集・軽い確認も可能。標準の実行・検証経路はDockerとする。
+## 停止・再起動と開発
 
 ```sh
-python3 -m venv .venv
-.venv/bin/pip install -r backend/requirements-dev.lock
-.venv/bin/pip install --no-deps -e ./backend
-.venv/bin/ruff check backend scripts
-.venv/bin/pytest backend/tests -q
+docker compose logs api
+docker compose run --rm migrate
+docker compose down
 ```
 
-ホストでDBテストを行う場合は専用DBの`LINESCOPE_TEST_DSN`を指定する。未指定時はDBテストがskipされる。
-ホスト起動の`LINESCOPE_DSN`・`LINESCOPE_USERS`の例は`backend/.env.example`。ホストでは`.env`を自動読込しない。
+通常の`down`はDB volumeを保持します。通常停止時に`--volumes`を付けないでください。`.env`のDBパスワードを書き換えても、既存volumeのパスワードは自動更新されません。migrationは適用後のchecksum変更を拒否し、再実行では適用済みSQLをskipします。
 
-## 内部Read Tools
+```text
+line-scope/
+├── backend/       # Python package・SQL migrations・tests・依存lock
+├── frontend/      # 後続UIの配置先（現在は案内のみ）
+├── docs/          # 要件・設計・実装設計、変更履歴
+├── scripts/       # デモ資格情報生成・コンテナhealthcheck
+├── compose.yaml
+└── compose.test.yaml
+```
 
-設備、現在状態、保全予定、工程、生産作業、製品、インフラ、依存関係のID参照と、生産作業のactive設備割当参照を実装済み。
-`ReadTools.schemas()`が入力JSON Schema、`ReadTools.run(context, tool, arguments)`が正本recordと構造化Evidenceを返す。
-Contextのuser / role / request_idはAPI認証層が生成し、Tool引数から指定できない。
-全参照はREAD COMMITTED / READ ONLYで実行し、不存在・schema不正・DB障害を構造化エラーとして返す。
+標準実行・検証経路はDockerです。ホストでの補助的な開発、設定・依存lock・volume管理の詳細は[運用手順](docs/implementation-design/operations.md#11-backend基盤チェックポイント)を参照してください。
 
-設備割当と親versionは同じstatement Snapshotから取得する。`explicit_as_of`指定時だけ`[start, end)`で絞り込み、
-現在登録されているactive行を評価する。過去状態の復元機能ではない。未指定時は全active割当を返す。
-現在状態が未登録の設備へUNKNOWNを推測補完しない。
+## 設計・検証資料
 
-これは後続Agentから呼び出す内部Tool層。現在のHTTP endpointはhealth / readinessのみ。
-設備・保全予定・保全実績・依存関係の検索4種も実装済み。page_sizeは1〜100（default 20）、ID順のcursor pagingで各ページは最新正本を返す。
-署名cursorはuser・role・Tool・filterに拘束し、APIプロセス再起動後は無効となる。設備状態履歴・更新履歴と`POST /agent`はまだ未実装。
+- [19文書の成果物一覧・各文書の責務](docs/deliverables.md)
+- [要件とスコープ](docs/requirements/requirements.md)
+- [業務モデル・Graph意味論](docs/requirements/domain-model.md)
+- [権限・承認](docs/requirements/access-control.md)
+- [アーキテクチャ](docs/design/architecture.md)
+- [DB・Graphデータ設計とER図](docs/design/data-model.md)
+- [API / Tool契約](docs/implementation-design/api-tools.md)
+- [トランザクション・Outbox・同期](docs/implementation-design/transaction-design.md)
+- [受入基準](docs/requirements/acceptance-criteria.md)・[テスト計画](docs/implementation-design/test-plan.md)
+- [運用手順](docs/implementation-design/operations.md)
+- [レビュー・実装チェックポイントの履歴](docs/history/README.md)
 
-## Canonical JSON基盤
-
-`linescope.canonical`はtransaction-design §15・20の直列化・SHA-256・厳格なJSON読込みと、型指定されたUUID / UTC日時 / ID集合の正規化を提供する。
-通常文字列のUnicodeやordered arrayを勝手に正規化しない。重複key、float / decimal、surrogate、timezoneなし・microsecondを超える精度の日時を拒否する。
-`linescope.snapshot`は設備状態UPDATE・保全予定CREATE / UPDATE・保全実績CREATE・ProductionOperation予定UPDATEのCanonical Snapshot v1を構築・検証する。before / afterの全業務項目、expected_versionとversion増分、ID一致、Target順序・重複、schema version、明示NULL、canonical textとhashの一致を検証し、監査時刻を除外する。requesterはTrusted Execution Contextから取得する。
-保存形式を再読込みしても同じ検証を行い、取得したdataの変更ではSnapshotを変更できない。これは純粋な構築層であり、正本の取得・権限検証・DB保存・Approval / Executeは後続工程。保全予定はplanned_start / planned_end / plan_statusだけを変更でき、UTC正規化後に開始 < 終了を検証する。plan_code / equipment_idは変更できない。保全予定と保全実績は同じMAINTENANCEカテゴリとして一Snapshotに含められる。異種カテゴリ混在と重複ID・業務キーは拒否する。CREATEはIDをサーバ生成し、before / expected_versionを明示NULL、afterのversionを1に固定する。保全実績の任意maintenance_plan_idは省略時もNULLとして保存し、本文は正規化しない。参照先の存在・設備一致と既存正本との一意性は後続Prepare / Executeで確認する。その他の更新カテゴリは未対応として拒否する。
-
-ProductionOperation予定UPDATEはplanned_status / planned_start / planned_endのみを変更する。operation_code / process_id / activeを保持し、created_at / updated_atはhash対象外とする。`linescope.assignments`は指定した半開期間の設備集合置換からCREATE / UPDATE / DISABLEの差分Targetを生成する。期間外を保持し、不要な分割を避け、inactive業務キー一致行をversion付きUPDATEで再利用する。入力には当該作業の全割当（inactiveを含む）を必要とする。これは純粋な差分生成であり、割当置換はproduction_operation_assignment_targetsで親予定値と一緒にSnapshot化できる。親versionを1だけ増加し、before / afterのequipment_assignmentsに全active集合を固定して、各割当Targetの差分と照合する。inactive行のbefore / versionは各Targetに保存する。正本の一貫した取得・DB保存・Graph制約・権限・ロックは後続。
-
-## 次のチェックポイント
-
-履歴参照・業務ルール検証、Prepare / Approval / Execute、Outbox / Projection、Graph分析、RAG / Agentを機能単位で実装・テスト・commitする。
-先行実装はGit stashへ退避し、レビューして必要な部分を段階的に取り込む。
-stashは再構成前のパスを保持しているため、取り込むコードを`backend/`の構成へ合わせる。
-LLM / embeddingの製品選定・品質評価、受入基準全体の検証は未完了。
-
-サーバサイド完成後に、Palantir AIP Analystを参考にした、LogiScopeよりリッチなFrontendを構築する。
-UI要件・画面設計・frameworkはそのフェーズで具体化する。現在のチェックポイントには含めない。
-
-開発ブランチでは意味のあるチェックポイントcommitを残す。mainへは原則1 PR＝1 Squash commit、Conventional Commit形式で反映し、merge後にfeature branchを削除する。既存履歴をrewriteしない。
-CIとGitHub設定の責務・required checksは[開発・PR運用](CONTRIBUTING.md)を参照する。
-Backend CIは全PRで実PostgreSQLを使う`Tests and migrations`、PRタイトル規則は`PR title`で検証する。
+現在は単一工場のデモ実装を進めています。性能・実モデルの品質・製品全体の受入完了は、各機能の実装と評価後に確認します。
