@@ -248,3 +248,11 @@ Tool schemaは型・UUID / timezone時刻・許可状態・非空patch・明示N
 Docker内の実PostgreSQLで1,071テスト成功（既存1,034 + 追加37）、ruff check / format、git diff --check成功。6種の実Prepare到達と業務正本非変更、Read結果と非保存、保全混在、単一と一要素配列の同key再送、未登録・確定操作Tool拒否、不正wrapper・先頭不一致・異種カテゴリの事前拒否、信頼済み情報注入拒否、認証前拒否・認可error保持、schema一覧とコピー分離を確認した。
 
 api-tools §16、T-R02 / R07とAC-01 / 05 / 07 / 13の内部Tool境界部分に対応する。Agentによる実呼出し、HTTP、Approval / Execute、業務受入全体の完成ではない。Tool trace / operation log、LLM・Agent入力hash生成、context、デモseed、未実装Tool、RAG / Graph接続は後続。HTTPはhealth / readinessのまま。正式要件・API契約・DB / migration・依存・Frontendは変更せず、LogiScopeコードも再利用していない。
+
+## 更新要求Snapshot閲覧APIチェックポイント
+
+PR #33 merge後、`GET /update-requests/{id}`を追加した。Trusted Execution Contextから本人またはロール別履歴閲覧範囲を判定し、単一statement・read-only transactionで要求、承認、全Targetを取得する。既存canonical/hash・Target・状態組合せ検証を通した保存済みSnapshotだけを返し、現在の業務値で再生成しない。閲覧による期限失効や業務更新は行わない。未承認の承認時刻・期限はNULLとし、承認済みは保存値をUTCで返す。
+
+認証401、不正ID400、不存在404、権限不足403、依存障害・timeout503、保存不整合500を共通Envelopeで返す。内部SQL・credential・例外messageを返さない。access-control §7 / 10、api-tools §3 / 14、AC-05 / 07 / 14の閲覧部分を検証する。追加28テストで4カテゴリ×4ロール、本人のロール変更後閲覧、保存Snapshotとcurrent valueの区別、承認時刻・期限、非更新、改変拒否、障害の秘匿を確認した。
+
+HTTP Prepare / Agent、Approval / Execute、デモseed、Graph / Outbox / RAG、Toolログは後続。正式仕様、migration、依存、Frontendは変更しない。LogiScopeコードの再利用はない。Astraレビューは未実施。
