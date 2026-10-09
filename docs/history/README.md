@@ -96,3 +96,11 @@ Docker内660テスト（追加54）、lint/format成功。同一／異入力の�
 Docker内の実PostgreSQLで688テスト成功（既存660 + 追加28）、ruff check / formatとgit diff --check成功。新承認INSERT時と旧承認UPDATE時の障害で、旧状態・時刻の保持、新行全rollback、同key再試行を検証した。置換後の旧retry、置換連鎖、新要求終端後再送も元SnapshotとIDを維持する。T-R03 / R05の置換・hash・終端保護、T-R02のowner scope・再送、AC-07 / 09 / 13 / 16の内部保存境界に対応する。受入基準全体の完了とは扱わない。
 
 READMEの実装状況を更新した。仕様正本・migration・依存・Frontendは変更していない。Prepare Tool / HTTP、正本の一貫取得・業務制約検証、入力hash生成、Approval / Execute、監査・履歴・Graph / Outbox、Agentは後続。今回の失効は内部保存処理に限定し、一般の承認・失効APIや監査保存の完成を意味しない。PO-Bの未決定ルールは補完していない。LogiScopeコードの再利用はない。
+
+## ログ設計の具体化
+
+2026-10-09、POの依頼でログ設計を文書化した。既存NFR-06と監査表の設計を土台に、NFR-L01〜04、AC-L01〜04、T-L01〜07を追加し、operations §13へJSON標準出力・項目allowlist・相関Context・レベル・秘匿・容量制限・閲覧・段階導入を集約した。新しい正本文書は増やさず、deliverables、non-functional-requirements、acceptance-criteria、operations、test-plan、data-model、transaction-designを対応させた。
+
+Python標準logging、Docker local driverの10m / 3 filesという小規模な方式はCodexの技術判断。新しい収集製品や業務状態は追加しない。業務監査のTransaction・閲覧境界を維持し、例外stackのmessage / args / locals等を出さない方式を指定した。保持は運用ログ容量とDB正本を分離し、DB監査の自動期限削除は導入しない。
+
+文書間の正本責務、秘匿、commit / rollback / 結果不明、相関、既存監査との整合、ローカルリンク・fence、追加IDとAC → Test、git diffを確認する。コード・設定・依存・migrationは変更しておらず、ログ設計は未実装・試験未実行。基本実装は次の独立PRで、DB監査やOutbox等は対応する業務機能のPRで導入する方針を推奨する。

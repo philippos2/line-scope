@@ -431,3 +431,7 @@ maintenance_plan_idのNULLは計画との関連なしを表す。計画を指定
 拡張の設計入力は、製品・期間別の能力／負荷／必要量、通貨・適用期間付き損失率、稼働calendar、修理／交換案の費用・時間・lead time、計画種別、劣化観測、適用安全基準と判定根拠、故障／修理／過去停止影響、buffer・納期である。意味・登録主体・権限はPO-B01〜07で確定する。
 
 計算入力にはsource object / record、version、観測時刻、適用期間、単位、推定／確定の区別を追跡可能にする。欠損値を0やFALSEで初期化しない。MaintenanceRecord.resultや文書citationは説明根拠として使えても、定義済み数値列・安全判定ルールを自動代替しない。新数量のscale・丸め・保存型は意味確定後に定義する。既存canonical Snapshot v1のdecimal / float拒否は維持し、必要なら明示した新schemaを設計する。
+
+## 15. ログと業務監査の責務
+
+運用JSONログの契約はoperations §13。update_audit_event / business_update_history / Outbox / controlをstdoutで代替しない。監査detailsは関連Target・Outbox ID・試行番号・固定理由code等に限定し、Snapshot全文・credential・本文を重複保存しない。変更前後は保存Snapshot・成功履歴へ関連付ける。既存監査表の構造・Transaction境界は§9を維持し、今回の設計追記でmigration実装済みとは扱わない。
