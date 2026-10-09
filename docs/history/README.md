@@ -292,3 +292,15 @@ AgentToolSessionはサーバの有効化flagだけではPrepareを許可しな�
 Dockerで追加37件と既存Agent受付・Tool制御を合わせた93テスト成功、ruff check / format、git diff --check成功。対応する命令形の根拠追跡、引用・code block・否定・質問・仮定・複合文・Approval / Execute誘導、元messageの迂回拒否とカテゴリ不一致を確認した。agent-design §12、prompt-designの明示更新制約、evals §6の固定安全ケースとT-R17 / AC-02の内部境界部分に対応する。固定ケースの成功を自由な日本語一般や実LLM Evalsの完了とは扱わない。
 
 単一の限定文型のみ対応し、複数対象や「次回保全で停止する変更準備」のような複合表現は明示指示の追加確認を要する。業務要件から削除したものではなく、後続Context／orchestratorで補足する。対象ID・変更値と指示内容の照合、補足会話と元意思の関連付け、HTTP / LLM接続は後続。正式仕様・DB / migration・依存・Frontendは変更せず、LogiScopeコードの再利用、Astraレビューもない。
+
+## ローカルLLM試作アダプター・実モデル疎通
+
+PR #38 merge後、ホストOllamaの既存配布モデルを試験候補としてnative /api/chatアダプターと独立した架空Tool probeを実装した。LogiScopeのLLMアダプター・選定記録を参照し、応答サイズ上限・非streaming・内部推論／生応答の非出力・架空Toolによる先行検証という一般化可能なパターンを、適用前にPOへ説明した。コード・専用モデル別名・Agent契約はコピーせず、LineScopeのTool schema・既存error codeと期限を用いて実装した。
+
+Ollama 0.35.1、候補qwen3:30b-a3b-instruct-2507-q4_K_M（取得ID 19e422b02313）を使用し、追加取得・モデル別名作成は行っていない。Docker内からhost network経由で架空probe_equipment_stateを1回選択し、Tool結果STOPPEDを渡した次の回答にM-204 / STOPPEDが含まれる2ターン試験が成功した。最終試験所要時間3.42秒。初回はnative Tool callのtype省略を厳しすぎる検証で拒否したため、実応答の構造だけを確認して対応し、回帰テストを追加した。生応答・内部推論は記録しない。この数値は一回の短い試験の観測であり、性能要件・モデル品質・cold start評価ではない。
+
+アダプターは応答上限256KiB、Tool引数上限8,000 bytes、最大12呼出し、完了状態・assistant role・Tool名・順序・整数JSONを検証する。内部推論fieldを返さず、公開contentにthink tagが混入した場合は拒否する。provider HTTP失敗／接続障害はDEPENDENCY_UNAVAILABLE、timeoutはAGENT_LIMIT_REACHED、破損・未完了・過大応答はINTERNAL_ERRORへ秘匿して変換する。絶対monotonic deadlineから各socket操作の残時間を算出する。同期DNSや実行全体の強制中断保証は後続orchestratorの責務であり、この試作だけでAgent全体deadlineの完成とは扱わない。
+
+Dockerで追加36テスト成功、ruff check / format、git diff --check成功。完了／role／content、未公開Tool、引数型・duplicate key・順序・過多呼出し、HTTP payload、非200・redirect非追従、サイズ上限、期限切れ、接続障害・timeout秘匿、native type省略対応を確認した。実モデルprobeはCIへ依存させず、全既存回帰はCIで行う。operations §10の接続・Tool calling確認、evalsの事前検証部分であり、業務受入の完了ではない。
+
+モデル採用・品質評価、POST /agent、業務DB／Prepare／Graphとの接続、embedding / Qdrant / RAGは後続。架空fixtureを業務正本や業務ルールに昇格させない。正式仕様・DB / migration・runtime依存・Composeの常設サービス・Frontendは変更しない。Astraレビューは未実施。
