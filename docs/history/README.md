@@ -58,3 +58,9 @@
 ## ProductionOperation・割当Snapshot統合チェックポイント
 
 2026-10-09、PR #13 merge後、予定値と設備割当差分を一つのPRODUCTION_OPERATION Snapshotへ統合した。親version増分1、全active割当のbefore / after固定、各差分のbefore照合とafter集合再現、複数親・ID重複・孤立差分の拒否を実装。保存形式equipment_assignmentsをdata-model §12に固定し、既存Transaction要件の検証手順とT-R08を補足した。業務意味・権限・承認ルールは変更していない。Docker内491テスト（追加34）、lint/format成功。正本の一貫した取得・Execute時再検証、DB保存・ロック・rollback・Graph/Outbox・権限・Approvalは後続。LogiScopeコードの再利用はない。
+
+## README・適用済みER図の整理
+
+2026-10-09、利用者のREADME整理依頼を受け、PR #14 merge後の短い文書チェックポイントとして実施した。実装状況と試せるHTTP APIを明確にし、概要・構成・起動・curl・検証・資料の順に整理した。LogiScopeはREADMEの情報配置・導線だけを参考にし、コード・構成・業務仕様は再利用していない。data-model §13へ適用済み10テーブルのER図を追加し、SQL FKと多態的論理参照を区別した。ホスト開発の依存lock手順はoperations §11へ整理した。判断主体は、利用者が委任した優先順位・文書整理の範囲でCodex。
+
+独立した一時Docker環境で認証付きhealth / readinessの200と認証なし401をcurlで検証し、検証用環境・volumeを削除した。ERの業務列・7本のFKをmigrationと照合し、構成図・ER図のMermaid構文と変更文書のローカルファイルリンクを検証した。実装コード・設定・業務仕様の変更はなく、既存491テストのローカル再実行は省略する。PR CIで全テスト・migrationを検証する。残課題はDependencyRelation Snapshot、Prepare / Approval / Execute、Graph / Outbox、RAG / Agentなどのバックエンド実装で、Frontendはその完了後に進める。

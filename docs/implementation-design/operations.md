@@ -105,5 +105,15 @@ API・migrationは非rootコンテナ、DB portは非公開、APIは127.0.0.1に
 `GET /health`はプロセス応答、`GET /health/ready`はPostgreSQL接続を確認する。両方にBearer認証を要求し、共通Envelopeを返す。
 認証なしは401、readinessのDB利用不可は503。接続先・credentialをResponseへ返さない。
 health / readinessは基盤の運用Endpointであり、Agent Toolへ公開しない。詳細な設定・テスト手順はREADME.mdを参照する。
-依存のインストールはルートから`pip install -e './backend[dev]'`、テストは`pytest backend/tests`。設定例はbackend/.env.example。
+Runtime依存はbackend/requirements.lock、開発依存はbackend/requirements-dev.lockで固定する。ホストで補助的に開発する場合は、ルートから以下を実行する。Python 3.12以上が必要であり、標準検証経路はDockerとする。
+
+```sh
+python3 -m venv .venv
+.venv/bin/pip install -r backend/requirements-dev.lock
+.venv/bin/pip install --no-deps -e ./backend
+.venv/bin/ruff check backend scripts
+.venv/bin/pytest backend/tests -q
+```
+
+ホストDBテストは専用DBのLINESCOPE_TEST_DSNを明示指定する。未指定時はDBテストがskipされる。ホストAPI起動の設定例はbackend/.env.exampleで、ホストでは.envを自動読込みしない。Dockerの資格情報はルート.envを使い、PostgreSQL 18の永続volumeは/var/lib/postgresqlへmountする。Python packageのimport名はlinescope、配置先はbackend/src/linescope。
 最終製品の初期化・復旧手順は§10を維持し、基盤だけのreadinessをGraph CURRENT・RAG準備完了の根拠にしない。
