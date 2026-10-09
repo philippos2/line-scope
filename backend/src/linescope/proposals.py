@@ -15,6 +15,7 @@ from uuid import UUID, uuid4
 import psycopg
 from psycopg.types.json import Jsonb
 
+from .audit import prepare_saved, proposal_replaced
 from .canonical import canonical_json, normalize_uuid
 from .execution import ExecutionContext
 from .snapshot import CATEGORIES, CanonicalSnapshot
@@ -313,10 +314,11 @@ class ProposalStore:
                             target["expected_version"],
                         ),
                     )
+                approval_id = uuid4()
                 connection.execute(
                     "INSERT INTO approval(approval_id,update_request_id,status,snapshot_hash) "
                     "VALUES(%s,%s,'PENDING',%s)",
-                    (uuid4(), request_id, snapshot.snapshot_hash),
+                    (approval_id, request_id, snapshot.snapshot_hash),
                 )
                 if replacement is not None:
                     connection.execute(
@@ -329,6 +331,8 @@ class ProposalStore:
                         "WHERE update_request_id=%s",
                         (replacement,),
                     )
+                    proposal_replaced(connection, context, old, request_id)
+                prepare_saved(connection, context, request_id, approval_id, len(payload["targets"]))
             # ON CONFLICT may wait for another commit. READ COMMITTED gives the
             # next statement a fresh snapshot containing the committed winner.
             row = connection.execute(LOOKUP, (context.authenticated_user_id, key)).fetchone()
