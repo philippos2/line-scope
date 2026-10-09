@@ -46,3 +46,7 @@
 ## 保全CREATE Snapshotチェックポイント
 
 2026-10-09、PR #10 merge後、保全予定・保全実績CREATEのSnapshot生成・保存形式検証を追加した。サーバ生成ID、明示NULL、version=1、必須業務値と任意計画IDを固定し、予定・実績を同じMAINTENANCEカテゴリとして扱う。Docker内で370テスト（追加37）、lint/format成功。T-R03 / R07 / R21のSnapshot境界に対応する。参照先存在・設備一致・DB一意性・Prepare retry永続化・権限・Approval / Executeは後続。仕様正本の変更・LogiScopeコードの再利用はない。
+
+## ProductionOperation予定UPDATE Snapshotチェックポイント
+
+2026-10-09、PR #11 merge後、requirements §12 / api-tools §16に従い生産作業の予定UPDATE Snapshotを追加した。予定状態・開始・終了、全業務項目、期間・version、変更不可項目、監査時刻除外と保存形式を検証する。Docker内で414テスト（追加44）、lint/format成功。T-R03 / R07 / R21のSnapshot境界を検証。設備割当期間置換、正本取得・権限・保存・Prepare / Approval / Executeは後続。仕様正本の変更・LogiScopeコードの再利用はない。

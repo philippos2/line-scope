@@ -1,13 +1,13 @@
-<!-- PR title: feat: / fix: / docs: / test: / refactor: / chore: -->
+<!-- PRタイトルは変更内容を表すConventional Commit形式: feat: / fix: / docs: / test: / refactor: / chore: -->
 
-## Change
+## 概要
 
-<!-- Explain the problem and resulting behavior. -->
+<!-- 解決する問題と変更後の動作を、具体的な箇条書きで記載。 -->
 
-## Validation
+## 検証
 
-<!-- Tests and checks actually run, including limitations or skipped checks. -->
+<!-- 実行したテスト・件数・結果、必要なら実行環境を記載。未実施の確認は区別する。 -->
 
-## Scope and remaining work
+## 残課題・対象外
 
-<!-- State any relevant incomplete work and which checkpoint handles it. -->
+<!-- このPRに含めない機能や検証上の制約、後続工程を記載。 -->
