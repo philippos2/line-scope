@@ -203,7 +203,7 @@ DEBUGでも禁止項目を許可しない。allowlistを主防御とし、単な
 
 event・result_code等は固定識別子、その他の文字列は最大256文字、stack frameは最大20件に制限する。許可されたfieldが型／長さ不正ならそのfieldを省略し、未知fieldは捨てる。JSON encoderで改行・制御文字をescapeし、1行に保つ。特にactor_id等の利用者設定値をevent名やログmessageへ連結しない。秘密を含む可能性がある不正値そのものをエラーとして再ログしない。
 
-Uvicornのraw access logは無効にしてHTTP完了イベントへ統一する。server起動・終了と依存ライブラリのloggerも設定を確認し、DEBUGのwire / SQL出力を有効化しない。アプリloggerの許可項目制御が第三者loggerも自動的に安全にするとは考えない。
+Uvicornのraw access logは無効にしてHTTP完了イベントへ統一する。server起動・終了と依存ライブラリのloggerも設定を確認し、DEBUGのwire / SQL出力を有効化しない。アプリloggerの許可項目制御が第三者loggerも自動的に安全にするとは考えない。標準CLIでは第三者のWARNING / ERRORを固定runtime.diagnosticへ変換し、生message / args / 例外を転送しない。独自ASGI起動では起動側で同じ制御を設定する。
 
 ### 13.6 Transaction・監査との境界
 
@@ -215,7 +215,7 @@ stdout出力失敗は業務監査保存失敗とは別に扱う。logging経路�
 
 ### 13.7 保存・閲覧・調査
 
-初期はDockerのlogging driverによる容量ローテーションを使う。技術既定値はlocal driver、max-size=10m、max-file=3を各サービスへ適用する設計とする。アプリはJSON標準出力へ書き、独自のコンテナ内ログファイル・volumeを追加しない。サイズ既定値は設定実装時に検証し、現在のComposeへ適用済みとは扱わない。容量制限であり日数保証ではない。コンテナ削除・rotationで運用ログは失われ得る。
+初期はDockerのlogging driverによる容量ローテーションを使う。技術既定値はlocal driver、max-size=10m、max-file=3を各サービスへ適用する設計とする。アプリはJSON標準出力へ書き、独自のコンテナ内ログファイル・volumeを追加しない。現在のruntime Composeの全サービスへ適用済み。新サービス追加時もlogging設定を継承する。容量制限であり日数保証ではない。コンテナ削除・rotationで運用ログは失われ得る。
 
 DB監査・成功履歴は正本backup対象で、Dockerログのrotationと連動して削除しない。v1では監査の自動期限削除は導入しない。将来の保持期間・公開／削除要件は運用方針として別途決める。開発デモDBの意図的resetと監査の通常運用を区別する。
 
@@ -225,8 +225,8 @@ DB監査・成功履歴は正本backup対象で、Dockerログのrotationと連�
 
 ### 13.8 段階導入と今回の実装境界
 
-設計は本節、実装状況はREADMEとhistoryに分ける。現時点のapi.pyは限定的なlogger.errorのみであり、本節の構造化ログ・相関・ローテーション・DB監査は未実装。
+設計は本節、実装状況はREADMEとhistoryに分ける。HTTP境界の構造化ログ・相関・秘匿済み例外診断、標準CLIのUvicorn / 依存logger制御、runtime Composeのローテーションは実装済み。DB監査とTool / workerへの操作イベント接続は未実装。
 
-次の実装チェックポイントでは、JSONイベント／許可項目制御、Context設定・解除、ログ設定、HTTP完了・拒否・例外・readiness障害、Uvicorn access log統一、Docker容量制限、秘匿と並行要求のテストを導入する。API / Tool / workerが増える前に共通基盤を揃える価値がある。
+今回の基盤チェックポイントで、JSONイベント／許可項目制御、Context設定・解除、ログ設定、HTTP完了・拒否・例外・readiness障害、Uvicorn access log統一、Docker容量制限、秘匿と並行要求のテストを導入した。API / Tool / workerが増える前に共通基盤を揃える価値がある。
 
 DB監査migrationとTransaction統合はPrepare / Approval / Executeの実装に合わせて別チェックポイントで行う。Toolの操作イベントは共通基盤導入後に対象処理へ接続し、Outbox / Rebuildのログは各機能の実装時に追加する。初回に全監査・非同期処理・収集製品を詰め込まない。ログの合格だけで業務Scenarioの受入完了とは扱わない。

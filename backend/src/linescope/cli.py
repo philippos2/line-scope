@@ -2,6 +2,7 @@ import argparse
 import json
 
 from .database import Database
+from .logging import EventLogger, configure_runtime_logging
 from .settings import Settings
 
 
@@ -21,7 +22,15 @@ def main():
 
         from .api import create_app
 
-        uvicorn.run(create_app(settings), host=args.host, port=args.port)
+        events = EventLogger(settings.log_level)
+        configure_runtime_logging(events)
+        uvicorn.run(
+            create_app(settings, event_logger=events),
+            host=args.host,
+            port=args.port,
+            log_config=None,
+            access_log=False,
+        )
 
 
 if __name__ == "__main__":
