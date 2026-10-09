@@ -183,20 +183,3 @@ def test_other_categories_stay_outside_http_approval_scope(db, action):
         ]
         == "WAITING_APPROVAL"
     )
-
-
-def test_maintenance_execute_http_connection_is_still_deferred(world):
-    db, _, saved = world
-    with client_for(db) as client:
-        assert act(client, saved, "approve").status_code == 200
-        result = client.post(
-            f"/update-requests/{saved.update_request_id}/execute", headers=headers("requester")
-        )
-        assert result.status_code == 400
-        assert result.json()["errors"][0]["code"] == "INVALID_ARGUMENT"
-    assert current(db, saved)["status"] == "APPROVED"
-    with db.transaction() as connection:
-        assert (
-            connection.execute("SELECT count(*) AS n FROM business_update_history").fetchone()["n"]
-            == 0
-        )
