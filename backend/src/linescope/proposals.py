@@ -3,7 +3,7 @@
 The trusted caller must read consistent current business rows, validate all
 business constraints, and derive normalized Prepare/Agent input hashes before
 saving. This repository writes only proposal metadata and pending approval.
-Replacement requests are deferred until atomic invalidation is implemented.
+Replacement saves invalidate the old request and approval in the same transaction.
 """
 
 import hmac
@@ -161,7 +161,7 @@ class ProposalStore:
             return _saved(row, prepare_input_hash, agent_input_hash, replayed=True) if row else None
 
     def save(self, context, snapshot, retry_key, *, prepare_input_hash, agent_input_hash):
-        """Atomically save request, targets and PENDING approval; never update them."""
+        """Save immutable proposal content and atomically invalidate a replaced proposal."""
         key = _arguments(context, retry_key, prepare_input_hash, agent_input_hash)
         if prepare_input_hash is None or agent_input_hash is None:
             raise ProposalError("INVALID_ARGUMENT", "Saving requires both input hashes")
@@ -183,8 +183,35 @@ class ProposalStore:
             category = CATEGORIES[payload["targets"][0]["target_type"]]
             if context.role not in REQUEST_ROLES[category]:
                 raise ProposalError("AUTHORIZATION_DENIED", "Update request permission is required")
-            if payload["supersedes_update_request_id"] is not None:
-                raise ProposalError("INVALID_ARGUMENT", "Replacement storage is not yet supported")
+            replacement = payload["supersedes_update_request_id"]
+            if replacement is not None:
+                previous = connection.execute(
+                    "SELECT requester_id,prepare_retry_key FROM update_request "
+                    "WHERE update_request_id=%s FOR UPDATE",
+                    (replacement,),
+                ).fetchone()
+                if previous is None:
+                    raise ProposalError("TARGET_NOT_FOUND", "Replacement request was not found")
+                if previous["requester_id"] != context.authenticated_user_id:
+                    raise ProposalError("AUTHORIZATION_DENIED", "Only the requester may replace")
+                connection.execute(
+                    "SELECT approval_id FROM approval WHERE update_request_id=%s FOR UPDATE",
+                    (replacement,),
+                ).fetchone()
+                # Another retry may have committed while we waited for the old
+                # request lock. Return that result before checking its old state.
+                row = connection.execute(LOOKUP, (context.authenticated_user_id, key)).fetchone()
+                if row:
+                    return _saved(row, prepare_input_hash, agent_input_hash, replayed=True)
+                old_row = connection.execute(
+                    LOOKUP, (context.authenticated_user_id, previous["prepare_retry_key"])
+                ).fetchone()
+                old = _saved(old_row, None, None, replayed=False)
+                if (old.status, old.approval_status) not in {
+                    ("WAITING_APPROVAL", "PENDING"),
+                    ("APPROVED", "APPROVED"),
+                }:
+                    raise ProposalError("INVALID_UPDATE_STATE", "Replacement request is terminal")
             request_id, idempotency_key = uuid4(), uuid4()
             inserted = connection.execute(
                 "INSERT INTO update_request(update_request_id,requester_id,operation_type,status,"
@@ -227,6 +254,17 @@ class ProposalStore:
                     "VALUES(%s,%s,'PENDING',%s)",
                     (uuid4(), request_id, snapshot.snapshot_hash),
                 )
+                if replacement is not None:
+                    connection.execute(
+                        "UPDATE update_request SET status='INVALIDATED',updated_at=clock_timestamp() "
+                        "WHERE update_request_id=%s",
+                        (replacement,),
+                    )
+                    connection.execute(
+                        "UPDATE approval SET status='INVALIDATED',updated_at=clock_timestamp() "
+                        "WHERE update_request_id=%s",
+                        (replacement,),
+                    )
             # ON CONFLICT may wait for another commit. READ COMMITTED gives the
             # next statement a fresh snapshot containing the committed winner.
             row = connection.execute(LOOKUP, (context.authenticated_user_id, key)).fetchone()
