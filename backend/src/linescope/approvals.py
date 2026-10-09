@@ -9,6 +9,7 @@ from uuid import uuid4
 from psycopg.types.json import Jsonb
 
 from .approval_policy import validate_approve, validate_reject
+from .audit import failed_attempt
 from .canonical import normalize_uuid
 from .execution import ExecutionContext
 from .logging import EventLogger, request_context
@@ -228,55 +229,6 @@ class EquipmentApproval:
             return result
 
     def _failure_audit(self, context, approval_id, action, code):
-        request_id = None
-        try:
-            try:
-                approval_id = normalize_uuid(approval_id)
-            except ValueError:
-                return None
-            # The original transaction has ended. Lock the existing parent first,
-            # then Approval; never change state or claim a rollback outcome here.
-            with self.store._transaction() as connection:
-                parent = connection.execute(
-                    "SELECT update_request_id FROM approval WHERE approval_id=%s", (approval_id,)
-                ).fetchone()
-                if parent is None:
-                    return None
-                request_id = parent["update_request_id"]
-                state = connection.execute(
-                    "SELECT status FROM update_request WHERE update_request_id=%s FOR UPDATE",
-                    (request_id,),
-                ).fetchone()
-                locked = connection.execute(
-                    "SELECT approval_id FROM approval WHERE approval_id=%s AND update_request_id=%s FOR UPDATE",
-                    (approval_id, request_id),
-                ).fetchone()
-                if state is None or locked is None:
-                    return None
-                connection.execute(
-                    "INSERT INTO update_audit_event(audit_event_id,request_id,update_request_id,approval_id,"
-                    "actor_id,action,before_status,after_status,result_code,details,occurred_at) "
-                    "VALUES(%s,%s,%s,%s,%s,'FAILURE',%s,%s,%s,%s,clock_timestamp())",
-                    (
-                        uuid4(),
-                        context.request_id,
-                        request_id,
-                        approval_id,
-                        context.authenticated_user_id,
-                        state["status"],
-                        state["status"],
-                        code,
-                        Jsonb({"attempted_action": action}),
-                    ),
-                )
-        except ProposalError:
-            self.events.emit(
-                "audit.persist_failed",
-                component="audit",
-                outcome="failure",
-                result_code="INTERNAL_ERROR",
-                level="ERROR",
-                approval_id=approval_id,
-                update_request_id=request_id,
-            )
-        return request_id
+        return failed_attempt(
+            self.store, self.events, context, action, code, approval_id=approval_id
+        )

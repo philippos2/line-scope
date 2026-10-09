@@ -1,19 +1,22 @@
-"""Internal equipment-state Execute. HTTP publication and observability follow."""
+"""Internal equipment-state Execute. HTTP and current-value observation follow."""
 
 from uuid import uuid4
 
 from psycopg.types.json import Jsonb
 
+from .audit import failed_attempt
 from .canonical import normalize_uuid
 from .execute_policy import ApprovalFacts, validate_new_execute
 from .execution import ExecutionContext
+from .logging import EventLogger, request_context
 from .proposals import LOOKUP, ProposalError, ProposalStore, _saved
 from .reads import json_value
 
 
 class EquipmentExecute:
-    def __init__(self, database, settings):
+    def __init__(self, database, settings, event_logger=None):
         self.store = ProposalStore(database)
+        self.events = event_logger or EventLogger()
         self.roles = {user["user_id"]: user["role"] for user in settings.users.values()}
 
     def _load(self, c, request_id):
@@ -74,7 +77,7 @@ class EquipmentExecute:
             raise ProposalError("VERSION_CONFLICT", "Equipment state has changed")
         return targets
 
-    def execute(self, context, request_id):
+    def _run(self, context, request_id, attempt):
         if not isinstance(context, ExecutionContext):
             raise ProposalError("AUTHENTICATION_REQUIRED", "Trusted execution context is required")
         try:
@@ -82,20 +85,23 @@ class EquipmentExecute:
         except ValueError as error:
             raise ProposalError("INVALID_ARGUMENT", "Valid update request ID required") from error
         try:
-            return self._execute(context, request_id)
+            return self._execute(context, request_id, attempt)
         except ProposalError as error:
             if error.code in {"VERSION_CONFLICT", "APPROVAL_EXPIRED", "APPROVAL_INVALIDATED"}:
                 replay = self._retire(context, request_id)
                 if replay is not None:
+                    attempt["replayed"] = True
                     return replay
             raise
 
-    def _execute(self, context, request_id):
+    def _execute(self, context, request_id, attempt):
         with self.store._transaction() as c:
             row, saved, approval = self._load(c, request_id)
+            attempt["approval_id"] = saved.approval_id
             if row["requester_id"] != context.authenticated_user_id:
                 raise ProposalError("AUTHORIZATION_DENIED", "Only requester may execute")
             if saved.status == "COMPLETED":
+                attempt["replayed"] = True
                 return row["execution_result"]
             self._validate(c, context, saved, approval)
             targets = self._targets(c, saved)
@@ -224,3 +230,49 @@ class EquipmentExecute:
                     error.code,
                 )
         return None
+
+    def execute(self, context, request_id):
+        if not isinstance(context, ExecutionContext):
+            raise ProposalError("AUTHENTICATION_REQUIRED", "Trusted execution context is required")
+        attempt = {"replayed": False, "approval_id": None}
+        with request_context(
+            context.request_id, actor_id=context.authenticated_user_id, role=context.role
+        ):
+            try:
+                result = self._run(context, request_id, attempt)
+            except ProposalError as error:
+                failed_attempt(
+                    self.store, self.events, context, "EXECUTE", error.code, request_id=request_id
+                )
+                unknown = error.code == "DEPENDENCY_UNAVAILABLE"
+                self.events.emit(
+                    "execution.outcome_unknown" if unknown else "execute.completed",
+                    component="proposal",
+                    outcome="unknown"
+                    if unknown
+                    else "failure"
+                    if error.code == "INTERNAL_ERROR"
+                    else "rejected",
+                    result_code=error.code,
+                    level="ERROR"
+                    if unknown or error.code == "INTERNAL_ERROR"
+                    else "WARNING"
+                    if error.code == "RESOURCE_BUSY"
+                    else "INFO",
+                    update_request_id=request_id,
+                    approval_id=attempt["approval_id"],
+                    error=error if error.code == "INTERNAL_ERROR" else None,
+                )
+                raise
+            self.events.emit(
+                "execute.completed",
+                component="proposal",
+                outcome="success",
+                result_code="OK",
+                update_request_id=request_id,
+                approval_id=result["approval_id"],
+                replayed=attempt["replayed"],
+                before_status="COMPLETED" if attempt["replayed"] else "APPROVED",
+                after_status="COMPLETED",
+            )
+            return result
