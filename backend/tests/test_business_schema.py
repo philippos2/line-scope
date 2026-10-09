@@ -49,7 +49,11 @@ def test_schema_boundary_and_upgrade_from_foundation(db):
 
     root = files("linescope").joinpath("migrations")
     db.migrate([("001_bootstrap.sql", root.joinpath("001_bootstrap.sql").read_text())])
-    assert db.migrate() == ["002_business_schema.sql", "003_update_request_schema.sql"]
+    assert db.migrate() == [
+        "002_business_schema.sql",
+        "003_update_request_schema.sql",
+        "004_update_audit_events.sql",
+    ]
     assert db.migrate() == []
     with db.transaction() as c:
         tables = c.execute(
@@ -60,6 +64,7 @@ def test_schema_boundary_and_upgrade_from_foundation(db):
             "update_request",
             "update_target",
             "approval",
+            "update_audit_event",
         }
         columns = c.execute(
             "SELECT column_name FROM information_schema.columns "
