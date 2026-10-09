@@ -124,3 +124,19 @@ HTTP middlewareをASGI境界へ移し、認証前からサーバ生成request_id
 Docker内の実PostgreSQLで722テスト成功（既存688 + 追加34）、ruff check / format、git diff --check成功。秘密入りの認証・URL / query / body / response・例外・直接logger出力、Context解除・並行16要求・threadpool、stack上限、raw access抑制、ログ出力障害、partial、送信開始後の失敗を検証した。独立した一時Docker環境でmigration / API起動、認証200 / 未認証401、ResponseとJSONのrequest_id一致、ログのcredential不在、全3サービスの実際のlogging driver / 容量設定を確認し、検証用環境とvolumeを削除した。
 
 AC-L01 / 02 / 03 / 04とT-L01〜03 / 05 / 06のHTTP・共通出力部分に対応する。DB監査INSERT・commit / rollbackログ統合、Tool操作ログ、Outbox / Rebuildは後続であり、AC-L全体やT-L04 / 07の合格とは扱わない。業務仕様、PO-B、migration、依存、Frontendは変更しない。READMEとoperationsの実装状態を更新した。LogiScopeコードの再利用はない。
+
+## 材料・在庫・調達の境界メモ
+
+POとの議論を[スコープ境界メモ](2026-10-09-material-scope-boundary.md)へ保存した。Supply Chain Operational IntelligenceとTOCへの将来の関心、決定・表現案・未決事項を分離した。既存要件・設計・受入基準は変更していない。
+
+## 設備状態UPDATEの内部Prepareチェックポイント
+
+2026-10-09、PR #23 merge後、POが承認した次工程としてEquipmentStatePrepareを実装した。trusted contextで設備状態要求権限を確認し、設備ID・明示状態だけを受け付ける。expected_versionの入力を拒否し、全対象の現在状態・versionをPostgreSQLの単一statement Snapshotで取得する。業務行の変更lockを取得せず、Snapshot構築後のversion変化は後続Approval / Executeで再検証する設計を維持する。
+
+入力hashはTool名・正規化済み対象IDと状態・明示置換IDから構築する。対象集合はID順とし、UUID表記・集合順による揺れを除く。before / versionを入力hashへ含めない。Agent入力hashとretry keyはtrusted orchestratorから注入し、Agent hashの内容生成はこの層で行わない。保存済みキーは現在値読込前に入力hash照合・integrity検証して返す。要求権限を失った主体は再送でも拒否する。異内容キー、重複対象、変更なし対象、不存在対象は全体拒否し、状態行欠落・version増分不能は内部不整合とする。
+
+既存ProposalStoreへ全TargetのSnapshotを渡し、UpdateRequest / UpdateTarget / PENDING Approvalを原子的に保存する。明示置換は旧要求のowner / 状態を既存保存層で検証し、新保存失敗なら旧失効もrollbackする。正本業務値は変更しない。
+
+Docker内の実PostgreSQLで753テスト成功（既存722 + 追加31）。ruff check / format、git diff --checkを確認した。対象一括取得・業務値非変更、権限、全体拒否、4並行同keyの1要求化、異入力拒否、owner scope、終端再送と確定Snapshot保持、旧要求置換時のDB障害・rollback・同key再試行、読込後の正本変更、読込timeout / 接続障害の安全なエラーを検証した。T-R02 / R03の内部Prepare範囲とAC-07 / 13 / 14 / 16のSnapshot固定・要求保存・置換部分を検証した。HTTP再送、CREATE重複、二重Execute防止、Approval時のversion失効、AC全体の完了を意味しない。
+
+Prepare API / Tool公開、Agent入力hash生成、他カテゴリのPrepare、Approval / Execute、DB監査・Tool操作ログ、Graph / Outboxは後続。PO-B未決事項、材料関連の新機能、migration、依存、Frontendは変更していない。LogiScopeコードの再利用はない。
