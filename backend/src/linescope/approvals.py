@@ -1,7 +1,7 @@
-"""Internal human Approval transaction for equipment-state proposals only.
+"""Human approval transactions with explicit category/operation admission.
 
-No Agent Tool or HTTP publication. Other categories need their own current-row
-and CREATE/assignment/Graph validation before admission can be enabled.
+Equipment API admission stays equipment-only. Maintenance plan UPDATE has an
+internal entrypoint; CREATE, records, assignment and Graph validation follow.
 """
 
 from uuid import uuid4
@@ -10,13 +10,13 @@ from psycopg.types.json import Jsonb
 
 from .approval_policy import validate_approve, validate_reject
 from .audit import failed_attempt
-from .canonical import normalize_uuid
+from .canonical import normalize_timestamp, normalize_uuid
 from .execution import ExecutionContext
 from .logging import EventLogger, request_context
 from .proposals import LOOKUP, ProposalError, ProposalStore, _saved
 
 
-class EquipmentApproval:
+class _HumanApproval:
     def __init__(self, database, event_logger=None):
         self.store = ProposalStore(database)
         self.events = event_logger or EventLogger()
@@ -33,27 +33,9 @@ class EquipmentApproval:
             saved = self._locked_proposal(connection, approval_id)
             request_id = saved.update_request_id
             category = validate_approve(context, saved, snapshot_hash)
-            if category != "EQUIPMENT_STATE":
-                raise ProposalError(
-                    "INVALID_ARGUMENT", "This transaction supports equipment state only"
-                )
+            self._require_scope(category, saved)
             targets = saved.snapshot.data["targets"]
-            for target in targets:
-                current = connection.execute(
-                    "SELECT equipment_id,state_code,version FROM equipment_current_state "
-                    "WHERE equipment_id=%s FOR UPDATE",
-                    (target["target_id"],),
-                ).fetchone()
-                if (
-                    current is None
-                    or {
-                        "equipment_id": str(current["equipment_id"]),
-                        "state_code": current["state_code"],
-                        "version": current["version"],
-                    }
-                    != target["before"]
-                ):
-                    conflict = True
+            conflict = self._targets_changed(connection, targets)
             if conflict:
                 status, action, code = "INVALIDATED", "INVALIDATE", "VERSION_CONFLICT"
                 connection.execute(
@@ -99,7 +81,7 @@ class EquipmentApproval:
             )
         # Invalidation must commit before reporting the conflict to the caller.
         if conflict:
-            error = ProposalError("VERSION_CONFLICT", "The prepared equipment state has changed")
+            error = ProposalError("VERSION_CONFLICT", "The prepared target has changed")
             error.update_request_id = request_id
             raise error
         return result
@@ -138,10 +120,7 @@ class EquipmentApproval:
             raise ProposalError("INVALID_ARGUMENT", "A valid Approval ID is required") from error
         with self.store._transaction() as connection:
             saved = self._locked_proposal(connection, approval_id)
-            if validate_reject(context, saved) != "EQUIPMENT_STATE":
-                raise ProposalError(
-                    "INVALID_ARGUMENT", "This transaction supports equipment state only"
-                )
+            self._require_scope(validate_reject(context, saved), saved)
             connection.execute(
                 "UPDATE approval SET status='REJECTED',approver_id=%s,updated_at=clock_timestamp() WHERE approval_id=%s",
                 (context.authenticated_user_id, approval_id),
@@ -232,3 +211,68 @@ class EquipmentApproval:
         return failed_attempt(
             self.store, self.events, context, action, code, approval_id=approval_id
         )
+
+
+class EquipmentApproval(_HumanApproval):
+    @staticmethod
+    def _require_scope(category, saved):
+        if category != "EQUIPMENT_STATE":
+            raise ProposalError(
+                "INVALID_ARGUMENT", "This transaction supports equipment state only"
+            )
+
+    @staticmethod
+    def _targets_changed(connection, targets):
+        conflict = False
+        for target in targets:
+            current = connection.execute(
+                "SELECT equipment_id,state_code,version FROM equipment_current_state "
+                "WHERE equipment_id=%s FOR UPDATE",
+                (target["target_id"],),
+            ).fetchone()
+            if (
+                current is None
+                or {
+                    "equipment_id": str(current["equipment_id"]),
+                    "state_code": current["state_code"],
+                    "version": current["version"],
+                }
+                != target["before"]
+            ):
+                conflict = True
+        return conflict
+
+
+class MaintenancePlanUpdateApproval(_HumanApproval):
+    @staticmethod
+    def _require_scope(category, saved):
+        if category != "MAINTENANCE" or any(
+            t["target_type"] != "MaintenancePlan" or t["operation_type"] != "UPDATE"
+            for t in saved.snapshot.data["targets"]
+        ):
+            raise ProposalError(
+                "INVALID_ARGUMENT", "This transaction supports maintenance plan UPDATE only"
+            )
+
+    @staticmethod
+    def _targets_changed(connection, targets):
+        conflict = False
+        for target in targets:
+            current = connection.execute(
+                "SELECT maintenance_plan_id,plan_code,equipment_id,planned_start,planned_end,plan_status,version "
+                "FROM maintenance_plan WHERE maintenance_plan_id=%s FOR UPDATE",
+                (target["target_id"],),
+            ).fetchone()
+            if current is None:
+                conflict = True
+                continue
+            current = {
+                **current,
+                "maintenance_plan_id": str(current["maintenance_plan_id"]),
+                "equipment_id": str(current["equipment_id"]),
+                "planned_start": normalize_timestamp(current["planned_start"]),
+                "planned_end": normalize_timestamp(current["planned_end"]),
+            }
+            if current != target["before"]:
+                conflict = True
+        return conflict
