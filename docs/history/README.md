@@ -50,3 +50,7 @@
 ## ProductionOperation予定UPDATE Snapshotチェックポイント
 
 2026-10-09、PR #11 merge後、requirements §12 / api-tools §16に従い生産作業の予定UPDATE Snapshotを追加した。予定状態・開始・終了、全業務項目、期間・version、変更不可項目、監査時刻除外と保存形式を検証する。Docker内で414テスト（追加44）、lint/format成功。T-R03 / R07 / R21のSnapshot境界を検証。設備割当期間置換、正本取得・権限・保存・Prepare / Approval / Executeは後続。仕様正本の変更・LogiScopeコードの再利用はない。
+
+## 設備割当期間置換・差分生成チェックポイント
+
+2026-10-09、PR #12 merge後、domain-model §15.2に従い半開期間の設備集合置換を純粋な差分生成として実装した。期間外保持、不要分割の回避、空集合・明示NULL無期限、同業務キーactive / inactive行再利用、各Targetのbefore / after・version・IDを検証する。Docker内457テスト（追加43、うち1件で1,008区間組合せを時点評価）、lint/format成功。T-R08の区間差分部分に対応する。親version・全active集合のSnapshot固定、Snapshot統合、正本取得・FK/Graph制約・権限・DB保存・ロック・全rollbackは後続。仕様正本の変更・LogiScopeコードの再利用はない。
