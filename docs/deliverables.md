@@ -58,7 +58,7 @@
 | AI評価 | `evals.md` |
 | 決定論的テスト・試験階層 | `test-plan.md` |
 | Business Scenario・fixture期待値・UC ↔ BS ↔ AC | `business-scenarios.md` |
-| 運用 | `operations.md` |
+| 運用・構造化ログ契約・保存／閲覧方針 | `operations.md` |
 | 実装支援Agent作業規則 | `AGENTS.md` |
 
 同じ事項を複数文書が説明する場合、上表の正本文書に従う。下位文書が上位要件を暗黙変更してはならない。

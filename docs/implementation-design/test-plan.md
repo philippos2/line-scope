@@ -178,3 +178,17 @@ Business Scenario / Acceptance → Agent / Application E2E → Integration → C
 [Business Scenario仕様](business-scenarios.md)のBS-01〜19 / BS-G01、固定数値、UC ↔ BS ↔ AC対応を使用する。AC-B01〜11の主試験は同書§4。BS-13〜19の補足と将来停止variantの未確定事項は§4.1で追跡する。数値は決定論的に検証し、意味論的結果をassertする。
 
 試験記録はPASS / FAIL / BLOCKED / NOT_IMPLEMENTEDを区別し、PO未決定・未実装をPASSへ含めない。既存§11のMajor Fail GateとT-R01〜21を維持する。業務判断支援全体の受入にはGoldenを含む対象ケースの合格を必要とし、段階的PRの部分テスト合格を全体完成と扱わない。
+
+## 14. ログ設計の検証
+
+| Test ID | 検証内容 | AC |
+|---|---|---|
+| T-L01 | 認証成功／拒否・HTTP例外・readiness障害のJSON完了イベント、code / level / duration / Envelopeと同一request_id、正常healthのDEBUG | AC-L01 |
+| T-L02 | 並行async・threadpool処理、例外終了のContext解除、複数app設定でhandler二重追加なし、retryは別request_id・同業務ID | AC-L01 |
+| T-L03 | token / DSN / body / prompt / Snapshot / SQL / 例外messageを含むfixtureで秘密が出ない。未知field・不正型・改行・長さ・stack上限、DEBUGでも同じ秘匿 | AC-L02 |
+| T-L04 | commit前失敗・commit後成功・結果不明・COMPLETED replay・置換rollbackの意味を区別。監査INSERT失敗で全rollback、失敗監査fallbackは別処理 | AC-L03、AC-14 |
+| T-L05 | stdout handler障害が業務結果を変更せず再帰しない、固定stderr診断にも秘密なし | AC-L02・03 |
+| T-L06 | Uvicorn raw access log無効、依存logger設定、LOG_LEVEL validation、Compose各サービスの容量制限、監査DBはrotation対象外 | AC-L02・04 |
+| T-L07 | Tool呼出し・Outbox retry / DEAD・Rebuildと業務監査をIDで追跡し、認可外の監査・全ログを公開しない | AC-L01・04、AC-17 |
+
+段階導入はoperations §13.8。初回はT-L01〜03・05・06の現API／基盤部分、Transaction監査はT-L04 / T-R20、workerはT-L07を各実装時に検証する。文書のみの段階では未実行であり、既存688テストがログ受入を満たすとは扱わない。
