@@ -23,7 +23,7 @@ AIによる自律的な最終判断・承認・実行、実設備制御、在庫
 | PostgreSQL | 業務10テーブルと更新要求・Target・承認の3テーブル、DB制約、checksum付きmigrationを実装 |
 | 正本参照 | ID参照・設備割当参照・検索の内部Read Tool 13種を実装 |
 | 更新提案 | 設備状態、保全予定・実績、生産作業の予定値・設備割当、依存関係のCanonical Snapshotを構築・検証 |
-| Prepare / Approval / Execute | 設備状態・保全予定UPDATEの内部Prepare（正本の一貫取得・権限・提案検証・Snapshot保存）を実装。retry key再送、旧失効と新保存の原子的な置換に対応。Prepare API / Tool公開、残りのPrepare、承認／実行処理は後続 |
+| Prepare / Approval / Execute | 設備状態・保全予定UPDATE、保全予定・実績CREATEの内部Prepareを実装。正本参照・権限・業務制約・Snapshot保存、retry key再送、原子的な置換に対応。Prepare API / Tool公開、残りのPrepare、承認／実行処理は後続 |
 | Graph / Outbox | Neo4j Projection、同期管理、依存・影響分析は後続 |
 | RAG / Agent | Qdrant連携とLLM / embedding modelの評価・選定は後続 |
 | Frontend | サーバサイド完成後に構築。Graph中心のオペレーション画面は候補の一つ |

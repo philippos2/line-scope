@@ -150,3 +150,15 @@ Prepare入力hashはTool名・ID順の対象集合・正規化した明示patch�
 Docker内の実PostgreSQLで795テスト成功（既存753 + 追加42）、ruff check / format、git diff --check成功。期間・timezone・no-op・禁止項目、全Target拒否、全業務項目保持と正本非変更、権限、retry owner scope・権限喪失・カテゴリ間key流用拒否、4並行同keyの1要求化、置換中Approval INSERT障害のrollbackと同key再試行、単一statement読込後のversion変化、BIGINT増分不能、読込timeout・接続障害を検証した。既存設備状態Prepareのテストも保持した。
 
 T-R02 / R03の内部PrepareとAC-07 / 13 / 14 / 16のSnapshot・要求保存・置換部分を検証する。HTTP再送、承認時のversion失効、二重Execute防止、業務受入全体の完成ではない。Prepare API / Tool公開、CREATE系・生産作業・依存関係のPrepare、Approval / Execute、DB監査・Toolログ、Graph / Outboxは後続。要件・PO-B・migration・依存・Frontendは変更せず、LogiScopeコードも再利用していない。
+
+## 保全予定・実績CREATEの内部Prepareチェックポイント
+
+2026-10-09、PR #25 merge後、POの指示でMaintenanceCreatePrepareを追加した。保全・工場管理のtrusted contextだけを許可し、prepare_tool / inputの対象配列で既存2種類のCREATE入力を受け付ける。日時・UUID・任意maintenance_plan_idのNULLを正規化し、必須業務項目・状態・非空result・予定の開始 < 終了を検証する。設備・指定済み既存保全予定の存在、実績と予定のequipment_id一致、正本のplan_code / record_code重複を単一statement Snapshotで確認する。対象内の同種業務キー重複と異種カテゴリ混在を拒否する。同じcode文字列を予定・実績がそれぞれ使う場合は、別の業務キーとして扱う。
+
+入力hashに各Tool名・正規化入力・明示置換IDを含め、生成ID・before・versionを含めない。対象集合はTool名と業務キーで整列する。保存済みキーは正本の再検証と新ID生成より先に照合し、元ID・Snapshotを返す。新規要求の業務検証後だけCREATE IDを生成し、before / expected_versionをNULL、after.versionを1に固定する。予定・実績CREATEを一保全要求にまとめて保存できる。実績の予定参照は登録済みUUIDを要求し、新規予定への自動紐づけは行わない。
+
+Docker内の実PostgreSQLで839テスト成功（既存795 + 追加44）、ruff check / format、git diff --check成功。全業務項目保持・生成ID・正本非変更、権限、必須／禁止項目・期間・不正Unicode、参照不足・設備不一致・重複・カテゴリ混在の全体拒否、正本業務キー衝突、終端再送・UUID / timezone / 対象順 / 任意NULL正規化・ID非再生成、owner scope・異入力・権限喪失、4並行同keyの同ID化を検証した。複数CREATEと旧要求置換中のApproval INSERT障害で全rollback・旧状態保持・同key再試行、単一statementの参照／キー検証、読込timeout・接続障害の安全なエラーを検証した。
+
+T-R02 / R03 / R21、AC-07 / 11 / 13 / 14 / 16の内部Prepare・Snapshot・要求保存・置換部分に対応する。Prepareは業務キーを予約しない。読込後の正本変更・CREATE競合はApproval / Executeで再検証し、Executeの業務DB UNIQUEが最終防御となる。CREATE重複防止や業務受入全体の完成ではない。
+
+Prepare API / Tool公開、保全UPDATEとCREATEを混ぜる統合経路、生産作業・依存関係Prepare、Approval / Execute、DB監査・Toolログ、Graph / Outboxは後続。業務テーブルへINSERTせず、設備状態・既存予定状態を自動変更しない。要件・PO-B・migration・依存・Frontendは変更せず、LogiScopeコードも再利用していない。
