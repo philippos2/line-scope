@@ -256,3 +256,9 @@ PR #33 merge後、`GET /update-requests/{id}`を追加した。Trusted Execution
 認証401、不正ID400、不存在404、権限不足403、依存障害・timeout503、保存不整合500を共通Envelopeで返す。内部SQL・credential・例外messageを返さない。access-control §7 / 10、api-tools §3 / 14、AC-05 / 07 / 14の閲覧部分を検証する。追加28テストで4カテゴリ×4ロール、本人のロール変更後閲覧、保存Snapshotとcurrent valueの区別、承認時刻・期限、非更新、改変拒否、障害の秘匿を確認した。
 
 HTTP Prepare / Agent、Approval / Execute、デモseed、Graph / Outbox / RAG、Toolログは後続。正式仕様、migration、依存、Frontendは変更しない。LogiScopeコードの再利用はない。Astraレビューは未実施。
+
+## 更新要求のeffective_status表示補正
+
+PR #34 merge後の次工程確認で、api-tools §18に定義されたGETのeffective_statusが未実装であることを発見した。保存statusと表示状態を分離し、APPROVEDかつサーバ時刻 >= expires_atの場合に限りeffective_status=EXPIREDを返す。観測時刻は同じ取得statementのPostgreSQL statement_timestamp()とする。閲覧による要求・承認の失効更新、Snapshot再生成、承認期限延長は行わない。既存仕様の補完であり、要件・migrationは変更しない。
+
+追加11テストで期限直前・一致・直後、他の要求状態の保持、未承認表示、期限前／到達後のHTTP表示と再閲覧時の非更新を確認する。Proposal保存・再送と閲覧APIを合わせてDocker検証し、全体回帰はCIで実行する。Approval / Executeによる実失効処理は後続。Astraレビューは未実施。

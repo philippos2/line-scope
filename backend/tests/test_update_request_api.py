@@ -41,7 +41,7 @@ def test_visibility_matrix(stored, category, role):
         assert data["canonical_snapshot"] == saved.snapshot.data
         assert data["snapshot_hash"] == saved.snapshot.snapshot_hash
         assert data["approval_id"] == str(saved.approval_id)
-        assert data["status"] == "WAITING_APPROVAL"
+        assert data["status"] == data["effective_status"] == "WAITING_APPROVAL"
         assert data["approved_at"] is None and data["expires_at"] is None
         assert data["snapshot_schema_version"] == 1
     else:
@@ -176,3 +176,74 @@ def test_storage_failure_envelope_is_sanitized(kind, code):
     assert result.status_code == (500 if kind == "internal" else 503)
     assert result.json()["errors"][0]["code"] == code
     assert "private" not in result.text and "password" not in result.text
+
+
+@pytest.mark.parametrize("offset,expected", [(-1, "APPROVED"), (0, "EXPIRED"), (1, "EXPIRED")])
+def test_effective_status_expiry_boundary(offset, expected):
+    from datetime import timedelta
+
+    from test_proposals import NOW
+
+    from linescope.proposals import _effective_status
+
+    assert _effective_status("APPROVED", NOW, NOW + timedelta(microseconds=offset)) == expected
+
+
+@pytest.mark.parametrize(
+    "status", ["WAITING_APPROVAL", "COMPLETED", "REJECTED", "EXPIRED", "INVALIDATED", "FAILED"]
+)
+def test_effective_status_preserves_other_states(status):
+    from test_proposals import NOW
+
+    from linescope.proposals import _effective_status
+
+    assert _effective_status(status, NOW, NOW) == status
+
+
+def test_expired_approval_is_display_only(stored):
+    from datetime import timedelta
+
+    from test_proposals import NOW
+
+    db, store = stored
+    saved = save(store)
+    with db.transaction() as connection:
+        connection.execute("UPDATE update_request SET status='APPROVED'")
+        connection.execute(
+            "UPDATE approval SET status='APPROVED', approver_id='manager', approved_at=%s, expires_at=%s",
+            (NOW - timedelta(days=3650), NOW - timedelta(days=3650) + timedelta(minutes=30)),
+        )
+    with client_for(db, "floor1", "floor") as client:
+        for _ in range(2):
+            result = client.get(
+                f"/update-requests/{saved.update_request_id}",
+                headers={"Authorization": "Bearer token"},
+            )
+            assert result.status_code == 200
+            data = result.json()["data"]
+            assert data["status"] == "APPROVED"
+            assert data["effective_status"] == "EXPIRED"
+            assert data["approval_status"] == "APPROVED"
+            assert data["canonical_snapshot"] == saved.snapshot.data
+    with db.transaction() as connection:
+        assert (
+            connection.execute("SELECT status FROM update_request").fetchone()["status"]
+            == "APPROVED"
+        )
+        assert connection.execute("SELECT status FROM approval").fetchone()["status"] == "APPROVED"
+
+
+def test_unexpired_approval_remains_effectively_approved(stored):
+    db, store = stored
+    saved = save(store)
+    with db.transaction() as connection:
+        connection.execute("UPDATE update_request SET status='APPROVED'")
+        connection.execute(
+            "UPDATE approval SET status='APPROVED', approver_id='manager', approved_at=statement_timestamp(), expires_at=statement_timestamp()+interval '30 minutes'"
+        )
+    with client_for(db, "floor1", "floor") as client:
+        result = client.get(
+            f"/update-requests/{saved.update_request_id}", headers={"Authorization": "Bearer token"}
+        )
+    assert result.status_code == 200
+    assert result.json()["data"]["effective_status"] == "APPROVED"

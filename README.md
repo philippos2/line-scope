@@ -131,7 +131,7 @@ curl -sS -i "$BASE_URL/update-requests/$UPDATE_REQUEST_ID" \
   -H "Authorization: Bearer $TOKEN"
 ```
 
-成功時は200で、確定済みcanonical Snapshot、hash、要求・承認状態、承認時刻・期限を返します。現在の業務値でSnapshotを再生成しません。不正IDは400、不存在は404、閲覧権限不足は403です。デモseedとHTTP Prepareは未実装のため、起動直後には参照する更新要求がありません。
+成功時は200で、確定済みcanonical Snapshot、hash、要求・承認状態、承認時刻・期限を返します。`status`は保存状態、`effective_status`は閲覧時点での状態です。承認期限に到達した要求は、保存状態を変えず`effective_status=EXPIRED`と表示します。現在の業務値でSnapshotを再生成しません。不正IDは400、不存在は404、閲覧権限不足は403です。デモseedとHTTP Prepareは未実装のため、起動直後には参照する更新要求がありません。
 
 ## 内部Toolsと更新提案
 
