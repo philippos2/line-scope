@@ -192,3 +192,18 @@ Business Scenario / Acceptance → Agent / Application E2E → Integration → C
 | T-L07 | Tool呼出し・Outbox retry / DEAD・Rebuildと業務監査をIDで追跡し、認可外の監査・全ログを公開しない | AC-L01・04、AC-17 |
 
 段階導入はoperations §13.8。初回はT-L01〜03・05・06の現API／基盤部分、Transaction監査はT-L04 / T-R20、workerはT-L07を各実装時に検証する。文書のみの段階では未実行であり、既存688テストがログ受入を満たすとは扱わない。
+
+## 15. SQL / DBアクセスのセキュリティ検証
+
+architecture §15・NFR-04への適合を下位Security / Integration / Recovery試験で確認する。既存Unit / Contract / Integration / T-R / Business Scenarioは削除せず、以下の追加試験を既存の安全性検証と組み合わせる。
+
+| ID | 検証 | 主な対応 |
+|---|---|---|
+| T-SQL01 | `' OR 1=1 --`、`'; DROP TABLE equipment; --`等をAPI / Toolの許可された文字列へ渡し、単なる値として扱われること。検索範囲を拡大せず、テーブル・行・履歴を変更しない。文字列を保存する更新では後日の再読込・検索も検証 | NFR-04、AC-05・09 |
+| T-SQL02 | Tool名、filter key、table / column / ORDER BY / direction等の未知identifierを拒否し、固定allow-listだけでSQL構造を選ぶ。SQL文字列引数・任意SQL Toolを公開しない | NFR-03・04・08、AC-05・09 |
+| T-SQL03 | 非owner・権限なし・偽role / user_idのmutationを拒否。DB検索roleはINSERT / UPDATE / DELETE / DDLを拒否し、変更runtime roleもDDLを拒否。role属性・schema / table / sequence / function権限・default privilegesを確認 | NFR-03・04、AC-05・09・12・17 |
+| T-SQL04 | 正本更新後、成功Audit / history / Outbox / Approval消費 / COMPLETED保存の各段階で失敗を注入し全rollback。同一要求再送・stale version・並行対象の競合を検証 | NFR-05・06、AC-10・11・13、T-R06・08 |
+| T-SQL05 | API / Tool経由の不変条件拒否と、DB constraint自体の拒否の両方を検証。DB errorとloggingへcredential、SQL本文、内部構造、機密bind値を外部露出しない | NFR-01・04、AC-11・13、既存API / logging試験 |
+
+これらは追加試験仕様であり、全実装・実行済みとは扱わない。既存searchのDELETE攻撃文字列1ケースだけでT-SQL01全体の合格としない。型で拒否されるID等の試験だけで、許可された自由文字列のbindを検証したことにしない。
+Core導入時も実PostgreSQLでlock順序・待機timeout・接続寿命・rollback・version・canonical Snapshot / hash・Outbox原子性を回帰検証する。mockでのSQL構造検証だけでは完了としない。

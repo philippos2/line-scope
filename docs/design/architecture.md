@@ -96,7 +96,8 @@ Rebuild controllerは単一workerと同じleader lockを取得してOutboxをdra
 |---|---|---|
 | Backend | Python / FastAPI | HTTP API、認証済み実行Context、Tool制御。最初の実装チェックポイントで起動基盤を作る |
 | 正本DB | PostgreSQL | 業務データ、Approval、UpdateRequest、履歴、Outbox、文書metadata。最初は接続・migration基盤のみ |
-| DB driver | Psycopg 3 | PostgreSQL接続・Transaction制御 |
+| DBアクセス標準 | SQLAlchemy Core（段階導入） | 構造化query・parameter binding・明示的Transaction。既存実装はPsycopg 3によるRaw SQLであり、Core導入済みとは扱わない |
+| DB driver | Psycopg 3 | PostgreSQL接続。Core導入後もdriverとして使用可能 |
 | ASGI server | Uvicorn | FastAPIのHTTP実行 |
 | 構造依存の派生モデル | Neo4j | CURRENT時の依存探索。後続のGraphチェックポイントで実装する |
 | 非構造文書の派生Index | Qdrant | embeddingによる文書検索。後続のRAGチェックポイントで実装する |
@@ -123,3 +124,40 @@ PostgreSQLは新しい能力・費用・計画・安全・履歴情報につい�
 アプリケーションの決定論的計算処理が、認可された正本入力と定義済みルールから能力不足・損失・期間計算を行う。Agentは必要なRead / Graph / 計算処理を組み合わせて説明する。現行Tool一覧には計算Toolがないため、api-toolsの拡張契約確定後に実装する。LLMに算術・安全ルールの確定を委任しない。
 
 Decision Packageは各結果の観測時刻・version・Graph generation・評価期間を示す。既存のshared / exclusive Graph lockは構造探索の境界であり、全業務情報の同時Snapshotを保証しない。計算入力のversion付き観測結果を固定して評価し、評価後のcurrent valueと混同しない。将来予測・予定の意味と再評価条件は対応するPO判断とAPIで確定する。
+
+## 15. SQL / Database Access Policy
+
+2026-10-10 PO決定。優先順位はSecurity → Data integrity → Transaction correctness → Auditability → Explicitness → Maintainability → Implementation convenience。
+Secure by construction. Explicit by default. Auditable by design.
+
+### 15.1 入力とDBアクセスの境界
+
+API / Agent → validated application/tool arguments → authorization → application/service → SQLAlchemy Core → PostgreSQLを標準とする。
+LLMはnamed Toolと構造化引数だけを生成できる。LLM出力もuntrusted inputであり、型検証を認可の代替にしない。任意SQLを生成・実行するToolを追加しない。
+
+通常のSELECT / INSERT / UPDATE / DELETE / JOIN / RETURNING / PostgreSQL ON CONFLICT / FOR UPDATE / 条件付きversion UPDATE / Transaction内の複数操作ではCoreを第一選択とする。全面ORM化は行わない。
+構造化queryとdialectで通常アクセスのDB種類・version差による変更影響を抑える。PostgreSQL固有のadvisory lock・JSONB・延期可能制約等は明示的に隔離し、Core導入をDB非依存・version互換性保証とは扱わない。PostgreSQLを正本とする技術選定は維持する。
+外部・動的な値は必ずbind parameterとして渡す。f-string・文字列連結・format・手動escapeで値をSQL構文へ埋め込むことは禁止する。DBから再取得した文字列も値としてbindし、SQLコードへ昇格させない。
+テーブル・列・ORDER BY対象・directionは値bindでは扱えないため、外部入力から自由生成せず、固定allow-listからTable / Column / asc / desc等を選択する。
+
+### 15.2 Raw SQLとORMの例外
+
+Raw SQLは、SQLそのものの方が明確な処理、PostgreSQL固有機能、Coreで過度に複雑になる集計 / CTE / window、根拠のある性能上の必要性で許容する。値はbindし、Transaction境界と選択理由をコードまたは設計から追跡可能にする。Core経由のRaw SQLは固定textとbindを使用する。外部入力を渡すtext(f"...")等は禁止する。
+固定DDL・同梱migration script・値を持たない固定SQLは、外部入力を受けない管理経路の例外として扱う。migrationはruntime roleで実行しない。
+ORMはCoreと比較した明確な保守上の利益を説明できる場合だけ限定採用する。Prepare / Approval / Execute / Snapshot / Audit / Outbox / Projectionの重要更新に、autoflush、lazy loading、identity map、dirty tracking、cascade等を理由なく持ち込まない。
+
+### 15.3 整合性・権限・監査
+
+PostgreSQLをSystem of Recordとし、PK / FK / UNIQUE / NOT NULL / CHECK等で保証できる不変条件はDBでも強制する。アプリ検証はDB制約の代替ではない。
+重要更新は、認可確認・lock / 現在値・expected version・業務不変条件・正本更新・業務監査・対象Outboxを明示的Transactionで確定する。途中失敗は全rollbackし、stale versionを暗黙上書きしない。
+ApprovalはExecuteとは別Transactionであり、承認だけでは業務正本を更新しない。Executeでは対象version・保存Snapshot・現在権限・期限を再検証し、必要Outbox、承認消費、COMPLETED結果、成功監査まで原子的に確定する。lock順序・対象Outboxの条件・失敗後の別Transactionによる失効と失敗監査はtransaction-designを正とし、この概念図を理由に既存状態遷移を変更しない。
+
+DB roleは検索と認可済み変更を分離し、runtimeにDDL・superuser権限を与えない。Read Toolへ不要なUPDATE / DELETE権限を渡さない。migration / bootstrapと将来のworkerにも用途別の必要権限だけを付与する。
+password / token / credential / secretや不要な機密情報をログへ出さない。SQLログのbind値も同様。業務監査はwho、操作、対象、前後version、結果、時刻、相関IDを追跡し、Debug logと分離する。DB例外は定義済みAPI errorへ変換し、SQL本文・schema・hostname・path・stackを外部へ返さない。ログ契約はoperationsを正とする。
+
+### 15.4 移行と適合確認
+
+既存アクセスをA Core / B 安全なRaw SQL / C ORM / D 危険・疑わしい動的SQL / E identifier組立 / F 重要更新に棚卸しする。E / Fは他分類と重複する。文字列操作だけで脆弱性と断定せず、untrusted inputからSQL構文へのdata flowを確認する。
+危険な動的SQL → 安全なparameterization → Core適用の順に改善し、安全な既存Raw SQLを非ORMという理由だけで機械変換しない。新規通常アクセスはCoreを標準とする。重要更新を抽象化・コード削減のために意味変更しない。
+適合はInjection、認可、atomic rollback、version競合、DB制約、DB roleの自動テストで確認する。重要変更を開始する前に棚卸し結果・推奨変更・Transaction / lock / Approval / Snapshot / Outbox / Projectionへの移行リスクを報告する。
+実装状況・不足・改善順序は[2026-10-10棚卸し](../history/2026-10-10-sql-database-access-review.md)に記録し、本節の方針を実装済みと混同しない。
