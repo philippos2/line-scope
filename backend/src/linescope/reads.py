@@ -18,6 +18,7 @@ from pydantic import (
     create_model,
 )
 
+from .core_equipment_reads import get_equipment_row
 from .database import Database
 from .execution import ExecutionContext
 from .pagination import CursorCodec
@@ -183,12 +184,15 @@ class ReadTools:
                 connection.execute("SET TRANSACTION ISOLATION LEVEL READ COMMITTED, READ ONLY")
                 if tool in GET_TOOLS:
                     table, key = GET_TOOLS[tool]
-                    row = connection.execute(
-                        sql.SQL(
-                            "SELECT *, statement_timestamp() AS _observed_at FROM {} WHERE {}=%s"
-                        ).format(sql.Identifier(table), sql.Identifier(key)),
-                        (getattr(values, key),),
-                    ).fetchone()
+                    if tool in {"get_equipment", "get_equipment_state"}:
+                        row = get_equipment_row(connection, tool, values.equipment_id)
+                    else:
+                        row = connection.execute(
+                            sql.SQL(
+                                "SELECT *, statement_timestamp() AS _observed_at FROM {} WHERE {}=%s"
+                            ).format(sql.Identifier(table), sql.Identifier(key)),
+                            (getattr(values, key),),
+                        ).fetchone()
                     if row is None:
                         raise ToolError("TARGET_NOT_FOUND", "Requested record does not exist")
                     observed_at = row.pop("_observed_at")
