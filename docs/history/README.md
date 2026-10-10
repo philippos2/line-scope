@@ -360,3 +360,7 @@ Dockerで追加36テスト成功、ruff check / format、git diff --check成功�
 ## Prepare置換lock・失効のCore移行
 
 [旧要求 / Approvalの固定lockと失効UPDATE](2026-10-10-core-proposal-replacement.md)に、serviceに残す順序、owner / retry判定、競合・timeout・旧内容維持・新旧の原子性の回帰確認と未移行範囲を記録する。
+
+## Execute履歴・完了結果のCore移行
+
+[固定履歴INSERTと完了結果UPDATE](2026-10-11-core-execution-records.md)に、確定JSONB・実行時刻と消費時刻の区別、原子性・再送の回帰確認、Approval消費CTEをRaw SQLで残す判断を記録する。
