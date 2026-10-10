@@ -13,10 +13,14 @@ from dataclasses import dataclass
 from uuid import UUID, uuid4
 
 import psycopg
-from psycopg.types.json import Jsonb
 
 from .audit import prepare_saved, proposal_replaced
 from .canonical import canonical_json, normalize_uuid
+from .core_proposals import (
+    insert_pending_approval,
+    insert_pending_request,
+    insert_proposal_target,
+)
 from .execution import ExecutionContext
 from .snapshot import CATEGORIES, CanonicalSnapshot
 
@@ -279,47 +283,28 @@ class ProposalStore:
                 }:
                     raise ProposalError("INVALID_UPDATE_STATE", "Replacement request is terminal")
             request_id, idempotency_key = uuid4(), uuid4()
-            inserted = connection.execute(
-                "INSERT INTO update_request(update_request_id,requester_id,operation_type,status,"
-                "idempotency_key,prepare_retry_key,prepare_input_hash,agent_input_hash,"
-                "canonical_snapshot,snapshot_schema_version,snapshot_hash) "
-                "VALUES(%s,%s,%s,'WAITING_APPROVAL',%s,%s,%s,%s,%s,1,%s) "
-                "ON CONFLICT(requester_id,prepare_retry_key) DO NOTHING RETURNING update_request_id",
-                (
-                    request_id,
-                    context.authenticated_user_id,
-                    _operation(payload["targets"]),
-                    idempotency_key,
-                    key,
-                    prepare_input_hash,
-                    agent_input_hash,
-                    snapshot.canonical_text,
-                    snapshot.snapshot_hash,
-                ),
-            ).fetchone()
+            inserted = insert_pending_request(
+                connection,
+                request_id=request_id,
+                requester_id=context.authenticated_user_id,
+                operation_type=_operation(payload["targets"]),
+                idempotency_key=idempotency_key,
+                retry_key=key,
+                prepare_input_hash=prepare_input_hash,
+                agent_input_hash=agent_input_hash,
+                snapshot=snapshot,
+            )
             if inserted:
                 for target in payload["targets"]:
-                    connection.execute(
-                        "INSERT INTO update_target(update_target_id,update_request_id,target_type,"
-                        "target_id,business_key,operation_type,before_snapshot,proposed_snapshot,"
-                        "expected_version) VALUES(%s,%s,%s,%s,%s,%s,%s,%s,%s)",
-                        (
-                            uuid4(),
-                            request_id,
-                            target["target_type"],
-                            target["target_id"],
-                            Jsonb(target["business_key"]),
-                            target["operation_type"],
-                            Jsonb(target["before"]) if target["before"] is not None else None,
-                            Jsonb(target["after"]),
-                            target["expected_version"],
-                        ),
+                    insert_proposal_target(
+                        connection, target_row_id=uuid4(), request_id=request_id, target=target
                     )
                 approval_id = uuid4()
-                connection.execute(
-                    "INSERT INTO approval(approval_id,update_request_id,status,snapshot_hash) "
-                    "VALUES(%s,%s,'PENDING',%s)",
-                    (approval_id, request_id, snapshot.snapshot_hash),
+                insert_pending_approval(
+                    connection,
+                    approval_id=approval_id,
+                    request_id=request_id,
+                    snapshot_hash=snapshot.snapshot_hash,
                 )
                 if replacement is not None:
                     connection.execute(
