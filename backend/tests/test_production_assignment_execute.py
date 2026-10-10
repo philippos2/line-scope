@@ -437,16 +437,14 @@ def test_overlapping_approved_requests_commit_only_one_assignment_update(world):
         } == {str(winner.update_request_id)}
 
 
-def test_public_execute_router_remains_closed(world):
+def test_public_execute_router_applies_assignment_targets(world):
     db, _, saved = world
-    before = business(db)
-    with pytest.raises(ProposalError) as caught:
-        HumanExecute(db, Settings(), EventLogger(stream=io.StringIO())).execute(
-            identity(), str(saved.update_request_id)
-        )
-    assert caught.value.code == "INVALID_ARGUMENT"
-    assert current(db, saved)["status"] == "APPROVED"
-    assert_no_execution(db, before)
+    result = HumanExecute(
+        db,
+        Settings(users={"token": {"user_id": "approver", "role": "production"}}),
+        EventLogger(stream=io.StringIO()),
+    ).execute(identity(), str(saved.update_request_id))
+    assert_committed(db, saved, result)
 
 
 @pytest.mark.parametrize("fault", ["overlap", "invalid_timestamp"])

@@ -881,7 +881,7 @@ class HumanExecute(_UpdateExecute):
         # facts. _load verifies the entire saved Snapshot after coordination.
         graph = c.execute(
             "SELECT EXISTS(SELECT 1 FROM update_target WHERE update_request_id=%s "
-            "AND target_type='DependencyRelation') AS graph",
+            "AND target_type IN ('DependencyRelation','ProductionOperationEquipmentAssignment')) AS graph",
             (request_id,),
         ).fetchone()["graph"]
         if graph:
@@ -894,9 +894,12 @@ class HumanExecute(_UpdateExecute):
     @staticmethod
     def _handler(targets):
         from .dependency_execute import DependencyExecute
+        from .production_assignment_execute import ProductionAssignmentExecute
 
         if targets and all(t["target_type"] == "DependencyRelation" for t in targets):
             return DependencyExecute
+        if any("equipment_assignments" in (t["after"] or {}) for t in targets):
+            return ProductionAssignmentExecute
         handlers = {
             ("EquipmentState", "UPDATE"): EquipmentExecute,
             ("ProductionOperation", "UPDATE"): ProductionScheduleExecute,

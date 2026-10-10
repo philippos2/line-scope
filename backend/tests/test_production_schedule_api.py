@@ -196,17 +196,17 @@ def test_parallel_http_execution_replays_one_result(world):
         )
 
 
-def test_assignment_aware_request_remains_rejected_by_api(db):
+def test_assignment_request_requires_approval_then_routes_to_assignment_execute(db):
     from test_production_assignment_prepare import prepare
     from test_production_assignment_prepare import service as assignment_fixture
 
     db, service = assignment_fixture.__wrapped__(db)
     saved = prepare(service)
+    before = business(db)
     with client_for(db) as client:
-        response = act(client, saved, "approve")
-        assert (
-            response.status_code == 400
-            and response.json()["errors"][0]["code"] == "INVALID_ARGUMENT"
-        )
-        assert execute(client, saved).status_code == 400
-    assert current(db, saved)["status"] == "WAITING_APPROVAL"
+        assert execute(client, saved).status_code == 409
+        assert business(db) == before
+        assert current(db, saved)["status"] == "WAITING_APPROVAL"
+        assert act(client, saved, "approve").status_code == 200
+        assert execute(client, saved).status_code == 200
+    assert current(db, saved)["status"] == "COMPLETED"
