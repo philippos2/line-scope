@@ -33,6 +33,21 @@ def test_atomic_execution_and_replay_preserve_confirmed_after(approved):
     assert current(db, saved)["status"] == "COMPLETED"
     with db.transaction() as c:
         assert c.execute("SELECT status FROM approval").fetchone()["status"] == "CONSUMED"
+        history = c.execute("SELECT * FROM business_update_history").fetchone()
+        request = c.execute("SELECT * FROM update_request").fetchone()
+        approval = c.execute("SELECT * FROM approval").fetchone()
+        assert str(history["history_id"]) == result["history_id"]
+        assert (
+            history["occurred_at"].isoformat(timespec="microseconds").replace("+00:00", "Z")
+            == result["executed_at"]
+        )
+        assert (
+            history["before_snapshot"]["targets"][0]["snapshot"] == result["targets"][0]["before"]
+        )
+        assert history["after_snapshot"]["targets"][0]["snapshot"] == result["targets"][0]["after"]
+        assert request["execution_result"] == result
+        assert request["updated_at"] == approval["consumed_at"]
+        assert history["occurred_at"] <= approval["consumed_at"] < approval["expires_at"]
         assert c.execute("SELECT count(*) AS n FROM business_update_history").fetchone()["n"] == 1
         assert c.execute("SELECT count(*) AS n FROM equipment_state_history").fetchone()["n"] == 1
         c.execute(

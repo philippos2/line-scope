@@ -3,7 +3,6 @@
 from uuid import uuid4
 
 from psycopg.errors import ForeignKeyViolation, UniqueViolation
-from psycopg.types.json import Jsonb
 
 from .approvals import (
     MaintenanceApproval,
@@ -15,6 +14,7 @@ from .approvals import (
 from .audit import failed_attempt
 from .canonical import normalize_timestamp, normalize_uuid
 from .core_audit import insert_audit_event
+from .core_execute import complete_execution_request, insert_execution_history
 from .execute_policy import ApprovalFacts, validate_new_execute
 from .execution import ExecutionContext
 from .logging import EventLogger, request_context
@@ -134,19 +134,17 @@ class _UpdateExecute:
                 }
                 for side in ("before", "after")
             ]
-            c.execute(
-                "INSERT INTO business_update_history(history_id,update_request_id,approval_id,requester_id,approver_id,category,before_snapshot,after_snapshot,result,occurred_at) VALUES(%s,%s,%s,%s,%s,%s,%s,%s,'OK',%s)",
-                (
-                    history_id,
-                    request_id,
-                    saved.approval_id,
-                    row["requester_id"],
-                    approval["approver_id"],
-                    CATEGORIES[targets[0]["target_type"]],
-                    Jsonb(snapshots[0]),
-                    Jsonb(snapshots[1]),
-                    executed_at,
-                ),
+            insert_execution_history(
+                c,
+                history_id=history_id,
+                request_id=request_id,
+                approval_id=saved.approval_id,
+                requester_id=row["requester_id"],
+                approver_id=approval["approver_id"],
+                category=CATEGORIES[targets[0]["target_type"]],
+                before=snapshots[0],
+                after=snapshots[1],
+                executed_at=executed_at,
             )
             self._after_history(c, request_id, targets)
             self._validate(c, context, saved, approval)
@@ -161,9 +159,8 @@ class _UpdateExecute:
                     "APPROVAL_EXPIRED", "Approval deadline reached before consumption"
                 )
             consumed_at = consumed["consumed_at"]
-            c.execute(
-                "UPDATE update_request SET status='COMPLETED',execution_result=%s,updated_at=%s WHERE update_request_id=%s",
-                (Jsonb(result), consumed_at, request_id),
+            complete_execution_request(
+                c, request_id=request_id, result=result, consumed_at=consumed_at
             )
             self._audit(c, context, saved, "EXECUTE", "COMPLETED", "OK")
         return result
