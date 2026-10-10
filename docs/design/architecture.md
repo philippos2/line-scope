@@ -136,6 +136,7 @@ API / Agent → validated application/tool arguments → authorization → appli
 LLMはnamed Toolと構造化引数だけを生成できる。LLM出力もuntrusted inputであり、型検証を認可の代替にしない。任意SQLを生成・実行するToolを追加しない。
 
 通常のSELECT / INSERT / UPDATE / DELETE / JOIN / RETURNING / PostgreSQL ON CONFLICT / FOR UPDATE / 条件付きversion UPDATE / Transaction内の複数操作ではCoreを第一選択とする。全面ORM化は行わない。
+抽象化自体を目的にせず、変更影響を局所化し副作用・Transactionを追いやすくする場合に採用する。意味を隠す・複雑さを増す場合は無理に抽象化せず、明示的な実装を維持する。
 構造化queryとdialectで通常アクセスのDB種類・version差による変更影響を抑える。PostgreSQL固有のadvisory lock・JSONB・延期可能制約等は明示的に隔離し、Core導入をDB非依存・version互換性保証とは扱わない。PostgreSQLを正本とする技術選定は維持する。
 外部・動的な値は必ずbind parameterとして渡す。f-string・文字列連結・format・手動escapeで値をSQL構文へ埋め込むことは禁止する。DBから再取得した文字列も値としてbindし、SQLコードへ昇格させない。
 テーブル・列・ORDER BY対象・directionは値bindでは扱えないため、外部入力から自由生成せず、固定allow-listからTable / Column / asc / desc等を選択する。
@@ -166,3 +167,5 @@ Core移行済みの単件Readはget_equipment / get_equipment_state / get_mainte
 search_equipment / search_maintenance_plans / search_maintenance_records / search_dependency_relationsの4本もCoreへ移行する。固定filterをColumn参照へ対応付け、設備名のliteral substring、nullable予定IDのIS NULL、source / targetの型とIDのAND条件、falseを含むbool bind、UUID keyset paging、整数LIMIT、同一SQLのCTE / LEFT JOINによる空結果の観測時刻を維持する。カーソル検証・生成は既存application層に残す。
 get_operation_equipment_assignmentsもCoreのLEFT JOINへ移行し、親version・active割当・観測時刻を一つのstatementで取得する。explicit_as_ofなしは期間を絞らず、指定時は[start,end)と無期限endを扱い、aware datetimeをnative bindで渡す。空割当と不存在の親を区別し、過去時点の完全復元とは扱わない。
 この橋渡しは固定allow-listの単件Read8本・検索4本・割当Read1本のnative型bind専用で、汎用のSQLAlchemy実行層ではない。SQLAlchemy Engine / pool / autobegin / ORMを導入せず、既存のreadonly Transaction・接続寿命・dict_row・DB例外変換を維持する。JSON / custom type等のbind・result processorを必要とする処理や重要更新へそのまま拡張しない。後続移行は型処理・接続所有権・lock・rollbackの必要性を個別評価する。
+
+重要更新への初回Core適用はHuman RejectのApproval / UpdateRequest状態UPDATE 2本に限定する。query-onlyの部分Column宣言からUUID / text bindとclock_timestampを構築し、既存の認可済み・row lock取得済みpsycopg transactionで実行する。transaction取得・認可・UpdateRequest → Approvalのlock順序・Audit保存・commit / rollbackはHuman service側に明示する。Rejectは業務正本やOutboxを更新しない。後続のAudit失敗を含むrollbackを実DBで確認し、汎用write executorやJSON / custom type対応とは扱わない。

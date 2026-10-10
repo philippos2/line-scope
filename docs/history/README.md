@@ -336,3 +336,7 @@ Dockerで追加36テスト成功、ruff check / format、git diff --check成功�
 ## 割当ReadのCore移行
 
 [親versionと割当のCore SELECT](2026-10-10-core-assignment-read.md)に、同一statement・[start,end)・無期限・空割当・aware datetime bindの維持、実DB回帰、ReadTools全13本の移行完了と残る重要更新の再開地点を記録する。
+
+## Human Reject状態更新のCore移行
+
+[重要更新の初回Core checkpoint](2026-10-10-core-approval-rejection.md)に、事前transaction確認、固定native UPDATE 2本、lock・Audit原子性の維持、後段失敗rollback試験、未移行の重要処理と再開地点を記録する。
