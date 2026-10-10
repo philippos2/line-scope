@@ -2,7 +2,9 @@
 
 from uuid import uuid4
 
+from .core_approval import find_approval_parent
 from .core_audit import insert_audit_event
+from .core_proposals import lock_request_approval, lock_request_state
 
 
 def prepare_saved(connection, context, update_request_id, approval_id, target_count):
@@ -54,22 +56,14 @@ def failed_attempt(store, events, context, action, code, *, request_id=None, app
             return None
         with store._transaction() as c:
             if request_id is None:
-                parent = c.execute(
-                    "SELECT update_request_id FROM approval WHERE approval_id=%s", (approval_id,)
-                ).fetchone()
+                parent = find_approval_parent(c, approval_id)
                 if parent is None:
                     return None
                 request_id = parent["update_request_id"]
-            state = c.execute(
-                "SELECT status FROM update_request WHERE update_request_id=%s FOR UPDATE",
-                (request_id,),
-            ).fetchone()
+            state = lock_request_state(c, request_id)
             if state is None:
                 return None
-            approval = c.execute(
-                "SELECT approval_id FROM approval WHERE update_request_id=%s FOR UPDATE",
-                (request_id,),
-            ).fetchone()
+            approval = lock_request_approval(c, request_id)
             approval_id = approval["approval_id"] if approval else None
             insert_audit_event(
                 c,

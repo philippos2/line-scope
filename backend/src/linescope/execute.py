@@ -17,9 +17,11 @@ from .core_audit import insert_audit_event
 from .core_execute import (
     complete_execution_request,
     insert_execution_history,
+    read_execution_approval,
     retire_execution_approval,
     retire_execution_request,
 )
+from .core_proposals import lock_request_approval, lock_request_state
 from .execute_policy import ApprovalFacts, validate_new_execute
 from .execution import ExecutionContext
 from .logging import EventLogger, request_context
@@ -51,14 +53,10 @@ class _UpdateExecute:
         """Append category events inside the business/history transaction."""
 
     def _load(self, c, request_id):
-        row = c.execute(
-            "SELECT * FROM update_request WHERE update_request_id=%s FOR UPDATE", (request_id,)
-        ).fetchone()
+        row = lock_request_state(c, request_id)
         if row is None:
             raise ProposalError("TARGET_NOT_FOUND", "Update request was not found")
-        c.execute(
-            "SELECT approval_id FROM approval WHERE update_request_id=%s FOR UPDATE", (request_id,)
-        ).fetchone()
+        lock_request_approval(c, request_id)
         row = c.execute(
             LOOKUP.replace(
                 "WHERE r.requester_id=%s AND r.prepare_retry_key=%s", "WHERE r.update_request_id=%s"
@@ -66,9 +64,7 @@ class _UpdateExecute:
             (request_id,),
         ).fetchone()
         saved = _saved(row, None, None, replayed=False)
-        approval = c.execute(
-            "SELECT * FROM approval WHERE update_request_id=%s", (request_id,)
-        ).fetchone()
+        approval = read_execution_approval(c, request_id)
         return row, saved, approval
 
     def _validate(self, c, context, saved, approval):
