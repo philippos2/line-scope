@@ -153,3 +153,9 @@ Docker内の専用SQL Injection試験19件成功（前回17 + 今回2）、ruff 
 Docker内の専用試験23件成功（前回19 + 今回4）、ruff check / format --check（123ファイル）、git diff --check成功。既知Starlette警告1件。プロダクションコード・設定・schemaは無変更（前節の「コード無変更」もプロダクションコードを指す）。全体回帰・GitHub CI・PRは未実施。SQL / DB policy全体の適合完了とは扱わない。
 
 同じ作業ブランチへローカルcheckpoint commitを残す。再開時は全体回帰と試験PR作成を行い、その後DB role分離・Core導入へ進む。今回の試験追加を理由に既存transaction semanticsを変更しない。
+
+### 全体回帰によるチェックポイント検証
+
+POの追加指示に従い、同じブランチの3試験commitを含むバックエンド全体回帰をDocker内の使い捨てPostgreSQLで実行。2207 passed / 1 skipped / 1 warning（146.16秒）、exit code 0。直前の2184件から今回の23件が追加された。警告は既知Starlette deprecation。終了後にlogging output failedの出力もあるため、全ログが正常だったとの主張はしない。この小タスクではログ実装の変更や追加調査は行わない。
+
+作業ツリーはcleanであり、変更はローカルcommitに保存済みのためstash不要。テスト用コンテナを削除。全体回帰未実施という前節の状態は解消したが、GitHub CI・push・PRは未実施。次回はgit status / logを確認して試験PRを作成し、その後DB role分離へ進む。Core導入・DB権限分離・policy完全適合は未完了。
