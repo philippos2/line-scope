@@ -16,7 +16,11 @@
 認可・承認・実行主体は認証済みContextに基づく。
 
 ### NFR-04 最小権限
-LLMを権限主体にしない。
+LLMを権限主体にしない。LLM出力・API / Tool引数はuntrusted inputとして扱う。
+検索用DB roleと認可済み変更用DB roleを分離し、runtime roleへDDL・superuser権限を与えない。migrationは専用の管理経路で行う。
+外部・動的な値をSQL構文へ補間せずparameter bindingを必須とする。動的identifierは明示allow-listに限定し、任意SQL生成・実行をLLMへ公開しない。
+ORM採用を安全性の証拠としない。入力検証、bind、identifier制限、DB制約、最小権限、認可、セキュリティ自動テストを組み合わせる。
+方式はarchitecture §15、検証はtest-plan §15に従う。これらは適合要件であり、現実装の適合完了を意味しない。
 
 ### NFR-05 原子性
 一UpdateRequestの複数変更を部分確定しない。

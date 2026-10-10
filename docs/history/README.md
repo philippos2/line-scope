@@ -304,3 +304,7 @@ Ollama 0.35.1、候補qwen3:30b-a3b-instruct-2507-q4_K_M（取得ID 19e422b02313
 Dockerで追加36テスト成功、ruff check / format、git diff --check成功。完了／role／content、未公開Tool、引数型・duplicate key・順序・過多呼出し、HTTP payload、非200・redirect非追従、サイズ上限、期限切れ、接続障害・timeout秘匿、native type省略対応を確認した。実モデルprobeはCIへ依存させず、全既存回帰はCIで行う。operations §10の接続・Tool calling確認、evalsの事前検証部分であり、業務受入の完了ではない。
 
 モデル採用・品質評価、POST /agent、業務DB／Prepare／Graphとの接続、embedding / Qdrant / RAGは後続。架空fixtureを業務正本や業務ルールに昇格させない。正式仕様・DB / migration・runtime依存・Composeの常設サービス・Frontendは変更しない。Astraレビューは未実施。
+
+## SQL / Database Access Policyと初回棚卸し
+
+2026-10-10、POのSQL / DB access policyをarchitecture §15、非機能要件NFR-04、test-plan §15へ反映した。[棚卸し・指摘・改善順序](2026-10-10-sql-database-access-review.md)に113箇所の分類、DB role分離不足、Injection試験の不足、重要更新の原子性と移行リスクを記録する。Core・role分離・追加試験は未実装。コード・設定・DBは変更せず、全面ORM化もしない。
