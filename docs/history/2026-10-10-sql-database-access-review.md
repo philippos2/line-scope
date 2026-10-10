@@ -145,3 +145,11 @@ T-SQL01 / 02の部分実装であり全適合ではない。保存済み文字�
 
 Docker内の専用SQL Injection試験19件成功（前回17 + 今回2）、ruff check / format --check（123ファイル）、git diff --check成功。既知Starlette警告1件。コード・設定・schemaは引き続き無変更。前節の「業務書込経路は未検証」は保全予定CREATEのこの2ケースについて解消したが、保全結果自由文字列等の全経路を検証済みとは扱わない。
 全体回帰・GitHub CI・PRは未実施。ローカルcheckpoint commitで停止し、再開時は追加対象の必要性を確認後に全体回帰と試験PRへ進む。DB role分離とCore導入は引き続き未着手。
+
+### 保全結果の自由文字列の追加チェックポイント
+
+保全結果CREATEのrecord_code / resultへ、それぞれOR / DROP攻撃文字列を渡す4ケースを追加。named Tool → Prepare → 人間Approve → owner Execute → 現在値・確定結果・業務履歴 → 検索 → 再Executeを実PostgreSQLで検証した。Prepare / Approveの業務非変更、意図した1結果だけの追加、設備・既存予定・依存・Outboxの非変更、監査3操作、再送時の非変更をassertする。
+
+Docker内の専用試験23件成功（前回19 + 今回4）、ruff check / format --check（123ファイル）、git diff --check成功。既知Starlette警告1件。プロダクションコード・設定・schemaは無変更（前節の「コード無変更」もプロダクションコードを指す）。全体回帰・GitHub CI・PRは未実施。SQL / DB policy全体の適合完了とは扱わない。
+
+同じ作業ブランチへローカルcheckpoint commitを残す。再開時は全体回帰と試験PR作成を行い、その後DB role分離・Core導入へ進む。今回の試験追加を理由に既存transaction semanticsを変更しない。
