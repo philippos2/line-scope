@@ -380,7 +380,7 @@ class ProductionScheduleApproval(_HumanApproval):
 
 
 class ProductionAssignmentApproval(_HumanApproval):
-    """Internal assignment-aware approval; Graph/endpoint checks belong to Execute."""
+    """Assignment-aware human approval; Graph/endpoint checks belong to Execute."""
 
     @staticmethod
     def _require_scope(category, saved):
@@ -563,6 +563,8 @@ class HumanApproval(_HumanApproval):
     def _handler(targets):
         if targets and all(t["target_type"] == "DependencyRelation" for t in targets):
             return DependencyApproval
+        if any("equipment_assignments" in (t["after"] or {}) for t in targets):
+            return ProductionAssignmentApproval
         handlers = {
             ("EquipmentState", "UPDATE"): EquipmentApproval,
             ("ProductionOperation", "UPDATE"): ProductionScheduleApproval,
