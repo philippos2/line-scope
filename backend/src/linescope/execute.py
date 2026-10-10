@@ -14,7 +14,12 @@ from .approvals import (
 from .audit import failed_attempt
 from .canonical import normalize_timestamp, normalize_uuid
 from .core_audit import insert_audit_event
-from .core_execute import complete_execution_request, insert_execution_history
+from .core_execute import (
+    complete_execution_request,
+    insert_execution_history,
+    retire_execution_approval,
+    retire_execution_request,
+)
 from .execute_policy import ApprovalFacts, validate_new_execute
 from .execution import ExecutionContext
 from .logging import EventLogger, request_context
@@ -199,14 +204,8 @@ class _UpdateExecute:
                 if error.code not in RETIRE_CODES:
                     raise
                 status = "EXPIRED" if error.code == "APPROVAL_EXPIRED" else "INVALIDATED"
-                c.execute(
-                    "UPDATE approval SET status=%s,updated_at=clock_timestamp() WHERE approval_id=%s",
-                    (status, saved.approval_id),
-                )
-                c.execute(
-                    "UPDATE update_request SET status=%s,updated_at=clock_timestamp() WHERE update_request_id=%s",
-                    (status, request_id),
-                )
+                retire_execution_approval(c, approval_id=saved.approval_id, status=status)
+                retire_execution_request(c, request_id=request_id, status=status)
                 self._audit(
                     c,
                     context,
