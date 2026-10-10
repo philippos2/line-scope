@@ -510,7 +510,7 @@ class MaintenancePlanCreateExecute(_UpdateExecute):
 
 
 class MaintenanceRecordCreateExecute(_UpdateExecute):
-    """Internal record creation with locked references and no automatic state changes."""
+    """Record creation with locked references and no automatic state changes."""
 
     @staticmethod
     def _require_scope(saved):
@@ -588,6 +588,61 @@ class MaintenanceRecordCreateExecute(_UpdateExecute):
             if inserted.rowcount != 1:
                 raise ProposalError("INTERNAL_ERROR", "Maintenance record was not inserted")
 
+    def observe_current(self, result):
+        return _observe_current_records(self.store, result)
+
+
+def _observe_current_records(store, result):
+    """Read the whole current record set separately from the confirmed result."""
+    targets = result["targets"]
+    if not targets or any(
+        t["target_type"] != "MaintenanceRecord" or t["operation_type"] != "CREATE" for t in targets
+    ):
+        raise ProposalError("INVALID_ARGUMENT", "Maintenance record CREATE result required")
+    ids = [target["target_id"] for target in targets]
+    with store._transaction(read_only=True) as c:
+        row = c.execute(
+            "SELECT statement_timestamp() AS observed_at, "
+            "(SELECT jsonb_agg(to_jsonb(p) ORDER BY maintenance_record_id) "
+            "FROM (SELECT maintenance_record_id,record_code,equipment_id,performed_at,result,maintenance_plan_id,version "
+            "FROM maintenance_record WHERE maintenance_record_id=ANY(%s::uuid[])) p) AS records",
+            (ids,),
+        ).fetchone()
+    records = row["records"] or []
+    if len(records) != len(targets):
+        raise ProposalError("TARGET_NOT_FOUND", "A current record is unavailable")
+    records = [
+        {
+            **p,
+            "performed_at": normalize_timestamp(p["performed_at"]),
+        }
+        for p in records
+    ]
+    confirmed = {t["target_id"]: t["after"]["version"] for t in targets}
+    return {
+        "current_snapshot": {
+            "targets": [
+                {
+                    "target_type": "MaintenanceRecord",
+                    "target_id": p["maintenance_record_id"],
+                    "snapshot": p,
+                }
+                for p in records
+            ]
+        },
+        "current_versions": [
+            {
+                "target_type": "MaintenanceRecord",
+                "target_id": p["maintenance_record_id"],
+                "version": p["version"],
+                "confirmed_version": confirmed[p["maintenance_record_id"]],
+                "version_delta": p["version"] - confirmed[p["maintenance_record_id"]],
+            }
+            for p in records
+        ],
+        "observed_at": row["observed_at"],
+    }
+
 
 class HumanExecute(_UpdateExecute):
     """Route saved Targets under the common locks, without shared mutable routing state."""
@@ -603,6 +658,7 @@ class HumanExecute(_UpdateExecute):
             ("EquipmentState", "UPDATE"): EquipmentExecute,
             ("MaintenancePlan", "UPDATE"): MaintenancePlanUpdateExecute,
             ("MaintenancePlan", "CREATE"): MaintenancePlanCreateExecute,
+            ("MaintenanceRecord", "CREATE"): MaintenanceRecordCreateExecute,
         }
         key = (targets[0]["target_type"], targets[0]["operation_type"]) if targets else None
         if key not in handlers:
