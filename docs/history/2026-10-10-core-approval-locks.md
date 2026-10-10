@@ -21,7 +21,7 @@ API / Tool契約、DB schema / GRANT、期限・Snapshot / hash、更新version�
 - 親ID取得の一致と、Approval lock時に不一致のrequest IDでは行が返らないことを確認する（1件）。
 - 既存の並行承認・lock timeout後の再試行・業務行lock待機後の承認時刻・終端拒否・rollback・HTTP契約・role権限も回帰確認する。
 - ruff check / format check成功（129 files）。
-- 全体回帰試験は実行中。確定後に追記する。
+- Docker内の全体回帰試験2,311件成功、1 skipped、1 warning（159.76秒）。
 
 NFR-04〜06、AC-05〜08・11・13、T-SQL03〜05の対象Approval部分の確認であり、重要更新全体の完了とは扱わない。既存Starlette warningと終了時logging output failed表示は別のログ改善対象。
 
