@@ -37,12 +37,20 @@ services:
       retries: 12
   migrate:
     <<: *backend
-    command: [linescope, migrate]
+    command: [linescope, migrate-and-provision]
+    environment:
+      <<: *backend-env
+      LINESCOPE_QUERY_PASSWORD: ${LINESCOPE_QUERY_PASSWORD:?Upgrade private .env with scripts/upgrade_demo_env.py}
+      LINESCOPE_RUNTIME_PASSWORD: ${LINESCOPE_RUNTIME_PASSWORD:?Upgrade private .env with scripts/upgrade_demo_env.py}
     depends_on:
       postgres:
         condition: service_healthy
   api:
     <<: *backend
+    environment:
+      <<: *backend-env
+      LINESCOPE_DSN: postgresql://linescope_runtime:${LINESCOPE_RUNTIME_PASSWORD:?Generate or upgrade private .env}@postgres:5432/linescope
+      LINESCOPE_READ_DSN: postgresql://linescope_query:${LINESCOPE_QUERY_PASSWORD:?Generate or upgrade private .env}@postgres:5432/linescope
     extra_hosts:
       - host.docker.internal:host-gateway
     ports:
