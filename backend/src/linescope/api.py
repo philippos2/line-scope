@@ -17,13 +17,14 @@ from .execute import HumanExecute
 from .http_logging import RequestMiddleware
 from .llm import OllamaClient
 from .logging import EventLogger, request_context
+from .maintenance_command import MaintenanceCommandPrepare
 from .proposals import REQUEST_ROLES, ProposalError, ProposalStore
 from .read_agent import ReadAgent
 from .reads import ReadTools, ToolError, json_value
 from .settings import Settings
 from .snapshot import CATEGORIES
 from .tools import ToolDispatcher
-from .update_intent import equipment_state_command
+from .update_intent import equipment_state_command, maintenance_plan_command
 
 
 def response(
@@ -81,6 +82,7 @@ def create_app(settings=None, database=None, event_logger=None, *, llm=None, con
     app.state.database = database
     app.state.read_tools = ReadTools(database)
     equipment_prepare = EquipmentCommandPrepare(database, event_logger=events)
+    maintenance_prepare = MaintenanceCommandPrepare(database, event_logger=events)
     human_approval = HumanApproval(database, event_logger=events)
     human_execute = HumanExecute(database, settings, event_logger=events)
 
@@ -238,7 +240,7 @@ def create_app(settings=None, database=None, event_logger=None, *, llm=None, con
             json_value(data),
             answer="保存済みの変更要求を返します。状態とSnapshotを確認してください。"
             if saved.replayed
-            else "変更準備を作成しました。設備の現在状態は変更していません。人間による承認と実行が必要です。",
+            else "変更準備を作成しました。業務データや設備の現在状態は変更していません。人間による承認と実行が必要です。",
         )
 
     @app.post("/agent")
@@ -281,6 +283,9 @@ def create_app(settings=None, database=None, event_logger=None, *, llm=None, con
             )
             if equipment_state_command(incoming) is not None:
                 saved = await run_in_threadpool(equipment_prepare.run, context, incoming)
+                return await prepared_response(request, context, saved)
+            if maintenance_plan_command(incoming) is not None:
+                saved = await run_in_threadpool(maintenance_prepare.run, context, incoming)
                 return await prepared_response(request, context, saved)
             if read_agent is None:
                 raise ToolError("DEPENDENCY_UNAVAILABLE", "LLM is not configured")
