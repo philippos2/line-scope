@@ -2,8 +2,7 @@
 
 import io
 from concurrent.futures import ThreadPoolExecutor
-from contextlib import contextmanager
-from threading import Barrier
+from threading import Barrier, local
 from uuid import UUID
 
 import pytest
@@ -135,7 +134,11 @@ def test_parallel_replay_updates_once(approved):
 
 
 @pytest.mark.parametrize("target_count", [1, 2])
-def test_concurrent_requests_hit_unique_constraint_after_both_prechecks(approved, target_count):
+def test_concurrent_requests_hit_unique_constraint_after_both_prechecks(
+    approved, target_count, monkeypatch
+):
+    from linescope import execute as module
+
     db, service, _ = approved
     inputs = [create_plan(f"RACE-{n}") for n in range(target_count)]
     requests = [prepare(service, inputs), prepare(service, list(reversed(inputs)))]
@@ -143,25 +146,20 @@ def test_concurrent_requests_hit_unique_constraint_after_both_prechecks(approved
         approve(db, saved)
     barrier = Barrier(2)
 
-    class RacingDatabase:
-        @contextmanager
-        def transaction(self):
-            with db.transaction() as connection:
+    first_insert = local()
+    original_insert = module.insert_maintenance_plan
 
-                class Connection:
-                    waited = False
+    def synchronized_insert(connection, after):
+        if not getattr(first_insert, "waited", False):
+            first_insert.waited = True
+            barrier.wait(timeout=10)
+        return original_insert(connection, after)
 
-                    def execute(self, query, params=None):
-                        if query.startswith("INSERT INTO maintenance_plan(") and not self.waited:
-                            self.waited = True
-                            barrier.wait(timeout=10)
-                        return connection.execute(query, params)
-
-                yield Connection()
+    monkeypatch.setattr(module, "insert_maintenance_plan", synchronized_insert)
 
     def attempt(saved):
         try:
-            return execute(RacingDatabase(), saved)["history_id"]
+            return execute(db, saved)["history_id"]
         except ProposalError as error:
             return error.code
 

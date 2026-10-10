@@ -2,8 +2,7 @@
 
 import io
 from concurrent.futures import ThreadPoolExecutor
-from contextlib import contextmanager
-from threading import Barrier
+from threading import Barrier, local
 from uuid import UUID
 
 import psycopg
@@ -134,34 +133,27 @@ def test_unrelated_plan_status_version_changes_do_not_invalidate_reference(appro
     assert execute(db, saved)["history_id"]
 
 
-def test_share_lock_prevents_plan_reassignment_between_validation_and_insert(approved):
+def test_share_lock_prevents_plan_reassignment_between_validation_and_insert(approved, monkeypatch):
+    from linescope import execute as module
+
     db, _, saved = approved
     blocked = []
+    original_insert = module.insert_maintenance_record
 
-    class LockedDatabase:
-        @contextmanager
-        def transaction(self):
-            with db.transaction() as c:
+    def checked_insert(connection, after):
+        if not blocked:
+            with pytest.raises(psycopg.errors.LockNotAvailable):
+                with db.transaction() as writer:
+                    writer.execute("SET LOCAL lock_timeout='50ms'")
+                    writer.execute(
+                        "UPDATE maintenance_plan SET equipment_id=%s WHERE maintenance_plan_id=%s",
+                        (UUID(int=11), UUID(int=20)),
+                    )
+            blocked.append(True)
+        return original_insert(connection, after)
 
-                class Connection:
-                    checked = False
-
-                    def execute(self, query, params=None):
-                        if query.startswith("INSERT INTO maintenance_record(") and not self.checked:
-                            self.checked = True
-                            with pytest.raises(psycopg.errors.LockNotAvailable):
-                                with db.transaction() as writer:
-                                    writer.execute("SET LOCAL lock_timeout='50ms'")
-                                    writer.execute(
-                                        "UPDATE maintenance_plan SET equipment_id=%s WHERE maintenance_plan_id=%s",
-                                        (UUID(int=11), UUID(int=20)),
-                                    )
-                            blocked.append(True)
-                        return c.execute(query, params)
-
-                yield Connection()
-
-    assert execute(LockedDatabase(), saved)["history_id"]
+    monkeypatch.setattr(module, "insert_maintenance_record", checked_insert)
+    assert execute(db, saved)["history_id"]
     assert blocked == [True] and counts(db) == {"records": 2, "history": 1}
 
 
@@ -196,7 +188,11 @@ def test_technical_failure_rolls_back_and_retry_can_complete(approved, fault):
 
 
 @pytest.mark.parametrize("target_count", [1, 2])
-def test_racing_requests_conflict_at_unique_constraint_after_prechecks(approved, target_count):
+def test_racing_requests_conflict_at_unique_constraint_after_prechecks(
+    approved, target_count, monkeypatch
+):
+    from linescope import execute as module
+
     db, service, _ = approved
     inputs = [create_record(plan_id=None) for _ in range(target_count)]
     for n, item in enumerate(inputs):
@@ -206,25 +202,20 @@ def test_racing_requests_conflict_at_unique_constraint_after_prechecks(approved,
         approve(db, saved)
     barrier = Barrier(2)
 
-    class RacingDatabase:
-        @contextmanager
-        def transaction(self):
-            with db.transaction() as c:
+    first_insert = local()
+    original_insert = module.insert_maintenance_record
 
-                class Connection:
-                    waited = False
+    def synchronized_insert(connection, after):
+        if not getattr(first_insert, "waited", False):
+            first_insert.waited = True
+            barrier.wait(timeout=10)
+        return original_insert(connection, after)
 
-                    def execute(self, query, params=None):
-                        if query.startswith("INSERT INTO maintenance_record(") and not self.waited:
-                            self.waited = True
-                            barrier.wait(timeout=10)
-                        return c.execute(query, params)
-
-                yield Connection()
+    monkeypatch.setattr(module, "insert_maintenance_record", synchronized_insert)
 
     def attempt(saved):
         try:
-            return execute(RacingDatabase(), saved)["history_id"]
+            return execute(db, saved)["history_id"]
         except ProposalError as error:
             return error.code
 
