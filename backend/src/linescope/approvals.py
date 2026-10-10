@@ -313,7 +313,7 @@ class MaintenancePlanCreateApproval(_HumanApproval):
 
 
 class MaintenanceRecordCreateApproval(_HumanApproval):
-    """Internal record CREATE approval; reference revalidation belongs to Execute."""
+    """Record CREATE approval; reference revalidation belongs to Execute."""
 
     @staticmethod
     def _require_scope(category, saved):
@@ -351,6 +351,7 @@ class HumanApproval(_HumanApproval):
             ("EquipmentState", "UPDATE"): EquipmentApproval,
             ("MaintenancePlan", "UPDATE"): MaintenancePlanUpdateApproval,
             ("MaintenancePlan", "CREATE"): MaintenancePlanCreateApproval,
+            ("MaintenanceRecord", "CREATE"): MaintenanceRecordCreateApproval,
         }
         key = (targets[0]["target_type"], targets[0]["operation_type"]) if targets else None
         if key not in handlers:
