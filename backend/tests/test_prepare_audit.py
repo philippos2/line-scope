@@ -103,3 +103,56 @@ def test_replacement_audit_failure_preserves_old_request(db, action):
     assert audit_rows(db) == before
     current = ProposalStore(db).get(owner, str(old.update_request_id))
     assert current["status"] == "WAITING_APPROVAL" and current["approval_status"] == "PENDING"
+
+
+@pytest.mark.parametrize("with_approval", [True, False])
+def test_core_audit_preserves_jsonb_nulls_and_untrusted_text(db, with_approval):
+    from linescope.core_audit import insert_audit_event
+
+    db.migrate()
+    owner = context()
+    proposal = saved(db, owner)
+    attack = "'; DROP TABLE equipment; --"
+    details = {"日本語": attack, "nested": [None, False, 0, {"quote": "' OR 1=1 --"}]}
+    event_id = uuid4()
+    with db.transaction() as c:
+        insert_audit_event(
+            c,
+            audit_event_id=event_id,
+            request_id=owner.request_id,
+            update_request_id=proposal.update_request_id,
+            approval_id=proposal.approval_id if with_approval else None,
+            actor_id=attack,
+            action="FAILURE",
+            before_status=None,
+            after_status="WAITING_APPROVAL",
+            result_code=attack,
+            details=details,
+        )
+    event = next(row for row in audit_rows(db) if row["audit_event_id"] == event_id)
+    assert event["details"] == details
+    assert event["actor_id"] == event["result_code"] == attack
+    assert event["approval_id"] == (proposal.approval_id if with_approval else None)
+    assert event["before_status"] is None
+    assert event["request_id"] == owner.request_id
+    assert event["occurred_at"].tzinfo is not None
+    assert (
+        ProposalStore(db).get(owner, str(proposal.update_request_id))["status"]
+        == "WAITING_APPROVAL"
+    )
+    with db.transaction() as c:
+        assert c.execute("SELECT count(*) AS n FROM equipment").fetchone()["n"] == 0
+
+
+def test_core_audit_does_not_commit_callers_transaction(db):
+    from linescope.audit import prepare_saved
+
+    db.migrate()
+    owner = context()
+    proposal = saved(db, owner)
+    before = audit_rows(db)
+    with pytest.raises(RuntimeError, match="rollback probe"):
+        with db.transaction() as c:
+            prepare_saved(c, owner, proposal.update_request_id, proposal.approval_id, 1)
+            raise RuntimeError("rollback probe")
+    assert audit_rows(db) == before

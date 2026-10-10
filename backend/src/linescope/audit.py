@@ -2,41 +2,38 @@
 
 from uuid import uuid4
 
-from psycopg.types.json import Jsonb
+from .core_audit import insert_audit_event
 
 
 def prepare_saved(connection, context, update_request_id, approval_id, target_count):
-    connection.execute(
-        """INSERT INTO update_audit_event
-           (audit_event_id,request_id,update_request_id,approval_id,actor_id,
-            action,before_status,after_status,result_code,details,occurred_at)
-           VALUES(%s,%s,%s,%s,%s,'PREPARE',NULL,'WAITING_APPROVAL','OK',%s,clock_timestamp())""",
-        (
-            uuid4(),
-            context.request_id,
-            update_request_id,
-            approval_id,
-            context.authenticated_user_id,
-            Jsonb({"target_count": target_count}),
-        ),
+    insert_audit_event(
+        connection,
+        audit_event_id=uuid4(),
+        request_id=context.request_id,
+        update_request_id=update_request_id,
+        approval_id=approval_id,
+        actor_id=context.authenticated_user_id,
+        action="PREPARE",
+        before_status=None,
+        after_status="WAITING_APPROVAL",
+        result_code="OK",
+        details={"target_count": target_count},
     )
 
 
 def proposal_replaced(connection, context, previous, replacement_id):
-    connection.execute(
-        """INSERT INTO update_audit_event
-           (audit_event_id,request_id,update_request_id,approval_id,actor_id,
-            action,before_status,after_status,result_code,details,occurred_at)
-           VALUES(%s,%s,%s,%s,%s,'INVALIDATE',%s,'INVALIDATED','OK',%s,clock_timestamp())""",
-        (
-            uuid4(),
-            context.request_id,
-            previous.update_request_id,
-            previous.approval_id,
-            context.authenticated_user_id,
-            previous.status,
-            Jsonb({"replacement_update_request_id": str(replacement_id)}),
-        ),
+    insert_audit_event(
+        connection,
+        audit_event_id=uuid4(),
+        request_id=context.request_id,
+        update_request_id=previous.update_request_id,
+        approval_id=previous.approval_id,
+        actor_id=context.authenticated_user_id,
+        action="INVALIDATE",
+        before_status=previous.status,
+        after_status="INVALIDATED",
+        result_code="OK",
+        details={"replacement_update_request_id": str(replacement_id)},
     )
 
 
@@ -74,19 +71,18 @@ def failed_attempt(store, events, context, action, code, *, request_id=None, app
                 (request_id,),
             ).fetchone()
             approval_id = approval["approval_id"] if approval else None
-            c.execute(
-                "INSERT INTO update_audit_event(audit_event_id,request_id,update_request_id,approval_id,actor_id,action,before_status,after_status,result_code,details,occurred_at) VALUES(%s,%s,%s,%s,%s,'FAILURE',%s,%s,%s,%s,clock_timestamp())",
-                (
-                    uuid4(),
-                    context.request_id,
-                    request_id,
-                    approval_id,
-                    context.authenticated_user_id,
-                    state["status"],
-                    state["status"],
-                    code,
-                    Jsonb({"attempted_action": action}),
-                ),
+            insert_audit_event(
+                c,
+                audit_event_id=uuid4(),
+                request_id=context.request_id,
+                update_request_id=request_id,
+                approval_id=approval_id,
+                actor_id=context.authenticated_user_id,
+                action="FAILURE",
+                before_status=state["status"],
+                after_status=state["status"],
+                result_code=code,
+                details={"attempted_action": action},
             )
     except ProposalError:
         events.emit(

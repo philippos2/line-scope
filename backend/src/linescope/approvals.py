@@ -20,6 +20,7 @@ from .core_approval import (
     lock_update_request,
     reject_proposal_state,
 )
+from .core_audit import insert_audit_event
 from .execution import ExecutionContext
 from .logging import EventLogger, request_context
 from .proposals import LOOKUP, ProposalError, ProposalStore, _saved
@@ -62,21 +63,18 @@ class _HumanApproval:
                     "approval_status": status,
                     **times,
                 }
-            connection.execute(
-                "INSERT INTO update_audit_event(audit_event_id,request_id,update_request_id,approval_id,"
-                "actor_id,action,before_status,after_status,result_code,details,occurred_at) "
-                "VALUES(%s,%s,%s,%s,%s,%s,'WAITING_APPROVAL',%s,%s,%s,clock_timestamp())",
-                (
-                    uuid4(),
-                    context.request_id,
-                    request_id,
-                    approval_id,
-                    context.authenticated_user_id,
-                    action,
-                    status,
-                    code,
-                    Jsonb({"target_count": len(targets)}),
-                ),
+            insert_audit_event(
+                connection,
+                audit_event_id=uuid4(),
+                request_id=context.request_id,
+                update_request_id=request_id,
+                approval_id=approval_id,
+                actor_id=context.authenticated_user_id,
+                action=action,
+                before_status="WAITING_APPROVAL",
+                after_status=status,
+                result_code=code,
+                details={"target_count": len(targets)},
             )
         # Invalidation must commit before reporting the conflict to the caller.
         if conflict:
@@ -120,18 +118,18 @@ class _HumanApproval:
             reject_proposal_state(
                 connection, approval_id, saved.update_request_id, context.authenticated_user_id
             )
-            connection.execute(
-                "INSERT INTO update_audit_event(audit_event_id,request_id,update_request_id,approval_id,"
-                "actor_id,action,before_status,after_status,result_code,details,occurred_at) "
-                "VALUES(%s,%s,%s,%s,%s,'REJECT','WAITING_APPROVAL','REJECTED','OK',%s,clock_timestamp())",
-                (
-                    uuid4(),
-                    context.request_id,
-                    saved.update_request_id,
-                    approval_id,
-                    context.authenticated_user_id,
-                    Jsonb({"target_count": len(saved.snapshot.data["targets"])}),
-                ),
+            insert_audit_event(
+                connection,
+                audit_event_id=uuid4(),
+                request_id=context.request_id,
+                update_request_id=saved.update_request_id,
+                approval_id=approval_id,
+                actor_id=context.authenticated_user_id,
+                action="REJECT",
+                before_status="WAITING_APPROVAL",
+                after_status="REJECTED",
+                result_code="OK",
+                details={"target_count": len(saved.snapshot.data["targets"])},
             )
         return {
             "update_request_id": saved.update_request_id,

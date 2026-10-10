@@ -14,6 +14,7 @@ from .approvals import (
 )
 from .audit import failed_attempt
 from .canonical import normalize_timestamp, normalize_uuid
+from .core_audit import insert_audit_event
 from .execute_policy import ApprovalFacts, validate_new_execute
 from .execution import ExecutionContext
 from .logging import EventLogger, request_context
@@ -169,19 +170,18 @@ class _UpdateExecute:
 
     @staticmethod
     def _audit(c, context, saved, action, status, code):
-        c.execute(
-            "INSERT INTO update_audit_event(audit_event_id,request_id,update_request_id,approval_id,actor_id,action,before_status,after_status,result_code,details,occurred_at) VALUES(%s,%s,%s,%s,%s,%s,'APPROVED',%s,%s,%s,clock_timestamp())",
-            (
-                uuid4(),
-                context.request_id,
-                saved.update_request_id,
-                saved.approval_id,
-                context.authenticated_user_id,
-                action,
-                status,
-                code,
-                Jsonb({}),
-            ),
+        insert_audit_event(
+            c,
+            audit_event_id=uuid4(),
+            request_id=context.request_id,
+            update_request_id=saved.update_request_id,
+            approval_id=saved.approval_id,
+            actor_id=context.authenticated_user_id,
+            action=action,
+            before_status="APPROVED",
+            after_status=status,
+            result_code=code,
+            details={},
         )
 
     def _retire(self, context, request_id):
