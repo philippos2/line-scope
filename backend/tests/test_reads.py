@@ -9,7 +9,7 @@ from fastapi.testclient import TestClient
 
 from linescope.api import create_app
 from linescope.execution import ExecutionContext
-from linescope.reads import GET_TOOLS, ReadTools, ToolError
+from linescope.reads import GET_TOOLS, ReadTools, ToolError, json_value
 from linescope.settings import ROLES, Settings
 
 START = datetime(2020, 1, 1, tzinfo=timezone.utc)
@@ -112,7 +112,7 @@ def test_get_exact_record_all_authorized_roles(world, tool, role):
             ),
             (keys[key],),
         ).fetchone()
-    assert set(result.data) == set(expected)
+    assert result.data == json_value(expected)
     assert result.data[key] == str(keys[key])
     assert result.data["version"] == expected["version"]
     assert result.evidence["source"] == "POSTGRESQL"
@@ -353,7 +353,8 @@ def test_api_injects_context_from_authentication_and_ignores_body_identity():
 
 
 @pytest.mark.integration
-def test_read_transaction_blocks_accidental_writes(world):
+@pytest.mark.parametrize("tool", GET_TOOLS)
+def test_read_transaction_blocks_accidental_writes(world, tool):
     db, keys = world
     checked = []
 
@@ -383,16 +384,17 @@ def test_read_transaction_blocks_accidental_writes(world):
 
     result = ReadTools(GuardedDatabase()).run(
         context(),
-        "get_equipment",
-        {"equipment_id": str(keys["equipment_id"])},
+        tool,
+        {GET_TOOLS[tool][1]: str(keys[GET_TOOLS[tool][1]])},
     )
-    assert checked == [True] and result.data["equipment_name"] == "Machine"
+    assert checked == [True]
+    assert result.data[GET_TOOLS[tool][1]] == str(keys[GET_TOOLS[tool][1]])
 
 
 @pytest.mark.integration
-@pytest.mark.parametrize("tool", ["get_equipment", "get_equipment_state"])
+@pytest.mark.parametrize("tool", GET_TOOLS)
 def test_core_read_preserves_all_native_values_and_caller_transaction(world, tool):
-    from linescope.core_equipment_reads import get_equipment_row
+    from linescope.core_reads import get_record_row
 
     db, keys = world
     attack = "'; DROP TABLE equipment; -- 日本語 %_"
@@ -410,7 +412,14 @@ def test_core_read_preserves_all_native_values_and_caller_transaction(world, too
             ),
             (keys[key],),
         ).fetchone()
-        row = get_equipment_row(c, tool, keys["equipment_id"])
+        c.execute(
+            sql.SQL("UPDATE {} SET version=version+1 WHERE {}=%s").format(
+                sql.Identifier(table), sql.Identifier(key)
+            ),
+            (keys[key],),
+        )
+        expected["version"] += 1
+        row = get_record_row(c, tool, keys[key])
         observed_at = row.pop("_observed_at")
         assert row == expected
         assert observed_at.tzinfo is not None
@@ -422,9 +431,9 @@ def test_core_read_preserves_all_native_values_and_caller_transaction(world, too
 
 
 @pytest.mark.integration
-@pytest.mark.parametrize("tool", ["get_equipment", "get_equipment_state"])
+@pytest.mark.parametrize("tool", GET_TOOLS)
 def test_core_read_bind_uuid_kept_out_of_sql(world, tool):
-    from linescope.core_equipment_reads import get_equipment_row
+    from linescope.core_reads import get_record_row
 
     db, keys = world
     calls = []
@@ -438,8 +447,8 @@ def test_core_read_bind_uuid_kept_out_of_sql(world, tool):
             return self.connection.execute(query, params)
 
     with db.transaction() as c:
-        assert get_equipment_row(RecordingConnection(c), tool, keys["equipment_id"])
+        assert get_record_row(RecordingConnection(c), tool, keys[GET_TOOLS[tool][1]])
     assert len(calls) == 1
     query, params = calls[0]
-    assert str(keys["equipment_id"]) not in query
-    assert list(params.values()) == [keys["equipment_id"]]
+    assert str(keys[GET_TOOLS[tool][1]]) not in query
+    assert list(params.values()) == [keys[GET_TOOLS[tool][1]]]
