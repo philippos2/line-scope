@@ -6,6 +6,7 @@ from psycopg.errors import ForeignKeyViolation, UniqueViolation
 from psycopg.types.json import Jsonb
 
 from .approvals import (
+    MaintenanceApproval,
     MaintenancePlanCreateApproval,
     MaintenancePlanUpdateApproval,
     MaintenanceRecordCreateApproval,
@@ -641,6 +642,79 @@ def _observe_current_records(store, result):
         ],
         "observed_at": row["observed_at"],
     }
+
+
+class MaintenanceExecute(_UpdateExecute):
+    """Internal whole-category execution, with one ordered reference lock set."""
+
+    @staticmethod
+    def _require_scope(saved):
+        category = CATEGORIES[saved.snapshot.data["targets"][0]["target_type"]]
+        MaintenanceApproval._require_scope(category, saved)
+
+    @staticmethod
+    def _targets(c, saved):
+        targets = saved.snapshot.data["targets"]
+        equipment_ids = sorted({t["after"]["equipment_id"] for t in targets})
+        equipment = c.execute(
+            "SELECT equipment_id FROM equipment WHERE equipment_id=ANY(%s::uuid[]) "
+            "ORDER BY equipment_id FOR KEY SHARE",
+            (equipment_ids,),
+        ).fetchall()
+        if {str(e["equipment_id"]) for e in equipment} != set(equipment_ids):
+            raise ProposalError(
+                "BUSINESS_RULE_VIOLATION", "Maintenance equipment reference is missing"
+            )
+        updates = {t["target_id"] for t in targets if t["operation_type"] == "UPDATE"}
+        references = {
+            t["after"]["maintenance_plan_id"]
+            for t in targets
+            if t["target_type"] == "MaintenanceRecord"
+            and t["after"]["maintenance_plan_id"] is not None
+        }
+        plans = {}
+        # Lock the union, not UPDATEs followed by references: crossed requests
+        # must not lock the same plans in opposite orders. Reassignment changes
+        # a non-key column, so reference-only rows require SHARE, not KEY SHARE.
+        for plan_id in sorted(updates | references):
+            query = (
+                "SELECT maintenance_plan_id,equipment_id FROM maintenance_plan "
+                "WHERE maintenance_plan_id=%s FOR UPDATE"
+                if plan_id in updates
+                else "SELECT maintenance_plan_id,equipment_id FROM maintenance_plan "
+                "WHERE maintenance_plan_id=%s FOR SHARE"
+            )
+            row = c.execute(query, (plan_id,)).fetchone()
+            if row:
+                plans[plan_id] = str(row["equipment_id"])
+        conflict = MaintenanceApproval._conflict_code(c, targets)
+        if conflict:
+            raise ProposalError(conflict, "A prepared maintenance target has changed")
+        for target in targets:
+            if target["target_type"] != "MaintenanceRecord":
+                continue
+            after = target["after"]
+            if (
+                after["maintenance_plan_id"] is not None
+                and plans.get(after["maintenance_plan_id"]) != after["equipment_id"]
+            ):
+                raise ProposalError(
+                    "BUSINESS_RULE_VIOLATION", "Maintenance plan reference is missing or mismatched"
+                )
+        return targets
+
+    @staticmethod
+    def _apply(c, request_id, targets, executed_at):
+        # Keep canonical order in history, but apply existing plan changes before
+        # inserting new plans and records. No intermediate result is committed.
+        for key, handler in (
+            (("MaintenancePlan", "UPDATE"), MaintenancePlanUpdateExecute),
+            (("MaintenancePlan", "CREATE"), MaintenancePlanCreateExecute),
+            (("MaintenanceRecord", "CREATE"), MaintenanceRecordCreateExecute),
+        ):
+            group = [t for t in targets if (t["target_type"], t["operation_type"]) == key]
+            if group:
+                handler._apply(c, request_id, group, executed_at)
 
 
 class HumanExecute(_UpdateExecute):
