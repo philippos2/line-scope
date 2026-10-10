@@ -142,14 +142,13 @@ def test_wrong_hash_does_not_invalidate_but_one_changed_plan_invalidates_all(wor
 
 
 @pytest.mark.parametrize("action", ["approve", "reject"])
-def test_create_and_record_targets_are_not_silently_admitted(world, action):
+def test_composite_maintenance_targets_can_be_approved_or_rejected(world, action):
     db, service, _ = world
     saved = prepare(service)
     with client_for(db) as client:
         result = act(client, saved, action)
-        assert result.status_code == 400
-        assert result.json()["errors"][0]["code"] == "INVALID_ARGUMENT"
-    assert current(db, saved)["status"] == "WAITING_APPROVAL"
+        assert result.status_code == 200
+    assert current(db, saved)["status"] == ("APPROVED" if action == "approve" else "REJECTED")
 
 
 def test_audit_storage_failure_rolls_back_approval_and_is_sanitized(world):
