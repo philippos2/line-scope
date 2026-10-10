@@ -277,11 +277,11 @@ def test_parallel_http_execution_has_one_durable_result(world):
         )
 
 
-def test_create_and_record_composite_stays_outside_execution_scope(world):
+def test_pending_composite_request_cannot_execute(world):
     db, service, _ = world
     saved = prepare(service)
     with client_for(db) as client:
         result = execute(client, saved)
-        assert result.status_code == 400
-        assert result.json()["errors"][0]["code"] == "INVALID_ARGUMENT"
+        assert result.status_code == 409
+        assert result.json()["errors"][0]["code"] == "INVALID_UPDATE_STATE"
     assert current(db, saved)["status"] == "WAITING_APPROVAL"

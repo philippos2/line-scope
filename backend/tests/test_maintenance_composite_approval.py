@@ -1,4 +1,4 @@
-"""All maintenance Targets share one approval; composite Execute remains deferred."""
+"""All maintenance Targets share one approval."""
 
 from concurrent.futures import ThreadPoolExecutor
 from uuid import UUID
@@ -7,7 +7,6 @@ import pytest
 from test_maintenance_plan_approval_api import act, client_for, current, headers
 from test_maintenance_prepare import create_plan, create_record, prepare, update
 from test_maintenance_prepare import service as maintenance_fixture
-from test_maintenance_record_create_api import execute
 
 
 @pytest.fixture
@@ -44,7 +43,6 @@ def test_entire_composite_can_be_acted_on_without_business_mutation(world, actio
             f"/update-requests/{saved.update_request_id}", headers=headers("requester")
         )
         assert inspected.json()["data"]["canonical_snapshot"] == saved.snapshot.data
-        assert execute(client, saved).status_code == 400
     assert business(db) == before
     with db.transaction() as c:
         assert c.execute(
@@ -174,6 +172,5 @@ def test_each_supported_maintenance_pair_is_approved_as_one_request(db, kind):
     before = business(db)
     with client_for(db) as client:
         assert act(client, saved, "approve").status_code == 200
-        assert execute(client, saved).status_code == 400
     assert business(db) == before
     assert current(db, saved)["status"] == "APPROVED"
