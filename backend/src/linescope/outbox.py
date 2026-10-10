@@ -7,10 +7,9 @@ does not commit, retry conflicts, consume Approval, or run a Projection worker.
 
 from uuid import uuid4
 
-from psycopg.types.json import Jsonb
-
 from .assignments import validate_assignment_target
 from .canonical import canonical_json, normalize_uuid
+from .core_outbox import insert_graph_event, read_saved_graph_target
 from .graph_locks import require_read_committed_transaction
 from .projection_payload import build_projection_payload
 from .relations import validate_relation_target
@@ -29,12 +28,7 @@ def enqueue_graph_target(connection, update_request_id, target):
     if type(target_type) is not str or target_type not in validators:
         raise ValueError("Unsupported Graph target")
     normalized = validators[target_type](target)
-    row = connection.execute(
-        "SELECT update_target_id,target_type,target_id,business_key,operation_type,"
-        "before_snapshot,proposed_snapshot,expected_version FROM update_target "
-        "WHERE update_request_id=%s AND target_type=%s AND target_id=%s",
-        (request_id, target_type, normalized["target_id"]),
-    ).fetchone()
+    row = read_saved_graph_target(connection, request_id, target_type, normalized["target_id"])
     if row is None:
         raise ValueError("Graph target does not belong to the saved request")
     saved_target = {
@@ -50,19 +44,13 @@ def enqueue_graph_target(connection, update_request_id, target):
         raise ValueError("Graph target disagrees with the saved request")
     payload = build_projection_payload(target_type, normalized["after"])
     outbox_id = uuid4()
-    connection.execute(
-        "INSERT INTO graph_outbox(outbox_id,update_request_id,update_target_id,"
-        "aggregate_type,aggregate_id,aggregate_version,event_type,payload) "
-        "VALUES(%s,%s,%s,%s,%s,%s,%s,%s)",
-        (
-            outbox_id,
-            request_id,
-            row["update_target_id"],
-            target_type,
-            payload["aggregate_id"],
-            payload["aggregate_version"],
-            normalized["operation_type"],
-            Jsonb(payload),
-        ),
+    insert_graph_event(
+        connection,
+        outbox_id=outbox_id,
+        request_id=request_id,
+        saved_target_id=row["update_target_id"],
+        target_type=target_type,
+        event_type=normalized["operation_type"],
+        payload=payload,
     )
     return outbox_id
