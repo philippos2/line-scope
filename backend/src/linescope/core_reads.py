@@ -1,14 +1,25 @@
 """Core-built fixed SELECTs, executed on the caller's psycopg transaction.
 
 These query-only declarations mirror migration 002; they never create schema.
-The bridge is limited to single-record reads and equipment search with native binds.
+The bridge is limited to single-record reads and the four fixed searches with native binds.
 It does not supply
 SQLAlchemy execution/type processing for arbitrary statements or write paths.
 """
 
 from uuid import UUID
 
-from sqlalchemy import BigInteger, Boolean, DateTime, Text, column, func, select, table, true
+from sqlalchemy import (
+    BigInteger,
+    Boolean,
+    DateTime,
+    Text,
+    bindparam,
+    column,
+    func,
+    select,
+    table,
+    true,
+)
 from sqlalchemy.dialects.postgresql import UUID as PGUUID
 from sqlalchemy.dialects.postgresql.psycopg import dialect
 
@@ -39,6 +50,16 @@ _plan = table(
     column("planned_start", DateTime(timezone=True)),
     column("planned_end", DateTime(timezone=True)),
     column("plan_status", Text()),
+)
+_record = table(
+    "maintenance_record",
+    column("maintenance_record_id", PGUUID()),
+    column("version", BigInteger()),
+    column("record_code", Text()),
+    column("maintenance_plan_id", PGUUID()),
+    column("equipment_id", PGUUID()),
+    column("performed_at", DateTime(timezone=True)),
+    column("result", Text()),
 )
 _process = table(
     "process",
@@ -124,35 +145,82 @@ def get_record_row(connection, tool: str, identifier: UUID):
     return connection.execute(str(compiled), compiled.params).fetchone()
 
 
+_searches = {
+    "search_equipment": (
+        _equipment,
+        "equipment_id",
+        {
+            "equipment_code": _equipment.c.equipment_code,
+            "name": _equipment.c.equipment_name,
+        },
+    ),
+    "search_maintenance_plans": (
+        _plan,
+        "maintenance_plan_id",
+        {
+            "equipment_id": _plan.c.equipment_id,
+            "plan_code": _plan.c.plan_code,
+            "plan_status": _plan.c.plan_status,
+        },
+    ),
+    "search_maintenance_records": (
+        _record,
+        "maintenance_record_id",
+        {
+            "equipment_id": _record.c.equipment_id,
+            "record_code": _record.c.record_code,
+            "maintenance_plan_id": _record.c.maintenance_plan_id,
+        },
+    ),
+    "search_dependency_relations": (
+        _relation,
+        "dependency_relation_id",
+        {
+            "source": (_relation.c.source_entity_type, _relation.c.source_entity_id),
+            "target": (_relation.c.target_entity_type, _relation.c.target_entity_id),
+            "relation_type": _relation.c.relation_type,
+            "active": _relation.c.active,
+        },
+    ),
+}
+
+
 def search_equipment_rows(connection, filters: dict, page_size: int, after: UUID | None):
-    """Fixed filters and keyset paging; observe even an empty page in one statement."""
+    return search_rows(connection, "search_equipment", filters, page_size, after)
+
+
+def search_rows(connection, tool: str, filters: dict, page_size: int, after: UUID | None):
+    """Allow-listed columns, native binds and one-statement empty-page observation."""
+    target, key, allowed = _searches[tool]
     conditions = []
     for field, value in filters.items():
-        if field == "equipment_code":
-            conditions.append(_equipment.c.equipment_code == value)
-        elif field == "name":
-            # Preserve literal, case-insensitive substring semantics, including
-            # explicit NULL (no match). Percent/underscore are ordinary values.
-            conditions.append(
-                func.strpos(func.lower(_equipment.c.equipment_name), func.lower(value)) > 0
+        selected = allowed[field]
+        if isinstance(selected, tuple):
+            entity_type, entity_id = selected
+            conditions.extend(
+                (entity_type == value["entity_type"], entity_id == value["entity_id"])
             )
+        elif tool == "search_equipment" and field == "name":
+            # Literal substring; percent/underscore are ordinary bound values.
+            conditions.append(func.strpos(func.lower(selected), func.lower(value)) > 0)
         else:
-            raise ValueError("Unknown equipment search filter")
+            # SQLAlchemy renders IS NULL for explicit None. An omitted filter
+            # never reaches this loop; FALSE remains a boolean comparison.
+            conditions.append(
+                selected.is_(None)
+                if value is None
+                else selected == bindparam(None, value, type_=selected.type)
+            )
     if after is not None:
-        conditions.append(_equipment.c.equipment_id > after)
+        conditions.append(target.c[key] > after)
     page = (
-        select(_equipment)
-        .where(*conditions)
-        .order_by(_equipment.c.equipment_id)
-        .limit(page_size + 1)
-        .cte("page")
+        select(target).where(*conditions).order_by(target.c[key]).limit(page_size + 1).cte("page")
     )
     observation = select(true().label("present")).subquery("observation")
     statement = (
         select(page, func.statement_timestamp().label("_observed_at"))
         .select_from(observation.outerjoin(page, true()))
-        .order_by(page.c.equipment_id)
+        .order_by(page.c[key])
     )
     compiled = statement.compile(dialect=dialect())
-    # Text, integer and UUID values remain separate DBAPI parameters.
     return connection.execute(str(compiled), compiled.params).fetchall()
