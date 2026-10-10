@@ -169,8 +169,10 @@ def test_wrong_hash_preserves_pending_request(world):
     assert current(db, saved)["status"] == "WAITING_APPROVAL"
 
 
-@pytest.mark.parametrize("conflict", [False, True])
-def test_audit_failure_rolls_back_decision_and_allows_retry(world, conflict):
+@pytest.mark.parametrize(
+    "name,conflict", [("approve", False), ("approve", True), ("reject", False)]
+)
+def test_audit_failure_rolls_back_decision_and_allows_retry(world, name, conflict):
     db, _, saved = world
     with db.transaction() as c:
         if conflict:
@@ -179,19 +181,20 @@ def test_audit_failure_rolls_back_decision_and_allows_retry(world, conflict):
                 (UUID(int=201),),
             )
         c.execute(
-            "CREATE FUNCTION fail_dependency_approval() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN IF NEW.action IN ('APPROVE','INVALIDATE') THEN RAISE EXCEPTION 'private-secret'; END IF; RETURN NEW; END $$"
+            "CREATE FUNCTION fail_dependency_approval() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN IF NEW.action IN ('APPROVE','INVALIDATE','REJECT') THEN RAISE EXCEPTION 'private-secret'; END IF; RETURN NEW; END $$"
         )
         c.execute(
             "CREATE TRIGGER fail_dependency_approval BEFORE INSERT ON update_audit_event FOR EACH ROW EXECUTE FUNCTION fail_dependency_approval()"
         )
     with pytest.raises(ProposalError) as caught:
-        action(db, saved)
+        action(db, saved, name)
     assert caught.value.code == "INTERNAL_ERROR" and "private-secret" not in str(caught.value)
     assert current(db, saved)["status"] == "WAITING_APPROVAL"
+    assert current(db, saved)["approval_status"] == "PENDING"
     with db.transaction() as c:
         assert (
             c.execute(
-                "SELECT count(*) AS n FROM update_audit_event WHERE action IN ('APPROVE','INVALIDATE')"
+                "SELECT count(*) AS n FROM update_audit_event WHERE action IN ('APPROVE','INVALIDATE','REJECT')"
             ).fetchone()["n"]
             == 0
         )
@@ -202,7 +205,9 @@ def test_audit_failure_rolls_back_decision_and_allows_retry(world, conflict):
         assert retried.value.code == "VERSION_CONFLICT" and retried.value.transition_committed
         assert current(db, saved)["status"] == "INVALIDATED"
     else:
-        assert action(db, saved)["status"] == "APPROVED"
+        assert action(db, saved, name)["status"] == (
+            "APPROVED" if name == "approve" else "REJECTED"
+        )
 
 
 def test_parallel_approval_has_one_winner(world):
