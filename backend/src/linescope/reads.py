@@ -17,7 +17,7 @@ from pydantic import (
     create_model,
 )
 
-from .core_reads import get_record_row, search_rows
+from .core_reads import get_assignment_rows, get_record_row, search_rows
 from .database import Database
 from .execution import ExecutionContext
 from .pagination import CursorCodec
@@ -192,24 +192,9 @@ class ReadTools:
                     data, observed_at = self._search(connection, tool, values, binding, after)
                 else:
                     # One statement gives parent version and all assignments the same snapshot.
-                    rows = connection.execute(
-                        """SELECT p.version AS _parent_version,
-                                  statement_timestamp() AS _observed_at, a.*
-                           FROM production_operation p
-                           LEFT JOIN production_operation_equipment_assignment a
-                             ON a.production_operation_id=p.production_operation_id
-                            AND a.active
-                            AND (%s::timestamptz IS NULL OR
-                                 (a.effective_from <= %s AND
-                                  (a.effective_to IS NULL OR %s < a.effective_to)))
-                           WHERE p.production_operation_id=%s ORDER BY a.assignment_id""",
-                        (
-                            explicit_as_of,
-                            explicit_as_of,
-                            explicit_as_of,
-                            values.production_operation_id,
-                        ),
-                    ).fetchall()
+                    rows = get_assignment_rows(
+                        connection, values.production_operation_id, explicit_as_of
+                    )
                     if not rows:
                         raise ToolError("TARGET_NOT_FOUND", "Requested operation does not exist")
                     observed_at = rows[0]["_observed_at"]
