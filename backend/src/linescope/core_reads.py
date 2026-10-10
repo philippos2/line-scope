@@ -1,13 +1,14 @@
-"""Core-built single-record SELECTs, executed on the caller's psycopg transaction.
+"""Core-built fixed SELECTs, executed on the caller's psycopg transaction.
 
 These query-only declarations mirror migration 002; they never create schema.
-The bridge is deliberately limited to the fixed UUID-bound reads. It does not supply
+The bridge is limited to single-record reads and equipment search with native binds.
+It does not supply
 SQLAlchemy execution/type processing for arbitrary statements or write paths.
 """
 
 from uuid import UUID
 
-from sqlalchemy import BigInteger, Boolean, DateTime, Text, column, func, select, table
+from sqlalchemy import BigInteger, Boolean, DateTime, Text, column, func, select, table, true
 from sqlalchemy.dialects.postgresql import UUID as PGUUID
 from sqlalchemy.dialects.postgresql.psycopg import dialect
 
@@ -121,3 +122,37 @@ def get_record_row(connection, tool: str, identifier: UUID):
     # Never interpolate compiled.params or enable literal_binds. psycopg adapts
     # UUID and decodes the native result types using the existing dict_row factory.
     return connection.execute(str(compiled), compiled.params).fetchone()
+
+
+def search_equipment_rows(connection, filters: dict, page_size: int, after: UUID | None):
+    """Fixed filters and keyset paging; observe even an empty page in one statement."""
+    conditions = []
+    for field, value in filters.items():
+        if field == "equipment_code":
+            conditions.append(_equipment.c.equipment_code == value)
+        elif field == "name":
+            # Preserve literal, case-insensitive substring semantics, including
+            # explicit NULL (no match). Percent/underscore are ordinary values.
+            conditions.append(
+                func.strpos(func.lower(_equipment.c.equipment_name), func.lower(value)) > 0
+            )
+        else:
+            raise ValueError("Unknown equipment search filter")
+    if after is not None:
+        conditions.append(_equipment.c.equipment_id > after)
+    page = (
+        select(_equipment)
+        .where(*conditions)
+        .order_by(_equipment.c.equipment_id)
+        .limit(page_size + 1)
+        .cte("page")
+    )
+    observation = select(true().label("present")).subquery("observation")
+    statement = (
+        select(page, func.statement_timestamp().label("_observed_at"))
+        .select_from(observation.outerjoin(page, true()))
+        .order_by(page.c.equipment_id)
+    )
+    compiled = statement.compile(dialect=dialect())
+    # Text, integer and UUID values remain separate DBAPI parameters.
+    return connection.execute(str(compiled), compiled.params).fetchall()

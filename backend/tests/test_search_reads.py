@@ -316,3 +316,97 @@ def test_cursor_uses_normalized_filter_and_distinguishes_explicit_null(search_wo
             },
         )
     assert caught.value.code == "INVALID_ARGUMENT"
+
+
+@pytest.mark.integration
+@pytest.mark.parametrize("field", ["name", "equipment_code"])
+@pytest.mark.parametrize("payload", ["' OR 1=1 --", "'; DROP TABLE equipment; --", "日本語 %_"])
+def test_core_equipment_search_binds_and_round_trips_text(search_world, field, payload):
+    from linescope.core_reads import search_equipment_rows
+
+    calls = []
+
+    class RecordingConnection:
+        def __init__(self, connection):
+            self.connection = connection
+
+        def execute(self, query, params):
+            calls.append((query, params))
+            return self.connection.execute(query, params)
+
+    with search_world.transaction() as c:
+        column = "equipment_name" if field == "name" else "equipment_code"
+        c.execute(
+            sql.SQL("UPDATE equipment SET {}=%s WHERE equipment_id=%s").format(
+                sql.Identifier(column)
+            ),
+            (payload, UUID(int=4)),
+        )
+        rows = search_equipment_rows(RecordingConnection(c), {field: payload}, 2, None)
+        assert [row["equipment_id"] for row in rows] == [UUID(int=4)]
+        assert rows[0][column] == payload
+        assert c.execute("SELECT count(*) AS n FROM equipment").fetchone()["n"] == 5
+    assert len(calls) == 1
+    query, params = calls[0]
+    assert payload not in query
+    assert payload in params.values()
+
+
+@pytest.mark.integration
+@pytest.mark.parametrize(
+    "filters,after",
+    [({}, UUID(int=2)), ({"name": "missing"}, None), ({"equipment_code": "missing"}, None)],
+)
+def test_core_equipment_page_native_rows_and_empty_observation(search_world, filters, after):
+    from linescope.core_reads import search_equipment_rows
+
+    with search_world.transaction() as c:
+        rows = search_equipment_rows(c, filters, 2, after)
+        assert len({row["_observed_at"] for row in rows}) == 1
+        assert rows[0]["_observed_at"].tzinfo is not None
+        if filters:
+            assert len(rows) == 1
+            assert rows[0]["equipment_id"] is None
+        else:
+            expected = c.execute(
+                "SELECT * FROM equipment WHERE equipment_id>%s ORDER BY equipment_id LIMIT 3",
+                (after,),
+            ).fetchall()
+            assert [
+                {key: value for key, value in row.items() if key != "_observed_at"} for row in rows
+            ] == expected
+            assert rows[-1]["active"] is False
+
+
+@pytest.mark.integration
+def test_core_equipment_search_keeps_readonly_transaction(search_world):
+    from contextlib import contextmanager
+
+    import psycopg
+
+    checked = []
+
+    class GuardedConnection:
+        def __init__(self, connection):
+            self.connection = connection
+
+        def execute(self, query, params=None):
+            result = self.connection.execute(query, params)
+            if isinstance(query, str) and query.startswith("SET TRANSACTION"):
+                with (
+                    pytest.raises(psycopg.errors.ReadOnlySqlTransaction),
+                    self.connection.transaction(),
+                ):
+                    self.connection.execute("UPDATE equipment SET active=false")
+                checked.append(True)
+            return result
+
+    class GuardedDatabase:
+        @contextmanager
+        def transaction(self):
+            with search_world.transaction() as connection:
+                yield GuardedConnection(connection)
+
+    result = ReadTools(GuardedDatabase()).run(identity(), "search_equipment", {"page_size": 2})
+    assert checked == [True]
+    assert len(result.data["items"]) == 2 and result.data["next_cursor"] is not None
