@@ -312,3 +312,7 @@ Dockerで追加36テスト成功、ruff check / format、git diff --check成功�
 ## 検索接続の段階分離とログ改善検討
 
 [検索接続の分離基盤](2026-10-10-read-database-connection.md)にoptional READ_DSN、接続障害時の非fallback、実PostgreSQLでの接続選択試験、2214件成功、role / Compose分離の未完了と再開地点を記録する。[ログ改善検討メモ](2026-10-10-logging-review-notes.md)は参考案であり、正式な採用決定ではない。
+
+## PostgreSQL role・GRANT・Composeの分離
+
+[管理・runtime・検索roleの分離](2026-10-10-postgres-role-provisioning.md)に固定allow-list、既存volumeを消さないcredential upgrade、実LOGIN権限拒否・Outbox rollback、使い捨てCompose起動の結果を記録する。標準APIへ管理DSNを渡さず、次はRead層からCore導入へ進む。直接Python互換モード・将来worker権限等の限界も区別する。
