@@ -471,6 +471,8 @@ class HumanApproval(_HumanApproval):
 
     @staticmethod
     def _handler(targets):
+        if targets and all(t["target_type"] == "DependencyRelation" for t in targets):
+            return DependencyApproval
         handlers = {
             ("EquipmentState", "UPDATE"): EquipmentApproval,
             ("ProductionOperation", "UPDATE"): ProductionScheduleApproval,

@@ -306,9 +306,18 @@ def test_concurrent_requests_cannot_together_create_cycle(db):
         assert c.execute("SELECT count(*) AS n FROM graph_outbox").fetchone()["n"] == 1
 
 
-def test_graph_lock_precedes_request_row_lock_for_execute_and_retire(world):
+@pytest.mark.parametrize("public", [False, True])
+def test_graph_lock_precedes_request_row_lock_for_execute_and_retire(world, public):
     db, _, saved = world
     service = handler(db)
+    if public:
+        from linescope.execute import HumanExecute
+
+        service = HumanExecute(
+            db,
+            Settings(users={"token": {"user_id": "approver", "role": "manager"}}),
+            EventLogger(stream=io.StringIO()),
+        )
     # Probe from another connection at the exact Request-lock entry: the Graph
     # shared lock must already be unavailable in both execution transactions.
     original = service._load
@@ -476,13 +485,17 @@ def test_unrelated_relation_change_does_not_invalidate(world):
     assert execute(db, saved)["targets"] == saved.snapshot.data["targets"]
 
 
-def test_internal_dependency_execute_is_not_admitted_by_public_router(world):
+def test_public_router_dispatches_dependency_execute(world):
     from linescope.execute import HumanExecute
 
     db, _, saved = world
-    service = HumanExecute(db, Settings(), EventLogger(stream=io.StringIO()))
-    with pytest.raises(ProposalError) as caught:
-        service.execute(identity("maintenance"), str(saved.update_request_id))
-    assert caught.value.code == "INVALID_ARGUMENT"
-    assert current(db, saved)["status"] == "APPROVED"
-    assert_no_execution(db)
+    service = HumanExecute(
+        db,
+        Settings(users={"token": {"user_id": "approver", "role": "manager"}}),
+        EventLogger(stream=io.StringIO()),
+    )
+    assert (
+        service.execute(identity("maintenance"), str(saved.update_request_id))["targets"]
+        == saved.snapshot.data["targets"]
+    )
+    assert current(db, saved)["status"] == "COMPLETED"
