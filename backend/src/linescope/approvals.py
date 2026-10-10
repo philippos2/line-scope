@@ -1,7 +1,7 @@
 """Human approval transactions with explicit category/operation admission.
 
-HTTP admission supports equipment state and maintenance requests.
-Production and Graph validation follow.
+HTTP admission supports equipment state, maintenance, and schedule-only production requests.
+Assignment-aware production and Graph validation follow.
 """
 
 from uuid import uuid4
@@ -420,6 +420,7 @@ class HumanApproval(_HumanApproval):
     def _handler(targets):
         handlers = {
             ("EquipmentState", "UPDATE"): EquipmentApproval,
+            ("ProductionOperation", "UPDATE"): ProductionScheduleApproval,
             ("MaintenancePlan", "UPDATE"): MaintenancePlanUpdateApproval,
             ("MaintenancePlan", "CREATE"): MaintenancePlanCreateApproval,
             ("MaintenanceRecord", "CREATE"): MaintenanceRecordCreateApproval,
