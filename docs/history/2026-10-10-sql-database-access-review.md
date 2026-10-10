@@ -129,3 +129,12 @@ DBエラーはProposalStore / ReadToolsで定義済みcodeへ変換しAPIはcode
 今回実施: Python AST棚卸し、各動的候補の入力源追跡、重要更新・DB schema・既存試験の静的確認、文書リンク・diff確認。コード・設定・DBを変更せず、pytestや攻撃入力の新規実行はしていない。直前PR #87の2184 passed / 1 skippedとCI成功はそのPRの結果であり、この監査の追加試験結果ではない。
 
 未完了: Core導入、DB role / credential分離、実DBの権限属性・GRANT確認、T-SQL追加実装・実行、worker / Projection。現状はpolicy完全適合ではない。今後の変更が会話履歴なしで追えるよう、正本に方針、履歴に時点付き事実・未対応・再開順序を分離して記録する。
+
+## 8. Security試験の最初のチェックポイント
+
+PR #88 merge後、WeeklyLimit残り3%のため、PO指示どおりPR作成を急がず`test/sql-injection-regressions`で試験追加だけを行った。backend/tests/test_sql_injection.pyに17ケースを追加。OR / DROP攻撃文字列を4種類の文字列filterへ渡し、検索結果と業務・要求・承認・監査・履歴・Outboxの非変更をassertする。scripted LLMのuntrusted引数をAgent HTTP → Tool → 実PostgreSQLへ通す2ケース、fixtureで保存した攻撃文字列を文字列として再検索する2ケース、未知Tool / filter key / ORDER BY / SQL引数・不正IDを拒否する5ケースを含む。
+
+Docker内の追加・既存検索試験84件成功（追加17）。ruff check / format --check（123ファイル）、git diff --check成功。既知Starlette警告1件。プロダクションコード・設定・DB schemaは変更していない。新規実LLM疎通は行わず、バックエンド全体回帰とGitHub CIはこのチェックポイントでは未実行。
+
+T-SQL01 / 02の部分実装であり全適合ではない。保存済み文字列ケースはfixtureのparameterized INSERTによる準備なので、Prepare → 人間Approval → Executeの業務書込経路を通したsecond-order検証としては扱わない。
+再開時は(1) このブランチ・ローカルcommitとgit statusを確認、(2) 業務書込経路と追加identifier境界の試験を必要な範囲で補足、(3) 全体回帰を実行して試験PRを作成。続いてDB role分離、Read層からCore導入。ここでpolicy適合完了やバックエンド一段落とは報告しない。
