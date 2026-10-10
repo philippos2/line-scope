@@ -20,6 +20,10 @@ from .core_proposals import (
     insert_pending_approval,
     insert_pending_request,
     insert_proposal_target,
+    invalidate_replaced_approval,
+    invalidate_replaced_request,
+    lock_replaced_approval,
+    lock_replaced_request,
 )
 from .execution import ExecutionContext
 from .snapshot import CATEGORIES, CanonicalSnapshot
@@ -255,19 +259,12 @@ class ProposalStore:
                 raise ProposalError("AUTHORIZATION_DENIED", "Update request permission is required")
             replacement = payload["supersedes_update_request_id"]
             if replacement is not None:
-                previous = connection.execute(
-                    "SELECT requester_id,prepare_retry_key FROM update_request "
-                    "WHERE update_request_id=%s FOR UPDATE",
-                    (replacement,),
-                ).fetchone()
+                previous = lock_replaced_request(connection, replacement)
                 if previous is None:
                     raise ProposalError("TARGET_NOT_FOUND", "Replacement request was not found")
                 if previous["requester_id"] != context.authenticated_user_id:
                     raise ProposalError("AUTHORIZATION_DENIED", "Only the requester may replace")
-                connection.execute(
-                    "SELECT approval_id FROM approval WHERE update_request_id=%s FOR UPDATE",
-                    (replacement,),
-                ).fetchone()
+                lock_replaced_approval(connection, replacement)
                 # Another retry may have committed while we waited for the old
                 # request lock. Return that result before checking its old state.
                 row = connection.execute(LOOKUP, (context.authenticated_user_id, key)).fetchone()
@@ -307,16 +304,8 @@ class ProposalStore:
                     snapshot_hash=snapshot.snapshot_hash,
                 )
                 if replacement is not None:
-                    connection.execute(
-                        "UPDATE update_request SET status='INVALIDATED',updated_at=clock_timestamp() "
-                        "WHERE update_request_id=%s",
-                        (replacement,),
-                    )
-                    connection.execute(
-                        "UPDATE approval SET status='INVALIDATED',updated_at=clock_timestamp() "
-                        "WHERE update_request_id=%s",
-                        (replacement,),
-                    )
+                    invalidate_replaced_request(connection, replacement)
+                    invalidate_replaced_approval(connection, replacement)
                     proposal_replaced(connection, context, old, request_id)
                 prepare_saved(connection, context, request_id, approval_id, len(payload["targets"]))
             # ON CONFLICT may wait for another commit. READ COMMITTED gives the
