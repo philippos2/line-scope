@@ -375,3 +375,42 @@ def test_core_approve_bound_actor_single_clock_and_native_interval(prepared):
             ]
             == actor
         )
+
+
+@pytest.mark.parametrize(
+    "table,key", [("update_request", "update_request_id"), ("approval", "approval_id")]
+)
+def test_core_locked_proposal_holds_both_row_locks_until_transaction_end(prepared, table, key):
+    import psycopg
+    from psycopg import sql
+
+    db, saved = prepared
+    bounded = Database(replace(db.settings, lock_ms=50))
+    identifier = getattr(saved, key)
+    statement = sql.SQL("UPDATE {} SET status=status WHERE {}=%s").format(
+        sql.Identifier(table), sql.Identifier(key)
+    )
+    with db.transaction() as holder:
+        locked = EquipmentApproval._locked_proposal(holder, str(saved.approval_id))
+        assert locked.snapshot.snapshot_hash == saved.snapshot.snapshot_hash
+        with pytest.raises(psycopg.errors.LockNotAvailable):
+            with bounded.transaction() as contender:
+                contender.execute(statement, (identifier,))
+    with bounded.transaction() as contender:
+        assert contender.execute(statement, (identifier,)).rowcount == 1
+
+
+def test_core_approval_lock_rechecks_parent_membership(prepared):
+    from linescope.core_approval import find_approval_parent, lock_approval
+
+    db, saved = prepared
+    with db.transaction() as c:
+        assert (
+            find_approval_parent(c, saved.approval_id)["update_request_id"]
+            == saved.update_request_id
+        )
+        assert lock_approval(c, saved.approval_id, uuid4()) is None
+        assert (
+            lock_approval(c, saved.approval_id, saved.update_request_id)["approval_id"]
+            == saved.approval_id
+        )
