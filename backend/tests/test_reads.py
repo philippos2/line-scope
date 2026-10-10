@@ -353,7 +353,7 @@ def test_api_injects_context_from_authentication_and_ignores_body_identity():
 
 
 @pytest.mark.integration
-@pytest.mark.parametrize("tool", GET_TOOLS)
+@pytest.mark.parametrize("tool", [*GET_TOOLS, "get_operation_equipment_assignments"])
 def test_read_transaction_blocks_accidental_writes(world, tool):
     db, keys = world
     checked = []
@@ -382,13 +382,14 @@ def test_read_transaction_blocks_accidental_writes(world, tool):
             with db.transaction() as connection:
                 yield GuardedConnection(connection)
 
-    result = ReadTools(GuardedDatabase()).run(
-        context(),
-        tool,
-        {GET_TOOLS[tool][1]: str(keys[GET_TOOLS[tool][1]])},
-    )
+    key = GET_TOOLS[tool][1] if tool in GET_TOOLS else "production_operation_id"
+    result = ReadTools(GuardedDatabase()).run(context(), tool, {key: str(keys[key])})
     assert checked == [True]
-    assert result.data[GET_TOOLS[tool][1]] == str(keys[GET_TOOLS[tool][1]])
+    if tool in GET_TOOLS:
+        assert result.data[key] == str(keys[key])
+    else:
+        assert result.data["parent_version"] == 4
+        assert len(result.data["items"]) == 2
 
 
 @pytest.mark.integration
@@ -452,3 +453,60 @@ def test_core_read_bind_uuid_kept_out_of_sql(world, tool):
     query, params = calls[0]
     assert str(keys[GET_TOOLS[tool][1]]) not in query
     assert list(params.values()) == [keys[GET_TOOLS[tool][1]]]
+
+
+@pytest.mark.integration
+@pytest.mark.parametrize(
+    "at",
+    [
+        None,
+        START,
+        END,
+        START - timedelta(microseconds=1),
+        START.astimezone(timezone(timedelta(hours=9))),
+    ],
+)
+def test_core_assignment_native_values_single_statement_and_transaction(world, at):
+    from linescope.core_reads import get_assignment_rows
+
+    db, keys = world
+    identifier = keys["production_operation_id"]
+    calls = []
+
+    class RecordingConnection:
+        def __init__(self, connection):
+            self.connection = connection
+
+        def execute(self, query, params):
+            calls.append((query, params))
+            return self.connection.execute(query, params)
+
+    with db.transaction() as c:
+        c.execute(
+            "UPDATE production_operation SET version=99 WHERE production_operation_id=%s",
+            (identifier,),
+        )
+        c.execute("UPDATE production_operation_equipment_assignment SET version=12")
+        expected = c.execute(
+            """SELECT p.version AS _parent_version,a.*
+            FROM production_operation p
+            LEFT JOIN production_operation_equipment_assignment a
+              ON a.production_operation_id=p.production_operation_id AND a.active
+             AND (%s::timestamptz IS NULL OR (a.effective_from<=%s AND
+                  (a.effective_to IS NULL OR %s<a.effective_to)))
+            WHERE p.production_operation_id=%s ORDER BY a.assignment_id""",
+            (at, at, at, identifier),
+        ).fetchall()
+        rows = get_assignment_rows(RecordingConnection(c), identifier, at)
+        assert [
+            {key: value for key, value in row.items() if key != "_observed_at"} for row in rows
+        ] == expected
+        assert all(row["_parent_version"] == 99 for row in rows)
+        assert len({row["_observed_at"] for row in rows}) == 1
+        assert rows[0]["_observed_at"].tzinfo is not None
+        assert c.execute("SELECT 1 AS n").fetchone()["n"] == 1
+    assert len(calls) == 1
+    query, params = calls[0]
+    assert str(identifier) not in query and identifier in params.values()
+    if at is not None:
+        assert at in params.values() and at.isoformat() not in query

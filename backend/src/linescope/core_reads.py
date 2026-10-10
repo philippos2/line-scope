@@ -1,11 +1,12 @@
 """Core-built fixed SELECTs, executed on the caller's psycopg transaction.
 
 These query-only declarations mirror migration 002; they never create schema.
-The bridge is limited to single-record reads and the four fixed searches with native binds.
-It does not supply
-SQLAlchemy execution/type processing for arbitrary statements or write paths.
+The bridge is limited to single-record reads, fixed searches and operation assignments.
+It does not supply SQLAlchemy execution/type processing for arbitrary statements
+or write paths.
 """
 
+from datetime import datetime
 from uuid import UUID
 
 from sqlalchemy import (
@@ -13,9 +14,11 @@ from sqlalchemy import (
     Boolean,
     DateTime,
     Text,
+    and_,
     bindparam,
     column,
     func,
+    or_,
     select,
     table,
     true,
@@ -80,6 +83,18 @@ _operation = table(
     column("planned_status", Text()),
     column("planned_start", DateTime(timezone=True)),
     column("planned_end", DateTime(timezone=True)),
+    column("active", Boolean()),
+    column("created_at", DateTime(timezone=True)),
+    column("updated_at", DateTime(timezone=True)),
+)
+_assignment = table(
+    "production_operation_equipment_assignment",
+    column("assignment_id", PGUUID()),
+    column("version", BigInteger()),
+    column("production_operation_id", PGUUID()),
+    column("equipment_id", PGUUID()),
+    column("effective_from", DateTime(timezone=True)),
+    column("effective_to", DateTime(timezone=True)),
     column("active", Boolean()),
     column("created_at", DateTime(timezone=True)),
     column("updated_at", DateTime(timezone=True)),
@@ -223,4 +238,36 @@ def search_rows(connection, tool: str, filters: dict, page_size: int, after: UUI
         .order_by(page.c[key])
     )
     compiled = statement.compile(dialect=dialect())
+    return connection.execute(str(compiled), compiled.params).fetchall()
+
+
+def get_assignment_rows(connection, operation_id: UUID, explicit_as_of: datetime | None):
+    """Observe parent version and active assignments in one readonly SELECT."""
+    conditions = [
+        _assignment.c.production_operation_id == _operation.c.production_operation_id,
+        _assignment.c.active.is_(True),
+    ]
+    if explicit_as_of is not None:
+        conditions.append(
+            and_(
+                _assignment.c.effective_from <= explicit_as_of,
+                or_(
+                    _assignment.c.effective_to.is_(None),
+                    explicit_as_of < _assignment.c.effective_to,
+                ),
+            )
+        )
+    statement = (
+        select(
+            _operation.c.version.label("_parent_version"),
+            func.statement_timestamp().label("_observed_at"),
+            _assignment,
+        )
+        .select_from(_operation.outerjoin(_assignment, and_(*conditions)))
+        .where(_operation.c.production_operation_id == operation_id)
+        .order_by(_assignment.c.assignment_id)
+    )
+    compiled = statement.compile(dialect=dialect())
+    # psycopg natively adapts aware datetimes; optional time filtering changes
+    # only the structured predicate, never interpolates a timestamp into SQL.
     return connection.execute(str(compiled), compiled.params).fetchall()
