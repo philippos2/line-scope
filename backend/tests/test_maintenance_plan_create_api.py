@@ -193,11 +193,14 @@ def test_parallel_http_create_replays_one_durable_result(world):
 
 
 @pytest.mark.parametrize("action", ["approve", "execute"])
-def test_mixed_update_create_remains_unsupported_for_all_targets(world, action):
+def test_mixed_update_create_approval_supported_but_execution_deferred(world, action):
     db, service, _ = world
     saved = prepare(service, [update(), create_plan("MIXED")])
     with client_for(db) as client:
         result = act(client, saved, "approve") if action == "approve" else execute(client, saved)
-        assert result.status_code == 400
-        assert result.json()["errors"][0]["code"] == "INVALID_ARGUMENT"
-    assert current(db, saved)["status"] == "WAITING_APPROVAL"
+        assert result.status_code == (200 if action == "approve" else 400)
+        if action == "execute":
+            assert result.json()["errors"][0]["code"] == "INVALID_ARGUMENT"
+    assert current(db, saved)["status"] == (
+        "APPROVED" if action == "approve" else "WAITING_APPROVAL"
+    )
