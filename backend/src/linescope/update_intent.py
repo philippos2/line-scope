@@ -123,3 +123,35 @@ def maintenance_plan_command(request):
         field = "planned_start" if timestamp["field"] == "開始時刻" else "planned_end"
         return MaintenancePlanCommand(intent, timestamp["code"], {field: timestamp["value"]})
     return None
+
+
+@dataclass(frozen=True)
+class ProductionScheduleCommand:
+    intent: UpdateIntent
+    operation_code: str
+    patch: dict
+
+
+def production_schedule_command(request):
+    """Extract only existing schedule grammar from the original permission evidence."""
+    intent = assess_update_intent(request)
+    if not intent.confirmed or intent.category != "PRODUCTION_OPERATION":
+        return None
+    message = request.message[intent.evidence_start : intent.evidence_end]
+    status = re.fullmatch(
+        rf"生産作業(?P<code>{IDENTIFIER})の予定状態を(?P<value>{STATUS})に(?:更新|変更){COMMAND}",
+        message,
+    )
+    if status:
+        values = {"計画済み": "PLANNED", "取消済み": "CANCELLED"}
+        return ProductionScheduleCommand(
+            intent, status["code"], {"planned_status": values.get(status["value"], status["value"])}
+        )
+    timestamp = re.fullmatch(
+        rf"生産作業(?P<code>{IDENTIFIER})の(?P<field>予定開始時刻|予定終了時刻)を(?P<value>{TIMESTAMP})に(?:更新|変更){COMMAND}",
+        message,
+    )
+    if timestamp:
+        field = "planned_start" if timestamp["field"] == "予定開始時刻" else "planned_end"
+        return ProductionScheduleCommand(intent, timestamp["code"], {field: timestamp["value"]})
+    return None

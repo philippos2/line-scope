@@ -18,13 +18,18 @@ from .http_logging import RequestMiddleware
 from .llm import OllamaClient
 from .logging import EventLogger, request_context
 from .maintenance_command import MaintenanceCommandPrepare
+from .production_command import ProductionCommandPrepare
 from .proposals import REQUEST_ROLES, ProposalError, ProposalStore
 from .read_agent import ReadAgent
 from .reads import ReadTools, ToolError, json_value
 from .settings import Settings
 from .snapshot import CATEGORIES
 from .tools import ToolDispatcher
-from .update_intent import equipment_state_command, maintenance_plan_command
+from .update_intent import (
+    equipment_state_command,
+    maintenance_plan_command,
+    production_schedule_command,
+)
 
 
 def response(
@@ -83,6 +88,7 @@ def create_app(settings=None, database=None, event_logger=None, *, llm=None, con
     app.state.read_tools = ReadTools(database)
     equipment_prepare = EquipmentCommandPrepare(database, event_logger=events)
     maintenance_prepare = MaintenanceCommandPrepare(database, event_logger=events)
+    production_prepare = ProductionCommandPrepare(database, event_logger=events)
     human_approval = HumanApproval(database, event_logger=events)
     human_execute = HumanExecute(database, settings, event_logger=events)
 
@@ -286,6 +292,9 @@ def create_app(settings=None, database=None, event_logger=None, *, llm=None, con
                 return await prepared_response(request, context, saved)
             if maintenance_plan_command(incoming) is not None:
                 saved = await run_in_threadpool(maintenance_prepare.run, context, incoming)
+                return await prepared_response(request, context, saved)
+            if production_schedule_command(incoming) is not None:
+                saved = await run_in_threadpool(production_prepare.run, context, incoming)
                 return await prepared_response(request, context, saved)
             if read_agent is None:
                 raise ToolError("DEPENDENCY_UNAVAILABLE", "LLM is not configured")
