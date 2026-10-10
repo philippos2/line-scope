@@ -14,6 +14,14 @@ from .approvals import (
 from .audit import failed_attempt
 from .canonical import normalize_timestamp, normalize_uuid
 from .core_audit import insert_audit_event
+from .core_business import (
+    insert_equipment_state_history,
+    insert_maintenance_plan,
+    insert_maintenance_record,
+    update_equipment_state,
+    update_maintenance_plan,
+    update_production_schedule,
+)
 from .core_execute import (
     complete_execution_request,
     insert_execution_history,
@@ -293,27 +301,15 @@ class EquipmentExecute(_UpdateExecute):
     @staticmethod
     def _apply(c, request_id, targets, executed_at):
         for target in targets:
-            result = c.execute(
-                "UPDATE equipment_current_state SET state_code=%s,version=version+1,updated_at=%s WHERE equipment_id=%s AND version=%s",
-                (
-                    target["after"]["state_code"],
-                    executed_at,
-                    target["target_id"],
-                    target["expected_version"],
-                ),
-            )
+            result = update_equipment_state(c, target, executed_at)
             if result.rowcount != 1:
                 raise ProposalError("VERSION_CONFLICT", "Equipment version has changed")
-            c.execute(
-                "INSERT INTO equipment_state_history(history_id,equipment_id,update_request_id,state_code,effective_at,recorded_at) VALUES(%s,%s,%s,%s,%s,%s)",
-                (
-                    uuid4(),
-                    target["target_id"],
-                    request_id,
-                    target["after"]["state_code"],
-                    executed_at,
-                    executed_at,
-                ),
+            insert_equipment_state_history(
+                c,
+                history_id=uuid4(),
+                request_id=request_id,
+                target=target,
+                executed_at=executed_at,
             )
 
     def observe_current(self, result):
@@ -371,19 +367,7 @@ class ProductionScheduleExecute(_UpdateExecute):
     @staticmethod
     def _apply(c, request_id, targets, executed_at):
         for target in targets:
-            after = target["after"]
-            updated = c.execute(
-                "UPDATE production_operation SET planned_start=%s,planned_end=%s,planned_status=%s,"
-                "updated_at=%s,version=version+1 WHERE production_operation_id=%s AND version=%s",
-                (
-                    after["planned_start"],
-                    after["planned_end"],
-                    after["planned_status"],
-                    executed_at,
-                    target["target_id"],
-                    target["expected_version"],
-                ),
-            )
+            updated = update_production_schedule(c, target, executed_at)
             if updated.rowcount != 1:
                 raise ProposalError("VERSION_CONFLICT", "Production operation version has changed")
 
@@ -463,18 +447,7 @@ class MaintenancePlanUpdateExecute(_UpdateExecute):
     @staticmethod
     def _apply(c, request_id, targets, executed_at):
         for target in targets:
-            after = target["after"]
-            updated = c.execute(
-                "UPDATE maintenance_plan SET planned_start=%s,planned_end=%s,plan_status=%s,"
-                "version=version+1 WHERE maintenance_plan_id=%s AND version=%s",
-                (
-                    after["planned_start"],
-                    after["planned_end"],
-                    after["plan_status"],
-                    target["target_id"],
-                    target["expected_version"],
-                ),
-            )
+            updated = update_maintenance_plan(c, target)
             if updated.rowcount != 1:
                 raise ProposalError("VERSION_CONFLICT", "Maintenance plan version has changed")
 
@@ -575,19 +548,7 @@ class MaintenancePlanCreateExecute(_UpdateExecute):
         for target in sorted(targets, key=lambda t: (t["after"]["plan_code"], t["target_id"])):
             after = target["after"]
             try:
-                inserted = c.execute(
-                    "INSERT INTO maintenance_plan(maintenance_plan_id,plan_code,equipment_id,"
-                    "planned_start,planned_end,plan_status,version) VALUES(%s,%s,%s,%s,%s,%s,%s)",
-                    (
-                        after["maintenance_plan_id"],
-                        after["plan_code"],
-                        after["equipment_id"],
-                        after["planned_start"],
-                        after["planned_end"],
-                        after["plan_status"],
-                        after["version"],
-                    ),
-                )
+                inserted = insert_maintenance_plan(c, after)
             except UniqueViolation as error:
                 raise ProposalError(
                     "CREATE_CONFLICT", "Maintenance plan uniqueness conflict"
@@ -658,19 +619,7 @@ class MaintenanceRecordCreateExecute(_UpdateExecute):
         for target in sorted(targets, key=lambda t: (t["after"]["record_code"], t["target_id"])):
             after = target["after"]
             try:
-                inserted = c.execute(
-                    "INSERT INTO maintenance_record(maintenance_record_id,record_code,equipment_id,"
-                    "performed_at,result,maintenance_plan_id,version) VALUES(%s,%s,%s,%s,%s,%s,%s)",
-                    (
-                        after["maintenance_record_id"],
-                        after["record_code"],
-                        after["equipment_id"],
-                        after["performed_at"],
-                        after["result"],
-                        after["maintenance_plan_id"],
-                        after["version"],
-                    ),
-                )
+                inserted = insert_maintenance_record(c, after)
             except UniqueViolation as error:
                 raise ProposalError(
                     "CREATE_CONFLICT", "Maintenance record uniqueness conflict"

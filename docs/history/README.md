@@ -372,3 +372,7 @@ Dockerで追加36テスト成功、ruff check / format、git diff --check成功�
 ## Execute / 失敗試行Auditの取得・lockのCore移行
 
 [共有する要求 / 承認lockと明示Approval facts](2026-10-11-core-execution-loads.md)に、取得順序・存在 / status / 必要項目の明示、実DB lock保持・解除、失敗試行Audit境界と残工程を記録する。
+
+## 通常業務更新のCore移行
+
+[設備状態・生産予定・保全の固定更新](2026-10-11-core-business-writes.md)に、version条件・時刻・NULL・CREATE競合の維持と、SQL表記へ依存しないテスト同期への変更を記録する。
