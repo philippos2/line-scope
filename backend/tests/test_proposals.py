@@ -803,3 +803,67 @@ def test_old_retry_returns_invalidated_original_without_replacing_again(db_store
     assert replay.snapshot == old.snapshot
     assert (replay.status, replay.approval_status) == ("INVALIDATED", "INVALIDATED")
     assert counts(db)["requests"] == 2
+
+
+@pytest.mark.parametrize("category", ["equipment", "maintenance", "production", "dependency"])
+def test_core_proposal_inserts_preserve_snapshot_jsonb_and_sql_null(db_store, category):
+    db, store = db_store
+    owner = context("工場長'; DROP TABLE equipment; --", "manager")
+    candidate = category_snapshot(category, owner)
+    key = uuid4()
+    result = save(store, candidate, identity=owner, key=key)
+    target = candidate.data["targets"][0]
+    with db.transaction() as c:
+        request = c.execute(
+            "SELECT * FROM update_request WHERE update_request_id=%s", (result.update_request_id,)
+        ).fetchone()
+        row = c.execute(
+            "SELECT *,before_snapshot IS NULL AS before_is_sql_null, "
+            "jsonb_typeof(business_key) AS key_type,jsonb_typeof(proposed_snapshot) AS after_type "
+            "FROM update_target WHERE update_request_id=%s",
+            (result.update_request_id,),
+        ).fetchone()
+        approval = c.execute(
+            "SELECT * FROM approval WHERE approval_id=%s", (result.approval_id,)
+        ).fetchone()
+        assert c.execute("SELECT equipment_code FROM equipment").fetchall() == [
+            {"equipment_code": "EQ1"}
+        ]
+    assert request["requester_id"] == owner.authenticated_user_id
+    assert request["canonical_snapshot"] == candidate.canonical_text
+    assert request["snapshot_hash"] == approval["snapshot_hash"] == candidate.snapshot_hash
+    assert request["snapshot_schema_version"] == 1
+    assert request["status"] == "WAITING_APPROVAL" and approval["status"] == "PENDING"
+    assert request["created_at"].tzinfo is not None
+    assert row["before_is_sql_null"] == (target["operation_type"] == "CREATE")
+    assert row["key_type"] == row["after_type"] == "object"
+    assert row["business_key"] == target["business_key"]
+    assert row["before_snapshot"] == target["before"]
+    assert row["proposed_snapshot"] == target["after"]
+    assert row["expected_version"] == target["expected_version"]
+    replay = store.find_by_retry(
+        owner, key, prepare_input_hash=PREPARE_HASH, agent_input_hash=AGENT_HASH
+    )
+    assert replay.snapshot == candidate and replay.update_request_id == result.update_request_id
+    assert counts(db) == {"requests": 1, "targets": 1, "approvals": 1}
+
+
+def test_core_target_insert_failure_rolls_back_request_and_allows_same_key_retry(db_store):
+    db, store = db_store
+    key, candidate = uuid4(), snapshot()
+    with db.transaction() as c:
+        c.execute("""CREATE FUNCTION reject_target() RETURNS trigger LANGUAGE plpgsql AS $$
+            BEGIN RAISE EXCEPTION 'private-target-secret'; END $$""")
+        c.execute(
+            "CREATE TRIGGER reject_target BEFORE INSERT ON update_target FOR EACH ROW EXECUTE FUNCTION reject_target()"
+        )
+    with pytest.raises(ProposalError) as caught:
+        save(store, candidate, key=key)
+    assert caught.value.code == "INTERNAL_ERROR"
+    assert "private-target-secret" not in str(caught.value)
+    assert counts(db) == {"requests": 0, "targets": 0, "approvals": 0}
+    with db.transaction() as c:
+        assert c.execute("SELECT count(*) AS n FROM update_audit_event").fetchone()["n"] == 0
+        c.execute("DROP TRIGGER reject_target ON update_target")
+    retry = save(store, candidate, key=key)
+    assert retry.snapshot == candidate and not retry.replayed
