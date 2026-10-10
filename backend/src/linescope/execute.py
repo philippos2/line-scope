@@ -38,6 +38,12 @@ class _UpdateExecute:
         self.events = event_logger or EventLogger()
         self.roles = {user["user_id"]: user["role"] for user in settings.users.values()}
 
+    def _before_load(self, c):
+        """Acquire category coordination locks before Request/Approval row locks."""
+
+    def _after_history(self, c, request_id, targets):
+        """Append category events inside the business/history transaction."""
+
     def _load(self, c, request_id):
         row = c.execute(
             "SELECT * FROM update_request WHERE update_request_id=%s FOR UPDATE", (request_id,)
@@ -92,6 +98,7 @@ class _UpdateExecute:
 
     def _execute(self, context, request_id, attempt):
         with self.store._transaction() as c:
+            self._before_load(c)
             row, saved, approval = self._load(c, request_id)
             attempt["approval_id"] = saved.approval_id
             if row["requester_id"] != context.authenticated_user_id:
@@ -140,6 +147,7 @@ class _UpdateExecute:
                     executed_at,
                 ),
             )
+            self._after_history(c, request_id, targets)
             self._validate(c, context, saved, approval)
             consumed = c.execute(
                 "WITH t AS MATERIALIZED (SELECT clock_timestamp() AS at) "
@@ -178,6 +186,7 @@ class _UpdateExecute:
 
     def _retire(self, context, request_id):
         with self.store._transaction() as c:
+            self._before_load(c)
             row, saved, approval = self._load(c, request_id)
             if row["requester_id"] != context.authenticated_user_id:
                 return None
