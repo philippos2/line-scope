@@ -364,3 +364,7 @@ Dockerで追加36テスト成功、ruff check / format、git diff --check成功�
 ## Execute履歴・完了結果のCore移行
 
 [固定履歴INSERTと完了結果UPDATE](2026-10-11-core-execution-records.md)に、確定JSONB・実行時刻と消費時刻の区別、原子性・再送の回帰確認、Approval消費CTEをRaw SQLで残す判断を記録する。
+
+## Execute失効状態のCore移行
+
+[別transactionの期限切れ / 競合失効UPDATE](2026-10-11-core-execution-retirement.md)に、lock下の再検証とserviceに残す判断、失効Audit失敗rollbackと再試行、未移行範囲を記録する。
