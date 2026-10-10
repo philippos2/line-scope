@@ -168,13 +168,12 @@ def test_audit_failure_rolls_back_transition_then_retry_succeeds(prepared, confl
 
 
 @pytest.mark.parametrize("action", ["approve", "reject"])
-def test_record_http_admission_is_deferred(prepared, action):
+def test_record_http_approval_and_rejection_are_supported(prepared, action):
     db, _, saved = prepared
     with client_for(db) as client:
         result = act(client, saved, action)
-        assert result.status_code == 400
-        assert result.json()["errors"][0]["code"] == "INVALID_ARGUMENT"
-    assert current(db, saved)["status"] == "WAITING_APPROVAL"
+        assert result.status_code == 200
+    assert current(db, saved)["status"] == ("APPROVED" if action == "approve" else "REJECTED")
 
 
 def test_mixed_plan_and_record_request_stays_outside_scope(prepared):
