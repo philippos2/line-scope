@@ -352,3 +352,7 @@ Dockerで追加36テスト成功、ruff check / format、git diff --check成功�
 ## 業務Audit INSERTのCore移行
 
 [固定Audit INSERTと明示JSONB adaptation](2026-10-10-core-audit-events.md)に、6箇所の集約、呼出元のtransaction所有権、成功Auditの原子性・失敗試行の別transaction、型処理と回帰結果を記録する。
+
+## Prepare proposal INSERTのCore移行
+
+[新規要求・Target・PENDING Approvalの固定INSERT](2026-10-10-core-proposal-inserts.md)に、ON CONFLICT / RETURNING、並行retry、canonical text / hash、CREATE SQL NULL、明示JSONB adaptation、原子性と未移行範囲を記録する。
