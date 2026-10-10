@@ -20,6 +20,8 @@ def main():
     }
     content = (
         f"LINESCOPE_POSTGRES_PASSWORD={secrets.token_hex(32)}\n"
+        f"LINESCOPE_QUERY_PASSWORD={secrets.token_hex(32)}\n"
+        f"LINESCOPE_RUNTIME_PASSWORD={secrets.token_hex(32)}\n"
         f"LINESCOPE_USERS='{json.dumps(users, separators=(',', ':'))}'\n"
         "LINESCOPE_API_PORT=8000\n"
     )

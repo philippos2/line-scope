@@ -237,6 +237,50 @@ SQL / DBアクセス方針はarchitecture §15。通常Read Toolの接続先は�
 
 検索接続は同じ正本DB・schemaへ接続する検索専用role用とし、別の業務正本や非同期replicaを暗黙に導入しない。通常Read Toolは引き続きREAD COMMITTED / READ ONLY transactionで実行する。検索roleは業務検索に必要なSELECTだけを持ち、DDL・mutation・監査の無制限閲覧を許可しない。readonly transactionはrole権限制限の代替ではない。
 
-Prepareは業務観測に加え要求・Approval・監査を保存するため、全体を検索接続へ切り替えない。Approval / Execute / migration / readinessの既存接続とtransaction semanticsはこの段階では変更しない。
+Prepareは業務観測に加え要求・Approval・監査を保存するため、全体を検索接続へ切り替えない。Prepare / Approval / Executeはruntime role、migration / provisionは管理roleを使う。既存transaction semanticsとlock順序は変更しない。readinessはruntime接続の確認であり、検索接続の健康を別途保証するものではない。
 
-移行途中の互換性としてREAD_DSN未設定時は従来DSNで検索する。この状態はleast privilege適合ではない。空文字や非文字列の明示設定は起動時に拒否する。現Composeはまだ検索DSNを設定せず、role作成・GRANT・credential生成・既存volumeの非破壊upgrade・migrationとruntimeの分離は後続である。role分離完了時はこの互換モードの運用可否を再確認する。
+READ_DSN未設定時は直接Python利用等の互換性として従来DSNで検索する。この状態はleast privilege適合ではない。空文字や非文字列の明示設定は起動時に拒否する。標準ComposeはREAD_DSNを必須設定し、この互換モードを使わない。
+
+
+### 14.1 標準ComposeのDB role
+
+| 主体 | role | 権限 |
+|---|---|---|
+| 管理・migration・デモ初期投入 | linescope（既存owner） | 管理用。role provisionのためsuperuserを維持しAPIへ渡さない |
+| APIの認可済み変更 | linescope_runtime | 固定対象のSELECT / INSERT / UPDATE。DELETE・TRUNCATE・DDL不可。監査・成功履歴はINSERTのみ、OutboxはSELECT / INSERTのみ、Projection controlはSELECTのみ |
+| 通常検索Tool | linescope_query | 既存検索対象10表のSELECTのみ。要求・承認・監査・成功履歴・migration台帳は閲覧不可 |
+
+両LOGIN roleはNOSUPERUSER / NOCREATEDB / NOCREATEROLE / NOREPLICATION / NOBYPASSRLS / NOINHERIT、他roleへのmembershipとObject ownershipなし。業務利用者ごとの認可は既存API / applicationの責務であり、DB roleを工場長・保全等の業務roleと混同しない。
+
+実装の固定allow-listはdb_roles.py。設備・工程・製品・インフラmasterは既存FOR SHAREに必要なUPDATE(version)だけをruntimeへ付与する（PostgreSQLのrow lockにはUPDATE権限が必要）。masterの他業務列の更新権限は付与しない。この限定権限でも直接DB接続はversion変更能力を持つため、DB credentialをAgent / 利用者へ公開せず、任意SQL経路を作らない。
+
+### 14.2 管理処理と既存volumeのupgrade
+
+標準migrateサービスは管理接続で`linescope migrate-and-provision`を実行し、その成功後にAPIが起動する。migration commitとrole provisionは別transactionである。provision失敗時はAPIを起動せず、修正後に同じ管理処理を再実行する。role / GRANTの変更はmigration lockを取得した一transactionで行い、途中失敗時はrollbackする。既存migration checksum・owner・業務行は変更しない。
+
+新規環境はcreate_demo_env.pyで管理・検索・runtimeの別credentialを生成する。既存環境は次の手順とする（volume削除は禁止）。
+
+```sh
+python3 scripts/upgrade_demo_env.py
+docker compose up --build -d --wait api
+```
+
+upgradeはmode 0600の既存.envへ不足する2種類のrole passwordだけを追加し、管理passwordと利用者tokenを保持する。存在する設定は上書きしない。不正・空の既存値はprovisionを失敗させ、値をログへ出さず管理者が修正する。credentialsの変更中はAPIを停止して管理処理を行い、接続中のsessionが即時失効するとの前提を置かない。
+
+デモmasterの初期投入はAPI roleでは行わず、管理用migrateサービスを明示利用する。
+
+```sh
+docker compose run --rm migrate linescope seed-demo
+```
+
+LineScope専用DBを対象とする管理処理であり、他製品とschema / roleを共有するDBへそのまま適用しない。既存の同名roleにmembership・Object ownership・特権属性があれば自動で流用せず管理者確認を要求する。APIには管理DSN・role provision用password環境変数を渡さない。
+
+### 14.3 GRANTの再適用と将来Object
+
+既存schemaのPUBLIC / 検索 / runtimeのtable・sequence・function権限と列ACLを除去して固定GRANTを適用する。schema CREATE、database CREATE / TEMPORARYもPUBLIC・両runtime主体へ許可しない。既存row・table・schemaは削除しない。
+
+管理ownerのdefault privilegesはfuture table / sequence / functionへPUBLIC・両runtime主体の権限を自動付与しない。functionのPUBLIC EXECUTE既定はglobal defaultから除去する。将来migrationでObjectを追加する際は、必要性を確認して固定allow-listを変更し、migration後にprovisionを再実行する。未知tableをON ALL TABLESのGRANTで自動公開しない。現在schemaにアプリ独自function / sequenceはなく、追加時には個別権限を設計する。pg_catalogの標準機能の利用まで一律禁止する仕様ではない。
+
+Raw SQLは管理専用のPostgreSQL DDL例外。passwordはbindしたtransaction-local set_configへ渡し、固定DO blockがPostgreSQLのformat(%I / %L)で固定role名・passwordを扱う。Python側でpasswordをSQLへ補間・手動escapeしない。schema / database名は管理接続のmetadata、table / privilege / role名は固定allow-list、列ACLの名前はcatalog metadataをIdentifierでquoteする。API / Toolへ管理処理や任意identifierを公開しない。CLIのDB障害は固定文に変換する。
+
+公式根拠: [PostgreSQL role属性](https://www.postgresql.org/docs/18/sql-createrole.html)、[default privilegesの適用範囲](https://www.postgresql.org/docs/18/sql-alterdefaultprivileges.html)。

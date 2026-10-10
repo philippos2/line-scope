@@ -85,7 +85,9 @@ python3 scripts/create_demo_env.py
 docker compose up --build -d --wait api
 ```
 
-PostgreSQLのhealthcheck後にmigrationを適用し、その成功後にAPIを起動します。現在はスキーマを作成するまでで、デモ用業務データのseedは未実装です。
+既存の.envを使う場合は、先に`python3 scripts/upgrade_demo_env.py`で検索・runtime用credentialを追加してください。既存の管理password・利用者token・DB volumeは保持します。APIは非superuserのruntime role、通常検索はSELECT専用roleを使います。詳細は[DB接続・role運用](docs/implementation-design/operations.md#14-postgresql検索接続の段階分離)を参照してください。
+
+PostgreSQLのhealthcheck後にmigrationとDB role / GRANTを適用し、その成功後にAPIを起動します。現在はスキーマを作成するまでで、デモ用業務データのseedは未実装です。
 
 資格情報はGit管理外の`.env`へ権限600で生成します。既存`.env`は上書きしないので、作成済みなら生成コマンドを省略してください。各ロール1名と工場管理者2名の資格情報を生成します。
 
