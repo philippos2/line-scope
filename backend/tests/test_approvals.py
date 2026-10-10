@@ -295,3 +295,83 @@ def test_core_reject_actor_text_is_bound_and_audited(prepared):
         event = c.execute("SELECT * FROM update_audit_event WHERE action='REJECT'").fetchone()
         assert event["actor_id"] == actor and event["after_status"] == "REJECTED"
         assert c.execute("SELECT count(*) AS n FROM equipment").fetchone()["n"] == 2
+
+
+@pytest.mark.parametrize("stage", ["update_request", "update_audit_event"])
+@pytest.mark.parametrize("conflict", [False, True])
+def test_core_approve_late_failure_restores_both_states_and_deadline(prepared, stage, conflict):
+    from psycopg import sql
+
+    db, saved = prepared
+    with db.transaction() as c:
+        if conflict:
+            c.execute("UPDATE equipment_current_state SET version=version+1")
+        before_approval = c.execute(
+            "SELECT * FROM approval WHERE approval_id=%s", (saved.approval_id,)
+        ).fetchone()
+        before_request = c.execute(
+            "SELECT * FROM update_request WHERE update_request_id=%s", (saved.update_request_id,)
+        ).fetchone()
+        c.execute("""CREATE FUNCTION reject_core_approve() RETURNS trigger LANGUAGE plpgsql AS $$
+            BEGIN RAISE EXCEPTION 'injected transition failure'; END $$""")
+        event, condition = (
+            ("UPDATE", "NEW.status IN ('APPROVED','INVALIDATED')")
+            if stage == "update_request"
+            else ("INSERT", "NEW.action IN ('APPROVE','INVALIDATE')")
+        )
+        c.execute(
+            sql.SQL(
+                "CREATE TRIGGER reject_core_approve BEFORE {} ON {} FOR EACH ROW WHEN ({}) EXECUTE FUNCTION reject_core_approve()"
+            ).format(sql.SQL(event), sql.Identifier(stage), sql.SQL(condition))
+        )
+    with pytest.raises(ProposalError) as caught:
+        approve(db, saved)
+    assert caught.value.code == "INTERNAL_ERROR"
+    with db.transaction() as c:
+        assert (
+            c.execute(
+                "SELECT * FROM approval WHERE approval_id=%s", (saved.approval_id,)
+            ).fetchone()
+            == before_approval
+        )
+        assert (
+            c.execute(
+                "SELECT * FROM update_request WHERE update_request_id=%s",
+                (saved.update_request_id,),
+            ).fetchone()
+            == before_request
+        )
+        assert (
+            c.execute(
+                "SELECT count(*) AS n FROM update_audit_event WHERE action IN ('APPROVE','INVALIDATE')"
+            ).fetchone()["n"]
+            == 0
+        )
+        assert (
+            c.execute(
+                "SELECT count(*) AS n FROM update_audit_event WHERE action='FAILURE'"
+            ).fetchone()["n"]
+            == 1
+        )
+
+
+def test_core_approve_bound_actor_single_clock_and_native_interval(prepared):
+    db, saved = prepared
+    actor = "approver'; DROP TABLE equipment; -- 日本語"
+    result = approve(db, saved, actor=context(actor, "maintenance"))
+    with db.transaction() as c:
+        row = c.execute(
+            "SELECT * FROM approval WHERE approval_id=%s", (saved.approval_id,)
+        ).fetchone()
+        assert row["approver_id"] == actor
+        assert row["approved_at"] == row["updated_at"] == result["approved_at"]
+        assert (
+            row["expires_at"] == result["expires_at"] == row["approved_at"] + timedelta(minutes=30)
+        )
+        assert c.execute("SELECT count(*) AS n FROM equipment").fetchone()["n"] == 2
+        assert (
+            c.execute("SELECT actor_id FROM update_audit_event WHERE action='APPROVE'").fetchone()[
+                "actor_id"
+            ]
+            == actor
+        )
