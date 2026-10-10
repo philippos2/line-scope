@@ -384,3 +384,7 @@ Dockerで追加36テスト成功、ruff check / format、git diff --check成功�
 ## DependencyRelation更新・endpoint lockのCore移行
 
 [固定Relation更新と5種endpointの参照lock](2026-10-11-core-dependency-writes.md)に、制約延期・最終集合・version・Outbox原子性の維持とRaw SQLを残す理由を記録する。
+
+## Graph Outbox登録境界のCore移行
+
+[保存Target照合とイベントINSERT](2026-10-11-core-outbox-enqueue.md)に、canonical照合・JSONB・DB defaults・正本とOutboxの原子性を維持する境界と回帰確認を記録する。
