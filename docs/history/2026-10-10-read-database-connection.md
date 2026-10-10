@@ -20,3 +20,7 @@ Dockerの関連試験181 passed / 1 warning。全体回帰2214 passed / 1 skippe
 Composeとcredential生成は未変更。DB role provision / grant、既存DBの非破壊upgrade、実roleでのmutation / DDL拒否、default privileges、監査表の閲覧制限、migration / runtime分離が次の工程。Prepare内部の読み取りを分ける場合も、保存処理と重要transactionを壊さない別設計が必要。Core導入、Graph workerも未完了。
 
 ローカルcheckpointで保存。PR #89のmerge確認後にmainを更新し、この差分のPR化を行う。全体回帰成功をGitHub CI成功と混同しない。参考ログメモは正式仕様として取り込まず独立して保存する。
+
+## PR #89 merge後の再開
+
+POのmergeを確認し、mainをe6381deへfast-forwardした。未公開の後続2commitだけを新mainへ載せ直し、試験変更の重複を除いた。mainや公開済み履歴のrewrite・force-pushは行っていない。本PRは接続選択基盤と参考メモの保存までに限定し、DB role / GRANT / Compose切替は別PRでレビューする。
