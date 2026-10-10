@@ -328,3 +328,7 @@ Dockerで追加36テスト成功、ruff check / format、git diff --check成功�
 ## 設備検索のCore移行
 
 [設備検索のCore SELECT](2026-10-10-core-equipment-search.md)に、literal substring・UUID keyset paging・空結果の観測時刻・cursor境界の維持、native bindの適合確認、実DBのInjection / readonly検証、残り検索の再開地点を記録する。
+
+## 残り検索のCore移行
+
+[保全予定・実績・依存関係検索](2026-10-10-core-remaining-searches.md)に、固定Column allow-list、明示NULL・FALSE・多型endpointの意味維持、全検索のreadonlyとInjection回帰、割当Readの再開地点を記録する。

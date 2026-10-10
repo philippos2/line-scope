@@ -379,7 +379,8 @@ def test_core_equipment_page_native_rows_and_empty_observation(search_world, fil
 
 
 @pytest.mark.integration
-def test_core_equipment_search_keeps_readonly_transaction(search_world):
+@pytest.mark.parametrize("tool", SEARCH_TOOLS)
+def test_core_search_keeps_readonly_transaction(search_world, tool):
     from contextlib import contextmanager
 
     import psycopg
@@ -407,6 +408,119 @@ def test_core_equipment_search_keeps_readonly_transaction(search_world):
             with search_world.transaction() as connection:
                 yield GuardedConnection(connection)
 
-    result = ReadTools(GuardedDatabase()).run(identity(), "search_equipment", {"page_size": 2})
+    result = ReadTools(GuardedDatabase()).run(identity(), tool, {"page_size": 2})
     assert checked == [True]
-    assert len(result.data["items"]) == 2 and result.data["next_cursor"] is not None
+    assert len(result.data["items"]) == 2
+    assert (result.data["next_cursor"] is not None) == (
+        tool in {"search_equipment", "search_maintenance_records"}
+    )
+
+
+@pytest.mark.integration
+@pytest.mark.parametrize(
+    "tool,field,identifier",
+    [
+        ("search_maintenance_plans", "plan_code", UUID(int=11)),
+        ("search_maintenance_records", "record_code", UUID(int=21)),
+    ],
+)
+@pytest.mark.parametrize("payload", ["' OR 1=1 --", "'; DROP TABLE equipment; -- 日本語 %_"])
+def test_core_remaining_search_text_bind_and_saved_value(
+    search_world, tool, field, identifier, payload
+):
+    from linescope.core_reads import search_rows
+
+    calls = []
+
+    class RecordingConnection:
+        def __init__(self, connection):
+            self.connection = connection
+
+        def execute(self, query, params):
+            calls.append((query, params))
+            return self.connection.execute(query, params)
+
+    table, key, _ = SEARCH_TOOLS[tool]
+    with search_world.transaction() as c:
+        c.execute(
+            sql.SQL("UPDATE {} SET {}=%s WHERE {}=%s").format(
+                sql.Identifier(table), sql.Identifier(field), sql.Identifier(key)
+            ),
+            (payload, identifier),
+        )
+        rows = search_rows(RecordingConnection(c), tool, {field: payload}, 1, None)
+        assert [row[key] for row in rows] == [identifier]
+        assert rows[0][field] == payload
+        assert c.execute("SELECT count(*) AS n FROM equipment").fetchone()["n"] == 5
+    assert len(calls) == 1
+    query, params = calls[0]
+    assert payload not in query and payload in params.values()
+
+
+@pytest.mark.integration
+@pytest.mark.parametrize(
+    "tool,first",
+    [
+        ("search_maintenance_plans", UUID(int=11)),
+        ("search_maintenance_records", UUID(int=21)),
+        ("search_dependency_relations", UUID(int=31)),
+    ],
+)
+@pytest.mark.parametrize("use_after", [False, True])
+def test_core_remaining_search_native_rows_keyset_and_transaction(
+    search_world, tool, first, use_after
+):
+    from linescope.core_reads import search_rows
+
+    table, key, _ = SEARCH_TOOLS[tool]
+    after = first if use_after else None
+    with search_world.transaction() as c:
+        c.execute(sql.SQL("UPDATE {} SET version=99").format(sql.Identifier(table)))
+        expected = c.execute(
+            sql.SQL(
+                "SELECT * FROM {} WHERE (%s::uuid IS NULL OR {}>%s) ORDER BY {} LIMIT 2"
+            ).format(sql.Identifier(table), sql.Identifier(key), sql.Identifier(key)),
+            (after, after),
+        ).fetchall()
+        rows = search_rows(c, tool, {}, 1, after)
+        assert [
+            {field: value for field, value in row.items() if field != "_observed_at"}
+            for row in rows
+        ] == expected
+        assert len({row["_observed_at"] for row in rows}) == 1
+        assert rows[0]["_observed_at"].tzinfo is not None
+        assert all(row["version"] == 99 for row in rows)
+        assert c.execute("SELECT 1 AS n").fetchone()["n"] == 1
+
+
+@pytest.mark.integration
+def test_core_relation_endpoints_and_false_use_bound_values(search_world):
+    from linescope.core_reads import search_rows
+
+    calls = []
+
+    class RecordingConnection:
+        def __init__(self, connection):
+            self.connection = connection
+
+        def execute(self, query, params):
+            calls.append((query, params))
+            return self.connection.execute(query, params)
+
+    with search_world.transaction() as c:
+        rows = search_rows(
+            RecordingConnection(c),
+            "search_dependency_relations",
+            {
+                "source": {"entity_type": "Equipment", "entity_id": UUID(int=1)},
+                "target": {"entity_type": "Equipment", "entity_id": UUID(int=3)},
+                "active": False,
+            },
+            1,
+            None,
+        )
+        assert [row["dependency_relation_id"] for row in rows] == [UUID(int=32)]
+    query, params = calls[0]
+    assert any(value is False for value in params.values())
+    assert UUID(int=1) in params.values() and UUID(int=3) in params.values()
+    assert "Equipment" not in query

@@ -6,7 +6,6 @@ from typing import Annotated, Literal
 from uuid import UUID
 
 import psycopg
-from psycopg import sql
 from pydantic import (
     AwareDatetime,
     BaseModel,
@@ -18,7 +17,7 @@ from pydantic import (
     create_model,
 )
 
-from .core_reads import get_record_row, search_equipment_rows
+from .core_reads import get_record_row, search_rows
 from .database import Database
 from .execution import ExecutionContext
 from .pagination import CursorCodec
@@ -243,45 +242,10 @@ class ReadTools:
         )
 
     def _search(self, connection, tool, values, binding, after):
-        if tool == "search_equipment":
-            rows = search_equipment_rows(
-                connection, values.filter.model_dump(exclude_unset=True), values.page_size, after
-            )
-            return self._search_result(rows, "equipment_id", values.page_size, binding)
-        table, key, _ = SEARCH_TOOLS[tool]
-        clauses = []
-        parameters = []
-        for field, value in values.filter.model_dump(exclude_unset=True).items():
-            if field in ("source", "target"):
-                for suffix, member in (("entity_type", "entity_type"), ("entity_id", "entity_id")):
-                    clauses.append(sql.SQL("{}=%s").format(sql.Identifier(field + "_" + suffix)))
-                    parameters.append(value[member])
-            elif field == "name":
-                # Literal substring: percent/underscore are never wildcard operators.
-                clauses.append(sql.SQL("strpos(lower(equipment_name), lower(%s)) > 0"))
-                parameters.append(value)
-            elif value is None:
-                clauses.append(sql.SQL("{} IS NULL").format(sql.Identifier(field)))
-            else:
-                clauses.append(sql.SQL("{}=%s").format(sql.Identifier(field)))
-                parameters.append(value)
-        if after is not None:
-            clauses.append(sql.SQL("{}>%s").format(sql.Identifier(key)))
-            parameters.append(after)
-        condition = sql.SQL(" AND ").join(clauses) if clauses else sql.SQL("TRUE")
-        parameters.append(values.page_size + 1)
-        rows = connection.execute(
-            sql.SQL("""WITH page AS (
-                SELECT * FROM {} WHERE {} ORDER BY {} LIMIT %s
-            ) SELECT p.*, statement_timestamp() AS _observed_at
-              FROM (SELECT 1) observation LEFT JOIN page p ON TRUE ORDER BY p.{}""").format(
-                sql.Identifier(table),
-                condition,
-                sql.Identifier(key),
-                sql.Identifier(key),
-            ),
-            parameters,
-        ).fetchall()
+        _, key, _ = SEARCH_TOOLS[tool]
+        rows = search_rows(
+            connection, tool, values.filter.model_dump(exclude_unset=True), values.page_size, after
+        )
         return self._search_result(rows, key, values.page_size, binding)
 
     def _search_result(self, rows, key, page_size, binding):
