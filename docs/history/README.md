@@ -320,3 +320,7 @@ Dockerで追加36テスト成功、ruff check / format、git diff --check成功�
 ## 設備ReadへのSQLAlchemy Core導入
 
 [設備・設備状態のCore SELECT](2026-10-10-core-equipment-reads.md)に、UUID Read限定のcompile/bind橋渡し、既存psycopg transactionを維持する理由、依存固定、実DB回帰試験、未移行範囲を記録する。汎用実行層やSQL方針全体の完了とは扱わない。
+
+## 単件Read全8本のCore移行
+
+[残り6本の単件Read移行](2026-10-10-core-single-record-reads.md)に、型の適合確認、query-only allow-list、全値一致・未commit version可視性・readonly拒否・bind分離試験、未移行範囲と検索移行の再開地点を記録する。

@@ -162,5 +162,5 @@ password / token / credential / secretや不要な機密情報をログへ出さ
 適合はInjection、認可、atomic rollback、version競合、DB制約、DB roleの自動テストで確認する。重要変更を開始する前に棚卸し結果・推奨変更・Transaction / lock / Approval / Snapshot / Outbox / Projectionへの移行リスクを報告する。
 実装状況・不足・改善順序は[2026-10-10棚卸し](../history/2026-10-10-sql-database-access-review.md)に記録し、本節の方針を実装済みと混同しない。
 
-初回Core移行はget_equipment / get_equipment_stateのSELECTに限定する。固定Table / Columnのquery-only宣言からSELECTとUUID bindを構築し、PostgreSQL psycopg dialectでcompileしたSQL本文とparameter辞書を分離して既存psycopg接続で実行する。literal_bindsやparameterの文字列補間は使用しない。DB型・制約の正本はmigrationであり、宣言からDDLを生成しない。
-この橋渡しはUUIDをbindする2本のRead専用で、汎用のSQLAlchemy実行層ではない。SQLAlchemy Engine / pool / autobegin / ORMを導入せず、既存のreadonly Transaction・接続寿命・dict_row・DB例外変換を維持する。JSON / custom type等のbind・result processorを必要とする処理や重要更新へそのまま拡張しない。後続移行は型処理・接続所有権・lock・rollbackの必要性を個別評価する。
+Core移行済みの単件Readはget_equipment / get_equipment_state / get_maintenance_plan / get_process / get_production_operation / get_product / get_infrastructure_resource / get_dependency_relationの8本とする。固定Table / Columnのquery-only宣言からSELECTとUUID bindを構築し、PostgreSQL psycopg dialectでcompileしたSQL本文とparameter辞書を分離して既存psycopg接続で実行する。literal_bindsやparameterの文字列補間は使用しない。DB型・制約の正本はmigrationであり、宣言からDDLを生成しない。
+この橋渡しはUUIDをbindする固定allow-listの8本の単件Read専用で、汎用のSQLAlchemy実行層ではない。SQLAlchemy Engine / pool / autobegin / ORMを導入せず、既存のreadonly Transaction・接続寿命・dict_row・DB例外変換を維持する。JSON / custom type等のbind・result processorを必要とする処理や重要更新へそのまま拡張しない。後続移行は型処理・接続所有権・lock・rollbackの必要性を個別評価する。
