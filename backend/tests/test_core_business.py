@@ -56,3 +56,32 @@ def test_stale_version_at_write_cannot_silently_overwrite(
             c.execute(read, (target["target_id"],)).fetchone()["version"] == before["version"] + 1
         )
         assert writer(c, target, *args).rowcount == 0
+
+
+@pytest.mark.parametrize(
+    "factory,table,key,locker",
+    [
+        (equipment_fixture, "equipment_current_state", "equipment_id", "lock_equipment_state"),
+        (plan_fixture, "maintenance_plan", "maintenance_plan_id", "lock_maintenance_plan"),
+    ],
+)
+def test_approval_target_lock_blocks_writer_until_transaction_end(factory, table, key, locker, db):
+    import psycopg
+
+    from linescope import core_business
+
+    prepared = factory.__wrapped__(db)
+    target = prepared[-1].snapshot.data["targets"][0]
+    mutation = sql.SQL("UPDATE {} SET version=version+1 WHERE {}=%s").format(
+        sql.Identifier(table), sql.Identifier(key)
+    )
+    with db.transaction() as holder:
+        row = getattr(core_business, locker)(holder, target["target_id"])
+        assert row["version"] == target["expected_version"]
+        with pytest.raises(psycopg.errors.LockNotAvailable):
+            with db.transaction() as writer:
+                writer.execute("SET LOCAL lock_timeout='50ms'")
+                writer.execute(mutation, (target["target_id"],))
+    with db.transaction() as writer:
+        writer.execute("SET LOCAL lock_timeout='50ms'")
+        assert writer.execute(mutation, (target["target_id"],)).rowcount == 1

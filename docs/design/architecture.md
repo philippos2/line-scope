@@ -191,3 +191,5 @@ Executeと失敗試行Auditの取得 / row lockもCoreの固定SELECTへ移行�
 DependencyRelationのCREATE / UPDATEとendpoint FOR SHAREはcore_dependenciesの固定Core statementへ移行する。endpointは5種のTable / identity Columnの閉じたallow-listから選び、IDをbindする。UPDATEはID / expected_versionを条件に確定afterの業務項目・versionとexecuted_atを保存し、ID / created_atを変更しない。endpointの取得順序、active検証、最終集合・期間・混合循環検証、UPDATE / DISABLE → CREATEと履歴 / Outboxの原子性はserviceに残す。pg_constraintの固定照会とSET CONSTRAINTSはPostgreSQL固有の制約制御としてRaw SQLを維持し、対象tableの延期可能UNIQUEだけを照会し、取得名をIdentifierでquoteする。固定JSONB集約も単一statementの観測境界を維持する。
 
 Graph Outbox登録の保存Target照合SELECTとイベントINSERTはcore_outboxの固定Core statementへ移行する。要求ID / Target種別 / Target IDをbindして取得し、canonical一致確認・payload生成・outbox ID生成はenqueue_graph_targetに残す。payloadは明示psycopg Jsonb adaptationで保存し、PENDING / attempt_count / created_at等は従来のDB defaultを使う。重複の黙殺や独立commitを導入せず、既存Graph mutation lockと正本 / 履歴 / Outbox / Approval / Auditの原子性を維持する。worker / rebuildの処理境界は変更しない。
+
+Approvalの設備状態 / 保全予定FOR UPDATEと保全予定 / 実績CREATE競合確認はcore_businessの固定Core SELECTへ移行する。lock取得順序・before比較・timestamp正規化・CREATE_CONFLICT判定はserviceに残す。CREATEのID / 業務コード配列は型付きbindで照合し、未存在行のlockや予約を導入しない。Executeでの再検証とDB UNIQUEは引き続き必要とする。
