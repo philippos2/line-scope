@@ -1,11 +1,22 @@
-"""Fixed proposal INSERTs; admission and transaction ownership stay in service.
+"""Fixed proposal storage statements; admission and transactions stay in service.
 
 Query-only columns mirror migration 003. No DDL, independent connection,
 commit, canonicalization or retry decision is performed here.
 """
 
 from psycopg.types.json import Jsonb
-from sqlalchemy import BigInteger, Integer, Text, bindparam, column, table
+from sqlalchemy import (
+    BigInteger,
+    DateTime,
+    Integer,
+    Text,
+    bindparam,
+    column,
+    func,
+    select,
+    table,
+    update,
+)
 from sqlalchemy.dialects.postgresql import JSONB, UUID, insert
 from sqlalchemy.dialects.postgresql.psycopg import dialect
 
@@ -22,6 +33,7 @@ _request = table(
     column("canonical_snapshot", Text()),
     column("snapshot_schema_version", Integer()),
     column("snapshot_hash", Text()),
+    column("updated_at", DateTime(timezone=True)),
 )
 _target = table(
     "update_target",
@@ -41,6 +53,7 @@ _approval = table(
     column("update_request_id", UUID()),
     column("status", Text()),
     column("snapshot_hash", Text()),
+    column("updated_at", DateTime(timezone=True)),
 )
 
 
@@ -105,6 +118,46 @@ def insert_pending_approval(connection, *, approval_id, request_id, snapshot_has
         update_request_id=request_id,
         status="PENDING",
         snapshot_hash=snapshot_hash,
+    )
+    compiled = statement.compile(dialect=dialect())
+    connection.execute(str(compiled), compiled.params)
+
+
+def lock_replaced_request(connection, request_id):
+    statement = (
+        select(_request.c.requester_id, _request.c.prepare_retry_key)
+        .where(_request.c.update_request_id == request_id)
+        .with_for_update()
+    )
+    compiled = statement.compile(dialect=dialect())
+    return connection.execute(str(compiled), compiled.params).fetchone()
+
+
+def lock_replaced_approval(connection, request_id):
+    statement = (
+        select(_approval.c.approval_id)
+        .where(_approval.c.update_request_id == request_id)
+        .with_for_update()
+    )
+    compiled = statement.compile(dialect=dialect())
+    return connection.execute(str(compiled), compiled.params).fetchone()
+
+
+def invalidate_replaced_request(connection, request_id):
+    statement = (
+        update(_request)
+        .where(_request.c.update_request_id == request_id)
+        .values(status="INVALIDATED", updated_at=func.clock_timestamp())
+    )
+    compiled = statement.compile(dialect=dialect())
+    connection.execute(str(compiled), compiled.params)
+
+
+def invalidate_replaced_approval(connection, request_id):
+    statement = (
+        update(_approval)
+        .where(_approval.c.update_request_id == request_id)
+        .values(status="INVALIDATED", updated_at=func.clock_timestamp())
     )
     compiled = statement.compile(dialect=dialect())
     connection.execute(str(compiled), compiled.params)

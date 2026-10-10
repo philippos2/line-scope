@@ -356,3 +356,7 @@ Dockerで追加36テスト成功、ruff check / format、git diff --check成功�
 ## Prepare proposal INSERTのCore移行
 
 [新規要求・Target・PENDING Approvalの固定INSERT](2026-10-10-core-proposal-inserts.md)に、ON CONFLICT / RETURNING、並行retry、canonical text / hash、CREATE SQL NULL、明示JSONB adaptation、原子性と未移行範囲を記録する。
+
+## Prepare置換lock・失効のCore移行
+
+[旧要求 / Approvalの固定lockと失効UPDATE](2026-10-10-core-proposal-replacement.md)に、serviceに残す順序、owner / retry判定、競合・timeout・旧内容維持・新旧の原子性の回帰確認と未移行範囲を記録する。
