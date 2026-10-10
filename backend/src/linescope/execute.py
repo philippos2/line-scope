@@ -645,7 +645,7 @@ def _observe_current_records(store, result):
 
 
 class MaintenanceExecute(_UpdateExecute):
-    """Internal whole-category execution, with one ordered reference lock set."""
+    """Whole-category execution, with one ordered reference lock set."""
 
     @staticmethod
     def _require_scope(saved):
@@ -716,6 +716,58 @@ class MaintenanceExecute(_UpdateExecute):
             if group:
                 handler._apply(c, request_id, group, executed_at)
 
+    def observe_current(self, result):
+        targets = result["targets"]
+        if not targets or any(
+            (t["target_type"], t["operation_type"]) not in MaintenanceApproval.HANDLERS
+            for t in targets
+        ):
+            raise ProposalError("INVALID_ARGUMENT", "Maintenance result required")
+        plan_ids = [t["target_id"] for t in targets if t["target_type"] == "MaintenancePlan"]
+        record_ids = [t["target_id"] for t in targets if t["target_type"] == "MaintenanceRecord"]
+        # Both object types and observed_at share one PostgreSQL statement Snapshot.
+        with self.store._transaction(read_only=True) as c:
+            row = c.execute(
+                "SELECT statement_timestamp() AS observed_at,"
+                "(SELECT jsonb_agg(to_jsonb(p)) FROM (SELECT maintenance_plan_id,plan_code,equipment_id,"
+                "planned_start,planned_end,plan_status,version FROM maintenance_plan WHERE maintenance_plan_id=ANY(%s::uuid[])) p) AS plans,"
+                "(SELECT jsonb_agg(to_jsonb(r)) FROM (SELECT maintenance_record_id,record_code,equipment_id,"
+                "performed_at,result,maintenance_plan_id,version FROM maintenance_record WHERE maintenance_record_id=ANY(%s::uuid[])) r) AS records",
+                (plan_ids, record_ids),
+            ).fetchone()
+        current = {}
+        for plan in row["plans"] or []:
+            plan = {
+                **plan,
+                "planned_start": normalize_timestamp(plan["planned_start"]),
+                "planned_end": normalize_timestamp(plan["planned_end"]),
+            }
+            current[("MaintenancePlan", plan["maintenance_plan_id"])] = plan
+        for record in row["records"] or []:
+            record = {**record, "performed_at": normalize_timestamp(record["performed_at"])}
+            current[("MaintenanceRecord", record["maintenance_record_id"])] = record
+        if len(current) != len(targets):
+            raise ProposalError("TARGET_NOT_FOUND", "A current maintenance target is unavailable")
+        snapshots, versions = [], []
+        for target in targets:
+            identity = {"target_type": target["target_type"], "target_id": target["target_id"]}
+            value = current[(target["target_type"], target["target_id"])]
+            confirmed = target["after"]["version"]
+            snapshots.append({**identity, "snapshot": value})
+            versions.append(
+                {
+                    **identity,
+                    "version": value["version"],
+                    "confirmed_version": confirmed,
+                    "version_delta": value["version"] - confirmed,
+                }
+            )
+        return {
+            "current_snapshot": {"targets": snapshots},
+            "current_versions": versions,
+            "observed_at": row["observed_at"],
+        }
+
 
 class HumanExecute(_UpdateExecute):
     """Route saved Targets under the common locks, without shared mutable routing state."""
@@ -732,7 +784,10 @@ class HumanExecute(_UpdateExecute):
             ("MaintenancePlan", "CREATE"): MaintenancePlanCreateExecute,
             ("MaintenanceRecord", "CREATE"): MaintenanceRecordCreateExecute,
         }
-        key = (targets[0]["target_type"], targets[0]["operation_type"]) if targets else None
+        keys = {(t["target_type"], t["operation_type"]) for t in targets}
+        if len(keys) > 1 and keys <= MaintenanceApproval.HANDLERS.keys():
+            return MaintenanceExecute
+        key = next(iter(keys)) if len(keys) == 1 else None
         if key not in handlers:
             raise ProposalError("INVALID_ARGUMENT", "This execution category is not supported yet")
         return handlers[key]

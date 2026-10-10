@@ -207,14 +207,14 @@ def test_parallel_http_create_replays_one_durable_result(world):
 
 
 @pytest.mark.parametrize("action", ["approve", "execute"])
-def test_mixed_plan_and_record_approval_supported_but_execution_deferred(world, action):
+def test_mixed_plan_and_record_approval_supported_and_pending_execution_rejected(world, action):
     db, service, _ = world
     saved = prepare(service)
     with client_for(db) as client:
         result = act(client, saved, "approve") if action == "approve" else execute(client, saved)
-        assert result.status_code == (200 if action == "approve" else 400)
+        assert result.status_code == (200 if action == "approve" else 409)
         if action == "execute":
-            assert result.json()["errors"][0]["code"] == "INVALID_ARGUMENT"
+            assert result.json()["errors"][0]["code"] == "INVALID_UPDATE_STATE"
     assert current(db, saved)["status"] == (
         "APPROVED" if action == "approve" else "WAITING_APPROVAL"
     )
