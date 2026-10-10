@@ -308,3 +308,7 @@ Dockerで追加36テスト成功、ruff check / format、git diff --check成功�
 ## SQL / Database Access Policyと初回棚卸し
 
 2026-10-10、POのSQL / DB access policyをarchitecture §15、非機能要件NFR-04、test-plan §15へ反映した。[棚卸し・指摘・改善順序](2026-10-10-sql-database-access-review.md)に113箇所の分類、DB role分離不足、Injection試験の不足、重要更新の原子性と移行リスクを記録する。Core・role分離・追加試験は未実装。コード・設定・DBは変更せず、全面ORM化もしない。
+
+## 検索接続の段階分離とログ改善検討
+
+[検索接続の分離基盤](2026-10-10-read-database-connection.md)にoptional READ_DSN、接続障害時の非fallback、実PostgreSQLでの接続選択試験、2214件成功、role / Compose分離の未完了と再開地点を記録する。[ログ改善検討メモ](2026-10-10-logging-review-notes.md)は参考案であり、正式な採用決定ではない。

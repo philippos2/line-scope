@@ -18,6 +18,7 @@ class Settings:
     log_level: str = "INFO"
     llm_base_url: str = field(default="http://127.0.0.1:11434", repr=False)
     llm_model: str = field(default="", repr=False)
+    read_dsn: str | None = field(default=None, repr=False)
 
     def __post_init__(self):
         if type(self.llm_base_url) is not str or type(self.llm_model) is not str:
@@ -45,6 +46,10 @@ class Settings:
             raise ValueError("LINESCOPE_LOG_LEVEL must be DEBUG, INFO, WARNING or ERROR")
         if not isinstance(self.dsn, str) or not self.dsn.strip():
             raise ValueError("LINESCOPE_DSN must be nonempty")
+        if self.read_dsn is not None and (
+            type(self.read_dsn) is not str or not self.read_dsn.strip()
+        ):
+            raise ValueError("LINESCOPE_READ_DSN must be nonempty when configured")
         for name in ("connect_seconds", "statement_ms", "lock_ms"):
             if type(getattr(self, name)) is not int or getattr(self, name) <= 0:
                 raise ValueError(f"{name} must be a positive integer")
@@ -76,7 +81,7 @@ class Settings:
                     json.loads(raw)
                     if name == "users"
                     else raw
-                    if name in {"dsn", "log_level", "llm_base_url", "llm_model"}
+                    if name in {"dsn", "read_dsn", "log_level", "llm_base_url", "llm_model"}
                     else int(raw)
                 )
         return cls(**values)

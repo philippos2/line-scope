@@ -230,3 +230,13 @@ DB監査・成功履歴は正本backup対象で、Dockerログのrotationと連�
 今回の基盤チェックポイントで、JSONイベント／許可項目制御、Context設定・解除、ログ設定、HTTP完了・拒否・例外・readiness障害、Uvicorn access log統一、Docker容量制限、秘匿と並行要求のテストを導入した。API / Tool / workerが増える前に共通基盤を揃える価値がある。
 
 DB監査migrationとTransaction統合はPrepare / Approval / Executeの実装に合わせて別チェックポイントで行う。Toolの操作イベントは共通基盤導入後に対象処理へ接続し、Outbox / Rebuildのログは各機能の実装時に追加する。初回に全監査・非同期処理・収集製品を詰め込まない。ログの合格だけで業務Scenarioの受入完了とは扱わない。
+
+## 14. PostgreSQL検索接続の段階分離
+
+SQL / DBアクセス方針はarchitecture §15。通常Read Toolの接続先は、信頼されたサーバ設定`LINESCOPE_READ_DSN`で分離できる。HTTP入力やTool引数から接続先を指定・変更できない。明示設定した検索接続の障害時は既存のDEPENDENCY_UNAVAILABLEへ変換し、更新用`LINESCOPE_DSN`へfallbackしない。接続秘密はSettingsのrepr・外部エラーへ出さない。
+
+検索接続は同じ正本DB・schemaへ接続する検索専用role用とし、別の業務正本や非同期replicaを暗黙に導入しない。通常Read Toolは引き続きREAD COMMITTED / READ ONLY transactionで実行する。検索roleは業務検索に必要なSELECTだけを持ち、DDL・mutation・監査の無制限閲覧を許可しない。readonly transactionはrole権限制限の代替ではない。
+
+Prepareは業務観測に加え要求・Approval・監査を保存するため、全体を検索接続へ切り替えない。Approval / Execute / migration / readinessの既存接続とtransaction semanticsはこの段階では変更しない。
+
+移行途中の互換性としてREAD_DSN未設定時は従来DSNで検索する。この状態はleast privilege適合ではない。空文字や非文字列の明示設定は起動時に拒否する。現Composeはまだ検索DSNを設定せず、role作成・GRANT・credential生成・既存volumeの非破壊upgrade・migrationとruntimeの分離は後続である。role分離完了時はこの互換モードの運用可否を再確認する。
