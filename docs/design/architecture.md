@@ -195,3 +195,5 @@ Graph Outbox登録の保存Target照合SELECTとイベントINSERTはcore_outbox
 Approvalの設備状態 / 保全予定FOR UPDATEと保全予定 / 実績CREATE競合確認はcore_businessの固定Core SELECTへ移行する。lock取得順序・before比較・timestamp正規化・CREATE_CONFLICT判定はserviceに残す。CREATEのID / 業務コード配列は型付きbindで照合し、未存在行のlockや予約を導入しない。Executeでの再検証とDB UNIQUEは引き続き必要とする。
 
 ProjectionQueueはworkerの内部claim部品として、専用session leaderを確認し、別の短いREAD COMMITTED transactionで1件をPROCESSINGにしてcommitする。Coreの単一statementがPENDING / due RETRYABLEをcreated_at / outbox_id順で選び、そのイベントだけをFOR UPDATEする。rebuild中・control不在・DEADありはclaimしない。claim中はmutation advisory lockとcontrol行lockを取得しない。Graph適用前のlease / status / DEAD / generation再検証、Neo4j適用、APPLIED、retry / lease回収、controller drainは後続であり、この部品だけでworker起動やGraph利用可能を保証しない。
+
+ProjectionQueueの失敗記録 / lease回収はCoreの条件付きUPDATEを使い、専用leaderをcommit前後に確認する短いtransactionで保存する。一時失敗は既定backoffのRETRYABLE、恒久失敗または最終attemptはDEAD。failureの更新条件はPROCESSING / outbox ID / attempt / 開始時刻であり、古い報告を拒否する。lease超過は通常rebuild_flag=falseの領域でRETRYABLEへ戻し、上限済みイベントは次claimでDEADにして追加実処理を開始しない。claim / 回収 / failureだけではGraph適用成功を意味せず、Neo4j・APPLIED・heartbeat・controller drain・専用role・運用構成は後続とする。
