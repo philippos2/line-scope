@@ -18,7 +18,7 @@ from pydantic import (
     create_model,
 )
 
-from .core_reads import get_record_row
+from .core_reads import get_record_row, search_equipment_rows
 from .database import Database
 from .execution import ExecutionContext
 from .pagination import CursorCodec
@@ -243,6 +243,11 @@ class ReadTools:
         )
 
     def _search(self, connection, tool, values, binding, after):
+        if tool == "search_equipment":
+            rows = search_equipment_rows(
+                connection, values.filter.model_dump(exclude_unset=True), values.page_size, after
+            )
+            return self._search_result(rows, "equipment_id", values.page_size, binding)
         table, key, _ = SEARCH_TOOLS[tool]
         clauses = []
         parameters = []
@@ -277,13 +282,16 @@ class ReadTools:
             ),
             parameters,
         ).fetchall()
+        return self._search_result(rows, key, values.page_size, binding)
+
+    def _search_result(self, rows, key, page_size, binding):
         observed_at = rows[0]["_observed_at"]
         items = [
             {field: value for field, value in row.items() if field != "_observed_at"}
             for row in rows
             if row[key] is not None
         ]
-        has_more = len(items) > values.page_size
-        items = items[: values.page_size]
+        has_more = len(items) > page_size
+        items = items[:page_size]
         cursor = self.cursors.encode(binding, items[-1][key]) if has_more else None
         return {"items": items, "next_cursor": cursor}, observed_at

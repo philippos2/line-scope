@@ -324,3 +324,7 @@ Dockerで追加36テスト成功、ruff check / format、git diff --check成功�
 ## 単件Read全8本のCore移行
 
 [残り6本の単件Read移行](2026-10-10-core-single-record-reads.md)に、型の適合確認、query-only allow-list、全値一致・未commit version可視性・readonly拒否・bind分離試験、未移行範囲と検索移行の再開地点を記録する。
+
+## 設備検索のCore移行
+
+[設備検索のCore SELECT](2026-10-10-core-equipment-search.md)に、literal substring・UUID keyset paging・空結果の観測時刻・cursor境界の維持、native bindの適合確認、実DBのInjection / readonly検証、残り検索の再開地点を記録する。
