@@ -12,6 +12,7 @@ from .approval_policy import validate_approve, validate_reject
 from .assignments import normalize_operation_assignments
 from .audit import failed_attempt
 from .canonical import normalize_timestamp, normalize_uuid
+from .core_approval_updates import reject_proposal_state
 from .execution import ExecutionContext
 from .logging import EventLogger, request_context
 from .proposals import LOOKUP, ProposalError, ProposalStore, _saved
@@ -128,13 +129,8 @@ class _HumanApproval:
         with self.store._transaction() as connection:
             saved = self._locked_proposal(connection, approval_id)
             self._require_scope(validate_reject(context, saved), saved)
-            connection.execute(
-                "UPDATE approval SET status='REJECTED',approver_id=%s,updated_at=clock_timestamp() WHERE approval_id=%s",
-                (context.authenticated_user_id, approval_id),
-            )
-            connection.execute(
-                "UPDATE update_request SET status='REJECTED',updated_at=clock_timestamp() WHERE update_request_id=%s",
-                (saved.update_request_id,),
+            reject_proposal_state(
+                connection, approval_id, saved.update_request_id, context.authenticated_user_id
             )
             connection.execute(
                 "INSERT INTO update_audit_event(audit_event_id,request_id,update_request_id,approval_id,"
