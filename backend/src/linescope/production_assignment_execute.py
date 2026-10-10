@@ -5,6 +5,12 @@ from psycopg.errors import ForeignKeyViolation, UniqueViolation
 from .approvals import ProductionAssignmentApproval
 from .assignments import normalize_operation_assignments
 from .canonical import normalize_timestamp
+from .core_assignments import (
+    insert_assignment,
+    lock_assignment_equipment,
+    request_changes_assignments,
+    update_assignment,
+)
 from .dependency_cycles import DependencyCycleError, validate_dependency_cycles
 from .dependency_prepare import OBSERVE
 from .execute import ProductionScheduleExecute, _UpdateExecute
@@ -22,11 +28,7 @@ class ProductionAssignmentExecute(_UpdateExecute):
     def _before_load(self, c, request_id):
         # The immutable saved Target type is a routing hint only. The entire
         # Snapshot is verified under Request/Approval locks after coordination.
-        changed = c.execute(
-            "SELECT EXISTS(SELECT 1 FROM update_target WHERE update_request_id=%s "
-            "AND target_type=%s) AS changed",
-            (request_id, ASSIGNMENT),
-        ).fetchone()["changed"]
+        changed = request_changes_assignments(c, request_id)
         if changed:
             acquire_graph_mutation_lock(c, shared=False)
 
@@ -48,11 +50,7 @@ class ProductionAssignmentExecute(_UpdateExecute):
         # Preserve Prepare's existence rule. Equipment state/availability is
         # not a constraint on a planned assignment and is not inferred here.
         equipment = sorted({t["after"]["equipment_id"] for t in children if t["after"]["active"]})
-        present = c.execute(
-            "SELECT equipment_id FROM equipment WHERE equipment_id=ANY(%s::uuid[]) "
-            "ORDER BY equipment_id FOR SHARE",
-            (equipment,),
-        ).fetchall()
+        present = lock_assignment_equipment(c, equipment)
         if {str(r["equipment_id"]) for r in present} != set(equipment):
             raise ProposalError("BUSINESS_RULE_VIOLATION", "Assignment equipment is unavailable")
         observed = c.execute(OBSERVE).fetchone()
@@ -117,34 +115,9 @@ class ProductionAssignmentExecute(_UpdateExecute):
             for target in sorted(children, key=lambda t: t["operation_type"] == "CREATE"):
                 after = target["after"]
                 if target["operation_type"] == "CREATE":
-                    c.execute(
-                        "INSERT INTO production_operation_equipment_assignment(assignment_id,production_operation_id,"
-                        "equipment_id,effective_from,effective_to,active,version,created_at,updated_at) "
-                        "VALUES(%s,%s,%s,%s,%s,%s,%s,%s,%s)",
-                        (
-                            after["assignment_id"],
-                            after["production_operation_id"],
-                            after["equipment_id"],
-                            after["effective_from"],
-                            after["effective_to"],
-                            after["active"],
-                            after["version"],
-                            executed_at,
-                            executed_at,
-                        ),
-                    )
+                    insert_assignment(c, after, executed_at)
                 else:
-                    result = c.execute(
-                        "UPDATE production_operation_equipment_assignment SET effective_to=%s,active=%s,version=version+1,updated_at=%s "
-                        "WHERE assignment_id=%s AND version=%s",
-                        (
-                            after["effective_to"],
-                            after["active"],
-                            executed_at,
-                            target["target_id"],
-                            target["expected_version"],
-                        ),
-                    )
+                    result = update_assignment(c, target, executed_at)
                     if result.rowcount != 1:
                         raise ProposalError("VERSION_CONFLICT", "Assignment version has changed")
         except UniqueViolation as error:
