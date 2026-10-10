@@ -1,7 +1,7 @@
 """Human approval transactions with explicit category/operation admission.
 
-HTTP admission supports equipment state and pure maintenance plan UPDATE or
-CREATE requests. Mixed operations, records and Graph validation follow.
+HTTP admission supports equipment state and maintenance requests.
+Production and Graph validation follow.
 """
 
 from uuid import uuid4
@@ -338,6 +338,38 @@ class MaintenanceRecordCreateApproval(_HumanApproval):
         return "CREATE_CONFLICT" if row["conflict"] else None
 
 
+class MaintenanceApproval(_HumanApproval):
+    """Approve the whole maintenance category, without changing business rows."""
+
+    HANDLERS = {
+        ("MaintenancePlan", "UPDATE"): MaintenancePlanUpdateApproval,
+        ("MaintenancePlan", "CREATE"): MaintenancePlanCreateApproval,
+        ("MaintenanceRecord", "CREATE"): MaintenanceRecordCreateApproval,
+    }
+
+    @classmethod
+    def _require_scope(cls, category, saved):
+        targets = saved.snapshot.data["targets"]
+        if (
+            category != "MAINTENANCE"
+            or not targets
+            or any((t["target_type"], t["operation_type"]) not in cls.HANDLERS for t in targets)
+        ):
+            raise ProposalError("INVALID_ARGUMENT", "Maintenance targets required")
+
+    @classmethod
+    def _conflict_code(cls, connection, targets):
+        # UPDATE rows are locked in canonical ID order before CREATE observations.
+        # One conflict invalidates the single request/approval, never a subset.
+        for key, handler in cls.HANDLERS.items():
+            group = [t for t in targets if (t["target_type"], t["operation_type"]) == key]
+            if group:
+                conflict = handler._conflict_code(connection, group)
+                if conflict:
+                    return conflict
+        return None
+
+
 class HumanApproval(_HumanApproval):
     """Dispatch only supported saved Targets, inside the shared locked transaction."""
 
@@ -353,7 +385,10 @@ class HumanApproval(_HumanApproval):
             ("MaintenancePlan", "CREATE"): MaintenancePlanCreateApproval,
             ("MaintenanceRecord", "CREATE"): MaintenanceRecordCreateApproval,
         }
-        key = (targets[0]["target_type"], targets[0]["operation_type"]) if targets else None
+        keys = {(t["target_type"], t["operation_type"]) for t in targets}
+        if len(keys) > 1 and keys <= MaintenanceApproval.HANDLERS.keys():
+            return MaintenanceApproval
+        key = next(iter(keys)) if len(keys) == 1 else None
         if key not in handlers:
             raise ProposalError("INVALID_ARGUMENT", "This approval category is not supported yet")
         # The selected scope validates every Target, including operation type.

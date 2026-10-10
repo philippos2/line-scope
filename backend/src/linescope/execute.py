@@ -6,7 +6,6 @@ from psycopg.errors import ForeignKeyViolation, UniqueViolation
 from psycopg.types.json import Jsonb
 
 from .approvals import (
-    HumanApproval,
     MaintenancePlanCreateApproval,
     MaintenancePlanUpdateApproval,
     MaintenanceRecordCreateApproval,
@@ -649,8 +648,7 @@ class HumanExecute(_UpdateExecute):
 
     @staticmethod
     def _require_scope(saved):
-        category = CATEGORIES[saved.snapshot.data["targets"][0]["target_type"]]
-        HumanApproval._require_scope(category, saved)
+        HumanExecute._handler(saved.snapshot.data["targets"])._require_scope(saved)
 
     @staticmethod
     def _handler(targets):
