@@ -12,7 +12,11 @@ from .approval_policy import validate_approve, validate_reject
 from .assignments import normalize_operation_assignments
 from .audit import failed_attempt
 from .canonical import normalize_timestamp, normalize_uuid
-from .core_approval_updates import reject_proposal_state
+from .core_approval_updates import (
+    approve_proposal_state,
+    invalidate_proposal_state,
+    reject_proposal_state,
+)
 from .execution import ExecutionContext
 from .logging import EventLogger, request_context
 from .proposals import LOOKUP, ProposalError, ProposalStore, _saved
@@ -41,20 +45,13 @@ class _HumanApproval:
             conflict = self._conflict_code(connection, targets)
             if conflict:
                 status, action, code = "INVALIDATED", "INVALIDATE", conflict
-                connection.execute(
-                    "UPDATE approval SET status='INVALIDATED',updated_at=clock_timestamp() WHERE approval_id=%s",
-                    (approval_id,),
-                )
+                invalidate_proposal_state(connection, approval_id, request_id)
                 result = None
             else:
                 status, action, code = "APPROVED", "APPROVE", "OK"
-                times = connection.execute(
-                    "WITH now AS (SELECT clock_timestamp() AS approved_at) "
-                    "UPDATE approval SET status='APPROVED',approver_id=%s,approved_at=now.approved_at,"
-                    "expires_at=now.approved_at+INTERVAL '30 minutes',updated_at=now.approved_at "
-                    "FROM now WHERE approval_id=%s RETURNING approval.approved_at,approval.expires_at",
-                    (context.authenticated_user_id, approval_id),
-                ).fetchone()
+                times = approve_proposal_state(
+                    connection, approval_id, request_id, context.authenticated_user_id
+                )
                 result = {
                     "update_request_id": request_id,
                     "approval_id": saved.approval_id,
@@ -62,10 +59,6 @@ class _HumanApproval:
                     "approval_status": status,
                     **times,
                 }
-            connection.execute(
-                "UPDATE update_request SET status=%s,updated_at=clock_timestamp() WHERE update_request_id=%s",
-                (status, request_id),
-            )
             connection.execute(
                 "INSERT INTO update_audit_event(audit_event_id,request_id,update_request_id,approval_id,"
                 "actor_id,action,before_status,after_status,result_code,details,occurred_at) "
