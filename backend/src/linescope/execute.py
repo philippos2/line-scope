@@ -38,7 +38,7 @@ class _UpdateExecute:
         self.events = event_logger or EventLogger()
         self.roles = {user["user_id"]: user["role"] for user in settings.users.values()}
 
-    def _before_load(self, c):
+    def _before_load(self, c, request_id):
         """Acquire category coordination locks before Request/Approval row locks."""
 
     def _after_history(self, c, request_id, targets):
@@ -98,7 +98,7 @@ class _UpdateExecute:
 
     def _execute(self, context, request_id, attempt):
         with self.store._transaction() as c:
-            self._before_load(c)
+            self._before_load(c, request_id)
             row, saved, approval = self._load(c, request_id)
             attempt["approval_id"] = saved.approval_id
             if row["requester_id"] != context.authenticated_user_id:
@@ -186,7 +186,7 @@ class _UpdateExecute:
 
     def _retire(self, context, request_id):
         with self.store._transaction() as c:
-            self._before_load(c)
+            self._before_load(c, request_id)
             row, saved, approval = self._load(c, request_id)
             if row["requester_id"] != context.authenticated_user_id:
                 return None
@@ -874,12 +874,29 @@ class MaintenanceExecute(_UpdateExecute):
 class HumanExecute(_UpdateExecute):
     """Route saved Targets under the common locks, without shared mutable routing state."""
 
+    def _before_load(self, c, request_id):
+        from .graph_locks import acquire_graph_mutation_lock
+
+        # Immutable saved Targets are only a routing hint here, not business
+        # facts. _load verifies the entire saved Snapshot after coordination.
+        graph = c.execute(
+            "SELECT EXISTS(SELECT 1 FROM update_target WHERE update_request_id=%s "
+            "AND target_type='DependencyRelation') AS graph",
+            (request_id,),
+        ).fetchone()["graph"]
+        if graph:
+            acquire_graph_mutation_lock(c, shared=False)
+
     @staticmethod
     def _require_scope(saved):
         HumanExecute._handler(saved.snapshot.data["targets"])._require_scope(saved)
 
     @staticmethod
     def _handler(targets):
+        from .dependency_execute import DependencyExecute
+
+        if targets and all(t["target_type"] == "DependencyRelation" for t in targets):
+            return DependencyExecute
         handlers = {
             ("EquipmentState", "UPDATE"): EquipmentExecute,
             ("ProductionOperation", "UPDATE"): ProductionScheduleExecute,
@@ -902,6 +919,9 @@ class HumanExecute(_UpdateExecute):
     @classmethod
     def _apply(cls, c, request_id, targets, executed_at):
         cls._handler(targets)._apply(c, request_id, targets, executed_at)
+
+    def _after_history(self, c, request_id, targets):
+        self._handler(targets)._after_history(self, c, request_id, targets)
 
     def observe_current(self, result):
         return self._handler(result["targets"]).observe_current(self, result)

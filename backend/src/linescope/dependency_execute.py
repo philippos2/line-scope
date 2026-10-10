@@ -23,9 +23,9 @@ ENDPOINT_TABLES = {
 
 
 class DependencyExecute(_UpdateExecute):
-    """No public routing until current-value observation and API admission follow."""
+    """Dependency updates used by the human action API."""
 
-    def _before_load(self, c):
+    def _before_load(self, c, request_id):
         acquire_graph_mutation_lock(c, shared=False)
 
     @staticmethod
@@ -129,3 +129,45 @@ class DependencyExecute(_UpdateExecute):
     def _after_history(self, c, request_id, targets):
         for target in targets:
             enqueue_graph_target(c, request_id, target)
+
+    def observe_current(self, result):
+        """Observe current PG values separately from the durable execution result."""
+        targets = result["targets"]
+        ids = [t["target_id"] for t in targets]
+        with self.store._transaction(read_only=True) as c:
+            row = c.execute(
+                "SELECT statement_timestamp() AS observed_at,"
+                "(SELECT jsonb_agg(to_jsonb(r)-'created_at'-'updated_at') "
+                "FROM dependency_relation r WHERE dependency_relation_id=ANY(%s::uuid[])) AS relations",
+                (ids,),
+            ).fetchone()
+        if len(row["relations"] or []) != len(targets):
+            raise ProposalError("TARGET_NOT_FOUND", "A current dependency target is unavailable")
+        try:
+            rows = normalize_relation_set(row["relations"])
+        except ValueError as error:
+            raise ProposalError("INTERNAL_ERROR", "Current dependency state is invalid") from error
+        confirmed = {t["target_id"]: t["after"]["version"] for t in targets}
+        return {
+            "current_snapshot": {
+                "targets": [
+                    {
+                        "target_type": "DependencyRelation",
+                        "target_id": r["dependency_relation_id"],
+                        "snapshot": r,
+                    }
+                    for r in rows
+                ]
+            },
+            "current_versions": [
+                {
+                    "target_type": "DependencyRelation",
+                    "target_id": r["dependency_relation_id"],
+                    "version": r["version"],
+                    "confirmed_version": confirmed[r["dependency_relation_id"]],
+                    "version_delta": r["version"] - confirmed[r["dependency_relation_id"]],
+                }
+                for r in rows
+            ],
+            "observed_at": row["observed_at"],
+        }
