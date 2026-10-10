@@ -169,11 +169,17 @@ def test_wrong_hash_preserves_pending_request(world):
     assert current(db, saved)["status"] == "WAITING_APPROVAL"
 
 
-def test_audit_failure_rolls_back_approval(world):
+@pytest.mark.parametrize("conflict", [False, True])
+def test_audit_failure_rolls_back_decision_and_allows_retry(world, conflict):
     db, _, saved = world
     with db.transaction() as c:
+        if conflict:
+            c.execute(
+                "UPDATE dependency_relation SET version=6 WHERE dependency_relation_id=%s",
+                (UUID(int=201),),
+            )
         c.execute(
-            "CREATE FUNCTION fail_dependency_approval() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN IF NEW.action='APPROVE' THEN RAISE EXCEPTION 'private-secret'; END IF; RETURN NEW; END $$"
+            "CREATE FUNCTION fail_dependency_approval() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN IF NEW.action IN ('APPROVE','INVALIDATE') THEN RAISE EXCEPTION 'private-secret'; END IF; RETURN NEW; END $$"
         )
         c.execute(
             "CREATE TRIGGER fail_dependency_approval BEFORE INSERT ON update_audit_event FOR EACH ROW EXECUTE FUNCTION fail_dependency_approval()"
@@ -182,6 +188,21 @@ def test_audit_failure_rolls_back_approval(world):
         action(db, saved)
     assert caught.value.code == "INTERNAL_ERROR" and "private-secret" not in str(caught.value)
     assert current(db, saved)["status"] == "WAITING_APPROVAL"
+    with db.transaction() as c:
+        assert (
+            c.execute(
+                "SELECT count(*) AS n FROM update_audit_event WHERE action IN ('APPROVE','INVALIDATE')"
+            ).fetchone()["n"]
+            == 0
+        )
+        c.execute("DROP TRIGGER fail_dependency_approval ON update_audit_event")
+    if conflict:
+        with pytest.raises(ProposalError) as retried:
+            action(db, saved)
+        assert retried.value.code == "VERSION_CONFLICT" and retried.value.transition_committed
+        assert current(db, saved)["status"] == "INVALIDATED"
+    else:
+        assert action(db, saved)["status"] == "APPROVED"
 
 
 def test_parallel_approval_has_one_winner(world):
@@ -195,3 +216,34 @@ def test_parallel_approval_has_one_winner(world):
 
     with ThreadPoolExecutor(2) as pool:
         assert sorted(pool.map(run, range(2))) == ["APPROVED", "INVALID_UPDATE_STATE"]
+
+
+def test_parallel_approval_and_rejection_commit_one_decision(world):
+    from threading import Barrier
+
+    db, _, saved = world
+    barrier = Barrier(2)
+    before = business(db)
+
+    def run(name):
+        barrier.wait(timeout=5)
+        try:
+            return action(db, saved, name)["status"]
+        except ProposalError as error:
+            return error.code
+
+    with ThreadPoolExecutor(2) as pool:
+        results = list(pool.map(run, ("approve", "reject")))
+    assert results.count("INVALID_UPDATE_STATE") == 1
+    winner = next(result for result in results if result != "INVALID_UPDATE_STATE")
+    assert winner in {"APPROVED", "REJECTED"}
+    assert current(db, saved)["status"] == current(db, saved)["approval_status"] == winner
+    assert business(db) == before
+    with db.transaction() as c:
+        assert (
+            c.execute(
+                "SELECT count(*) AS n FROM update_audit_event WHERE action IN ('APPROVE','REJECT')"
+            ).fetchone()["n"]
+            == 1
+        )
+        assert c.execute("SELECT count(*) AS n FROM graph_outbox").fetchone()["n"] == 0
