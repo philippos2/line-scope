@@ -11,6 +11,7 @@ from uuid import UUID
 
 import psycopg
 
+from .graph_locks import require_read_committed_transaction
 from .reads import ToolError
 
 
@@ -26,29 +27,41 @@ class ProjectionState:
     def __init__(self, database):
         self.database = database
 
-    def observe(self):
+    def observe(self, connection=None):
+        """Use the caller's active READ COMMITTED transaction when supplied.
+
+        Does not acquire or release the Graph lock, commit the caller's writes,
+        or open another connection. The caller controls the lock lifetime.
+        """
         # Control and the entire committed event set share a statement snapshot.
         # Neither UUID ordering nor processed_at is a commit watermark.
         try:
+            if connection is not None:
+                require_read_committed_transaction(connection)
+                return self._observe(connection)
             with self.database.transaction() as c:
                 c.execute("SET TRANSACTION ISOLATION LEVEL READ COMMITTED, READ ONLY")
-                row = c.execute(
-                    "WITH events AS (SELECT "
-                    "count(*) FILTER (WHERE status='PENDING') AS pending, "
-                    "count(*) FILTER (WHERE status='PROCESSING') AS processing, "
-                    "count(*) FILTER (WHERE status='RETRYABLE') AS retryable, "
-                    "count(*) FILTER (WHERE status='APPLIED') AS applied, "
-                    "count(*) FILTER (WHERE status='DEAD') AS dead FROM graph_outbox) "
-                    "SELECT statement_timestamp() AS observed_at, c.control_id, "
-                    "c.rebuild_flag,c.active_generation,c.fatal_error,events.* "
-                    "FROM events LEFT JOIN graph_projection_control c ON c.control_id=1"
-                ).fetchone()
+                return self._observe(c)
         except (psycopg.errors.LockNotAvailable, psycopg.errors.QueryCanceled) as error:
             raise ToolError("RESOURCE_BUSY", "Projection state observation timed out") from error
         except (psycopg.OperationalError, psycopg.InterfaceError) as error:
             raise ToolError("DEPENDENCY_UNAVAILABLE", "PostgreSQL is unavailable") from error
         except psycopg.Error as error:
             raise ToolError("INTERNAL_ERROR", "Projection state observation failed") from error
+
+    @staticmethod
+    def _observe(c):
+        row = c.execute(
+            "WITH events AS (SELECT "
+            "count(*) FILTER (WHERE status='PENDING') AS pending, "
+            "count(*) FILTER (WHERE status='PROCESSING') AS processing, "
+            "count(*) FILTER (WHERE status='RETRYABLE') AS retryable, "
+            "count(*) FILTER (WHERE status='APPLIED') AS applied, "
+            "count(*) FILTER (WHERE status='DEAD') AS dead FROM graph_outbox) "
+            "SELECT statement_timestamp() AS observed_at, c.control_id, "
+            "c.rebuild_flag,c.active_generation,c.fatal_error,events.* "
+            "FROM events LEFT JOIN graph_projection_control c ON c.control_id=1"
+        ).fetchone()
         counts = {
             name.upper(): row[name]
             for name in ("pending", "processing", "retryable", "applied", "dead")
