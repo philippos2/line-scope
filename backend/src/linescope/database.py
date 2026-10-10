@@ -1,4 +1,5 @@
 from contextlib import contextmanager
+from dataclasses import replace
 from hashlib import sha256
 from importlib.resources import files
 
@@ -11,6 +12,16 @@ MIGRATION_LOCK = 127987
 class Database:
     def __init__(self, settings):
         self.settings = settings
+
+    def for_reads(self):
+        """Select query credentials; never retry with mutation authority.
+
+        Unconfigured deployments retain compatibility until role provisioning lands.
+        ReadTools enforces Transaction READ ONLY independently of role grants.
+        """
+        if self.settings.read_dsn is None:
+            return self
+        return Database(replace(self.settings, dsn=self.settings.read_dsn))
 
     def connect(self):
         connection = psycopg.connect(

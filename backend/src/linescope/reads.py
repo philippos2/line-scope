@@ -18,6 +18,7 @@ from pydantic import (
     create_model,
 )
 
+from .database import Database
 from .execution import ExecutionContext
 from .pagination import CursorCodec
 
@@ -137,7 +138,7 @@ def json_value(value):
 
 class ReadTools:
     def __init__(self, database):
-        self.database = database
+        self.database = database.for_reads() if isinstance(database, Database) else database
         self.cursors = CursorCodec()
 
     def schemas(self):
