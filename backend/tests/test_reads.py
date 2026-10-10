@@ -387,3 +387,59 @@ def test_read_transaction_blocks_accidental_writes(world):
         {"equipment_id": str(keys["equipment_id"])},
     )
     assert checked == [True] and result.data["equipment_name"] == "Machine"
+
+
+@pytest.mark.integration
+@pytest.mark.parametrize("tool", ["get_equipment", "get_equipment_state"])
+def test_core_read_preserves_all_native_values_and_caller_transaction(world, tool):
+    from linescope.core_equipment_reads import get_equipment_row
+
+    db, keys = world
+    attack = "'; DROP TABLE equipment; -- 日本語 %_"
+    with db.transaction() as c:
+        c.execute(
+            "UPDATE equipment SET equipment_name=%s,active=false WHERE equipment_id=%s",
+            (attack, keys["equipment_id"]),
+        )
+        table, key = GET_TOOLS[tool]
+        from psycopg import sql
+
+        expected = c.execute(
+            sql.SQL("SELECT * FROM {} WHERE {}=%s").format(
+                sql.Identifier(table), sql.Identifier(key)
+            ),
+            (keys[key],),
+        ).fetchone()
+        row = get_equipment_row(c, tool, keys["equipment_id"])
+        observed_at = row.pop("_observed_at")
+        assert row == expected
+        assert observed_at.tzinfo is not None
+        # The bridge sees an uncommitted caller change and leaves the same
+        # connection/transaction usable; no separate Engine transaction exists.
+        assert c.execute("SELECT count(*) AS n FROM equipment").fetchone()["n"] == 1
+        if tool == "get_equipment":
+            assert row["equipment_name"] == attack and row["active"] is False
+
+
+@pytest.mark.integration
+@pytest.mark.parametrize("tool", ["get_equipment", "get_equipment_state"])
+def test_core_read_bind_uuid_kept_out_of_sql(world, tool):
+    from linescope.core_equipment_reads import get_equipment_row
+
+    db, keys = world
+    calls = []
+
+    class RecordingConnection:
+        def __init__(self, connection):
+            self.connection = connection
+
+        def execute(self, query, params):
+            calls.append((query, params))
+            return self.connection.execute(query, params)
+
+    with db.transaction() as c:
+        assert get_equipment_row(RecordingConnection(c), tool, keys["equipment_id"])
+    assert len(calls) == 1
+    query, params = calls[0]
+    assert str(keys["equipment_id"]) not in query
+    assert list(params.values()) == [keys["equipment_id"]]
