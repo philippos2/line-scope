@@ -21,6 +21,12 @@ from .core_approval import (
     reject_proposal_state,
 )
 from .core_audit import insert_audit_event
+from .core_business import (
+    lock_equipment_state,
+    lock_maintenance_plan,
+    maintenance_plan_create_conflicts,
+    maintenance_record_create_conflicts,
+)
 from .execution import ExecutionContext
 from .logging import EventLogger, request_context
 from .proposals import LOOKUP, ProposalError, ProposalStore, _saved
@@ -215,11 +221,7 @@ class EquipmentApproval(_HumanApproval):
     def _targets_changed(connection, targets):
         conflict = False
         for target in targets:
-            current = connection.execute(
-                "SELECT equipment_id,state_code,version FROM equipment_current_state "
-                "WHERE equipment_id=%s FOR UPDATE",
-                (target["target_id"],),
-            ).fetchone()
+            current = lock_equipment_state(connection, target["target_id"])
             if (
                 current is None
                 or {
@@ -248,11 +250,7 @@ class MaintenancePlanUpdateApproval(_HumanApproval):
     def _targets_changed(connection, targets):
         conflict = False
         for target in targets:
-            current = connection.execute(
-                "SELECT maintenance_plan_id,plan_code,equipment_id,planned_start,planned_end,plan_status,version "
-                "FROM maintenance_plan WHERE maintenance_plan_id=%s FOR UPDATE",
-                (target["target_id"],),
-            ).fetchone()
+            current = lock_maintenance_plan(connection, target["target_id"])
             if current is None:
                 conflict = True
                 continue
@@ -285,15 +283,12 @@ class MaintenancePlanCreateApproval(_HumanApproval):
     def _conflict_code(connection, targets):
         # Nonexistent CREATE rows cannot be locked. This is the approval-time
         # observation only; Execute must recheck and rely on DB UNIQUE at INSERT.
-        row = connection.execute(
-            "SELECT EXISTS(SELECT 1 FROM maintenance_plan "
-            "WHERE maintenance_plan_id=ANY(%s::uuid[]) OR plan_code=ANY(%s::text[])) AS conflict",
-            (
-                [t["target_id"] for t in targets],
-                [t["after"]["plan_code"] for t in targets],
-            ),
-        ).fetchone()
-        return "CREATE_CONFLICT" if row["conflict"] else None
+        conflict = maintenance_plan_create_conflicts(
+            connection,
+            [t["target_id"] for t in targets],
+            [t["after"]["plan_code"] for t in targets],
+        )
+        return "CREATE_CONFLICT" if conflict else None
 
 
 class MaintenanceRecordCreateApproval(_HumanApproval):
@@ -311,15 +306,12 @@ class MaintenanceRecordCreateApproval(_HumanApproval):
 
     @staticmethod
     def _conflict_code(connection, targets):
-        row = connection.execute(
-            "SELECT EXISTS(SELECT 1 FROM maintenance_record "
-            "WHERE maintenance_record_id=ANY(%s::uuid[]) OR record_code=ANY(%s::text[])) AS conflict",
-            (
-                [t["target_id"] for t in targets],
-                [t["after"]["record_code"] for t in targets],
-            ),
-        ).fetchone()
-        return "CREATE_CONFLICT" if row["conflict"] else None
+        conflict = maintenance_record_create_conflicts(
+            connection,
+            [t["target_id"] for t in targets],
+            [t["after"]["record_code"] for t in targets],
+        )
+        return "CREATE_CONFLICT" if conflict else None
 
 
 class ProductionScheduleApproval(_HumanApproval):

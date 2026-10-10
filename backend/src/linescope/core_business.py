@@ -4,8 +4,19 @@ Query-only columns mirror migrations 002/005. The service validates canonical
 targets, owns locks/order and interprets rowcount/DB errors inside its transaction.
 """
 
-from sqlalchemy import BigInteger, DateTime, Text, column, insert, table, update
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy import (
+    BigInteger,
+    DateTime,
+    Text,
+    bindparam,
+    column,
+    insert,
+    or_,
+    select,
+    table,
+    update,
+)
+from sqlalchemy.dialects.postgresql import ARRAY, UUID
 from sqlalchemy.dialects.postgresql.psycopg import dialect
 
 _state = table(
@@ -153,3 +164,53 @@ def insert_maintenance_record(connection, after):
     compiled = statement.compile(dialect=dialect())
     # NULL plan IDs stay SQL NULL; allowed result text is always a bound value.
     return connection.execute(str(compiled), compiled.params)
+
+
+def lock_equipment_state(connection, identifier):
+    statement = (
+        select(_state.c.equipment_id, _state.c.state_code, _state.c.version)
+        .where(_state.c.equipment_id == identifier)
+        .with_for_update()
+    )
+    compiled = statement.compile(dialect=dialect())
+    return connection.execute(str(compiled), compiled.params).fetchone()
+
+
+def lock_maintenance_plan(connection, identifier):
+    statement = select(_plan).where(_plan.c.maintenance_plan_id == identifier).with_for_update()
+    compiled = statement.compile(dialect=dialect())
+    return connection.execute(str(compiled), compiled.params).fetchone()
+
+
+def maintenance_plan_create_conflicts(connection, identifiers, codes):
+    statement = select(
+        select(_plan.c.maintenance_plan_id)
+        .where(
+            or_(
+                _plan.c.maintenance_plan_id
+                == bindparam("ids", identifiers, type_=ARRAY(UUID())).any_(),
+                _plan.c.plan_code == bindparam("codes", codes, type_=ARRAY(Text())).any_(),
+            )
+        )
+        .exists()
+        .label("conflict")
+    )
+    compiled = statement.compile(dialect=dialect())
+    return connection.execute(str(compiled), compiled.params).fetchone()["conflict"]
+
+
+def maintenance_record_create_conflicts(connection, identifiers, codes):
+    statement = select(
+        select(_record.c.maintenance_record_id)
+        .where(
+            or_(
+                _record.c.maintenance_record_id
+                == bindparam("ids", identifiers, type_=ARRAY(UUID())).any_(),
+                _record.c.record_code == bindparam("codes", codes, type_=ARRAY(Text())).any_(),
+            )
+        )
+        .exists()
+        .label("conflict")
+    )
+    compiled = statement.compile(dialect=dialect())
+    return connection.execute(str(compiled), compiled.params).fetchone()["conflict"]
