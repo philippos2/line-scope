@@ -392,3 +392,7 @@ Dockerで追加36テスト成功、ruff check / format、git diff --check成功�
 ## Approvalの業務Target参照・lockのCore移行
 
 [設備状態・保全のlock / CREATE競合確認](2026-10-11-core-approval-target-reads.md)に、承認前の照合境界、実DB lock検証、未実装workerとCore移行残件を混同した進捗説明の補正、後続工程の判断を記録する。
+
+## Outboxイベントclaim
+
+[短いtransactionでPROCESSINGをcommitする内部部品](2026-10-11-outbox-event-claim.md)に、leader・mutation lockの境界、commit前後の喪失と実DB試験、未実装のProjection後続工程を記録する。

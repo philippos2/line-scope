@@ -1,11 +1,25 @@
-"""Fixed saved-target lookup and Outbox INSERT on the caller's connection.
+"""Fixed saved-target lookup, enqueue and claim on the caller's connection.
 
 Query-only columns mirror migrations 003/006. Validation and transaction
-ownership stay in outbox.enqueue_graph_target and the Execute service.
+ownership stay in the calling enqueue, Execute and ProjectionQueue services.
 """
 
 from psycopg.types.json import Jsonb
-from sqlalchemy import BigInteger, Text, column, insert, select, table
+from sqlalchemy import (
+    BigInteger,
+    Boolean,
+    DateTime,
+    Integer,
+    Text,
+    and_,
+    column,
+    func,
+    insert,
+    or_,
+    select,
+    table,
+    update,
+)
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.dialects.postgresql.psycopg import dialect
 
@@ -31,6 +45,16 @@ _outbox = table(
     column("aggregate_version", BigInteger()),
     column("event_type", Text()),
     column("payload", JSONB()),
+    column("status", Text()),
+    column("attempt_count", Integer()),
+    column("next_attempt_at", DateTime(timezone=True)),
+    column("processing_started_at", DateTime(timezone=True)),
+    column("created_at", DateTime(timezone=True)),
+)
+_control = table(
+    "graph_projection_control",
+    column("control_id", Integer()),
+    column("rebuild_flag", Boolean()),
 )
 
 
@@ -69,3 +93,52 @@ def insert_graph_event(
     compiled = statement.compile(dialect=dialect())
     # Keep psycopg JSONB adaptation explicit; status/timestamps use DB defaults.
     connection.execute(str(compiled), compiled.params)
+
+
+def claim_graph_event(connection):
+    """One committed eligible event; lock only that event, never Graph control.
+
+    The caller holds session leadership. This short transaction deliberately
+    acquires no mutation advisory lock; application revalidation happens later.
+    """
+    now = func.statement_timestamp()
+    dead = _outbox.alias("dead_events")
+    rebuilding = select(_control.c.rebuild_flag).where(_control.c.control_id == 1).scalar_subquery()
+    candidate = (
+        select(_outbox.c.outbox_id)
+        .where(
+            or_(
+                _outbox.c.status == "PENDING",
+                and_(_outbox.c.status == "RETRYABLE", _outbox.c.next_attempt_at <= now),
+            ),
+            rebuilding.is_(False),
+            ~select(dead.c.outbox_id).where(dead.c.status == "DEAD").exists(),
+        )
+        .order_by(_outbox.c.created_at, _outbox.c.outbox_id)
+        .limit(1)
+        .with_for_update()
+        .cte("candidate")
+    )
+    statement = (
+        update(_outbox)
+        .where(_outbox.c.outbox_id == select(candidate.c.outbox_id).scalar_subquery())
+        .values(
+            status="PROCESSING",
+            attempt_count=_outbox.c.attempt_count + 1,
+            processing_started_at=now,
+        )
+        .returning(
+            _outbox.c.outbox_id,
+            _outbox.c.update_request_id,
+            _outbox.c.update_target_id,
+            _outbox.c.aggregate_type,
+            _outbox.c.aggregate_id,
+            _outbox.c.aggregate_version,
+            _outbox.c.event_type,
+            _outbox.c.payload,
+            _outbox.c.attempt_count,
+            _outbox.c.processing_started_at,
+        )
+    )
+    compiled = statement.compile(dialect=dialect())
+    return connection.execute(str(compiled), compiled.params).fetchone()
