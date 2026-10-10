@@ -112,3 +112,81 @@ def test_sql_and_identifier_injection_arguments_are_rejected(world, tool, argume
         ReadTools(world).run(identity(), tool, arguments)
     assert caught.value.code == "INVALID_ARGUMENT"
     assert snapshot(world) == before
+
+
+@pytest.mark.parametrize("attack", ATTACKS)
+def test_untrusted_plan_code_survives_prepare_human_execute_and_reread(db, attack):
+    from uuid import uuid4
+
+    from test_maintenance_plan_approval_api import act, client_for
+    from test_maintenance_plan_create_api import execute
+    from test_maintenance_prepare import AGENT_HASH, create_plan
+    from test_maintenance_prepare import identity as maintenance_identity
+    from test_maintenance_prepare import service as maintenance_fixture
+
+    from linescope.tools import ToolDispatcher
+
+    db, _ = maintenance_fixture.__wrapped__(db)
+    before = snapshot(db)
+    arguments = create_plan(attack)["input"]
+    saved = ToolDispatcher(db).run(
+        maintenance_identity(),
+        "prepare_maintenance_plan_create",
+        arguments,
+        retry_key=uuid4(),
+        agent_input_hash=AGENT_HASH,
+    )
+    target = saved.snapshot.data["targets"][0]
+    assert target["after"]["plan_code"] == target["business_key"]["plan_code"] == attack
+    prepared = snapshot(db)
+    for table in (
+        "equipment",
+        "maintenance_plan",
+        "maintenance_record",
+        "dependency_relation",
+        "business_update_history",
+        "graph_outbox",
+    ):
+        assert prepared[table] == before[table]
+    with client_for(db) as client:
+        assert act(client, saved, "approve").status_code == 200
+        assert snapshot(db)["maintenance_plan"] == before["maintenance_plan"]
+        response = execute(client, saved)
+        assert response.status_code == 200 and response.json()["status"] == "ok"
+        confirmed = response.json()["data"]["execution_result"]
+        assert confirmed["targets"] == saved.snapshot.data["targets"]
+        assert (
+            response.json()["data"]["current_snapshot"]["targets"][0]["snapshot"]["plan_code"]
+            == attack
+        )
+        committed = snapshot(db)
+        found = ReadTools(db).run(
+            maintenance_identity(), "search_maintenance_plans", {"filter": {"plan_code": attack}}
+        )
+        assert [r["maintenance_plan_id"] for r in found.data["items"]] == [target["target_id"]]
+        assert found.data["items"][0]["plan_code"] == attack
+        replay = execute(client, saved)
+        assert replay.status_code == 200
+        assert replay.json()["data"]["execution_result"] == confirmed
+        assert snapshot(db) == committed
+    for table in ("equipment", "maintenance_record", "dependency_relation", "graph_outbox"):
+        assert committed[table] == before[table]
+    plans = [r["row"] for r in committed["maintenance_plan"]]
+    assert len(plans) == len(before["maintenance_plan"]) + 1
+    assert [
+        r
+        for r in committed["maintenance_plan"]
+        if r["row"]["maintenance_plan_id"] != target["target_id"]
+    ] == before["maintenance_plan"]
+    assert len(committed["business_update_history"]) == 1
+    history = committed["business_update_history"][0]["row"]
+    assert history["after_snapshot"]["targets"][0]["snapshot"]["plan_code"] == attack
+    assert len(committed["update_request"]) == len(committed["approval"]) == 1
+    assert committed["update_request"][0]["row"]["status"] == "COMPLETED"
+    assert committed["approval"][0]["row"]["status"] == "CONSUMED"
+    assert {r["row"]["action"] for r in committed["update_audit_event"]} == {
+        "PREPARE",
+        "APPROVE",
+        "EXECUTE",
+    }
+    assert len(committed["update_audit_event"]) == 3
