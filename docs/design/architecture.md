@@ -193,3 +193,5 @@ DependencyRelationのCREATE / UPDATEとendpoint FOR SHAREはcore_dependenciesの
 Graph Outbox登録の保存Target照合SELECTとイベントINSERTはcore_outboxの固定Core statementへ移行する。要求ID / Target種別 / Target IDをbindして取得し、canonical一致確認・payload生成・outbox ID生成はenqueue_graph_targetに残す。payloadは明示psycopg Jsonb adaptationで保存し、PENDING / attempt_count / created_at等は従来のDB defaultを使う。重複の黙殺や独立commitを導入せず、既存Graph mutation lockと正本 / 履歴 / Outbox / Approval / Auditの原子性を維持する。worker / rebuildの処理境界は変更しない。
 
 Approvalの設備状態 / 保全予定FOR UPDATEと保全予定 / 実績CREATE競合確認はcore_businessの固定Core SELECTへ移行する。lock取得順序・before比較・timestamp正規化・CREATE_CONFLICT判定はserviceに残す。CREATEのID / 業務コード配列は型付きbindで照合し、未存在行のlockや予約を導入しない。Executeでの再検証とDB UNIQUEは引き続き必要とする。
+
+ProjectionQueueはworkerの内部claim部品として、専用session leaderを確認し、別の短いREAD COMMITTED transactionで1件をPROCESSINGにしてcommitする。Coreの単一statementがPENDING / due RETRYABLEをcreated_at / outbox_id順で選び、そのイベントだけをFOR UPDATEする。rebuild中・control不在・DEADありはclaimしない。claim中はmutation advisory lockとcontrol行lockを取得しない。Graph適用前のlease / status / DEAD / generation再検証、Neo4j適用、APPLIED、retry / lease回収、controller drainは後続であり、この部品だけでworker起動やGraph利用可能を保証しない。
