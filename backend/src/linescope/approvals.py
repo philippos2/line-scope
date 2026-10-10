@@ -12,9 +12,12 @@ from .approval_policy import validate_approve, validate_reject
 from .assignments import normalize_operation_assignments
 from .audit import failed_attempt
 from .canonical import normalize_timestamp, normalize_uuid
-from .core_approval_updates import (
+from .core_approval import (
     approve_proposal_state,
+    find_approval_parent,
     invalidate_proposal_state,
+    lock_approval,
+    lock_update_request,
     reject_proposal_state,
 )
 from .execution import ExecutionContext
@@ -89,20 +92,12 @@ class _HumanApproval:
 
     @staticmethod
     def _locked_proposal(connection, approval_id):
-        parent = connection.execute(
-            "SELECT update_request_id FROM approval WHERE approval_id=%s", (approval_id,)
-        ).fetchone()
+        parent = find_approval_parent(connection, approval_id)
         if parent is None:
             raise ProposalError("TARGET_NOT_FOUND", "Approval was not found")
         request_id = parent["update_request_id"]
-        connection.execute(
-            "SELECT update_request_id FROM update_request WHERE update_request_id=%s FOR UPDATE",
-            (request_id,),
-        ).fetchone()
-        locked = connection.execute(
-            "SELECT approval_id FROM approval WHERE approval_id=%s AND update_request_id=%s FOR UPDATE",
-            (approval_id, request_id),
-        ).fetchone()
+        lock_update_request(connection, request_id)
+        locked = lock_approval(connection, approval_id, request_id)
         if locked is None:
             raise ProposalError("TARGET_NOT_FOUND", "Approval was not found")
         query = LOOKUP.replace(

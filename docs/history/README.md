@@ -344,3 +344,7 @@ Dockerで追加36テスト成功、ruff check / format、git diff --check成功�
 ## Human Approve・競合失効のCore移行
 
 [承認時刻と固定30分のCore更新](2026-10-10-core-human-approval.md)に、CTE / native interval / RETURNINGの維持、成功・失効双方の原子性、後段失敗rollback試験、未移行処理を記録する。
+
+## Human Approvalのlock SELECT移行
+
+[Coreによる親ID取得とrow lock](2026-10-10-core-approval-locks.md)に、明示した取得順序、親ID再確認、実DBのlock保持・解放・timeout検証、残るJSONB lookup / 重要更新の再開地点を記録する。

@@ -1,4 +1,4 @@
-"""Bound native-type human approval updates on an already authorized, locked transaction.
+"""Fixed Core statements for human approval locks and state updates.
 
 Query-only column declarations mirror migration 003, never generate DDL, and
 do not model the complete tables. The human service owns authorization, locks,
@@ -14,6 +14,7 @@ from sqlalchemy.dialects.postgresql.psycopg import dialect
 _approval = table(
     "approval",
     column("approval_id", UUID()),
+    column("update_request_id", UUID()),
     column("approver_id", Text()),
     column("status", Text()),
     column("updated_at", DateTime(timezone=True)),
@@ -93,3 +94,32 @@ def _finish_approve_request(connection, request_id, status):
     )
     compiled = statement.compile(dialect=dialect())
     connection.execute(str(compiled), compiled.params)
+
+
+def find_approval_parent(connection, approval_id):
+    statement = select(_approval.c.update_request_id).where(_approval.c.approval_id == approval_id)
+    compiled = statement.compile(dialect=dialect())
+    return connection.execute(str(compiled), compiled.params).fetchone()
+
+
+def lock_update_request(connection, request_id):
+    statement = (
+        select(_request.c.update_request_id)
+        .where(_request.c.update_request_id == request_id)
+        .with_for_update()
+    )
+    compiled = statement.compile(dialect=dialect())
+    return connection.execute(str(compiled), compiled.params).fetchone()
+
+
+def lock_approval(connection, approval_id, request_id):
+    statement = (
+        select(_approval.c.approval_id)
+        .where(
+            _approval.c.approval_id == approval_id,
+            _approval.c.update_request_id == request_id,
+        )
+        .with_for_update()
+    )
+    compiled = statement.compile(dialect=dialect())
+    return connection.execute(str(compiled), compiled.params).fetchone()
