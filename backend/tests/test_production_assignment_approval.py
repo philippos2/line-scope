@@ -316,14 +316,14 @@ def test_concurrent_approve_and_reject_have_one_winner(world):
         )
 
 
-def test_public_router_remains_closed_until_assignment_execute_is_ready(world):
+def test_public_router_approves_assignment_targets_without_business_changes(world):
     db, _, saved = world
-    with pytest.raises(ProposalError) as caught:
-        HumanApproval(db, EventLogger(stream=io.StringIO())).approve(
-            identity(user="approver"), str(saved.approval_id), saved.snapshot.snapshot_hash
-        )
-    assert caught.value.code == "INVALID_ARGUMENT"
-    assert current(db, saved)["status"] == "WAITING_APPROVAL"
+    before = business(db)
+    result = HumanApproval(db, EventLogger(stream=io.StringIO())).approve(
+        identity(user="approver"), str(saved.approval_id), saved.snapshot.snapshot_hash
+    )
+    assert result["status"] == "APPROVED"
+    assert_unchanged(db, before)
 
 
 @pytest.mark.parametrize("variant", ["shorten", "reuse"])

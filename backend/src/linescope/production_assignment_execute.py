@@ -1,9 +1,10 @@
-"""Internal assignment Execute with atomic parent, interval, history and Outbox updates."""
+"""Assignment Execute with atomic parent, interval, history and Outbox updates."""
 
 from psycopg.errors import ForeignKeyViolation, UniqueViolation
 
 from .approvals import ProductionAssignmentApproval
 from .assignments import normalize_operation_assignments
+from .canonical import normalize_timestamp
 from .dependency_cycles import DependencyCycleError, validate_dependency_cycles
 from .dependency_prepare import OBSERVE
 from .execute import ProductionScheduleExecute, _UpdateExecute
@@ -16,7 +17,7 @@ ASSIGNMENT = "ProductionOperationEquipmentAssignment"
 
 
 class ProductionAssignmentExecute(_UpdateExecute):
-    """Not routed to HTTP until current-value observation is implemented."""
+    """Execute fixed assignment diffs through the human-only update workflow."""
 
     def _before_load(self, c, request_id):
         # The immutable saved Target type is a routing hint only. The entire
@@ -159,3 +160,71 @@ class ProductionAssignmentExecute(_UpdateExecute):
         for target in targets:
             if target["target_type"] == ASSIGNMENT:
                 enqueue_graph_target(c, request_id, target)
+
+    def observe_current(self, result):
+        """Read parents, their active sets and changed children in one PG statement."""
+        targets = result["targets"]
+        parents = [t["target_id"] for t in targets if t["target_type"] == "ProductionOperation"]
+        children = [t["target_id"] for t in targets if t["target_type"] == ASSIGNMENT]
+        with self.store._transaction(read_only=True) as c:
+            row = c.execute(
+                "SELECT statement_timestamp() AS observed_at,"
+                "(SELECT jsonb_agg(to_jsonb(p)-'created_at'-'updated_at') "
+                "FROM production_operation p WHERE production_operation_id=ANY(%s::uuid[])) AS operations,"
+                "(SELECT jsonb_agg(to_jsonb(a)-'created_at'-'updated_at') "
+                "FROM production_operation_equipment_assignment a "
+                "WHERE production_operation_id=ANY(%s::uuid[]) OR assignment_id=ANY(%s::uuid[])) AS assignments",
+                (parents, parents, children),
+            ).fetchone()
+        operations = {p["production_operation_id"]: p for p in row["operations"] or []}
+        assignments = {a["assignment_id"]: a for a in row["assignments"] or []}
+        if set(operations) != set(parents) or not set(children) <= assignments.keys():
+            raise ProposalError("TARGET_NOT_FOUND", "A current production target is unavailable")
+        snapshots = []
+        try:
+            for target in targets:
+                identifier = target["target_id"]
+                if target["target_type"] == ASSIGNMENT:
+                    value = assignments[identifier]
+                    value = normalize_operation_assignments(
+                        value["production_operation_id"], [value]
+                    )[0]
+                else:
+                    value = dict(operations[identifier])
+                    value["planned_start"] = normalize_timestamp(value["planned_start"])
+                    value["planned_end"] = normalize_timestamp(value["planned_end"])
+                    if "equipment_assignments" in target["after"]:
+                        active = normalize_operation_assignments(
+                            identifier,
+                            [
+                                a
+                                for a in assignments.values()
+                                if a["production_operation_id"] == identifier and a["active"]
+                            ],
+                        )
+                        value["equipment_assignments"] = sorted(
+                            active, key=lambda a: a["assignment_id"]
+                        )
+                snapshots.append(
+                    {
+                        "target_type": target["target_type"],
+                        "target_id": identifier,
+                        "snapshot": value,
+                    }
+                )
+        except ValueError as error:
+            raise ProposalError("INTERNAL_ERROR", "Current production state is invalid") from error
+        return {
+            "current_snapshot": {"targets": snapshots},
+            "current_versions": [
+                {
+                    "target_type": t["target_type"],
+                    "target_id": t["target_id"],
+                    "version": observed["snapshot"]["version"],
+                    "confirmed_version": t["after"]["version"],
+                    "version_delta": observed["snapshot"]["version"] - t["after"]["version"],
+                }
+                for t, observed in zip(targets, snapshots, strict=True)
+            ],
+            "observed_at": row["observed_at"],
+        }
