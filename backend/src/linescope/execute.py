@@ -10,6 +10,7 @@ from .approvals import (
     MaintenancePlanCreateApproval,
     MaintenancePlanUpdateApproval,
     MaintenanceRecordCreateApproval,
+    ProductionScheduleApproval,
 )
 from .audit import failed_attempt
 from .canonical import normalize_timestamp, normalize_uuid
@@ -349,6 +350,41 @@ class EquipmentExecute(_UpdateExecute):
             ],
             "observed_at": row["observed_at"],
         }
+
+
+class ProductionScheduleExecute(_UpdateExecute):
+    """Internal schedule-only execution; assignments and Graph are unchanged."""
+
+    @staticmethod
+    def _require_scope(saved):
+        category = CATEGORIES[saved.snapshot.data["targets"][0]["target_type"]]
+        ProductionScheduleApproval._require_scope(category, saved)
+
+    @staticmethod
+    def _targets(c, saved):
+        targets = saved.snapshot.data["targets"]
+        if ProductionScheduleApproval._targets_changed(c, targets):
+            raise ProposalError("VERSION_CONFLICT", "Production schedule has changed")
+        return targets
+
+    @staticmethod
+    def _apply(c, request_id, targets, executed_at):
+        for target in targets:
+            after = target["after"]
+            updated = c.execute(
+                "UPDATE production_operation SET planned_start=%s,planned_end=%s,planned_status=%s,"
+                "updated_at=%s,version=version+1 WHERE production_operation_id=%s AND version=%s",
+                (
+                    after["planned_start"],
+                    after["planned_end"],
+                    after["planned_status"],
+                    executed_at,
+                    target["target_id"],
+                    target["expected_version"],
+                ),
+            )
+            if updated.rowcount != 1:
+                raise ProposalError("VERSION_CONFLICT", "Production operation version has changed")
 
 
 class MaintenancePlanUpdateExecute(_UpdateExecute):
