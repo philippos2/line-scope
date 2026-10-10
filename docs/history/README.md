@@ -376,3 +376,7 @@ Dockerで追加36テスト成功、ruff check / format、git diff --check成功�
 ## 通常業務更新のCore移行
 
 [設備状態・生産予定・保全の固定更新](2026-10-11-core-business-writes.md)に、version条件・時刻・NULL・CREATE競合の維持と、SQL表記へ依存しないテスト同期への変更を記録する。
+
+## 生産作業の設備割当アクセスのCore移行
+
+[割当の存在判定・設備lock・CREATE / UPDATE](2026-10-11-core-assignment-writes.md)に、期間・不変キー・親version・Outbox原子性の維持と実DBの競合・参照lock検証を記録する。
