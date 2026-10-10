@@ -400,3 +400,7 @@ Dockerで追加36テスト成功、ruff check / format、git diff --check成功�
 ## Outbox失敗retry・DEADとlease回収
 
 [attemptを照合する失敗遷移と期限切れ回収](2026-10-11-outbox-failure-retry.md)に、backoff・上限・古い報告拒否・Rebuild境界と未実装のworker後続機能を記録する。
+
+## Projection適用・APPLIED保存境界
+
+[適用前後の再検証と排他lockの保持](2026-10-11-projection-application-boundary.md)に、実PostgreSQLの状態遷移・commit失敗・leader喪失試験と、実Neo4j未実装の境界を記録する。
