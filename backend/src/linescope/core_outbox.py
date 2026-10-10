@@ -55,11 +55,14 @@ _outbox = table(
     column("processing_started_at", DateTime(timezone=True)),
     column("created_at", DateTime(timezone=True)),
     column("last_error", Text()),
+    column("processed_at", DateTime(timezone=True)),
 )
 _control = table(
     "graph_projection_control",
     column("control_id", Integer()),
     column("rebuild_flag", Boolean()),
+    column("active_generation", UUID()),
+    column("fatal_error", Text()),
 )
 
 
@@ -203,3 +206,61 @@ def recover_expired_graph_events(connection, lease_seconds):
     return [
         row["outbox_id"] for row in connection.execute(str(compiled), compiled.params).fetchall()
     ]
+
+
+def _application_conditions(event, lease_seconds, generation=None):
+    dead = _outbox.alias("dead_events")
+    control = select(_control.c.control_id).where(
+        _control.c.control_id == 1,
+        _control.c.rebuild_flag.is_(False),
+        _control.c.fatal_error.is_(None),
+        _control.c.active_generation.is_not(None),
+    )
+    if generation is not None:
+        control = control.where(_control.c.active_generation == generation)
+    return (
+        _outbox.c.outbox_id == event["outbox_id"],
+        _outbox.c.status == "PROCESSING",
+        _outbox.c.attempt_count == event["attempt_count"],
+        _outbox.c.processing_started_at == event["processing_started_at"],
+        _outbox.c.processing_started_at
+        > func.statement_timestamp()
+        - bindparam("lease", timedelta(seconds=lease_seconds), type_=INTERVAL()),
+        control.exists(),
+        ~select(dead.c.outbox_id).where(dead.c.status == "DEAD").exists(),
+    )
+
+
+def read_graph_application(connection, event, lease_seconds):
+    """Read the saved attempt and generation in one snapshot, without row locks."""
+    statement = (
+        select(
+            _outbox.c.outbox_id,
+            _outbox.c.aggregate_type,
+            _outbox.c.aggregate_id,
+            _outbox.c.aggregate_version,
+            _outbox.c.payload,
+            _control.c.active_generation,
+        )
+        .select_from(_outbox.join(_control, _control.c.control_id == 1))
+        .where(*_application_conditions(event, lease_seconds))
+    )
+    compiled = statement.compile(dialect=dialect())
+    return connection.execute(str(compiled), compiled.params).fetchone()
+
+
+def acknowledge_graph_application(connection, event, lease_seconds, generation):
+    """Acknowledge only a still-live exact attempt in the same generation."""
+    statement = (
+        update(_outbox)
+        .where(*_application_conditions(event, lease_seconds, generation))
+        .values(
+            status="APPLIED",
+            processed_at=func.statement_timestamp(),
+            processing_started_at=None,
+            next_attempt_at=None,
+            last_error=None,
+        )
+    )
+    compiled = statement.compile(dialect=dialect())
+    return connection.execute(str(compiled), compiled.params).rowcount == 1
