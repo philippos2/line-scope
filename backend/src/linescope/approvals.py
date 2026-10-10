@@ -338,6 +338,45 @@ class MaintenanceRecordCreateApproval(_HumanApproval):
         return "CREATE_CONFLICT" if row["conflict"] else None
 
 
+class ProductionScheduleApproval(_HumanApproval):
+    """Internal schedule-only approval; assignment-aware requests remain deferred."""
+
+    @staticmethod
+    def _require_scope(category, saved):
+        if category != "PRODUCTION_OPERATION" or any(
+            t["target_type"] != "ProductionOperation"
+            or t["operation_type"] != "UPDATE"
+            or "equipment_assignments" in t["before"]
+            or "equipment_assignments" in t["after"]
+            for t in saved.snapshot.data["targets"]
+        ):
+            raise ProposalError("INVALID_ARGUMENT", "Production schedule UPDATE targets required")
+
+    @staticmethod
+    def _targets_changed(connection, targets):
+        conflict = False
+        for target in targets:
+            row = connection.execute(
+                "SELECT production_operation_id,operation_code,process_id,planned_status,"
+                "planned_start,planned_end,active,version FROM production_operation "
+                "WHERE production_operation_id=%s FOR UPDATE",
+                (target["target_id"],),
+            ).fetchone()
+            if row is None:
+                conflict = True
+                continue
+            current = {
+                **row,
+                "production_operation_id": str(row["production_operation_id"]),
+                "process_id": str(row["process_id"]),
+                "planned_start": normalize_timestamp(row["planned_start"]),
+                "planned_end": normalize_timestamp(row["planned_end"]),
+            }
+            if current != target["before"]:
+                conflict = True
+        return conflict
+
+
 class MaintenanceApproval(_HumanApproval):
     """Approve the whole maintenance category, without changing business rows."""
 
