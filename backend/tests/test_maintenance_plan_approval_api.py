@@ -169,16 +169,12 @@ def test_audit_storage_failure_rolls_back_approval_and_is_sanitized(world):
 
 
 @pytest.mark.parametrize("action", ["approve", "reject"])
-def test_other_categories_stay_outside_http_approval_scope(db, action):
+def test_manager_can_act_on_production_schedule_request(db, action):
     db, service = production_fixture.__wrapped__(db)
     saved = prepare_production(service)
     with client_for(db) as client:
         result = act(client, saved, action, "manager")
-        assert result.status_code == 400
-        assert result.json()["errors"][0]["code"] == "INVALID_ARGUMENT"
-    assert (
-        ProposalStore(db).get(identity("manager", "manager"), str(saved.update_request_id))[
-            "status"
-        ]
-        == "WAITING_APPROVAL"
-    )
+        assert result.status_code == 200
+    assert ProposalStore(db).get(identity("manager", "manager"), str(saved.update_request_id))[
+        "status"
+    ] == ("APPROVED" if action == "approve" else "REJECTED")
