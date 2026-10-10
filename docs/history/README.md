@@ -388,3 +388,7 @@ Dockerで追加36テスト成功、ruff check / format、git diff --check成功�
 ## Graph Outbox登録境界のCore移行
 
 [保存Target照合とイベントINSERT](2026-10-11-core-outbox-enqueue.md)に、canonical照合・JSONB・DB defaults・正本とOutboxの原子性を維持する境界と回帰確認を記録する。
+
+## Approvalの業務Target参照・lockのCore移行
+
+[設備状態・保全のlock / CREATE競合確認](2026-10-11-core-approval-target-reads.md)に、承認前の照合境界、実DB lock検証、未実装workerとCore移行残件を混同した進捗説明の補正、後続工程の判断を記録する。
