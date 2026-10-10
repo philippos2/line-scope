@@ -380,3 +380,7 @@ Dockerで追加36テスト成功、ruff check / format、git diff --check成功�
 ## 生産作業の設備割当アクセスのCore移行
 
 [割当の存在判定・設備lock・CREATE / UPDATE](2026-10-11-core-assignment-writes.md)に、期間・不変キー・親version・Outbox原子性の維持と実DBの競合・参照lock検証を記録する。
+
+## DependencyRelation更新・endpoint lockのCore移行
+
+[固定Relation更新と5種endpointの参照lock](2026-10-11-core-dependency-writes.md)に、制約延期・最終集合・version・Outbox原子性の維持とRaw SQLを残す理由を記録する。
