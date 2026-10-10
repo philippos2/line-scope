@@ -5,7 +5,12 @@ from uuid import uuid4
 from psycopg.errors import ForeignKeyViolation, UniqueViolation
 from psycopg.types.json import Jsonb
 
-from .approvals import HumanApproval, MaintenancePlanCreateApproval, MaintenancePlanUpdateApproval
+from .approvals import (
+    HumanApproval,
+    MaintenancePlanCreateApproval,
+    MaintenancePlanUpdateApproval,
+    MaintenanceRecordCreateApproval,
+)
 from .audit import failed_attempt
 from .canonical import normalize_timestamp, normalize_uuid
 from .execute_policy import ApprovalFacts, validate_new_execute
@@ -502,6 +507,86 @@ class MaintenancePlanCreateExecute(_UpdateExecute):
 
     def observe_current(self, result):
         return _observe_current_plans(self.store, result, "CREATE")
+
+
+class MaintenanceRecordCreateExecute(_UpdateExecute):
+    """Internal record creation with locked references and no automatic state changes."""
+
+    @staticmethod
+    def _require_scope(saved):
+        category = CATEGORIES[saved.snapshot.data["targets"][0]["target_type"]]
+        MaintenanceRecordCreateApproval._require_scope(category, saved)
+
+    @staticmethod
+    def _targets(c, saved):
+        targets = saved.snapshot.data["targets"]
+        if MaintenanceRecordCreateApproval._conflict_code(c, targets):
+            raise ProposalError(
+                "CREATE_CONFLICT", "Maintenance record ID or business key already exists"
+            )
+        equipment_ids = sorted({t["after"]["equipment_id"] for t in targets})
+        equipment = c.execute(
+            "SELECT equipment_id FROM equipment WHERE equipment_id=ANY(%s::uuid[]) "
+            "ORDER BY equipment_id FOR KEY SHARE",
+            (equipment_ids,),
+        ).fetchall()
+        plan_ids = sorted(
+            {
+                t["after"]["maintenance_plan_id"]
+                for t in targets
+                if t["after"]["maintenance_plan_id"] is not None
+            }
+        )
+        # equipment_id is not a key: KEY SHARE alone would allow reassignment.
+        plans = c.execute(
+            "SELECT maintenance_plan_id,equipment_id FROM maintenance_plan "
+            "WHERE maintenance_plan_id=ANY(%s::uuid[]) ORDER BY maintenance_plan_id FOR SHARE",
+            (plan_ids,),
+        ).fetchall()
+        plans = {str(p["maintenance_plan_id"]): str(p["equipment_id"]) for p in plans}
+        if {str(e["equipment_id"]) for e in equipment} != set(equipment_ids) or set(plans) != set(
+            plan_ids
+        ):
+            raise ProposalError("BUSINESS_RULE_VIOLATION", "Maintenance reference is missing")
+        for target in targets:
+            after = target["after"]
+            if (
+                after["maintenance_plan_id"] is not None
+                and plans[after["maintenance_plan_id"]] != after["equipment_id"]
+            ):
+                raise ProposalError(
+                    "BUSINESS_RULE_VIOLATION", "Maintenance plan equipment does not match"
+                )
+        return targets
+
+    @staticmethod
+    def _apply(c, request_id, targets, executed_at):
+        for target in sorted(targets, key=lambda t: (t["after"]["record_code"], t["target_id"])):
+            after = target["after"]
+            try:
+                inserted = c.execute(
+                    "INSERT INTO maintenance_record(maintenance_record_id,record_code,equipment_id,"
+                    "performed_at,result,maintenance_plan_id,version) VALUES(%s,%s,%s,%s,%s,%s,%s)",
+                    (
+                        after["maintenance_record_id"],
+                        after["record_code"],
+                        after["equipment_id"],
+                        after["performed_at"],
+                        after["result"],
+                        after["maintenance_plan_id"],
+                        after["version"],
+                    ),
+                )
+            except UniqueViolation as error:
+                raise ProposalError(
+                    "CREATE_CONFLICT", "Maintenance record uniqueness conflict"
+                ) from error
+            except ForeignKeyViolation as error:
+                raise ProposalError(
+                    "BUSINESS_RULE_VIOLATION", "Maintenance reference is invalid"
+                ) from error
+            if inserted.rowcount != 1:
+                raise ProposalError("INTERNAL_ERROR", "Maintenance record was not inserted")
 
 
 class HumanExecute(_UpdateExecute):
