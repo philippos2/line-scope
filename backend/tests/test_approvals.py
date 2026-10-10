@@ -225,3 +225,73 @@ def test_approval_time_is_obtained_after_waiting_for_business_row_lock(prepared)
             released_after = c.execute("SELECT clock_timestamp() AS t").fetchone()["t"]
         result = future.result(timeout=5)
     assert result["approved_at"] >= released_after
+
+
+@pytest.mark.parametrize("stage", ["update_request", "update_audit_event"])
+def test_core_reject_late_failure_rolls_back_both_states(prepared, stage):
+    from psycopg import sql
+
+    db, saved = prepared
+    with db.transaction() as c:
+        before_approval = c.execute(
+            "SELECT * FROM approval WHERE approval_id=%s", (saved.approval_id,)
+        ).fetchone()
+        before_request = c.execute(
+            "SELECT * FROM update_request WHERE update_request_id=%s", (saved.update_request_id,)
+        ).fetchone()
+        c.execute("""CREATE FUNCTION reject_core_transition() RETURNS trigger LANGUAGE plpgsql AS $$
+            BEGIN RAISE EXCEPTION 'injected reject failure'; END $$""")
+        event, condition = (
+            ("UPDATE", "NEW.status='REJECTED'")
+            if stage == "update_request"
+            else ("INSERT", "NEW.action='REJECT'")
+        )
+        c.execute(
+            sql.SQL(
+                "CREATE TRIGGER reject_core_transition BEFORE {} ON {} FOR EACH ROW WHEN ({}) EXECUTE FUNCTION reject_core_transition()"
+            ).format(sql.SQL(event), sql.Identifier(stage), sql.SQL(condition))
+        )
+    with pytest.raises(ProposalError) as caught:
+        EquipmentApproval(db).reject(context("approver", "maintenance"), str(saved.approval_id))
+    assert caught.value.code == "INTERNAL_ERROR"
+    with db.transaction() as c:
+        assert (
+            c.execute(
+                "SELECT * FROM approval WHERE approval_id=%s", (saved.approval_id,)
+            ).fetchone()
+            == before_approval
+        )
+        assert (
+            c.execute(
+                "SELECT * FROM update_request WHERE update_request_id=%s",
+                (saved.update_request_id,),
+            ).fetchone()
+            == before_request
+        )
+        assert (
+            c.execute(
+                "SELECT count(*) AS n FROM update_audit_event WHERE action='REJECT'"
+            ).fetchone()["n"]
+            == 0
+        )
+        assert (
+            c.execute(
+                "SELECT count(*) AS n FROM update_audit_event WHERE action='FAILURE'"
+            ).fetchone()["n"]
+            == 1
+        )
+
+
+def test_core_reject_actor_text_is_bound_and_audited(prepared):
+    db, saved = prepared
+    actor = "approver'; DROP TABLE equipment; -- 日本語"
+    result = EquipmentApproval(db).reject(context(actor, "maintenance"), str(saved.approval_id))
+    assert result["status"] == result["approval_status"] == "REJECTED"
+    with db.transaction() as c:
+        row = c.execute(
+            "SELECT * FROM approval WHERE approval_id=%s", (saved.approval_id,)
+        ).fetchone()
+        assert row["approver_id"] == actor and row["approved_at"] is None
+        event = c.execute("SELECT * FROM update_audit_event WHERE action='REJECT'").fetchone()
+        assert event["actor_id"] == actor and event["after_status"] == "REJECTED"
+        assert c.execute("SELECT count(*) AS n FROM equipment").fetchone()["n"] == 2
