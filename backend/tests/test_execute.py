@@ -270,3 +270,32 @@ def test_retirement_audit_failure_rolls_back_both_states_and_retry_retires(
             ).fetchone()["n"]
             == 1
         )
+
+
+@pytest.mark.parametrize("table", ["update_request", "approval"])
+def test_core_execution_load_holds_request_and_approval_locks_until_transaction_end(
+    approved, table
+):
+    from dataclasses import replace
+
+    import psycopg
+    from psycopg import sql
+
+    from linescope.database import Database
+
+    db, saved = approved
+    bounded = Database(replace(db.settings, lock_ms=50))
+    statement = sql.SQL("UPDATE {} SET status=status WHERE update_request_id=%s").format(
+        sql.Identifier(table)
+    )
+    with db.transaction() as holder:
+        row, loaded, facts = service(db)._load(holder, saved.update_request_id)
+        assert row["status"] == "APPROVED"
+        assert loaded.snapshot == saved.snapshot
+        assert facts["snapshot_hash"] == saved.snapshot.snapshot_hash
+        assert facts["approver_id"] == "approver" and facts["consumed_at"] is None
+        with pytest.raises(psycopg.errors.LockNotAvailable):
+            with bounded.transaction() as contender:
+                contender.execute(statement, (saved.update_request_id,))
+    with bounded.transaction() as contender:
+        assert contender.execute(statement, (saved.update_request_id,)).rowcount == 1

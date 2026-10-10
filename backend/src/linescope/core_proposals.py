@@ -133,10 +133,20 @@ def lock_replaced_request(connection, request_id):
     return connection.execute(str(compiled), compiled.params).fetchone()
 
 
-def lock_replaced_approval(connection, request_id):
+def lock_request_approval(connection, request_id):
     statement = (
         select(_approval.c.approval_id)
         .where(_approval.c.update_request_id == request_id)
+        .with_for_update()
+    )
+    compiled = statement.compile(dialect=dialect())
+    return connection.execute(str(compiled), compiled.params).fetchone()
+
+
+def lock_request_state(connection, request_id):
+    statement = (
+        select(_request.c.update_request_id, _request.c.status)
+        .where(_request.c.update_request_id == request_id)
         .with_for_update()
     )
     compiled = statement.compile(dialect=dialect())

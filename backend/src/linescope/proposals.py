@@ -22,8 +22,8 @@ from .core_proposals import (
     insert_proposal_target,
     invalidate_replaced_approval,
     invalidate_replaced_request,
-    lock_replaced_approval,
     lock_replaced_request,
+    lock_request_approval,
 )
 from .execution import ExecutionContext
 from .snapshot import CATEGORIES, CanonicalSnapshot
@@ -264,7 +264,7 @@ class ProposalStore:
                     raise ProposalError("TARGET_NOT_FOUND", "Replacement request was not found")
                 if previous["requester_id"] != context.authenticated_user_id:
                     raise ProposalError("AUTHORIZATION_DENIED", "Only the requester may replace")
-                lock_replaced_approval(connection, replacement)
+                lock_request_approval(connection, replacement)
                 # Another retry may have committed while we waited for the old
                 # request lock. Return that result before checking its old state.
                 row = connection.execute(LOOKUP, (context.authenticated_user_id, key)).fetchone()

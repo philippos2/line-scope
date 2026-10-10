@@ -5,7 +5,7 @@ locks, business changes, approval consumption, Outbox, Audit and commit/rollback
 """
 
 from psycopg.types.json import Jsonb
-from sqlalchemy import DateTime, Text, bindparam, column, func, insert, table, update
+from sqlalchemy import DateTime, Text, bindparam, column, func, insert, select, table, update
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.dialects.postgresql.psycopg import dialect
 
@@ -32,6 +32,12 @@ _request = table(
 _approval = table(
     "approval",
     column("approval_id", UUID()),
+    column("update_request_id", UUID()),
+    column("approver_id", Text()),
+    column("snapshot_hash", Text()),
+    column("approved_at", DateTime(timezone=True)),
+    column("expires_at", DateTime(timezone=True)),
+    column("consumed_at", DateTime(timezone=True)),
     column("status", Text()),
     column("updated_at", DateTime(timezone=True)),
 )
@@ -106,3 +112,15 @@ def retire_execution_request(connection, *, request_id, status):
     )
     compiled = statement.compile(dialect=dialect())
     connection.execute(str(compiled), compiled.params)
+
+
+def read_execution_approval(connection, request_id):
+    statement = select(
+        _approval.c.approver_id,
+        _approval.c.snapshot_hash,
+        _approval.c.approved_at,
+        _approval.c.expires_at,
+        _approval.c.consumed_at,
+    ).where(_approval.c.update_request_id == request_id)
+    compiled = statement.compile(dialect=dialect())
+    return connection.execute(str(compiled), compiled.params).fetchone()

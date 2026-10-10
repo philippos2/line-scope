@@ -368,3 +368,7 @@ Dockerで追加36テスト成功、ruff check / format、git diff --check成功�
 ## Execute失効状態のCore移行
 
 [別transactionの期限切れ / 競合失効UPDATE](2026-10-11-core-execution-retirement.md)に、lock下の再検証とserviceに残す判断、失効Audit失敗rollbackと再試行、未移行範囲を記録する。
+
+## Execute / 失敗試行Auditの取得・lockのCore移行
+
+[共有する要求 / 承認lockと明示Approval facts](2026-10-11-core-execution-loads.md)に、取得順序・存在 / status / 必要項目の明示、実DB lock保持・解除、失敗試行Audit境界と残工程を記録する。
