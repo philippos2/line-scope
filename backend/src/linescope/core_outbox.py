@@ -4,6 +4,8 @@ Query-only columns mirror migrations 003/006. Validation and transaction
 ownership stay in the calling enqueue, Execute and ProjectionQueue services.
 """
 
+from datetime import timedelta
+
 from psycopg.types.json import Jsonb
 from sqlalchemy import (
     BigInteger,
@@ -12,6 +14,8 @@ from sqlalchemy import (
     Integer,
     Text,
     and_,
+    bindparam,
+    case,
     column,
     func,
     insert,
@@ -20,7 +24,7 @@ from sqlalchemy import (
     table,
     update,
 )
-from sqlalchemy.dialects.postgresql import JSONB, UUID
+from sqlalchemy.dialects.postgresql import INTERVAL, JSONB, UUID
 from sqlalchemy.dialects.postgresql.psycopg import dialect
 
 _target = table(
@@ -50,6 +54,7 @@ _outbox = table(
     column("next_attempt_at", DateTime(timezone=True)),
     column("processing_started_at", DateTime(timezone=True)),
     column("created_at", DateTime(timezone=True)),
+    column("last_error", Text()),
 )
 _control = table(
     "graph_projection_control",
@@ -95,7 +100,7 @@ def insert_graph_event(
     connection.execute(str(compiled), compiled.params)
 
 
-def claim_graph_event(connection):
+def claim_graph_event(connection, max_attempts=5):
     """One committed eligible event; lock only that event, never Graph control.
 
     The caller holds session leadership. This short transaction deliberately
@@ -119,13 +124,20 @@ def claim_graph_event(connection):
         .with_for_update()
         .cte("candidate")
     )
+    exhausted = _outbox.c.attempt_count >= max_attempts
     statement = (
         update(_outbox)
         .where(_outbox.c.outbox_id == select(candidate.c.outbox_id).scalar_subquery())
         .values(
-            status="PROCESSING",
-            attempt_count=_outbox.c.attempt_count + 1,
-            processing_started_at=now,
+            status=case((exhausted, "DEAD"), else_="PROCESSING"),
+            attempt_count=case(
+                (exhausted, _outbox.c.attempt_count), else_=_outbox.c.attempt_count + 1
+            ),
+            processing_started_at=case((exhausted, None), else_=now),
+            next_attempt_at=case((exhausted, None), else_=_outbox.c.next_attempt_at),
+            last_error=case(
+                (exhausted, "PROJECTION_ATTEMPTS_EXHAUSTED"), else_=_outbox.c.last_error
+            ),
         )
         .returning(
             _outbox.c.outbox_id,
@@ -138,7 +150,56 @@ def claim_graph_event(connection):
             _outbox.c.payload,
             _outbox.c.attempt_count,
             _outbox.c.processing_started_at,
+            _outbox.c.status,
         )
     )
     compiled = statement.compile(dialect=dialect())
     return connection.execute(str(compiled), compiled.params).fetchone()
+
+
+def fail_graph_event(connection, event, *, dead, delay_seconds, error_code):
+    now = func.statement_timestamp()
+    statement = (
+        update(_outbox)
+        .where(
+            _outbox.c.outbox_id == event["outbox_id"],
+            _outbox.c.status == "PROCESSING",
+            _outbox.c.attempt_count == event["attempt_count"],
+            _outbox.c.processing_started_at == event["processing_started_at"],
+        )
+        .values(
+            status="DEAD" if dead else "RETRYABLE",
+            processing_started_at=None,
+            next_attempt_at=None
+            if dead
+            else now + bindparam("backoff", timedelta(seconds=delay_seconds), type_=INTERVAL()),
+            last_error=error_code,
+        )
+    )
+    compiled = statement.compile(dialect=dialect())
+    return connection.execute(str(compiled), compiled.params).rowcount == 1
+
+
+def recover_expired_graph_events(connection, lease_seconds):
+    now = func.statement_timestamp()
+    rebuilding = select(_control.c.rebuild_flag).where(_control.c.control_id == 1).scalar_subquery()
+    statement = (
+        update(_outbox)
+        .where(
+            _outbox.c.status == "PROCESSING",
+            _outbox.c.processing_started_at
+            < now - bindparam("lease", timedelta(seconds=lease_seconds), type_=INTERVAL()),
+            rebuilding.is_(False),
+        )
+        .values(
+            status="RETRYABLE",
+            processing_started_at=None,
+            next_attempt_at=now,
+            last_error="PROJECTION_LEASE_EXPIRED",
+        )
+        .returning(_outbox.c.outbox_id)
+    )
+    compiled = statement.compile(dialect=dialect())
+    return [
+        row["outbox_id"] for row in connection.execute(str(compiled), compiled.params).fetchall()
+    ]
