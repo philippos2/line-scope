@@ -129,3 +129,33 @@ DBエラーはProposalStore / ReadToolsで定義済みcodeへ変換しAPIはcode
 今回実施: Python AST棚卸し、各動的候補の入力源追跡、重要更新・DB schema・既存試験の静的確認、文書リンク・diff確認。コード・設定・DBを変更せず、pytestや攻撃入力の新規実行はしていない。直前PR #87の2184 passed / 1 skippedとCI成功はそのPRの結果であり、この監査の追加試験結果ではない。
 
 未完了: Core導入、DB role / credential分離、実DBの権限属性・GRANT確認、T-SQL追加実装・実行、worker / Projection。現状はpolicy完全適合ではない。今後の変更が会話履歴なしで追えるよう、正本に方針、履歴に時点付き事実・未対応・再開順序を分離して記録する。
+
+## 8. Security試験の最初のチェックポイント
+
+PR #88 merge後、WeeklyLimit残り3%のため、PO指示どおりPR作成を急がず`test/sql-injection-regressions`で試験追加だけを行った。backend/tests/test_sql_injection.pyに17ケースを追加。OR / DROP攻撃文字列を4種類の文字列filterへ渡し、検索結果と業務・要求・承認・監査・履歴・Outboxの非変更をassertする。scripted LLMのuntrusted引数をAgent HTTP → Tool → 実PostgreSQLへ通す2ケース、fixtureで保存した攻撃文字列を文字列として再検索する2ケース、未知Tool / filter key / ORDER BY / SQL引数・不正IDを拒否する5ケースを含む。
+
+Docker内の追加・既存検索試験84件成功（追加17）。ruff check / format --check（123ファイル）、git diff --check成功。既知Starlette警告1件。プロダクションコード・設定・DB schemaは変更していない。新規実LLM疎通は行わず、バックエンド全体回帰とGitHub CIはこのチェックポイントでは未実行。
+
+T-SQL01 / 02の部分実装であり全適合ではない。保存済み文字列ケースはfixtureのparameterized INSERTによる準備なので、Prepare → 人間Approval → Executeの業務書込経路を通したsecond-order検証としては扱わない。
+再開時は(1) このブランチ・ローカルcommitとgit statusを確認、(2) 業務書込経路と追加identifier境界の試験を必要な範囲で補足、(3) 全体回帰を実行して試験PRを作成。続いてDB role分離、Read層からCore導入。ここでpolicy適合完了やバックエンド一段落とは報告しない。
+
+### WeeklyLimit残り2%の追加チェックポイント
+
+同じtest/sql-injection-regressionsブランチで、保全予定plan_codeへOR / DROP攻撃文字列をnamed Toolのuntrusted引数として渡す2ケースを追加した。ToolDispatcher → 実Prepare → 人間Approve API → owner Execute API → 正本現在値・業務履歴 → 検索Tool → 再Executeまで通す。Prepare / Approveでは業務値が変わらず、Executeでは意図した1予定だけが追加され、既存予定・設備・保全結果・依存・Outboxを変更しない。成功監査3操作、確定結果再送、再検索後のDB非変更をassertする。
+
+Docker内の専用SQL Injection試験19件成功（前回17 + 今回2）、ruff check / format --check（123ファイル）、git diff --check成功。既知Starlette警告1件。コード・設定・schemaは引き続き無変更。前節の「業務書込経路は未検証」は保全予定CREATEのこの2ケースについて解消したが、保全結果自由文字列等の全経路を検証済みとは扱わない。
+全体回帰・GitHub CI・PRは未実施。ローカルcheckpoint commitで停止し、再開時は追加対象の必要性を確認後に全体回帰と試験PRへ進む。DB role分離とCore導入は引き続き未着手。
+
+### 保全結果の自由文字列の追加チェックポイント
+
+保全結果CREATEのrecord_code / resultへ、それぞれOR / DROP攻撃文字列を渡す4ケースを追加。named Tool → Prepare → 人間Approve → owner Execute → 現在値・確定結果・業務履歴 → 検索 → 再Executeを実PostgreSQLで検証した。Prepare / Approveの業務非変更、意図した1結果だけの追加、設備・既存予定・依存・Outboxの非変更、監査3操作、再送時の非変更をassertする。
+
+Docker内の専用試験23件成功（前回19 + 今回4）、ruff check / format --check（123ファイル）、git diff --check成功。既知Starlette警告1件。プロダクションコード・設定・schemaは無変更（前節の「コード無変更」もプロダクションコードを指す）。全体回帰・GitHub CI・PRは未実施。SQL / DB policy全体の適合完了とは扱わない。
+
+同じ作業ブランチへローカルcheckpoint commitを残す。再開時は全体回帰と試験PR作成を行い、その後DB role分離・Core導入へ進む。今回の試験追加を理由に既存transaction semanticsを変更しない。
+
+### 全体回帰によるチェックポイント検証
+
+POの追加指示に従い、同じブランチの3試験commitを含むバックエンド全体回帰をDocker内の使い捨てPostgreSQLで実行。2207 passed / 1 skipped / 1 warning（146.16秒）、exit code 0。直前の2184件から今回の23件が追加された。警告は既知Starlette deprecation。終了後にlogging output failedの出力もあるため、全ログが正常だったとの主張はしない。この小タスクではログ実装の変更や追加調査は行わない。
+
+作業ツリーはcleanであり、変更はローカルcommitに保存済みのためstash不要。テスト用コンテナを削除。全体回帰未実施という前節の状態は解消したが、GitHub CI・push・PRは未実施。次回はgit status / logを確認して試験PRを作成し、その後DB role分離へ進む。Core導入・DB権限分離・policy完全適合は未完了。
