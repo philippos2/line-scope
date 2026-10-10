@@ -1,11 +1,11 @@
-"""Fixed execution history and completion writes inside the caller transaction.
+"""Fixed execution history and state writes inside the caller transaction.
 
 Query-only declarations mirror migrations 003/005. The service owns admission,
 locks, business changes, approval consumption, Outbox, Audit and commit/rollback.
 """
 
 from psycopg.types.json import Jsonb
-from sqlalchemy import DateTime, Text, bindparam, column, insert, table, update
+from sqlalchemy import DateTime, Text, bindparam, column, func, insert, table, update
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.dialects.postgresql.psycopg import dialect
 
@@ -27,6 +27,12 @@ _request = table(
     column("update_request_id", UUID()),
     column("status", Text()),
     column("execution_result", JSONB()),
+    column("updated_at", DateTime(timezone=True)),
+)
+_approval = table(
+    "approval",
+    column("approval_id", UUID()),
+    column("status", Text()),
     column("updated_at", DateTime(timezone=True)),
 )
 
@@ -75,4 +81,28 @@ def complete_execution_request(connection, *, request_id, result, consumed_at):
     compiled = statement.compile(dialect=dialect())
     # Store the confirmed result and approval consumption timestamp supplied by
     # the service; never reread current business values or observe a new clock.
+    connection.execute(str(compiled), compiled.params)
+
+
+def retire_execution_approval(connection, *, approval_id, status):
+    if status not in {"EXPIRED", "INVALIDATED"}:
+        raise ValueError("Unsupported execution retirement state")
+    statement = (
+        update(_approval)
+        .where(_approval.c.approval_id == approval_id)
+        .values(status=status, updated_at=func.clock_timestamp())
+    )
+    compiled = statement.compile(dialect=dialect())
+    connection.execute(str(compiled), compiled.params)
+
+
+def retire_execution_request(connection, *, request_id, status):
+    if status not in {"EXPIRED", "INVALIDATED"}:
+        raise ValueError("Unsupported execution retirement state")
+    statement = (
+        update(_request)
+        .where(_request.c.update_request_id == request_id)
+        .values(status=status, updated_at=func.clock_timestamp())
+    )
+    compiled = statement.compile(dialect=dialect())
     connection.execute(str(compiled), compiled.params)

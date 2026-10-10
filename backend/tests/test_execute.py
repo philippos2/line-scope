@@ -216,3 +216,57 @@ def test_expiration_immediately_before_consumption_rolls_back_all_changes(approv
         ).fetchone() == {"state_code": "STOPPED", "version": 1}
         assert c.execute("SELECT count(*) AS n FROM business_update_history").fetchone()["n"] == 0
         assert c.execute("SELECT count(*) AS n FROM equipment_state_history").fetchone()["n"] == 0
+
+
+@pytest.mark.parametrize(
+    "cause,status,action",
+    [("version", "INVALIDATED", "INVALIDATE"), ("expiry", "EXPIRED", "EXPIRE")],
+)
+def test_retirement_audit_failure_rolls_back_both_states_and_retry_retires(
+    approved, cause, status, action
+):
+    db, saved = approved
+    with db.transaction() as c:
+        if cause == "version":
+            c.execute("UPDATE equipment_current_state SET version=2")
+        else:
+            c.execute(
+                "WITH t AS (SELECT clock_timestamp()-INTERVAL '31 minutes' AS at) "
+                "UPDATE approval SET approved_at=t.at,expires_at=t.at+INTERVAL '30 minutes' FROM t"
+            )
+        before_approval = c.execute("SELECT * FROM approval").fetchone()
+        before_request = c.execute("SELECT * FROM update_request").fetchone()
+        c.execute("""CREATE FUNCTION reject_retirement_audit() RETURNS trigger LANGUAGE plpgsql AS $$
+            BEGIN IF NEW.action IN ('EXPIRE','INVALIDATE') THEN RAISE EXCEPTION 'private-retirement-secret'; END IF;
+            RETURN NEW; END $$""")
+        c.execute(
+            "CREATE TRIGGER reject_retirement_audit BEFORE INSERT ON update_audit_event "
+            "FOR EACH ROW EXECUTE FUNCTION reject_retirement_audit()"
+        )
+    with pytest.raises(ProposalError) as caught:
+        service(db).execute(context("requester"), str(saved.update_request_id))
+    assert caught.value.code == "INTERNAL_ERROR"
+    assert "private-retirement-secret" not in str(caught.value)
+    with db.transaction() as c:
+        assert c.execute("SELECT * FROM approval").fetchone() == before_approval
+        assert c.execute("SELECT * FROM update_request").fetchone() == before_request
+        assert c.execute("SELECT count(*) AS n FROM business_update_history").fetchone()["n"] == 0
+        assert c.execute("SELECT count(*) AS n FROM equipment_state_history").fetchone()["n"] == 0
+        assert (
+            c.execute(
+                "SELECT count(*) AS n FROM update_audit_event WHERE action=%s", (action,)
+            ).fetchone()["n"]
+            == 0
+        )
+        c.execute("DROP TRIGGER reject_retirement_audit ON update_audit_event")
+    with pytest.raises(ProposalError) as retry:
+        service(db).execute(context("requester"), str(saved.update_request_id))
+    assert retry.value.code == ("VERSION_CONFLICT" if cause == "version" else "APPROVAL_EXPIRED")
+    assert current(db, saved)["status"] == current(db, saved)["approval_status"] == status
+    with db.transaction() as c:
+        assert (
+            c.execute(
+                "SELECT count(*) AS n FROM update_audit_event WHERE action=%s", (action,)
+            ).fetchone()["n"]
+            == 1
+        )
