@@ -316,3 +316,7 @@ Dockerで追加36テスト成功、ruff check / format、git diff --check成功�
 ## PostgreSQL role・GRANT・Composeの分離
 
 [管理・runtime・検索roleの分離](2026-10-10-postgres-role-provisioning.md)に固定allow-list、既存volumeを消さないcredential upgrade、実LOGIN権限拒否・Outbox rollback、使い捨てCompose起動の結果を記録する。標準APIへ管理DSNを渡さず、次はRead層からCore導入へ進む。直接Python互換モード・将来worker権限等の限界も区別する。
+
+## 設備ReadへのSQLAlchemy Core導入
+
+[設備・設備状態のCore SELECT](2026-10-10-core-equipment-reads.md)に、UUID Read限定のcompile/bind橋渡し、既存psycopg transactionを維持する理由、依存固定、実DB回帰試験、未移行範囲を記録する。汎用実行層やSQL方針全体の完了とは扱わない。

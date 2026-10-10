@@ -161,3 +161,6 @@ password / token / credential / secretや不要な機密情報をログへ出さ
 危険な動的SQL → 安全なparameterization → Core適用の順に改善し、安全な既存Raw SQLを非ORMという理由だけで機械変換しない。新規通常アクセスはCoreを標準とする。重要更新を抽象化・コード削減のために意味変更しない。
 適合はInjection、認可、atomic rollback、version競合、DB制約、DB roleの自動テストで確認する。重要変更を開始する前に棚卸し結果・推奨変更・Transaction / lock / Approval / Snapshot / Outbox / Projectionへの移行リスクを報告する。
 実装状況・不足・改善順序は[2026-10-10棚卸し](../history/2026-10-10-sql-database-access-review.md)に記録し、本節の方針を実装済みと混同しない。
+
+初回Core移行はget_equipment / get_equipment_stateのSELECTに限定する。固定Table / Columnのquery-only宣言からSELECTとUUID bindを構築し、PostgreSQL psycopg dialectでcompileしたSQL本文とparameter辞書を分離して既存psycopg接続で実行する。literal_bindsやparameterの文字列補間は使用しない。DB型・制約の正本はmigrationであり、宣言からDDLを生成しない。
+この橋渡しはUUIDをbindする2本のRead専用で、汎用のSQLAlchemy実行層ではない。SQLAlchemy Engine / pool / autobegin / ORMを導入せず、既存のreadonly Transaction・接続寿命・dict_row・DB例外変換を維持する。JSON / custom type等のbind・result processorを必要とする処理や重要更新へそのまま拡張しない。後続移行は型処理・接続所有権・lock・rollbackの必要性を個別評価する。
