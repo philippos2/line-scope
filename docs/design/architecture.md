@@ -170,3 +170,4 @@ get_operation_equipment_assignmentsもCoreのLEFT JOINへ移行し、親version�
 
 重要更新への初回Core適用はHuman RejectのApproval / UpdateRequest状態UPDATE 2本に限定する。query-onlyの部分Column宣言からUUID / text bindとclock_timestampを構築し、既存の認可済み・row lock取得済みpsycopg transactionで実行する。transaction取得・認可・UpdateRequest → Approvalのlock順序・Audit保存・commit / rollbackはHuman service側に明示する。Rejectは業務正本やOutboxを更新しない。後続のAudit失敗を含むrollbackを実DBで確認し、汎用write executorやJSON / custom type対応とは扱わない。
 Human Approve成功・対象競合時の失効もCoreの専用状態更新へ移行する。承認時刻はclock_timestampのCTEで一度だけ観測し、approved_at / updated_atへ同じ値を使い、expires_atは固定30分のnative PostgreSQL interval bindを加える。状態UPDATEの順序、RETURNING、Auditとの原子性、失効commit後の競合通知を維持する。SQL構築の抽象化によって認可・lock・Snapshot検証・Transaction境界を隠さない。
+Human Approvalの親ID取得とUpdateRequest / ApprovalのFOR UPDATEもCoreへ移行する。service内で「親ID取得 → UpdateRequest lock → 親ID条件付きApproval lock → 保存Snapshot読込」を明示し、既存のlock順序・timeout・transaction終了までの保持を維持する。関数群はcore_approvalにまとめ、JSONB集約を含むSnapshot読込の固定Raw SQLは今回維持する。
