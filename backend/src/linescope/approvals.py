@@ -14,6 +14,7 @@ from .canonical import normalize_timestamp, normalize_uuid
 from .execution import ExecutionContext
 from .logging import EventLogger, request_context
 from .proposals import LOOKUP, ProposalError, ProposalStore, _saved
+from .relations import KEY_FIELDS, normalize_relation_set
 
 
 class _HumanApproval:
@@ -375,6 +376,58 @@ class ProductionScheduleApproval(_HumanApproval):
             if current != target["before"]:
                 conflict = True
         return conflict
+
+
+class DependencyApproval(_HumanApproval):
+    """Internal dependency approval; Execute revalidates under the Graph lock."""
+
+    @staticmethod
+    def _require_scope(category, saved):
+        if category != "DEPENDENCY" or any(
+            t["target_type"] != "DependencyRelation"
+            or t["operation_type"] not in {"CREATE", "UPDATE", "DISABLE"}
+            for t in saved.snapshot.data["targets"]
+        ):
+            raise ProposalError("INVALID_ARGUMENT", "Dependency relation targets required")
+
+    @staticmethod
+    def _conflict_code(connection, targets):
+        changed = []
+        for target in targets:
+            if target["operation_type"] == "CREATE":
+                continue
+            changed.append(target["target_id"])
+            row = connection.execute(
+                "SELECT to_jsonb(r)-'created_at'-'updated_at' AS state "
+                "FROM dependency_relation r WHERE dependency_relation_id=%s FOR UPDATE",
+                (target["target_id"],),
+            ).fetchone()
+            try:
+                current = normalize_relation_set([row["state"]])[0] if row else None
+            except ValueError:
+                current = None
+            if current != target["before"]:
+                return "VERSION_CONFLICT"
+        # Compare final keys against unchanged rows. Another Target may move
+        # its old key in the same transaction; do not reject that key transfer.
+        keys = [{field: t["after"][field] for field in KEY_FIELDS} for t in targets]
+        row = connection.execute(
+            "SELECT EXISTS(SELECT 1 FROM dependency_relation "
+            "WHERE dependency_relation_id=ANY(%s::uuid[])) OR EXISTS("
+            "SELECT 1 FROM dependency_relation r JOIN jsonb_to_recordset(%s) AS k("
+            "source_entity_type text,source_entity_id uuid,target_entity_type text,"
+            "target_entity_id uuid,relation_type text,effective_from timestamptz) ON "
+            "r.source_entity_type=k.source_entity_type AND r.source_entity_id=k.source_entity_id "
+            "AND r.target_entity_type=k.target_entity_type AND r.target_entity_id=k.target_entity_id "
+            "AND r.relation_type=k.relation_type AND r.effective_from=k.effective_from "
+            "WHERE NOT r.dependency_relation_id=ANY(%s::uuid[])) AS conflict",
+            (
+                [t["target_id"] for t in targets if t["operation_type"] == "CREATE"],
+                Jsonb(keys),
+                changed,
+            ),
+        ).fetchone()
+        return "CREATE_CONFLICT" if row["conflict"] else None
 
 
 class MaintenanceApproval(_HumanApproval):
