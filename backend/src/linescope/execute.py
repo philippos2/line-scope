@@ -386,6 +386,63 @@ class ProductionScheduleExecute(_UpdateExecute):
             if updated.rowcount != 1:
                 raise ProposalError("VERSION_CONFLICT", "Production operation version has changed")
 
+    def observe_current(self, result):
+        return _observe_current_operations(self.store, result)
+
+
+def _observe_current_operations(store, result):
+    """Read the whole current operation set separately from the confirmed result."""
+    targets = result["targets"]
+    if not targets or any(
+        t["target_type"] != "ProductionOperation" or t["operation_type"] != "UPDATE"
+        for t in targets
+    ):
+        raise ProposalError("INVALID_ARGUMENT", "Production schedule UPDATE result required")
+    ids = [target["target_id"] for target in targets]
+    with store._transaction(read_only=True) as c:
+        row = c.execute(
+            "SELECT statement_timestamp() AS observed_at, "
+            "(SELECT jsonb_agg(to_jsonb(p) ORDER BY production_operation_id) "
+            "FROM (SELECT production_operation_id,operation_code,process_id,planned_start,planned_end,planned_status,active,version "
+            "FROM production_operation WHERE production_operation_id=ANY(%s::uuid[])) p) AS operations",
+            (ids,),
+        ).fetchone()
+    operations = row["operations"] or []
+    if len(operations) != len(targets):
+        raise ProposalError("TARGET_NOT_FOUND", "A current production operation is unavailable")
+    operations = [
+        {
+            **p,
+            "planned_start": normalize_timestamp(p["planned_start"]),
+            "planned_end": normalize_timestamp(p["planned_end"]),
+        }
+        for p in operations
+    ]
+    confirmed = {t["target_id"]: t["after"]["version"] for t in targets}
+    return {
+        "current_snapshot": {
+            "targets": [
+                {
+                    "target_type": "ProductionOperation",
+                    "target_id": p["production_operation_id"],
+                    "snapshot": p,
+                }
+                for p in operations
+            ]
+        },
+        "current_versions": [
+            {
+                "target_type": "ProductionOperation",
+                "target_id": p["production_operation_id"],
+                "version": p["version"],
+                "confirmed_version": confirmed[p["production_operation_id"]],
+                "version_delta": p["version"] - confirmed[p["production_operation_id"]],
+            }
+            for p in operations
+        ],
+        "observed_at": row["observed_at"],
+    }
+
 
 class MaintenancePlanUpdateExecute(_UpdateExecute):
     category = "MAINTENANCE"
@@ -816,6 +873,7 @@ class HumanExecute(_UpdateExecute):
     def _handler(targets):
         handlers = {
             ("EquipmentState", "UPDATE"): EquipmentExecute,
+            ("ProductionOperation", "UPDATE"): ProductionScheduleExecute,
             ("MaintenancePlan", "UPDATE"): MaintenancePlanUpdateExecute,
             ("MaintenancePlan", "CREATE"): MaintenancePlanCreateExecute,
             ("MaintenanceRecord", "CREATE"): MaintenanceRecordCreateExecute,
