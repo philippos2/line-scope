@@ -9,6 +9,7 @@ from uuid import uuid4
 from psycopg.types.json import Jsonb
 
 from .approval_policy import validate_approve, validate_reject
+from .assignments import normalize_operation_assignments
 from .audit import failed_attempt
 from .canonical import normalize_timestamp, normalize_uuid
 from .execution import ExecutionContext
@@ -376,6 +377,95 @@ class ProductionScheduleApproval(_HumanApproval):
             if current != target["before"]:
                 conflict = True
         return conflict
+
+
+class ProductionAssignmentApproval(_HumanApproval):
+    """Internal assignment-aware approval; Graph/endpoint checks belong to Execute."""
+
+    @staticmethod
+    def _require_scope(category, saved):
+        targets = saved.snapshot.data["targets"]
+        allowed = {
+            ("ProductionOperation", "UPDATE"),
+            ("ProductionOperationEquipmentAssignment", "CREATE"),
+            ("ProductionOperationEquipmentAssignment", "UPDATE"),
+            ("ProductionOperationEquipmentAssignment", "DISABLE"),
+        }
+        if (
+            category != "PRODUCTION_OPERATION"
+            or any((t["target_type"], t["operation_type"]) not in allowed for t in targets)
+            or not any(
+                t["target_type"] == "ProductionOperation" and "equipment_assignments" in t["before"]
+                for t in targets
+            )
+        ):
+            raise ProposalError("INVALID_ARGUMENT", "Assignment-aware production targets required")
+
+    @staticmethod
+    def _conflict_code(connection, targets):
+        parents = [t for t in targets if t["target_type"] == "ProductionOperation"]
+        # Lock all parents before children, including schedule-only parents in
+        # this request. Compare their complete business rows without the set.
+        plain = [
+            {**t, "before": {k: v for k, v in t["before"].items() if k != "equipment_assignments"}}
+            for t in parents
+        ]
+        if ProductionScheduleApproval._targets_changed(connection, plain):
+            return "VERSION_CONFLICT"
+        children = [
+            t for t in targets if t["target_type"] == "ProductionOperationEquipmentAssignment"
+        ]
+        changed_ids = [t["target_id"] for t in children if t["operation_type"] != "CREATE"]
+        rows = connection.execute(
+            "SELECT to_jsonb(a)-'created_at'-'updated_at' AS state "
+            "FROM production_operation_equipment_assignment a "
+            "WHERE production_operation_id=ANY(%s::uuid[]) OR assignment_id=ANY(%s::uuid[]) "
+            "ORDER BY assignment_id FOR UPDATE",
+            ([t["target_id"] for t in parents], changed_ids),
+        ).fetchall()
+        try:
+            current = {
+                row["state"]["assignment_id"]: normalize_operation_assignments(
+                    row["state"]["production_operation_id"], [row["state"]]
+                )[0]
+                for row in rows
+            }
+        except ValueError:
+            return "VERSION_CONFLICT"
+        for parent in parents:
+            if "equipment_assignments" not in parent["before"]:
+                continue
+            active = sorted(
+                [
+                    r
+                    for r in current.values()
+                    if r["production_operation_id"] == parent["target_id"] and r["active"]
+                ],
+                key=lambda r: r["assignment_id"],
+            )
+            if active != parent["before"]["equipment_assignments"]:
+                return "VERSION_CONFLICT"
+        if any(
+            current.get(t["target_id"]) != t["before"]
+            for t in children
+            if t["operation_type"] != "CREATE"
+        ):
+            return "VERSION_CONFLICT"
+        creates = [t for t in children if t["operation_type"] == "CREATE"]
+        if not creates:
+            return None
+        # CREATE rows cannot be locked before they exist. This observation is
+        # rechecked by Execute under Graph coordination and DB UNIQUE.
+        conflict = connection.execute(
+            "SELECT EXISTS(SELECT 1 FROM production_operation_equipment_assignment "
+            "WHERE assignment_id=ANY(%s::uuid[])) OR EXISTS(SELECT 1 "
+            "FROM production_operation_equipment_assignment a JOIN jsonb_to_recordset(%s) "
+            "AS k(production_operation_id uuid,equipment_id uuid,effective_from timestamptz) "
+            "ON a.production_operation_id=k.production_operation_id AND a.equipment_id=k.equipment_id "
+            "AND a.effective_from=k.effective_from) AS conflict",
+            ([t["target_id"] for t in creates], Jsonb([t["business_key"] for t in creates])),
+        ).fetchone()["conflict"]
+        return "CREATE_CONFLICT" if conflict else None
 
 
 class DependencyApproval(_HumanApproval):
