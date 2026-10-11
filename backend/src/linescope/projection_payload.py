@@ -11,6 +11,10 @@ from .relations import normalize_relation_set
 FIELDS = {"schema_version", "aggregate_type", "aggregate_id", "aggregate_version", "state"}
 
 
+class ProjectionPayloadError(ValueError):
+    """A saved event is permanently invalid, rather than a worker defect."""
+
+
 def build_projection_payload(aggregate_type, state):
     if type(state) is not dict:
         raise ValueError("Complete projection state is required")
@@ -32,6 +36,13 @@ def build_projection_payload(aggregate_type, state):
 
 
 def validate_projection_payload(payload):
+    try:
+        return _validate_projection_payload(payload)
+    except ValueError as error:
+        raise ProjectionPayloadError("Invalid Projection payload") from error
+
+
+def _validate_projection_payload(payload):
     if type(payload) is not dict or set(payload) != FIELDS:
         raise ValueError("Invalid projection payload fields")
     if type(payload["schema_version"]) is not int or payload["schema_version"] != 1:

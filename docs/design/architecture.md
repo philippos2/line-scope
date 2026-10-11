@@ -203,3 +203,6 @@ ProjectionApplicationは通常workerの適用境界を担当する。leader確�
 
 
 Neo4jProjectionは公式Python driverの明示transactionで、validated generation確認 → 一意markerのwrite lock → source_version / payload_hash比較 → source_record_idによる旧edge除去 → 完全stateの新edge生成 → marker更新 → commitを行う。同version同hashと古いversionはmarker確認後に冪等成功とし、同version異hashや不正marker、端点不存在は成功としない。DISABLEはinactive edgeとmarkerを残す。通常適用で端点ノードやgenerationを推測生成しない。DependencyRelationとAssignmentの同UUID衝突はエッジ種別の固定集合で名前空間を分離する。値はCypher parameter、識別子は閉じたエッジ種別allow-listのみから構築する。任意CypherをAgent / APIへ公開しない。schema設置は管理用の別処理で、通常適用へDDL権限を要求しない。driverとsessionの接続設定・生命周期は呼出し側が所有し、workerのruntime構成・権限・監視は次工程とする。
+
+
+ProjectionWorker.run_onceは取得済み専用leader上で通常workerの1回分を担当する。PostgreSQL同期状態がERROR / REBUILDINGなら処理を止め、それ以外でlease回収 → 最大1件claim → ProjectionApplication / Neo4jProjection → APPLIEDまたは固定retry / DEAD遷移をつなぐ。一般的なValueErrorを恒久不正へ分類せず、ProjectionPayloadError / ProjectionIntegrityErrorだけをその根拠にする。再試行不可driver異常・未知例外・leader喪失は呼出し元へ伝播し、常駐loopが勝手に握り潰して続行しない契約とする。実Neo4j timeoutはlease未満を要求する。成功・再試行・DEAD・期限切れ回収のログは確定commit後に出し、worker試行ごとに新しいrequest_idと業務IDで相関する。常駐loop・専用role / credentials・heartbeat・seed / Rebuildはまだ後続であり、APIやAgent Toolからworkerを操作できない。
