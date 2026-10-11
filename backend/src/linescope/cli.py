@@ -4,10 +4,10 @@ import os
 
 import psycopg
 
-from .database import Database
-from .db_roles import RoleProvisionError, provision_roles, validate_passwords
 from .demo_seed import SeedConflict, seed_demo
 from .logging import EventLogger, configure_runtime_logging
+from .persistence.database import Database
+from .persistence.db_roles import RoleProvisionError, provision_roles, validate_passwords
 from .settings import Settings
 
 

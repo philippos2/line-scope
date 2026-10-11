@@ -11,13 +11,13 @@ from starlette.exceptions import HTTPException
 from .agent_input import AgentInput, ConversationStore
 from .approvals import HumanApproval
 from .canonical import strict_json
-from .database import Database
 from .equipment_command import EquipmentCommandPrepare
 from .execute import HumanExecute
 from .http_logging import RequestMiddleware
 from .llm import OllamaClient
 from .logging import EventLogger, request_context
 from .maintenance_command import MaintenanceCommandPrepare
+from .persistence.database import Database
 from .production_command import ProductionCommandPrepare
 from .proposals import REQUEST_ROLES, ProposalError, ProposalStore
 from .read_agent import ReadAgent

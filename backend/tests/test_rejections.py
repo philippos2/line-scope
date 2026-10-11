@@ -7,8 +7,8 @@ from test_approvals import prepared as equipment_prepared
 from test_proposals import context
 
 from linescope.approvals import EquipmentApproval
-from linescope.database import Database
 from linescope.demo_seed import DEMO_EQUIPMENT
+from linescope.persistence.database import Database
 from linescope.proposals import ProposalError, ProposalStore
 
 

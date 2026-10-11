@@ -12,7 +12,9 @@ from .approval_policy import validate_approve, validate_reject
 from .assignments import normalize_operation_assignments
 from .audit import failed_attempt
 from .canonical import normalize_timestamp, normalize_uuid
-from .core_approval import (
+from .execution import ExecutionContext
+from .logging import EventLogger, request_context
+from .persistence.core_approval import (
     approve_proposal_state,
     find_approval_parent,
     invalidate_proposal_state,
@@ -20,15 +22,13 @@ from .core_approval import (
     lock_update_request,
     reject_proposal_state,
 )
-from .core_audit import insert_audit_event
-from .core_business import (
+from .persistence.core_audit import insert_audit_event
+from .persistence.core_business import (
     lock_equipment_state,
     lock_maintenance_plan,
     maintenance_plan_create_conflicts,
     maintenance_record_create_conflicts,
 )
-from .execution import ExecutionContext
-from .logging import EventLogger, request_context
 from .proposals import LOOKUP, ProposalError, ProposalStore, _saved
 from .relations import KEY_FIELDS, normalize_relation_set
 

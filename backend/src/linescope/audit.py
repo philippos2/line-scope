@@ -2,9 +2,9 @@
 
 from uuid import uuid4
 
-from .core_approval import find_approval_parent
-from .core_audit import insert_audit_event
-from .core_proposals import lock_request_approval, lock_request_state
+from .persistence.core_approval import find_approval_parent
+from .persistence.core_audit import insert_audit_event
+from .persistence.core_proposals import lock_request_approval, lock_request_state
 
 
 def prepare_saved(connection, context, update_request_id, approval_id, target_count):

@@ -4,16 +4,16 @@ from psycopg import sql
 from psycopg.errors import UniqueViolation
 
 from .approvals import DependencyApproval
-from .core_dependencies import (
-    insert_dependency_relation,
-    lock_dependency_endpoint,
-    update_dependency_relation,
-)
 from .dependency_cycles import DependencyCycleError, validate_dependency_cycles
 from .dependency_prepare import OBSERVE
 from .execute import _UpdateExecute
 from .graph.graph_locks import acquire_graph_mutation_lock
 from .graph.outbox import enqueue_graph_target
+from .persistence.core_dependencies import (
+    insert_dependency_relation,
+    lock_dependency_endpoint,
+    update_dependency_relation,
+)
 from .proposals import ProposalError
 from .relations import RelationSetConflict, normalize_relation_set
 from .snapshot import CATEGORIES

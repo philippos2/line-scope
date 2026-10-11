@@ -322,7 +322,7 @@ def test_cursor_uses_normalized_filter_and_distinguishes_explicit_null(search_wo
 @pytest.mark.parametrize("field", ["name", "equipment_code"])
 @pytest.mark.parametrize("payload", ["' OR 1=1 --", "'; DROP TABLE equipment; --", "日本語 %_"])
 def test_core_equipment_search_binds_and_round_trips_text(search_world, field, payload):
-    from linescope.core_reads import search_equipment_rows
+    from linescope.persistence.core_reads import search_equipment_rows
 
     calls = []
 
@@ -358,7 +358,7 @@ def test_core_equipment_search_binds_and_round_trips_text(search_world, field, p
     [({}, UUID(int=2)), ({"name": "missing"}, None), ({"equipment_code": "missing"}, None)],
 )
 def test_core_equipment_page_native_rows_and_empty_observation(search_world, filters, after):
-    from linescope.core_reads import search_equipment_rows
+    from linescope.persistence.core_reads import search_equipment_rows
 
     with search_world.transaction() as c:
         rows = search_equipment_rows(c, filters, 2, after)
@@ -428,7 +428,7 @@ def test_core_search_keeps_readonly_transaction(search_world, tool):
 def test_core_remaining_search_text_bind_and_saved_value(
     search_world, tool, field, identifier, payload
 ):
-    from linescope.core_reads import search_rows
+    from linescope.persistence.core_reads import search_rows
 
     calls = []
 
@@ -470,7 +470,7 @@ def test_core_remaining_search_text_bind_and_saved_value(
 def test_core_remaining_search_native_rows_keyset_and_transaction(
     search_world, tool, first, use_after
 ):
-    from linescope.core_reads import search_rows
+    from linescope.persistence.core_reads import search_rows
 
     table, key, _ = SEARCH_TOOLS[tool]
     after = first if use_after else None
@@ -495,7 +495,7 @@ def test_core_remaining_search_native_rows_keyset_and_transaction(
 
 @pytest.mark.integration
 def test_core_relation_endpoints_and_false_use_bound_values(search_world):
-    from linescope.core_reads import search_rows
+    from linescope.persistence.core_reads import search_rows
 
     calls = []
 

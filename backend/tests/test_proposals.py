@@ -9,8 +9,8 @@ import pytest
 from psycopg.types.json import Jsonb
 
 from linescope.canonical import canonical_hash, canonical_json
-from linescope.database import Database
 from linescope.execution import ExecutionContext
+from linescope.persistence.database import Database
 from linescope.proposals import ProposalError, ProposalStore
 from linescope.relations import dependency_relation_create_target
 from linescope.settings import Settings

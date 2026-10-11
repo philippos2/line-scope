@@ -16,7 +16,8 @@ import psycopg
 
 from .audit import prepare_saved, proposal_replaced
 from .canonical import canonical_json, normalize_uuid
-from .core_proposals import (
+from .execution import ExecutionContext
+from .persistence.core_proposals import (
     insert_pending_approval,
     insert_pending_request,
     insert_proposal_target,
@@ -25,7 +26,6 @@ from .core_proposals import (
     lock_replaced_request,
     lock_request_approval,
 )
-from .execution import ExecutionContext
 from .snapshot import CATEGORIES, CanonicalSnapshot
 
 REQUEST_ROLES = {
