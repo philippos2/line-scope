@@ -8,6 +8,7 @@ from ..persistence.core_rebuild import (
     fail_rebuild,
     heartbeat_rebuild,
     publish_rebuild,
+    stage_restore_generation,
 )
 from .graph_locks import require_exclusive_graph_mutation_lock
 from .neo4j_generation import VerifiedGeneration
@@ -81,6 +82,38 @@ class RebuildControl:
             require_exclusive_graph_mutation_lock(lock_connection)
             leadership.require()
         leadership.require()
+
+    def stage_restore(self, leadership, lock_connection, ticket, verified, adapter):
+        """Return a new fence after installing a verified Restore drain target.
+
+        This is not publication: flag and fatal error remain, Outbox is untouched.
+        Caller must replace its ticket before drain/failure/final publication.
+        Only an absent PG pointer is handled; missing Neo4j data behind an
+        existing pointer requires a separate recovery decision.
+        """
+        self._ticket(ticket)
+        if ticket.previous_generation is not None:
+            raise RebuildControlRejected("Restore staging requires an absent generation pointer")
+        if not isinstance(verified, VerifiedGeneration):
+            raise ValueError("A verified generation result is required")
+        generation = UUID(verified.generation)
+        leadership.require()
+        require_exclusive_graph_mutation_lock(lock_connection)
+        adapter.require_verified(
+            generation=generation,
+            snapshot_hash=verified.snapshot_hash,
+            leadership=leadership,
+        )
+        leadership.require()
+        require_exclusive_graph_mutation_lock(lock_connection)
+        with self.database.transaction() as connection:
+            if not stage_restore_generation(connection, ticket, generation):
+                raise RebuildControlRejected("Restore is stale, DEAD or has no undrained events")
+            require_exclusive_graph_mutation_lock(lock_connection)
+            leadership.require()
+        # Match begin/publish: post-commit loss remains unknown, never undo it.
+        leadership.require()
+        return RebuildTicket(ticket.rebuild_id, generation)
 
     @staticmethod
     def _ticket(ticket):

@@ -1,0 +1,13 @@
+# Restore作業用generationの設定境界
+
+正本: operations §10、transaction-design §11・17。試験対応: T-R12のRestore前段。受入全体の完了ではない。
+
+- PostgreSQLのactive_generationがNULLで未処理Outboxがある場合、検証済み作業用generationを設定する内部処理を追加した。controllerへの接続は後続。
+- callerはleaderとexclusive mutation lockを保持し、一貫Snapshotからgenerationを構築する。設定処理はNeo4jの実際の検証markerを確認し、その後もlock/leaderを再確認する。
+- Coreによる短いTransactionで同じrebuild_id、flag=true、NULL pointer、未処理あり、DEADなしを条件にpointerだけ変更する。fatal_error、flag、Outbox payload/status/attemptは変更しない。分析はREBUILDINGのままである。
+- 成功時は同じrebuild_idと新pointerを持つticketを返す。previous_generationは各遷移の比較対象pointerという既存の意味であり、公開履歴ではない。callerはticketを置き換え、drain・失敗保存・最終公開に使用する。古いticketは無効になる。
+- 最終公開にはdrain完了と別の新generationの構築・検証が必要。作業用generationを設定しただけではCURRENTにならない。
+- commit後のleader喪失はunknownであり、設定済みpointerを推測で戻さない。次controllerのcrash recoveryが必要。
+- 今回はNULL pointerのみ扱う。pointerは存在するがNeo4j generationが欠損しているケース、controller全体のRestore接続、crash recovery、generation cleanup、I/O残時間伝播は未実装。
+
+試験では実PostgreSQL・Neo4jでDEAD、stale ticket、flag解除、pointer競合、lock喪失、検証marker欠損、commit後leader喪失、DB更新失敗時のrollbackを確認する。LogiScopeコードは再利用していない。
