@@ -12,7 +12,7 @@ from test_maintenance_plan_execute import settings
 from test_maintenance_prepare import create_plan, create_record, identity, prepare, update
 from test_maintenance_prepare import service as maintenance_fixture
 
-from linescope.canonical import normalize_timestamp
+from linescope.domain.canonical import normalize_timestamp
 from linescope.execute import MaintenanceExecute
 from linescope.logging import EventLogger
 from linescope.proposals import ProposalError

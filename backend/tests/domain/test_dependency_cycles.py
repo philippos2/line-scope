@@ -3,7 +3,7 @@ from uuid import UUID
 
 import pytest
 
-from linescope.dependency_cycles import validate_dependency_cycles
+from linescope.domain.dependency_cycles import validate_dependency_cycles
 
 
 def uid(number):

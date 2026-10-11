@@ -8,10 +8,10 @@ from uuid import uuid4
 
 import psycopg
 import pytest
+from domain.test_assignments import row as assignment
+from domain.test_relation_snapshot import current as relation
 from neo4j import GraphDatabase
 from neo4j.exceptions import ConstraintError, Neo4jError
-from test_assignments import row as assignment
-from test_relation_snapshot import current as relation
 
 from graph.test_projection_queue import queued as queued
 from linescope.graph.graph_leadership import GraphLeadershipLost, graph_leadership

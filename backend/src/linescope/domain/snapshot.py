@@ -11,13 +11,13 @@ import re
 from dataclasses import dataclass
 from uuid import uuid4
 
+from ..execution import ExecutionContext
 from .assignments import (
     normalize_operation_assignments,
     replacement_assignment_targets,
     validate_assignment_target,
 )
 from .canonical import canonical_json, normalize_timestamp, normalize_uuid, strict_json
-from .execution import ExecutionContext
 from .relations import validate_relation_target
 
 MAX_VERSION = 2**63 - 1

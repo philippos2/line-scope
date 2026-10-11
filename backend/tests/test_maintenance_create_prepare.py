@@ -7,7 +7,7 @@ from uuid import UUID, uuid4
 import psycopg
 import pytest
 
-from linescope.canonical import canonical_hash
+from linescope.domain.canonical import canonical_hash
 from linescope.execution import ExecutionContext
 from linescope.prepare import PLAN_CREATE, RECORD_CREATE, MaintenanceCreatePrepare
 from linescope.proposals import ProposalError
@@ -281,7 +281,7 @@ def test_replay_preserves_ids_before_conflict_checks_and_generates_no_new_ids(se
     def no_id():
         pytest.fail("Replay generated a new CREATE ID")
 
-    monkeypatch.setattr("linescope.snapshot.uuid4", no_id)
+    monkeypatch.setattr("linescope.domain.snapshot.uuid4", no_id)
     replay = prepare(
         svc,
         [

@@ -9,8 +9,8 @@ import pytest
 from test_proposals import context
 
 from linescope.approvals import EquipmentApproval
-from linescope.canonical import canonical_hash
 from linescope.demo_seed import DEMO_EQUIPMENT, seed_demo
+from linescope.domain.canonical import canonical_hash
 from linescope.persistence.database import Database
 from linescope.prepare import EquipmentStatePrepare
 from linescope.proposals import ProposalError, ProposalStore

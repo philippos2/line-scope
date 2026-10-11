@@ -12,7 +12,8 @@ from .approvals import (
     ProductionScheduleApproval,
 )
 from .audit import failed_attempt
-from .canonical import normalize_timestamp, normalize_uuid
+from .domain.canonical import normalize_timestamp, normalize_uuid
+from .domain.snapshot import CATEGORIES
 from .execute_policy import ApprovalFacts, validate_new_execute
 from .execution import ExecutionContext
 from .logging import EventLogger, request_context
@@ -35,7 +36,6 @@ from .persistence.core_execute import (
 from .persistence.core_proposals import lock_request_approval, lock_request_state
 from .proposals import LOOKUP, ProposalError, ProposalStore, _saved
 from .reads import json_value
-from .snapshot import CATEGORIES
 
 RETIRE_CODES = frozenset(
     {

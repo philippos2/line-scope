@@ -5,7 +5,7 @@ from uuid import UUID, uuid4
 
 import pytest
 
-from linescope.canonical import canonical_hash
+from linescope.domain.canonical import canonical_hash
 from linescope.execution import ExecutionContext
 from linescope.prepare import EquipmentStatePrepare
 from linescope.proposals import ProposalError

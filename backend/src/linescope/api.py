@@ -10,7 +10,8 @@ from starlette.exceptions import HTTPException
 
 from .agent_input import AgentInput, ConversationStore
 from .approvals import HumanApproval
-from .canonical import strict_json
+from .domain.canonical import strict_json
+from .domain.snapshot import CATEGORIES
 from .equipment_command import EquipmentCommandPrepare
 from .execute import HumanExecute
 from .http_logging import RequestMiddleware
@@ -23,7 +24,6 @@ from .proposals import REQUEST_ROLES, ProposalError, ProposalStore
 from .read_agent import ReadAgent
 from .reads import ReadTools, ToolError, json_value
 from .settings import Settings
-from .snapshot import CATEGORIES
 from .tools import ToolDispatcher
 from .update_intent import (
     equipment_state_command,

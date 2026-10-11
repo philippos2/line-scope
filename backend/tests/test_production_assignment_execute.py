@@ -13,8 +13,8 @@ from test_production_assignment_prepare import service as production_fixture
 from test_production_prepare import identity
 from test_production_schedule_approval import business, current
 
-from linescope.assignments import normalize_operation_assignments
-from linescope.canonical import normalize_timestamp
+from linescope.domain.assignments import normalize_operation_assignments
+from linescope.domain.canonical import normalize_timestamp
 from linescope.execute import HumanExecute
 from linescope.graph.graph_locks import acquire_graph_mutation_lock
 from linescope.graph.projection_payload import build_projection_payload
