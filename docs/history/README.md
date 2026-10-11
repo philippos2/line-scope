@@ -428,3 +428,5 @@ Dockerで追加36テスト成功、ruff check / format、git diff --check成功�
 - [Rebuild専用Outbox claim・lease回収](2026-10-11-rebuild-outbox-queue.md): 所有gate、DEAD停止・WAITING / DRAINED区別、通常workerと共通の状態遷移。
 
 - [Rebuild Outbox適用とAPPLIED確認](2026-10-11-rebuild-projection-application.md)
+
+- [Rebuild失敗報告と確定後ログ](2026-10-11-rebuild-failure-reporting.md)
