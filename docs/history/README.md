@@ -458,3 +458,5 @@ Dockerで追加36テスト成功、ruff check / format、git diff --check成功�
 - [RebuildControlの短いtransactionへの残り予算伝播](2026-10-11-rebuild-control-time-budget.md)
 
 - [Rebuild drainのPostgreSQL transactionへの残り予算伝播](2026-10-11-rebuild-drain-postgres-budget.md)
+
+- [Graph分析のPostgreSQL整合gate](2026-10-11-graph-analysis-consistency-gate.md)
