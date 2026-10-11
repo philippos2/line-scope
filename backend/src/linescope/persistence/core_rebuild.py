@@ -91,6 +91,21 @@ def heartbeat_rebuild(connection, ticket):
     return _execute(connection, statement).rowcount == 1
 
 
+def resume_rebuild(connection, ticket, rebuild_id):
+    """Replace an abandoned owner's fence, preserving state and Outbox."""
+    statement = (
+        update(_control)
+        .where(
+            _control.c.control_id == 1,
+            _control.c.rebuild_flag.is_(True),
+            _control.c.rebuild_id == ticket.rebuild_id,
+            _control.c.active_generation.is_not_distinct_from(ticket.previous_generation),
+        )
+        .values(rebuild_id=rebuild_id, updated_at=func.statement_timestamp())
+    )
+    return _execute(connection, statement).rowcount == 1
+
+
 def stage_restore_generation(connection, ticket, generation):
     """Install a drain target without publishing or retiring any event."""
     undrained = select(_outbox.c.status).where(_outbox.c.status != "APPLIED").exists()
