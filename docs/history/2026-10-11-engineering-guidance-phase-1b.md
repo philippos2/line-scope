@@ -26,7 +26,7 @@ ApplicationとPersistenceの境界は完全ではない。`ProposalStore`は保�
 
 ## 必須5論点の実装確認
 
-1. **Execute起動経路 — [既存仕様]に整合。** 認証済み人間用APIからHumanExecuteへ渡す。ownerと現在role、承認者role、Snapshot/hash、期限、versionを検証する。ToolDispatcherにApproval / Executeは公開されない。
+1. **Execute起動経路 — [既存仕様]に整合。** 認証済み承認者・requester用APIからHumanExecuteへ渡す。ownerと現在role、承認者role、Snapshot/hash、期限、versionを検証する。ToolDispatcherにApproval / Executeは公開されない。
 2. **Idempotency — [既存仕様]に整合する経路を確認。** サーバ発行の実行idempotency UUIDと、Prepare retry keyを区別する。AgentInputはIdempotency-KeyまたはUUIDを用い、保存はowner/keyの一意性と入力hash一致を検証する。retry keyのTTLは設けない。確定結果の再送と、その後のcurrent観測を分離する。
 3. **Failure Record — 一部未実装。** 期限切れ・競合失効は主transactionのrollback後に別transactionで再検証しAuditと確定する。失敗試行Auditも別transactionで、保存障害は固定ログへ落とす。一方、transaction-designの回復不能整合障害に対する`FAILED/INVALIDATED`への更新経路は見つからない。許容状態組の定義だけで実装済みとは扱わない。現状は検証拒否とエラーで停止し、業務変更を通さない。
 4. **Isolation / Lock — 主要順序を確認。** ProposalStoreは明示READ COMMITTED。Graph関係Executeはmutation lockをRequest/Approval lockより先に取得し、Targetを規定順でlockする。Core抽出によってcommit所有権を移していない。LockNotAvailable/QueryCanceledはRESOURCE_BUSY。Docker内で例外継承を確認したところDeadlockDetectedとSerializationFailureはOperationalErrorであり、ProposalStoreではDEPENDENCY_UNAVAILABLEへ変換される。これを通常のlock timeoutと同じ契約と説明しない。Projectionは別の明示的transient分類を持つ。

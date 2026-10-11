@@ -139,7 +139,7 @@ Safety / Production / Quality / Delivery / Cascade / Economic riskとuncertainty
 
 ### UC-B09 複数対応案比較
 
-修理・交換・継続・代替を同一条件で比較する。各案の実行可能性と除外理由、費用・時間・損失・多面的リスク・前提・不明事項・Evidenceを提示し、人間へ判断を残す。
+修理・交換・継続・代替を同一条件で比較する。各案の実行可能性と除外理由、費用・時間・損失・多面的リスク・前提・不明事項・Evidenceを提示し、エンドユーザーへ判断を残す。
 
 既存フローとの対応: UC-04・19。
 
@@ -181,7 +181,7 @@ buffer、許容停止時間、復旧期限、不足量、影響製品、Delivery
 
 ## 25. Golden Use Case
 
-UC-B09を中心に、異常設備について「影響範囲、継続リスク、停止損失、代替能力、修理、交換、次回保全までの継続」を比較する。Decision PackageはImpact → Risk → Economic Impact → Options → Constraints → Comparison → Evidence → Unknownsを含む。必要な情報が不足すれば部分結果と不足を返し、最終意思決定は人間へ残す。
+UC-B09を中心に、異常設備について「影響範囲、継続リスク、停止損失、代替能力、修理、交換、次回保全までの継続」を比較する。Decision PackageはImpact → Risk → Economic Impact → Options → Constraints → Comparison → Evidence → Unknownsを含む。必要な情報が不足すれば部分結果と不足を返し、最終意思決定はエンドユーザーへ残す。
 
 利用者の「故障した」は報告・分析仮定として扱えるが、正本の状態更新と混同しない。分析要求だけではUpdateRequestを生成しない。対応するBusiness Scenario、固定期待値、ACは[Business Scenario仕様](../implementation-design/business-scenarios.md)を参照する。
 
@@ -191,8 +191,8 @@ UC-B09を中心に、異常設備について「影響範囲、継続リスク�
 
 設備名が曖昧なら候補を提示し、利用者の識別情報・選択後に正本を再検証する。不在と複数候補を区別する。対象確定前に特定設備の影響・損失を断定せずPrepareしない。既存UC-01・11、R-06・20・23を業務調査に具体化する。
 
-### UC-B17 人間による変更後の結果を確認する
+### UC-B17 承認・実行後の結果を確認する
 
-利用者は準備した案を人間のApprovalと元requesterのExecuteで確定した後、確定after、現在値、履歴、Graph同期状態を確認し、必要なら再分析する。確定後の別更新があれば元の確定結果と現在の差を示す。既存UC-10・15、R-05・35〜38を業務判断の後続確認として整理する。
+利用者は準備した案を承認者のApprovalと元requesterのExecuteで確定した後、確定after、現在値、履歴、Graph同期状態を確認し、必要なら再分析する。確定後の別更新があれば元の確定結果と現在の差を示す。既存UC-10・15、R-05・35〜38を業務判断の後続確認として整理する。
 
 UC-B01〜15はPO提示案、UC-B16・17は今回の不足レビューによる補足。追加試験はBS-13〜19を参照する。LogiScopeは業務の問いから根拠・判断へ進むデモの雰囲気のみを参考にし、業務仕様・Tool・コード・構成は継承していない。

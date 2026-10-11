@@ -67,7 +67,7 @@ Scenario: 即時交換と次回更新までの継続
   And 劣化損失が交換で解消する仮定の単純費用回収期間は150 daysである
   And 480000 JPYと直接交換費2400000 JPYを区別して提示する
   And 定義済みの共通比較条件では継続案の費用が有利であることを示す
-  And 確認済みの継続許容条件とEvidenceを示し最終判断は人間に残す
+  And 確認済みの継続許容条件とEvidenceを示し最終判断はエンドユーザーに残す
 ```
 
 ### BS-04 安全制約
@@ -220,7 +220,7 @@ Scenario: Golden Scenario
   And 修理・交換・継続・代替案を評価しHard Safety Constraint違反案を除外する
   And 実行可能案の費用、時間、生産影響、残存リスクを共通条件で比較する
   And Decision PackageにEvidence、入力と式、前提、推定／確定、不足情報を含める
-  And 判断不能な事項を断定せず最終意思決定を人間へ残す
+  And 判断不能な事項を断定せず最終意思決定をエンドユーザーへ残す
   And 分析だけではUpdateRequestを作らずApprovalとExecuteを行わない
 ```
 
@@ -323,10 +323,10 @@ Scenario Outline: 確認状態に応じて結論を分ける
     | REBUILDING | 探索を開始しない | 最新Graph分析不能 |
 ```
 
-### BS-19 人間の変更後確認
+### BS-19 承認・実行後の確認
 
 ```gherkin
-Feature: 人間の変更後確認
+Feature: 承認・実行後の確認
 
 Scenario: 確定結果と後続の現在値を区別する
   Given 保全担当者がUC-B14でEquipmentState変更をPrepareした
@@ -337,7 +337,7 @@ Scenario: 確定結果と後続の現在値を区別する
   Then 保存された確定afterはUNDER_MAINTENANCE version 11のままである
   And 現在値RUNNING version 12とversion差を区別して返す
   And 同じExecuteの再送で業務更新を重複実行しない
-  And Agentは人間に代わってApprovalまたはExecuteしない
+  And Agentは承認者・requesterに代わってApprovalまたはExecuteしない
 ```
 
 ## 3. 固定数値・比較条件
@@ -386,7 +386,7 @@ BS-05は能力面の吸収可否を検証する。業務上の完全代替には
 
 ### 4.1 元案を補うケースと残る不足
 
-元案の13ケースを保持し、BS-13〜19を追加した。納期・復旧期限、明示的Prepare、安全不明、損失加算不可、曖昧対象、影響なしと分析不能、人間の更新後確認を補う。BS-13の計算fixtureは単純モデルの前提を固定した試験入力であり、一般業務ルールの確定ではない。UC-B14の将来停止予約variantはPO-B05確定後に追加する。非CURRENT、打切り、過去as_of、権限拒否は既存下位試験と連携して検証する。
+元案の13ケースを保持し、BS-13〜19を追加した。納期・復旧期限、明示的Prepare、安全不明、損失加算不可、曖昧対象、影響なしと分析不能、承認・実行後の確認を補う。BS-13の計算fixtureは単純モデルの前提を固定した試験入力であり、一般業務ルールの確定ではない。UC-B14の将来停止予約variantはPO-B05確定後に追加する。非CURRENT、打切り、過去as_of、権限拒否は既存下位試験と連携して検証する。
 
 ## 5. 実装時の検証原則
 

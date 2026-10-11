@@ -24,7 +24,7 @@ upgrade_demo_env.pyはmode 0600の既存.envへ不足credentialを追記し、�
 ## 検証
 
 - 実LOGIN roleの専用33ケース成功。role属性、検索mutation / DDL / TEMP / private table拒否、runtime DDL / 履歴改変 / control更新 / 管理role昇格拒否、future table / sequence / function拒否、列ACL除去、特権role衝突拒否、provision rollback、CLIのsecret検証、private env upgradeを確認。
-- 制限runtimeで保全予定Prepare → 人間Approve API → requester Execute API → replay成功。割当Prepare / Approval / Executeで履歴・Outbox保存成功。実際にOutbox INSERTをREVOKEした場合は業務値・履歴・Outbox・Approval消費を全rollbackし、権限復旧後に再実行成功。
+- 制限runtimeで保全予定Prepare → 承認者のApprove API → requester Execute API → replay成功。割当Prepare / Approval / Executeで履歴・Outbox保存成功。実際にOutbox INSERTをREVOKEした場合は業務値・履歴・Outbox・Approval消費を全rollbackし、権限復旧後に再実行成功。
 - 全体回帰2243 passed / 1 skipped / 1 warning（152.10秒、exit code 0）は追加29ケースまでの時点。後半4ケースは最終の専用33ケースに含めて成功。最終差分の全体回帰はGitHub CIで確認する。既知Starlette警告と前回同様の終了時logging診断は別メモの課題として維持。
 - Dockerの新規runtime build / migration / provision / API健康成功。管理サービスでseed後にprovisionを再実行してmigration適用0、設備2件保持。APIプロセス内で実current_userがruntime / queryであることとRead Toolの設備2件取得を確認。
 - HTTP readiness成功。存在しない/tools/search_equipmentを試した404はAPI障害とは扱わず、正式に公開されていないTool HTTP経路を追加せず内部Read Toolで確認した。実LLM E2Eをこのsmokeで検証したとの主張はしない。

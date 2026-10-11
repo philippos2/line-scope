@@ -185,7 +185,7 @@ Prepare API / Tool公開、呼出しTool名と先頭Targetの一致確認を含�
 
 ## UI/UX意見書とAPIへの示唆
 
-[UI/UX意見書レビュー](2026-10-09-ui-ux-opinion-review.md)に、POが共有した参考意見の採用・修正・保留とAPI設計上の注意を記録した。構造化した比較・Evidence・Unknown・人間の操作境界を重視する。画面構成・新しい業務データを正式要件へ昇格させず、Frontend実装は後続とする。
+[UI/UX意見書レビュー](2026-10-09-ui-ux-opinion-review.md)に、POが共有した参考意見の採用・修正・保留とAPI設計上の注意を記録した。構造化した比較・Evidence・Unknown・承認者・requesterの操作境界を重視する。画面構成・新しい業務データを正式要件へ昇格させず、Frontend実装は後続とする。
 
 ## 生産作業予定値UPDATEの内部Prepareチェックポイント
 

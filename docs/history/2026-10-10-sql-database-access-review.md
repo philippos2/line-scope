@@ -136,19 +136,19 @@ PR #88 merge後、WeeklyLimit残り3%のため、PO指示どおりPR作成を急
 
 Docker内の追加・既存検索試験84件成功（追加17）。ruff check / format --check（123ファイル）、git diff --check成功。既知Starlette警告1件。プロダクションコード・設定・DB schemaは変更していない。新規実LLM疎通は行わず、バックエンド全体回帰とGitHub CIはこのチェックポイントでは未実行。
 
-T-SQL01 / 02の部分実装であり全適合ではない。保存済み文字列ケースはfixtureのparameterized INSERTによる準備なので、Prepare → 人間Approval → Executeの業務書込経路を通したsecond-order検証としては扱わない。
+T-SQL01 / 02の部分実装であり全適合ではない。保存済み文字列ケースはfixtureのparameterized INSERTによる準備なので、Prepare → 承認者のApproval → Executeの業務書込経路を通したsecond-order検証としては扱わない。
 再開時は(1) このブランチ・ローカルcommitとgit statusを確認、(2) 業務書込経路と追加identifier境界の試験を必要な範囲で補足、(3) 全体回帰を実行して試験PRを作成。続いてDB role分離、Read層からCore導入。ここでpolicy適合完了やバックエンド一段落とは報告しない。
 
 ### WeeklyLimit残り2%の追加チェックポイント
 
-同じtest/sql-injection-regressionsブランチで、保全予定plan_codeへOR / DROP攻撃文字列をnamed Toolのuntrusted引数として渡す2ケースを追加した。ToolDispatcher → 実Prepare → 人間Approve API → owner Execute API → 正本現在値・業務履歴 → 検索Tool → 再Executeまで通す。Prepare / Approveでは業務値が変わらず、Executeでは意図した1予定だけが追加され、既存予定・設備・保全結果・依存・Outboxを変更しない。成功監査3操作、確定結果再送、再検索後のDB非変更をassertする。
+同じtest/sql-injection-regressionsブランチで、保全予定plan_codeへOR / DROP攻撃文字列をnamed Toolのuntrusted引数として渡す2ケースを追加した。ToolDispatcher → 実Prepare → 承認者のApprove API → owner Execute API → 正本現在値・業務履歴 → 検索Tool → 再Executeまで通す。Prepare / Approveでは業務値が変わらず、Executeでは意図した1予定だけが追加され、既存予定・設備・保全結果・依存・Outboxを変更しない。成功監査3操作、確定結果再送、再検索後のDB非変更をassertする。
 
 Docker内の専用SQL Injection試験19件成功（前回17 + 今回2）、ruff check / format --check（123ファイル）、git diff --check成功。既知Starlette警告1件。コード・設定・schemaは引き続き無変更。前節の「業務書込経路は未検証」は保全予定CREATEのこの2ケースについて解消したが、保全結果自由文字列等の全経路を検証済みとは扱わない。
 全体回帰・GitHub CI・PRは未実施。ローカルcheckpoint commitで停止し、再開時は追加対象の必要性を確認後に全体回帰と試験PRへ進む。DB role分離とCore導入は引き続き未着手。
 
 ### 保全結果の自由文字列の追加チェックポイント
 
-保全結果CREATEのrecord_code / resultへ、それぞれOR / DROP攻撃文字列を渡す4ケースを追加。named Tool → Prepare → 人間Approve → owner Execute → 現在値・確定結果・業務履歴 → 検索 → 再Executeを実PostgreSQLで検証した。Prepare / Approveの業務非変更、意図した1結果だけの追加、設備・既存予定・依存・Outboxの非変更、監査3操作、再送時の非変更をassertする。
+保全結果CREATEのrecord_code / resultへ、それぞれOR / DROP攻撃文字列を渡す4ケースを追加。named Tool → Prepare → 承認者のApprove → owner Execute → 現在値・確定結果・業務履歴 → 検索 → 再Executeを実PostgreSQLで検証した。Prepare / Approveの業務非変更、意図した1結果だけの追加、設備・既存予定・依存・Outboxの非変更、監査3操作、再送時の非変更をassertする。
 
 Docker内の専用試験23件成功（前回19 + 今回4）、ruff check / format --check（123ファイル）、git diff --check成功。既知Starlette警告1件。プロダクションコード・設定・schemaは無変更（前節の「コード無変更」もプロダクションコードを指す）。全体回帰・GitHub CI・PRは未実施。SQL / DB policy全体の適合完了とは扱わない。
 
