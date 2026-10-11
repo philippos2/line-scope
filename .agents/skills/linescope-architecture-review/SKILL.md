@@ -1,15 +1,13 @@
 ---
 name: linescope-architecture-review
 description: LineScopeのrouter、application service、repository、adapter、PostgreSQL/Neo4j/Qdrantの責務境界や依存方向を変える設計・新component・refactoringをレビューする。配置だけの変更と契約変更を区別する。
-metadata:
-  status: draft
 ---
 
 # LineScope Architecture Review
 
-Phase 1A草案。正式採用前。一般的なPattern名を先に当てはめない。
+一般的なPattern名を先に当てはめない。
 
-[文書入口](../../../../deliverables.md)、[AGENTS](../../../../implementation-design/AGENTS.md)、[architecture](../../../../design/architecture.md)から変更対象の正本を選ぶ。API/Toolならapi-tools、業務意味ならrequirements/domain-model、原子性ならtransaction-designを読む。
+[文書入口](../../../docs/deliverables.md)、[AGENTS](../../../docs/implementation-design/AGENTS.md)、[architecture](../../../docs/design/architecture.md)から変更対象の正本を選ぶ。API/Toolならapi-tools、業務意味ならrequirements/domain-model、原子性ならtransaction-designを読む。
 
 ## 実施方法
 

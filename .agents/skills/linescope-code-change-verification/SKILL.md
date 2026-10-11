@@ -1,21 +1,21 @@
 ---
 name: linescope-code-change-verification
 description: LineScopeの変更後にpytest、ruff、migration、実DB/API検証、CI、checkpoint commitとPR引渡しを行う。試験の選択、実測結果、未実施範囲、片付けを明確にする。
-metadata:
-  status: draft
 ---
 
 # LineScope Code Change Verification
 
-Phase 1A草案。正式採用前。小さくレビュー可能な変更を検証し、部分合格をプロダクト完成と扱わない。
+小さくレビュー可能な変更を検証し、部分合格をプロダクト完成と扱わない。
 
-[文書入口](../../../../deliverables.md)、[test-plan](../../../../implementation-design/test-plan.md)、[acceptance-criteria](../../../../requirements/acceptance-criteria.md)と対象正本を確認する。Business受入はbusiness-scenarios、LLM品質はevals、環境・ログはoperationsを参照する。現在のコマンドはcompose.test.yaml、backend/pyproject.toml、.github/workflowsを確認する。
+[文書入口](../../../docs/deliverables.md)、[test-plan](../../../docs/implementation-design/test-plan.md)、[acceptance-criteria](../../../docs/requirements/acceptance-criteria.md)と対象正本を確認する。Business受入はbusiness-scenarios、LLM品質はevals、環境・ログはoperationsを参照する。現在のコマンドはcompose.test.yaml、backend/pyproject.toml、.github/workflowsを確認する。
 
 ## 範囲と検証
 
 変更目的・契約への影響・未完成/仮実装/TODOを確認する。関連試験のbaselineと必要な回帰を選び、Production code/constraint/transaction変更では実DBの必要性を判断する。可逆な文書だけの変更に無関係な試験を新設しない。
 
 backendの試験・lintはDocker内で行う。基本コマンドは次の形とし、実際のCompose定義と整合させる。
+
+イメージへCOPYされたコードで試験する場合、変更後に`docker compose -f compose.test.yaml build tests`を行う。既存イメージを使う場合は変更したbackend/scriptsを明示的にmountし、古いコードを検証していないことを確認する。Docker socketの権限に応じて既存の`sg docker -c`経路を使う。
 
 ```sh
 docker compose -f compose.test.yaml run --rm tests pytest -p no:cacheprovider <対象> -q
