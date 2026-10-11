@@ -11,18 +11,18 @@ import pytest
 from neo4j import GraphDatabase
 from neo4j.exceptions import ConstraintError, Neo4jError
 from test_assignments import row as assignment
-from test_projection_queue import queued as queued
 from test_relation_snapshot import current as relation
 
-from linescope.graph_leadership import GraphLeadershipLost, graph_leadership
-from linescope.neo4j_projection import (
+from graph.test_projection_queue import queued as queued
+from linescope.graph.graph_leadership import GraphLeadershipLost, graph_leadership
+from linescope.graph.neo4j_projection import (
     GraphGenerationUnavailable,
     Neo4jProjection,
     ProjectionIntegrityError,
     install_projection_schema,
 )
-from linescope.projection_application import ProjectionApplication
-from linescope.projection_payload import build_projection_payload, projection_payload_hash
+from linescope.graph.projection_application import ProjectionApplication
+from linescope.graph.projection_payload import build_projection_payload, projection_payload_hash
 
 
 class TestLeadership:

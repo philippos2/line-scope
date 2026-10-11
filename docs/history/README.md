@@ -414,3 +414,4 @@ Dockerで追加36テスト成功、ruff check / format、git diff --check成功�
 [claimから適用・再試行・DEADへの接続](2026-10-11-projection-worker-step.md)に、同期状態gate・例外分類・構造化ログ・実DB再送試験と常駐運用の未実装範囲を記録する。
 
 - [通常Projection workerのPG専用role](2026-10-11-projection-worker-db-role.md): 最小権限、credential upgrade、実LOGIN権限テストと後続範囲。
+- [Graph関連コード・テストの配置整理](2026-10-11-graph-layout.md): 配置を先に整理する方針、最初の移動範囲、本体とテストの対応、PR引き渡しの合意。

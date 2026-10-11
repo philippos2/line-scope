@@ -14,8 +14,8 @@ from .core_assignments import (
 from .dependency_cycles import DependencyCycleError, validate_dependency_cycles
 from .dependency_prepare import OBSERVE
 from .execute import ProductionScheduleExecute, _UpdateExecute
-from .graph_locks import acquire_graph_mutation_lock
-from .outbox import enqueue_graph_target
+from .graph.graph_locks import acquire_graph_mutation_lock
+from .graph.outbox import enqueue_graph_target
 from .proposals import ProposalError
 from .snapshot import CATEGORIES
 

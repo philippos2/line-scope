@@ -8,10 +8,10 @@ import pytest
 from test_dependency_prepare import create, disable, prepare, update
 from test_dependency_prepare import service as dependency_fixture
 
-from linescope.graph_locks import acquire_graph_mutation_lock
-from linescope.outbox import enqueue_graph_target
-from linescope.projection_payload import build_projection_payload, projection_payload_hash
-from linescope.projection_state import ProjectionState
+from linescope.graph.graph_locks import acquire_graph_mutation_lock
+from linescope.graph.outbox import enqueue_graph_target
+from linescope.graph.projection_payload import build_projection_payload, projection_payload_hash
+from linescope.graph.projection_state import ProjectionState
 
 
 @pytest.fixture

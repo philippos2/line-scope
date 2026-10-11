@@ -2,7 +2,7 @@
 
 from time import monotonic
 
-from .core_outbox import claim_graph_event, fail_graph_event, recover_expired_graph_events
+from ..core_outbox import claim_graph_event, fail_graph_event, recover_expired_graph_events
 from .graph_locks import require_read_committed_transaction
 
 

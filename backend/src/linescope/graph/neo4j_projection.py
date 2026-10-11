@@ -7,9 +7,9 @@ exist. No implicit retries, Graph seed, arbitrary Cypher, or HTTP/Tool exposure.
 from datetime import datetime
 from math import isfinite
 
-from .canonical import normalize_uuid
+from ..canonical import normalize_uuid
+from ..relations import ENDPOINTS
 from .projection_payload import projection_payload_hash, validate_projection_payload
-from .relations import ENDPOINTS
 
 SCHEMA = (
     "CREATE CONSTRAINT linescope_entity_identity IF NOT EXISTS "

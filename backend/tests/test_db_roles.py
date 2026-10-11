@@ -363,11 +363,11 @@ def test_projection_role_denies_business_and_event_tampering(roles, statement):
 
 
 def test_projection_role_claims_and_retries_with_real_leadership(roles):
-    from test_projection_queue import queued
+    from graph.test_projection_queue import queued
 
-    from linescope.graph_leadership import graph_leadership
-    from linescope.projection_queue import ProjectionQueue
-    from linescope.projection_state import ProjectionState
+    from linescope.graph.graph_leadership import graph_leadership
+    from linescope.graph.projection_queue import ProjectionQueue
+    from linescope.graph.projection_state import ProjectionState
 
     admin, stores, _ = roles
     queued.__wrapped__(admin)
@@ -389,12 +389,12 @@ def test_projection_role_claims_and_retries_with_real_leadership(roles):
 
 
 def test_projection_role_acknowledges_and_recovers_without_control_write(roles):
-    from test_projection_application import GENERATION, RecordingAdapter
-    from test_projection_queue import queued
+    from graph.test_projection_application import GENERATION, RecordingAdapter
+    from graph.test_projection_queue import queued
 
-    from linescope.graph_leadership import graph_leadership
-    from linescope.projection_application import ProjectionApplication
-    from linescope.projection_queue import ProjectionQueue
+    from linescope.graph.graph_leadership import graph_leadership
+    from linescope.graph.projection_application import ProjectionApplication
+    from linescope.graph.projection_queue import ProjectionQueue
 
     admin, stores, _ = roles
     queued.__wrapped__(admin)
