@@ -7,7 +7,7 @@ LineScopeはBackend / Frontendを一つのリポジトリで管理する。
 
 機能ごとに作業ブランチを作り、実装 → 対応テスト → checkpoint commitの順で進める。
 ブランチ名は`feat/<feature>`、`fix/<issue>`、`docs/<topic>`等、目的を示す。
-作業ブランチ内の複数commitを許容し、既存main履歴をrewrite / force-pushしない。
+作業ブランチ内の複数commitを許容する。GitHubへpush済みの既存履歴はmain・作業ブランチともrewrite / force-pushしない。2026-10-12の日本語化・PR復旧に対する例外許可は終了しており、今後の操作へ適用しない。
 push・PR作成・mergeはそれぞれ別の操作として報告する。PR準備の指示だけでmergeしない。
 
 ## PRとmain
