@@ -1,9 +1,9 @@
 ---
-name: backend-secure-coding
-description: LineScopeバックエンドのauthorization、role、Trusted Execution Context、Tool argument、SQL/Cypher、LLM/RAG入力、secret、DB role、外部error responseに関係する実装・変更・security reviewを検証する。
+name: linescope-secure-coding
+description: LineScopeのauthorization、role、Trusted Execution Context、Tool argument、SQL/Cypher、LLM/RAG入力、secret、DB role、外部error responseに関係する実装・変更・security reviewを検証する。
 ---
 
-# LineScope Backend Secure Coding
+# LineScope Secure Coding
 
 入力からauthority/SQL/出力へ至るdata flowを確認し、文字列操作の存在だけで脆弱性と断定しない。
 
@@ -11,7 +11,7 @@ description: LineScopeバックエンドのauthorization、role、Trusted Execut
 
 ## 入力と権限
 
-認証済みContextの注入元と利用側を追う。Body、エンドユーザーによる自己申告、LLM Tool引数、RAG本文、外部metadataをidentity/role/permissionの根拠にしない。型検証と認可は別に確認する。
+認証済みContextの注入元と利用側を追う。Body、利用者自己申告、LLM Tool引数、RAG本文、外部metadataをidentity/role/permissionの根拠にしない。型検証と認可は別に確認する。
 
 Tool側と確定操作の境界で現在の認可・owner・全Target条件を正本と照合する。AgentにApproval/Executeや任意SQL/Cypherを公開しない。認証設定参照不能と権限喪失を区別してfail closedにする。
 

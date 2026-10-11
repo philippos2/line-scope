@@ -1,9 +1,9 @@
 ---
-name: backend-verification
-description: LineScopeバックエンドの変更後にpytest、ruff、migration、実DB/API検証、CI、checkpoint commitとPR引渡しを行う。試験の選択、実測結果、未実施範囲、片付けを明確にする。
+name: linescope-code-change-verification
+description: LineScopeの変更後にpytest、ruff、migration、実DB/API検証、CI、checkpoint commitとPR引渡しを行う。試験の選択、実測結果、未実施範囲、片付けを明確にする。
 ---
 
-# LineScope Backend Verification
+# LineScope Code Change Verification
 
 小さくレビュー可能な変更を検証し、部分合格をプロダクト完成と扱わない。
 
@@ -30,11 +30,11 @@ Business Scenarioは意味論的結果・決定論的fixtureで検証し、LLM�
 
 ## CheckpointとPR
 
-開発者の指示と既存変更を確認してmainをff-onlyで更新し、意味のあるbranchに小さいcheckpointを残す。無関係な未完成作業は破棄せず、必要時だけstashし、どこに残したか報告する。
+利用者の指示と既存変更を確認してmainをff-onlyで更新し、意味のあるbranchに小さいcheckpointを残す。無関係な未完成作業は破棄せず、必要時だけstashし、どこに残したか報告する。
 
-Conventional Commit titleと既存PRテンプレート（概要/検証/残課題・対象外）を使い、変更理由と実際の検証を記載する。mainはSquash mergeを標準とし、過去履歴のrewrite/force-pushはしない。GitHub設定・required checksの現状を推測で変更しない。開発者がmergeする運用を維持する。
+Conventional Commit titleと既存PRテンプレート（概要/検証/残課題・対象外）を使い、変更理由と実際の検証を記載する。mainはSquash mergeを標準とし、過去履歴のrewrite/force-pushはしない。GitHub設定・required checksの現状を推測で変更しない。POがmergeする運用を維持する。
 
-CI green後も、ログの実測件数/時間、required checks、結果の追記、test環境の片付け、作業ツリーを確認する。削除はこの試験が所有する使い捨て環境に限定し、通常のデモvolumeへdown --volumesを向けない。開発者が先にmergeしても残る確認を省略しない。
+CI green後も、ログの実測件数/時間、required checks、結果の追記、test環境の片付け、作業ツリーを確認する。削除はこの試験が所有する使い捨て環境に限定し、通常のデモvolumeへdown --volumesを向けない。POが先にmergeしても残る確認を省略しない。
 
 完了時は「CI確認・結果追記・片付けまで完了しました。mergeできます。」と案内する。この文を確認前に発行しない。次工程はmergeを確認して進め、Codexが代わりにmergeしない。
 

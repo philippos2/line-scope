@@ -1,9 +1,9 @@
 ---
-name: backend-transaction-review
-description: LineScopeバックエンドのUpdateRequest、Approval、Execute、expected_version、Snapshot、idempotency/prepare retry、row/advisory lock、Outbox、Projection、Rebuild/Restoreの実装変更を原子性・並行性・復旧の観点でレビューする。
+name: linescope-transaction-review
+description: LineScopeのUpdateRequest、Approval、Execute、expected_version、Snapshot、idempotency/prepare retry、row/advisory lock、Outbox、Projection、Rebuild/Restoreの実装変更を原子性・並行性・復旧の観点でレビューする。
 ---
 
-# LineScope Backend Transaction Review
+# LineScope Transaction Review
 
 仕様を再定義せず、commit/rollbackの意味と順序を実コードで照合する。
 
