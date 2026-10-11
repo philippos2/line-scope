@@ -438,3 +438,6 @@ Dockerで追加36テスト成功、ruff check / format、git diff --check成功�
 - [Rebuild controller接続](2026-10-11-rebuild-controller.md)
 
 - [Restore作業用generationの設定境界](2026-10-11-restore-generation-staging.md)
+
+- [開発ガイダンス整理 — Phase 1A](2026-10-11-engineering-guidance-phase-1a.md): 正本・AGENTS・CI/テスト一覧の照合、必須5論点、未検証のcall pathとSkill草案。正式Skill未採用。
+- [開発ガイダンス整理 — Phase 1B](2026-10-11-engineering-guidance-phase-1b.md): 実装経路・transaction所有権・依存境界、FAILED遷移とdeadlock分類、Graph / RAGの未実装範囲。正式Skill未採用。
