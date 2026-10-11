@@ -9,6 +9,7 @@ from uuid import uuid4
 
 from ..logging import EventLogger, request_context
 from .graph_locks import acquire_graph_mutation_lock
+from .postgres_timeout import cap_postgres_transaction
 from .projection_state import ProjectionState
 from .rebuild_control import RebuildControl
 from .rebuild_drain import DeadlineLeadership, RebuildDrain
@@ -64,6 +65,10 @@ class RebuildController:
             graph_generation=ticket.previous_generation,
         )
 
+    def _snapshot(self, lock_connection, leadership):
+        cap_postgres_transaction(lock_connection, leadership)
+        return read_rebuild_snapshot(lock_connection)
+
     def _run(self, leadership, *, recovery):
         """Build a fresh generation, then publish only verified, drained state.
 
@@ -84,6 +89,7 @@ class RebuildController:
                     self._started(ticket)
                 with self.database.transaction() as lock:
                     guard.require()
+                    cap_postgres_transaction(lock, guard)
                     acquire_graph_mutation_lock(lock, shared=False)
                     guard.require()
                     if recovery:
@@ -116,7 +122,7 @@ class RebuildController:
                             for state in ("PENDING", "PROCESSING", "RETRYABLE")
                         ):
                             self.control.heartbeat(guard, lock, ticket)
-                            snapshot = read_rebuild_snapshot(lock)
+                            snapshot = self._snapshot(lock, guard)
                             guard.require()
                             candidate = uuid4()
                             work = self.generation.build(
@@ -130,7 +136,7 @@ class RebuildController:
                             )
                     drained = self.drain.run(guard, lock, ticket, deadline=guard.deadline)
                     self.control.heartbeat(guard, lock, ticket)
-                    snapshot = read_rebuild_snapshot(lock)
+                    snapshot = self._snapshot(lock, guard)
                     guard.require()
                     candidate = uuid4()
                     verified = self.generation.build(
