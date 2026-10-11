@@ -83,3 +83,9 @@ PO指示によりUC-BとBusiness Scenarioの意図を既存文書との不整合
 純粋な業務検証へHTTP frameworkやDB driverの依存を持ち込まない。Applicationがtransactionを所有する場合も、Persistence抽出によってcommit・rollback・lock取得順・version検証・Audit/Outbox原子性を変更しない。既存の例外や混在は明示して段階的に改善し、形だけの抽象化を増やさない。
 
 リファクタリングは、後続作業の具体的な変更負担やミドルウェア変更・バージョンアップの影響範囲を抑えるため、適切なタイミングで行う。現状のコードと判断記録から再開できることを重視し、期待する効果と回帰リスクを比較する。抽象化やリファクタリング自体を目的にしない。
+
+## 15. Repository全体の入口と作業手順
+
+Repository全体の開発入口は[root AGENTS.md](../../AGENTS.md)。本書はdeliverablesが定義する実装支援規則の正本として維持する。rootは共通原則とSkillの発動条件を示し、仕様・状態遷移・API契約は再定義しない。
+
+正式SkillはRepository直下の`.agents/skills/<name>/SKILL.md`に配置し、Git管理する。Skillは作業・レビュー・検証の手順であり、システム仕様の正本や安全性の実装保証ではない。機械的に検証できる重大条件はTests/CIで強制する。未実装の検査を導入済みと扱わない。

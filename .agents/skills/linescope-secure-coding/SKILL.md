@@ -1,15 +1,13 @@
 ---
 name: linescope-secure-coding
 description: LineScopeのauthorization、role、Trusted Execution Context、Tool argument、SQL/Cypher、LLM/RAG入力、secret、DB role、外部error responseに関係する実装・変更・security reviewを検証する。
-metadata:
-  status: draft
 ---
 
 # LineScope Secure Coding
 
-Phase 1A草案。正式採用前。入力からauthority/SQL/出力へ至るdata flowを確認し、文字列操作の存在だけで脆弱性と断定しない。
+入力からauthority/SQL/出力へ至るdata flowを確認し、文字列操作の存在だけで脆弱性と断定しない。
 
-[文書入口](../../../../deliverables.md)、[access-control](../../../../requirements/access-control.md)、[architecture §15](../../../../design/architecture.md)、[api-tools](../../../../implementation-design/api-tools.md)を参照する。RAG変更はrag-design、ログはoperations §13、試験はtest-plan §15を読む。
+[文書入口](../../../docs/deliverables.md)、[access-control](../../../docs/requirements/access-control.md)、[architecture §15](../../../docs/design/architecture.md)、[api-tools](../../../docs/implementation-design/api-tools.md)を参照する。RAG変更はrag-design、ログはoperations §13、試験はtest-plan §15を読む。
 
 ## 入力と権限
 
