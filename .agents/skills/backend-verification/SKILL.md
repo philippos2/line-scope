@@ -30,6 +30,8 @@ Business Scenarioは意味論的結果・決定論的fixtureで検証し、LLM�
 
 ## CheckpointとPR
 
+PRタイトルとコミットメッセージは必ず日本語で作成する。通常のcommitとSquash merge時のcommitの両方に適用する。Conventional Commitの接頭辞（`feat:`、`fix:`、`docs:`等）は維持し、その後の説明およびメッセージ本文は日本語にする。API名・識別子・製品名等は正式表記を維持する。
+
 開発者の指示と既存変更を確認してmainをff-onlyで更新し、意味のあるbranchに小さいcheckpointを残す。無関係な未完成作業は破棄せず、必要時だけstashし、どこに残したか報告する。
 
 Conventional Commit titleと既存PRテンプレート（概要/検証/残課題・対象外）を使い、変更理由と実際の検証を記載する。mainはSquash mergeを標準とし、過去履歴のrewrite/force-pushはしない。GitHub設定・required checksの現状を推測で変更しない。開発者がmergeする運用を維持する。

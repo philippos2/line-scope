@@ -321,7 +321,7 @@ Neo4j generation markerはgeneration、validated BOOLEAN、snapshot_hash、valid
 
 ## 13. 適用済み業務スキーマのER図
 
-以下はmigration `002_business_schema.sql`で適用済みの業務10テーブルを示す。migration管理用の`schema_migration`は含めない。更新要求・Target・Approvalの3テーブルはmigration `003_update_request_schema.sql`で適用済みだが、この業務ER図には含めない。equipment_state_history、履歴、Outbox、KnowledgeDocumentのDB実装は後続工程。
+以下はmigration `002_business_schema.sql`で適用済みの業務10テーブルを示す。migration管理用の`schema_migration`は含めない。更新要求・Target・Approvalは`003_update_request_schema.sql`、業務監査は`004_update_audit_events.sql`、設備状態履歴・実行結果は`005_execution_history.sql`、Outbox・Graph同期管理は`006_graph_projection_storage.sql`で適用済みだが、この業務ER図には含めない。KnowledgeDocumentのDB実装は後続工程。
 
 ```mermaid
 erDiagram
@@ -422,7 +422,7 @@ erDiagram
 
 監査時刻は図を簡潔にするため省略した。全列・制約の実装は[SQL migration](../../backend/src/linescope/migrations/002_business_schema.sql)を参照する。Assignmentの業務キーはproduction_operation_id / equipment_id / effective_from、DependencyRelationはsource型・ID / target型・ID / relation_type / effective_fromの複合一意である。
 
-線はSQLのFKだけを表す。DependencyRelationのsource / targetは通常のFKではなく、Equipment・Process・ProductionOperation・Product・InfrastructureResourceへの型付き論理参照であり、参照先の存在・activeや混在循環等は後続の更新Transactionで検証する。図のProduct・InfrastructureResourceがFK線を持たないことは、業務上の依存関係がないことを意味しない。依存の保存方向・影響方向・Neo4j Projectionはdomain-modelと本書§4〜6を正とする。
+線はSQLのFKだけを表す。DependencyRelationのsource / targetは通常のFKではなく、Equipment・Process・ProductionOperation・Product・InfrastructureResourceへの型付き論理参照であり、参照先の存在・activeや混在循環等は更新Transactionで検証する。図のProduct・InfrastructureResourceがFK線を持たないことは、業務上の依存関係がないことを意味しない。依存の保存方向・影響方向・Neo4j Projectionはdomain-modelと本書§4〜6を正とする。
 
 maintenance_plan_idのNULLは計画との関連なしを表す。計画を指定した実績のequipment_id一致、active期間重複などの業務制約は、単独のFKとは別に更新Transactionで検証する。
 

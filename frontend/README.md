@@ -2,7 +2,7 @@
 
 LineScopeのFrontendはBackendと同じリポジトリで管理し、サーバサイド完成後に実装する。
 現在は方針文書のみで、画面コード・build設定・packageは追加していない。
-仕様の正本は[19文書](../docs/deliverables.md)、UI方向性は[要件 §13](../docs/requirements/requirements.md#13-後続frontendフェーズ)。
+仕様の正本と各事項の責務は[文書入口](../docs/deliverables.md)、UI方向性は[要件 §13](../docs/requirements/requirements.md#13-後続frontendフェーズ)で確認する。
 
 ## オペレーション・コンソール案（候補）
 
@@ -50,4 +50,4 @@ Explorerに必要な一覧/検索やGraph描画に必要な取得範囲も、そ
 ## 外部レビュー
 
 POからChatGPT / Claude / Geminiの支援を受けられる。最初のレイアウト案がまとまった段階で、視覚的な優先順位・情報密度・操作性と、業務フロー・権限・承認境界のレビュー依頼を検討する。
-必要なときはCodexから案と具体的なレビュー観点を提示して依頼する。外部AIの提案をそのまま仕様・実装へ採用せず、19文書との整合を確認する。
+必要なときはCodexから案と具体的なレビュー観点を提示して依頼する。外部AIの提案をそのまま仕様・実装へ採用せず、正本文書との整合を確認する。

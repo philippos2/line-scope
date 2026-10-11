@@ -32,4 +32,6 @@ Skill名は対象領域の接頭辞で区別する。現在は`backend-`を使�
 
 ## 作業と引渡し
 
+PRタイトルとコミットメッセージは必ず日本語で作成する。Conventional Commitの接頭辞とAPI名等の正式表記は維持し、説明・本文は日本語にする。Squash commitにも適用する。
+
 backendのテスト・lintはDocker内で行う。機能ごとに小さく実装→検証→commitし、PRのmergeは開発者が行う。mainの履歴はSquash mergeを標準とし、rewrite / force-pushしない。必須CI、実測結果の追記、使い捨てtest環境の片付けまで確認してからmerge可能と伝える。詳細とコマンドは検証Skillを使う。
