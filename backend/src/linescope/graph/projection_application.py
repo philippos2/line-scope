@@ -8,6 +8,7 @@ APPLIED, never retries an external commit itself, and is not a Rebuild drain.
 
 from ..persistence.core_outbox import acknowledge_graph_application, read_graph_application
 from .graph_locks import acquire_graph_mutation_lock, require_read_committed_transaction
+from .postgres_timeout import postgres_budget_transaction
 from .projection_payload import ProjectionPayloadError, validate_projection_payload
 
 
@@ -55,7 +56,7 @@ def apply_locked_graph_attempt(
     verify_lock,
 ):
     """Shared commit/ack ordering; entry services supply fixed persistence fences."""
-    with database.transaction() as connection:
+    with postgres_budget_transaction(database, leadership) as connection:
         require_read_committed_transaction(connection)
         saved = read_saved(connection, event, lease_seconds)
     if saved is None:
@@ -76,7 +77,7 @@ def apply_locked_graph_attempt(
     )
     leadership.require()
     verify_lock(lock_connection)
-    with database.transaction() as connection:
+    with postgres_budget_transaction(database, leadership) as connection:
         require_read_committed_transaction(connection)
         changed = acknowledge(connection, event, lease_seconds, saved["active_generation"])
         leadership.require()
