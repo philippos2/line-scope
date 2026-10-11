@@ -29,7 +29,7 @@ jobs:
         run: |
           docker compose -f compose.test.yaml run --rm --no-deps tests ruff check backend scripts
           docker compose -f compose.test.yaml run --rm --no-deps tests ruff format --check backend scripts
-      - name: Test Backend and migrations against containerized PostgreSQL
+      - name: Test Backend and migrations against disposable PostgreSQL and Neo4j
         run: docker compose -f compose.test.yaml run --rm tests
       - name: Verify runtime startup and packaged migrations
         run: |
