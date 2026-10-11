@@ -191,6 +191,7 @@ class _GraphRead:
         max_paths,
         page_size,
         relation_types=None,
+        should_stop=None,
     ):
         """Internal multi-hop facts, in this context's single generation/tx.
 
@@ -231,7 +232,11 @@ class _GraphRead:
                 after = (last["neighbor_type"], last["neighbor_id"], last["source_record_id"])
 
         reached = walk_reachability(
-            (root.entity_type, root.entity_id), neighbors, max_depth=max_depth, max_nodes=max_nodes
+            (root.entity_type, root.entity_id),
+            neighbors,
+            max_depth=max_depth,
+            max_nodes=max_nodes,
+            should_stop=should_stop,
         )
         paths = representative_paths(reached, max_paths=max_paths)
         used = {identifier for path in paths.paths for identifier in path.source_record_ids}

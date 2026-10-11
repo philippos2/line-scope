@@ -2,8 +2,8 @@
 
 Internal pure computation, not a Graph Tool. The caller owns authorization,
 generation/as_of filtering, relation directions and complete adjacency reads.
-This result covers depth/node limits only; path/time budgets and Evidence
-publication must be enforced separately before exposing a Tool result.
+Depth/node limits and an optional server stop checkpoint bound exploration.
+Path limits, the total read deadline and Evidence publication remain caller-owned.
 """
 
 from collections import defaultdict
@@ -53,24 +53,35 @@ def bounded_reachability(root: Node, edges, *, max_depth: int, max_nodes: int):
     )
 
 
-def walk_reachability(root: Node, neighbors, *, max_depth: int, max_nodes: int):
+def walk_reachability(root: Node, neighbors, *, max_depth: int, max_nodes: int, should_stop=None):
     """BFS with lazy, complete neighbors ordered by target and record ID.
 
     The provider may page within a single verified read context. Errors must
     propagate, never become an empty adjacency. Stop fetching a node once an
     unvisited target proves truncation; the result must remain incomplete.
+    A cooperative stop preserves confirmed predecessors with TIMEOUT; it does
+    not waive the caller's final consistency checks or overall deadline.
     """
     _validate_limits(max_depth, max_nodes)
     reached = {root: ReachedNode(root, 0, None, None)}
     frontier = [root]
     reasons = set()
+    stopped = False
     while frontier:
         following = []
         for node in sorted(frontier):
+            if should_stop is not None and should_stop():
+                reasons.add("TIMEOUT")
+                stopped = True
+                break
             distance = reached[node].distance
             for edge in neighbors(node):
                 if edge.target in reached:
                     continue
+                if should_stop is not None and should_stop():
+                    reasons.add("TIMEOUT")
+                    stopped = True
+                    break
                 if distance >= max_depth:
                     reasons.add("DEPTH")
                     break
@@ -81,8 +92,20 @@ def walk_reachability(root: Node, neighbors, *, max_depth: int, max_nodes: int):
                     edge.target, distance + 1, node, edge.source_record_id
                 )
                 following.append(edge.target)
+            if stopped:
+                break
+        if stopped:
+            break
         frontier = following
-    reason = "NODE_COUNT" if "NODE_COUNT" in reasons else "DEPTH" if reasons else None
+    reason = (
+        "TIMEOUT"
+        if "TIMEOUT" in reasons
+        else "NODE_COUNT"
+        if "NODE_COUNT" in reasons
+        else "DEPTH"
+        if reasons
+        else None
+    )
     nodes = tuple(sorted(reached.values(), key=lambda item: (item.distance, item.node)))
     return Reachability(nodes, reason is None, reason)
 

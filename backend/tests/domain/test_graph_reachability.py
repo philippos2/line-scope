@@ -1,6 +1,6 @@
 import pytest
 
-from linescope.domain.graph_reachability import LogicalEdge, bounded_reachability
+from linescope.domain.graph_reachability import LogicalEdge, bounded_reachability, walk_reachability
 
 
 def node(identifier, kind="Equipment"):
@@ -91,3 +91,50 @@ def test_empty_adjacency_keeps_only_root():
 def test_invalid_limits(value, field):
     with pytest.raises(ValueError):
         run([], **{field: value})
+
+
+def test_timeout_before_expansion_keeps_root_and_does_not_fetch():
+    def never_fetch(start):
+        raise AssertionError("No expansion budget remains")
+
+    result = walk_reachability(
+        node("root"), never_fetch, max_depth=5, max_nodes=20, should_stop=lambda: True
+    )
+    assert len(result.nodes) == 1 and result.nodes[0].distance == 0
+    assert not result.complete and result.limit_reason == "TIMEOUT"
+
+
+def test_timeout_preserves_confirmed_prefix():
+    checks = [0]
+
+    def stop():
+        checks[0] += 1
+        return checks[0] == 3
+
+    result = walk_reachability(
+        node("root"),
+        lambda start: [LogicalEdge(start, node("a"), "first")],
+        max_depth=5,
+        max_nodes=20,
+        should_stop=stop,
+    )
+    assert [item.node for item in result.nodes] == [node("root"), node("a")]
+    assert result.nodes[-1].source_record_id == "first"
+    assert not result.complete and result.limit_reason == "TIMEOUT"
+
+
+def test_timeout_overrides_prior_node_count_limit():
+    checks = [0]
+
+    def stop():
+        checks[0] += 1
+        return checks[0] == 4
+
+    result = walk_reachability(
+        node("root"),
+        lambda start: [LogicalEdge(start, node("a"), "a"), LogicalEdge(start, node("b"), "b")],
+        max_depth=5,
+        max_nodes=2,
+        should_stop=stop,
+    )
+    assert result.limit_reason == "TIMEOUT" and len(result.nodes) == 2
