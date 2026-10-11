@@ -2,11 +2,9 @@
 
 import re
 
-from .canonical import canonical_hash, canonical_json, normalize_timestamp, normalize_uuid
-from .dependency_cycles import DependencyCycleError, validate_dependency_cycles
-from .execution import ExecutionContext
-from .proposals import REQUEST_ROLES, ProposalError, ProposalStore
-from .relations import (
+from .domain.canonical import canonical_hash, canonical_json, normalize_timestamp, normalize_uuid
+from .domain.dependency_cycles import DependencyCycleError, validate_dependency_cycles
+from .domain.relations import (
     ENDPOINTS,
     INPUT_FIELDS,
     KEY_FIELDS,
@@ -17,7 +15,9 @@ from .relations import (
     dependency_relation_target,
     normalize_relation_set,
 )
-from .snapshot import build_dependency_relation_snapshot
+from .domain.snapshot import build_dependency_relation_snapshot
+from .execution import ExecutionContext
+from .proposals import REQUEST_ROLES, ProposalError, ProposalStore
 
 ENTITY_TYPES = {"Equipment", "Process", "ProductionOperation", "Product", "InfrastructureResource"}
 # One statement, including inactive records and all periods; no business locks.

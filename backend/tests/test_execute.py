@@ -151,7 +151,7 @@ def test_parallel_execute_returns_same_result_and_updates_once(approved):
 def test_one_conflicting_equipment_prevents_all_target_updates(approved):
     from uuid import uuid4
 
-    from linescope.canonical import canonical_hash
+    from linescope.domain.canonical import canonical_hash
     from linescope.prepare import EquipmentStatePrepare
 
     db, _ = approved

@@ -416,3 +416,4 @@ Dockerで追加36テスト成功、ruff check / format、git diff --check成功�
 - [通常Projection workerのPG専用role](2026-10-11-projection-worker-db-role.md): 最小権限、credential upgrade、実LOGIN権限テストと後続範囲。
 - [Graph関連コード・テストの配置整理](2026-10-11-graph-layout.md): 配置を先に整理する方針、最初の移動範囲、本体とテストの対応、PR引き渡しの合意。
 - [Persistence関連コード・テストの配置整理](2026-10-11-persistence-layout.md): DB接続・Coreクエリ・role管理の移動、対応テスト、migration配置の維持。
+- [業務検証・Snapshot関連の配置整理](2026-10-11-domain-layout.md): 純粋検証5モジュールと対応テスト、境界・依存方向を継続確認する作業規則。

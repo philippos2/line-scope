@@ -12,9 +12,9 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta
 
 from .approval_policy import APPROVAL_ROLES
+from .domain.snapshot import CATEGORIES, CanonicalSnapshot
 from .execution import ExecutionContext
 from .proposals import REQUEST_ROLES, ProposalError, SavedProposal
-from .snapshot import CATEGORIES, CanonicalSnapshot
 
 
 @dataclass(frozen=True)

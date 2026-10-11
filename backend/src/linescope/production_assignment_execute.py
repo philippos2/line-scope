@@ -3,10 +3,11 @@
 from psycopg.errors import ForeignKeyViolation, UniqueViolation
 
 from .approvals import ProductionAssignmentApproval
-from .assignments import normalize_operation_assignments
-from .canonical import normalize_timestamp
-from .dependency_cycles import DependencyCycleError, validate_dependency_cycles
 from .dependency_prepare import OBSERVE
+from .domain.assignments import normalize_operation_assignments
+from .domain.canonical import normalize_timestamp
+from .domain.dependency_cycles import DependencyCycleError, validate_dependency_cycles
+from .domain.snapshot import CATEGORIES
 from .execute import ProductionScheduleExecute, _UpdateExecute
 from .graph.graph_locks import acquire_graph_mutation_lock
 from .graph.outbox import enqueue_graph_target
@@ -17,7 +18,6 @@ from .persistence.core_assignments import (
     update_assignment,
 )
 from .proposals import ProposalError
-from .snapshot import CATEGORIES
 
 ASSIGNMENT = "ProductionOperationEquipmentAssignment"
 

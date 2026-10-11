@@ -12,7 +12,7 @@ from test_maintenance_prepare import create_record, identity, prepare
 from test_maintenance_record_create_approval import approve, current, insert_conflict
 from test_maintenance_record_create_approval import prepared as records_fixture
 
-from linescope.canonical import normalize_timestamp
+from linescope.domain.canonical import normalize_timestamp
 from linescope.execute import MaintenanceRecordCreateExecute
 from linescope.logging import EventLogger
 from linescope.proposals import ProposalError

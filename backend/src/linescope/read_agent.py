@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from time import monotonic
 
 from .agent_tools import AgentToolSession
-from .canonical import canonical_json
+from .domain.canonical import canonical_json
 from .llm import LLMReply
 from .reads import ReadResult, ToolError
 

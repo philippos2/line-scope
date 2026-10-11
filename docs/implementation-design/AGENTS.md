@@ -73,3 +73,11 @@ LogiScopeのコード・構成をそのままコピー・継承しない。再�
 ## 13. 業務判断支援の追加仕様
 
 PO指示によりUC-BとBusiness Scenarioの意図を既存文書との不整合時に優先する。能力・経済・安全・比較を旧v1に項目がないことだけで対象外にしない。requirements §14.3 PO-B01〜08を推測実装しない。Gherkin・fixture期待値はbusiness-scenarios、試験階層はtest-planを正とする。既存Integration / T-R / Unitを削除しない。未決定・未実装・未実行を合格としない。
+
+## 14. コードの構造と責務境界
+
+利用者の方針として、責務分離・境界・依存方向・構造化を継続して確認する。現在のコードと重要判断の記録から作業を再開できる状態を保ち、過去の会話だけを前提としない。
+
+配置整理は本体と対応テストを同じ責務単位で段階的に行い、その後に既存の曖昧な責務境界を改善する。フォルダ移動だけで依存反転やClean Architectureが完成したとは扱わない。新規追加は整理済みpackageを使い、HTTP handlerへSQL / Core / ORM / Session操作や業務ルールを追加しない。起動時の依存組立と業務handlerの処理は区別する。
+
+純粋な業務検証へHTTP frameworkやDB driverの依存を持ち込まない。Applicationがtransactionを所有する場合も、Persistence抽出によってcommit・rollback・lock取得順・version検証・Audit/Outbox原子性を変更しない。既存の例外や混在は明示して段階的に改善し、形だけの抽象化を増やさない。

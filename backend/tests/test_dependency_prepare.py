@@ -270,7 +270,7 @@ def test_supplies_cycle_is_allowed(service):
 
 
 def test_replay_terminal_after_source_changes_and_no_id_regeneration(service, monkeypatch):
-    import linescope.relations as module
+    import linescope.domain.relations as module
 
     db, svc = service
     key = uuid4()
@@ -435,7 +435,7 @@ def test_version_overflow_refused(service):
 
 
 def test_new_ids_not_generated_when_any_update_invalid(service, monkeypatch):
-    import linescope.relations as module
+    import linescope.domain.relations as module
 
     monkeypatch.setattr(
         module, "uuid4", lambda: pytest.fail("Allocated before business validation")
@@ -447,7 +447,7 @@ def test_new_ids_not_generated_when_any_update_invalid(service, monkeypatch):
 
 @pytest.mark.parametrize("collision", ["existing", "new"])
 def test_generated_id_collisions_refused(service, monkeypatch, collision):
-    import linescope.relations as module
+    import linescope.domain.relations as module
 
     monkeypatch.setattr(module, "uuid4", lambda: UUID(int=200 if collision == "existing" else 900))
     values = (

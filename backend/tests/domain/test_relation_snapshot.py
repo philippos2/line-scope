@@ -5,15 +5,15 @@ from uuid import UUID, uuid4
 import psycopg
 import pytest
 
-from linescope.canonical import canonical_hash, canonical_json
-from linescope.execution import ExecutionContext
-from linescope.relations import dependency_relation_create_target, dependency_relation_target
-from linescope.snapshot import (
+from linescope.domain.canonical import canonical_hash, canonical_json
+from linescope.domain.relations import dependency_relation_create_target, dependency_relation_target
+from linescope.domain.snapshot import (
     CanonicalSnapshot,
     build_dependency_relation_snapshot,
     build_equipment_state_snapshot,
     equipment_state_target,
 )
+from linescope.execution import ExecutionContext
 
 
 def values(**changes):

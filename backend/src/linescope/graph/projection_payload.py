@@ -4,9 +4,9 @@ Only existing mutable Graph aggregates are supported. Endpoint existence,
 whole-set cycles/overlaps, DB locks and Neo4j application remain caller duties.
 """
 
-from ..assignments import normalize_operation_assignments
-from ..canonical import canonical_hash, canonical_json, strict_json
-from ..relations import normalize_relation_set
+from ..domain.assignments import normalize_operation_assignments
+from ..domain.canonical import canonical_hash, canonical_json, strict_json
+from ..domain.relations import normalize_relation_set
 
 FIELDS = {"schema_version", "aggregate_type", "aggregate_id", "aggregate_version", "state"}
 

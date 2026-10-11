@@ -446,7 +446,7 @@ def test_observed_parent_and_assignments_stay_fixed_after_sql_change(service, mo
 
 
 def test_generated_id_collision_with_unrelated_operation_rejected(service, monkeypatch):
-    import linescope.assignments as module
+    import linescope.domain.assignments as module
 
     identifiers = iter([UUID(int=31), UUID(int=200)])
     monkeypatch.setattr(module, "uuid4", lambda: next(identifiers))

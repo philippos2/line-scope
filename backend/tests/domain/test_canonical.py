@@ -5,7 +5,7 @@ from uuid import UUID
 
 import pytest
 
-from linescope.canonical import (
+from linescope.domain.canonical import (
     canonical_hash,
     canonical_json,
     normalize_id_set,

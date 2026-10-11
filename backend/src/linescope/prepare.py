@@ -2,10 +2,8 @@
 
 import re
 
-from .canonical import canonical_hash, normalize_timestamp, normalize_uuid
-from .execution import ExecutionContext
-from .proposals import REQUEST_ROLES, ProposalError, ProposalStore
-from .snapshot import (
+from .domain.canonical import canonical_hash, normalize_timestamp, normalize_uuid
+from .domain.snapshot import (
     MAX_VERSION,
     PLAN_PATCH_FIELDS,
     STATE_CODES,
@@ -16,6 +14,8 @@ from .snapshot import (
     maintenance_plan_target,
     maintenance_record_create_target,
 )
+from .execution import ExecutionContext
+from .proposals import REQUEST_ROLES, ProposalError, ProposalStore
 
 
 class EquipmentStatePrepare:

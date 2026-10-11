@@ -3,15 +3,15 @@ from uuid import UUID, uuid4
 
 import pytest
 
-from linescope.canonical import canonical_hash, canonical_json
-from linescope.execution import ExecutionContext
-from linescope.snapshot import (
+from linescope.domain.canonical import canonical_hash, canonical_json
+from linescope.domain.snapshot import (
     CanonicalSnapshot,
     build_maintenance_snapshot,
     maintenance_plan_create_target,
     maintenance_plan_target,
     maintenance_record_create_target,
 )
+from linescope.execution import ExecutionContext
 
 
 def plan():
@@ -69,7 +69,7 @@ def test_server_generated_id_fixed_in_target_and_reload(
 
 
 def test_same_generated_id_timezone_and_nullable_normalization(monkeypatch):
-    monkeypatch.setattr("linescope.snapshot.uuid4", lambda: UUID(int=40))
+    monkeypatch.setattr("linescope.domain.snapshot.uuid4", lambda: UUID(int=40))
     values = record()
     first = maintenance_record_create_target(values)
     values["performed_at"] = "2026-10-09T00:00:00.000000Z"

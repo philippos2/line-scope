@@ -6,7 +6,12 @@ from uuid import UUID, uuid4
 import psycopg
 import pytest
 
-from linescope.canonical import canonical_hash
+from linescope.domain.canonical import canonical_hash
+from linescope.domain.snapshot import (
+    build_maintenance_snapshot,
+    maintenance_plan_target,
+    maintenance_record_create_target,
+)
 from linescope.execution import ExecutionContext
 from linescope.prepare import (
     PLAN_CREATE,
@@ -17,11 +22,6 @@ from linescope.prepare import (
     MaintenancePrepare,
 )
 from linescope.proposals import ProposalError, ProposalStore
-from linescope.snapshot import (
-    build_maintenance_snapshot,
-    maintenance_plan_target,
-    maintenance_record_create_target,
-)
 
 AGENT_HASH = canonical_hash({"message": "Update plan and record maintenance", "context_id": None})
 START = "2026-10-09T00:00:00.000000Z"
@@ -202,7 +202,7 @@ def test_invalid_update_generates_no_create_ids(service, monkeypatch):
     def no_id():
         pytest.fail("CREATE ID generated before UPDATE validation")
 
-    monkeypatch.setattr("linescope.snapshot.uuid4", no_id)
+    monkeypatch.setattr("linescope.domain.snapshot.uuid4", no_id)
     with pytest.raises(ProposalError) as caught:
         prepare(svc, [create_plan(), create_record(), update(patch={"plan_status": "PLANNED"})])
     assert caught.value.code == "BUSINESS_RULE_VIOLATION"

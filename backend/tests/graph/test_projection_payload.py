@@ -3,10 +3,10 @@
 from copy import deepcopy
 
 import pytest
-from test_assignments import row as assignment
-from test_relation_snapshot import current as relation
+from domain.test_assignments import row as assignment
+from domain.test_relation_snapshot import current as relation
 
-from linescope.canonical import canonical_hash, canonical_json
+from linescope.domain.canonical import canonical_hash, canonical_json
 from linescope.graph.projection_payload import (
     build_projection_payload,
     load_projection_payload,

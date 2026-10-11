@@ -6,7 +6,7 @@ from test_proposals import NOW, context
 
 from linescope.agent_input import AgentInput
 from linescope.agent_tools import AgentToolSession
-from linescope.canonical import canonical_hash
+from linescope.domain.canonical import canonical_hash
 from linescope.reads import ToolError
 from linescope.update_intent import RULE_VERSION, assess_update_intent
 
