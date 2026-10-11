@@ -1,21 +1,21 @@
 ---
 name: linescope-transaction-review
 description: LineScopeのUpdateRequest、Approval、Execute、expected_version、Snapshot、idempotency/prepare retry、row/advisory lock、Outbox、Projection、Rebuild/Restoreの実装変更を原子性・並行性・復旧の観点でレビューする。
-metadata:
-  status: draft
 ---
 
 # LineScope Transaction Review
 
-Phase 1A草案。正式採用前。仕様を再定義せず、commit/rollbackの意味と順序を実コードで照合する。
+仕様を再定義せず、commit/rollbackの意味と順序を実コードで照合する。
 
-[文書入口](../../../../deliverables.md)、[transaction-design](../../../../implementation-design/transaction-design.md)、[data-model](../../../../design/data-model.md)、[operations](../../../../implementation-design/operations.md)、[test-plan](../../../../implementation-design/test-plan.md)を参照する。対象カテゴリの業務不変条件はrequirements/domain-model、認可はaccess-control、HTTP retryはapi-toolsを正とする。
+[文書入口](../../../docs/deliverables.md)、[transaction-design](../../../docs/implementation-design/transaction-design.md)、[data-model](../../../docs/design/data-model.md)、[operations](../../../docs/implementation-design/operations.md)、[test-plan](../../../docs/implementation-design/test-plan.md)を参照する。対象カテゴリの業務不変条件はrequirements/domain-model、認可はaccess-control、HTTP retryはapi-toolsを正とする。
 
 ## 更新経路
 
 接続/transaction所有者、各lockの取得と保持期間、現在値再読込、version/CREATE一意性、Snapshot照合、全Target変更、履歴/Audit、必要Outbox、承認消費、結果保存、commitを順に追う。複数Targetの一部commitや暗黙flushを導入しない。
 
 主Transactionの失敗、別Transactionでの失効/失敗監査、保存不能fallbackを分ける。失効前に再lock・再検証し、他の成功や終端状態を上書きしない。FAILEDを一般的rollbackへ拡大しない。
+
+定義された状態遷移が実装済みかを別に確認する。DB例外の継承とcatch順を追い、deadlock・lock timeout・通信途絶・commit不明を同一と仮定しない。error codeと自動retryの可否をAPI契約に照合する。
 
 retry keyの発行元、scope、正規化入力、永続性、UNIQUE競合、rollbackと終端再送を正本へ照合する。context/Approval/request IDを混同しない。確定afterと後続current値を分け、commit不明時に自動再実行を追加しない。
 
