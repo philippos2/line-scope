@@ -47,4 +47,4 @@ FAILED遷移、ApplicationのPersistence依存、Graph Read / Qdrant接続等の
 
 ## 採用後の名称・主体の明確化
 
-開発者の指摘により、正式Skillの名前を`backend-architecture`、`backend-secure-coding`、`backend-transaction-review`、`backend-verification`へ変更し、folderとfrontmatter nameを一致させた。上記の採用時名称・旧草案は時点の記録。rootと旧indexの現在のリンクは新名称へ更新する。開発の指示・PR mergeは「開発者」、業務仕様の判断は「PO」、システム利用は「エンドユーザー」、コードの呼出側は「利用側component」と表記する。Frontend用Skillは着手時に必要なものを追加する。
+開発者の指摘により、正式Skillの名前を`backend-architecture`、`backend-secure-coding`、`backend-transaction-review`、`backend-verification`へ変更し、folderとfrontmatter nameを一致させた。上記の採用時名称・旧草案は時点の記録。rootと旧indexの現在のリンクは新名称へ更新する。開発の指示・PR mergeは「開発者」、業務仕様の判断は「PO」、システム利用は「エンドユーザー」、コードの呼出側は「呼出元のモジュール」と表記する。Frontend用Skillは着手時に必要なものを追加する。
