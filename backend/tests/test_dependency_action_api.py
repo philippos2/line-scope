@@ -6,19 +6,19 @@ from dataclasses import replace
 from uuid import UUID
 
 import pytest
+from application.test_dependency_approval import business, current
+from application.test_dependency_prepare import create, disable, prepare, update
+from application.test_dependency_prepare import service as dependency_fixture
 from fastapi.testclient import TestClient
-from test_dependency_approval import business, current
-from test_dependency_prepare import create, disable, prepare, update
-from test_dependency_prepare import service as dependency_fixture
 from test_maintenance_plan_approval_api import act, headers
 from test_maintenance_record_create_api import execute
 
 from linescope.api import create_app
-from linescope.dependency_execute import DependencyExecute
+from linescope.application.dependency_execute import DependencyExecute
+from linescope.application.proposals import ProposalError
 from linescope.graph.graph_locks import acquire_graph_mutation_lock
 from linescope.logging import EventLogger
 from linescope.persistence.database import Database
-from linescope.proposals import ProposalError
 from linescope.settings import Settings
 
 
@@ -293,8 +293,8 @@ def test_parallel_http_execute_has_one_durable_result(world):
 
 
 def test_schedule_only_api_is_not_blocked_by_graph_analysis_lock(db):
+    from application.test_production_schedule_approval import world as schedule_fixture
     from test_production_schedule_api import client_for as schedule_client
-    from test_production_schedule_approval import world as schedule_fixture
 
     db, _, saved = schedule_fixture.__wrapped__(db)
     short = Database(replace(db.settings, lock_ms=50))

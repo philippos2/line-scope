@@ -7,8 +7,8 @@ from time import monotonic
 from urllib.parse import urlsplit
 from uuid import uuid4
 
+from .application.reads import ToolError
 from .domain.canonical import canonical_json, strict_json
-from .reads import ToolError
 
 
 class LLMError(ToolError):

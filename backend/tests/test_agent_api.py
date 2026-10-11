@@ -3,15 +3,15 @@ import os
 from uuid import UUID, uuid4
 
 import pytest
+from application.test_proposals import NOW, PREPARE_HASH, category_snapshot, context, snapshot
 from fastapi.testclient import TestClient
-from test_proposals import NOW, PREPARE_HASH, category_snapshot, context, snapshot
 from test_read_agent import ScriptedLLM, call
 
 from linescope.agent_input import AgentInput, ConversationStore
 from linescope.api import create_app
+from linescope.application.proposals import ProposalStore
+from linescope.application.reads import ToolError
 from linescope.llm import LLMReply, OllamaClient
-from linescope.proposals import ProposalStore
-from linescope.reads import ToolError
 from linescope.settings import Settings
 
 HEADERS = {"Authorization": "Bearer token"}

@@ -11,7 +11,7 @@ from uuid import UUID
 
 import psycopg
 
-from ..reads import ToolError
+from ..application.reads import ToolError
 from .graph_locks import require_read_committed_transaction
 
 

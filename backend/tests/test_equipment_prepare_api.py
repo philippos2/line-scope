@@ -5,9 +5,9 @@ from fastapi.testclient import TestClient
 from test_read_agent import ScriptedLLM, call
 
 from linescope.api import create_app
+from linescope.application.proposals import ProposalError, ProposalStore
 from linescope.demo_seed import DEMO_EQUIPMENT, seed_demo
 from linescope.llm import LLMReply
-from linescope.proposals import ProposalError, ProposalStore
 from linescope.settings import Settings
 
 MESSAGE = "設備M-204の状態をRUNNINGに変更して"

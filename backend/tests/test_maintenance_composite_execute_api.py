@@ -5,17 +5,17 @@ from concurrent.futures import ThreadPoolExecutor
 from uuid import UUID
 
 import pytest
+from application.test_maintenance_composite_execute import approved, business
+from application.test_maintenance_prepare import create_plan, create_record, prepare, update
+from application.test_maintenance_prepare import service as maintenance_fixture
 from fastapi.testclient import TestClient
-from test_maintenance_composite_execute import approved, business
 from test_maintenance_plan_approval_api import client_for, current
-from test_maintenance_prepare import create_plan, create_record, prepare, update
-from test_maintenance_prepare import service as maintenance_fixture
 from test_maintenance_record_create_api import execute
 
 from linescope.api import create_app
-from linescope.execute import MaintenanceExecute
+from linescope.application.execute import MaintenanceExecute
+from linescope.application.proposals import ProposalError
 from linescope.logging import EventLogger
-from linescope.proposals import ProposalError
 from linescope.settings import Settings
 
 

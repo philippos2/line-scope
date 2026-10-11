@@ -12,11 +12,11 @@ from time import monotonic, monotonic_ns
 from uuid import UUID, uuid4
 
 from .agent_input import AgentInput
+from .application.proposals import SavedProposal
+from .application.reads import GET_TOOLS, ToolError
+from .application.tools import PREPARE_CATEGORIES
 from .execution import ExecutionContext
 from .logging import CODES, request_context
-from .proposals import SavedProposal
-from .reads import GET_TOOLS, ToolError
-from .tools import PREPARE_CATEGORIES
 from .update_intent import assess_update_intent
 
 TARGET_ID_FIELDS = {key for _, key in GET_TOOLS.values()} | {"maintenance_record_id"}

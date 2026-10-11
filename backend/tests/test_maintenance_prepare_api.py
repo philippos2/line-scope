@@ -5,9 +5,9 @@ from datetime import datetime, timezone
 from uuid import UUID, uuid4
 
 import pytest
+from application.test_maintenance_prepare import service as maintenance_fixture
 from fastapi.testclient import TestClient
 from test_maintenance_plan_approval_api import client_for, headers
-from test_maintenance_prepare import service as maintenance_fixture
 from test_read_agent import ScriptedLLM, call
 
 from linescope.agent_input import AgentInput

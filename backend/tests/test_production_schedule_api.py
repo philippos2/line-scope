@@ -5,16 +5,16 @@ from concurrent.futures import ThreadPoolExecutor
 from uuid import UUID
 
 import pytest
+from application.test_production_schedule_approval import business, current
+from application.test_production_schedule_approval import world as production_fixture
 from fastapi.testclient import TestClient
 from test_maintenance_plan_approval_api import act, headers
 from test_maintenance_record_create_api import execute
-from test_production_schedule_approval import business, current
-from test_production_schedule_approval import world as production_fixture
 
 from linescope.api import create_app
-from linescope.execute import ProductionScheduleExecute
+from linescope.application.execute import ProductionScheduleExecute
+from linescope.application.proposals import ProposalError
 from linescope.logging import EventLogger
-from linescope.proposals import ProposalError
 from linescope.settings import Settings
 
 
@@ -197,8 +197,8 @@ def test_parallel_http_execution_replays_one_result(world):
 
 
 def test_assignment_request_requires_approval_then_routes_to_assignment_execute(db):
-    from test_production_assignment_prepare import prepare
-    from test_production_assignment_prepare import service as assignment_fixture
+    from application.test_production_assignment_prepare import prepare
+    from application.test_production_assignment_prepare import service as assignment_fixture
 
     db, service = assignment_fixture.__wrapped__(db)
     saved = prepare(service)

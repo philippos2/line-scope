@@ -1,13 +1,13 @@
 import json
 
 import pytest
+from application.test_proposals import NOW, context
 from test_agent_tools import Dispatcher
-from test_proposals import NOW, context
 
 from linescope.agent_input import AgentInput
 from linescope.agent_tools import AgentToolSession
+from linescope.application.reads import ToolError
 from linescope.domain.canonical import canonical_hash
-from linescope.reads import ToolError
 from linescope.update_intent import RULE_VERSION, assess_update_intent
 
 

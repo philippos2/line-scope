@@ -9,22 +9,22 @@ from starlette.concurrency import run_in_threadpool
 from starlette.exceptions import HTTPException
 
 from .agent_input import AgentInput, ConversationStore
-from .approvals import HumanApproval
+from .application.approvals import HumanApproval
+from .application.equipment_command import EquipmentCommandPrepare
+from .application.execute import HumanExecute
+from .application.maintenance_command import MaintenanceCommandPrepare
+from .application.production_command import ProductionCommandPrepare
+from .application.proposals import REQUEST_ROLES, ProposalError, ProposalStore
+from .application.reads import ReadTools, ToolError, json_value
+from .application.tools import ToolDispatcher
 from .domain.canonical import strict_json
 from .domain.snapshot import CATEGORIES
-from .equipment_command import EquipmentCommandPrepare
-from .execute import HumanExecute
 from .http_logging import RequestMiddleware
 from .llm import OllamaClient
 from .logging import EventLogger, request_context
-from .maintenance_command import MaintenanceCommandPrepare
 from .persistence.database import Database
-from .production_command import ProductionCommandPrepare
-from .proposals import REQUEST_ROLES, ProposalError, ProposalStore
 from .read_agent import ReadAgent
-from .reads import ReadTools, ToolError, json_value
 from .settings import Settings
-from .tools import ToolDispatcher
 from .update_intent import (
     equipment_state_command,
     maintenance_plan_command,

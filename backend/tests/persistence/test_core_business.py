@@ -3,10 +3,10 @@
 from datetime import datetime, timezone
 
 import pytest
+from application.test_execute import approved as equipment_fixture
+from application.test_maintenance_plan_execute import approved as plan_fixture
+from application.test_production_schedule_execute import world as schedule_fixture
 from psycopg import sql
-from test_execute import approved as equipment_fixture
-from test_maintenance_plan_execute import approved as plan_fixture
-from test_production_schedule_execute import world as schedule_fixture
 
 from linescope.persistence.core_business import (
     update_equipment_state,

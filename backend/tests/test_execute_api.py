@@ -2,9 +2,9 @@ import pytest
 from test_approval_api import client_for, headers, prepare
 from test_approval_api import world as seeded_world
 
+from linescope.application.execute import EquipmentExecute
+from linescope.application.proposals import ProposalError
 from linescope.demo_seed import DEMO_EQUIPMENT
-from linescope.execute import EquipmentExecute
-from linescope.proposals import ProposalError
 
 
 @pytest.fixture
