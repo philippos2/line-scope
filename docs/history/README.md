@@ -422,3 +422,4 @@ Dockerで追加36テスト成功、ruff check / format、git diff --check成功�
 - [AgentのApplication境界](2026-10-11-agent-application-boundary.md): HTTPから業務振り分けを抽出し、retry・会話継続・保存済み結果の意味を維持。
 - [LLM adapterの例外境界](2026-10-11-llm-error-boundary.md): 接続例外の独立とAgentによる既存APIエラー契約への変換。
 - [API composition rootの分離](2026-10-11-api-composition-root.md): 依存組立の集約とHTTP境界改善の区切り、残る診断経路・Persistence依存。
+- [Rebuild用正本Snapshot取得](2026-10-11-rebuild-source-snapshot.md): 単一Core statement、全登録ノード・aggregate、lock契約と未実装controller範囲。
