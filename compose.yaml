@@ -42,6 +42,7 @@ services:
       <<: *backend-env
       LINESCOPE_QUERY_PASSWORD: ${LINESCOPE_QUERY_PASSWORD:?Upgrade private .env with scripts/upgrade_demo_env.py}
       LINESCOPE_RUNTIME_PASSWORD: ${LINESCOPE_RUNTIME_PASSWORD:?Upgrade private .env with scripts/upgrade_demo_env.py}
+      LINESCOPE_PROJECTION_PASSWORD: ${LINESCOPE_PROJECTION_PASSWORD:?Upgrade private .env with scripts/upgrade_demo_env.py}
     depends_on:
       postgres:
         condition: service_healthy

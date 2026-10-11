@@ -18,7 +18,11 @@ def upgrade(destination):
         }
         missing = [
             key
-            for key in ("LINESCOPE_QUERY_PASSWORD", "LINESCOPE_RUNTIME_PASSWORD")
+            for key in (
+                "LINESCOPE_QUERY_PASSWORD",
+                "LINESCOPE_RUNTIME_PASSWORD",
+                "LINESCOPE_PROJECTION_PASSWORD",
+            )
             if key not in keys
         ]
         if missing:

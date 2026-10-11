@@ -15,7 +15,13 @@ from test_maintenance_prepare import AGENT_HASH, create_plan, identity
 from test_maintenance_prepare import service as maintenance_fixture
 
 from linescope.database import Database
-from linescope.db_roles import READ_ROLE, WRITE_ROLE, RoleProvisionError, provision_roles
+from linescope.db_roles import (
+    PROJECTION_ROLE,
+    READ_ROLE,
+    WRITE_ROLE,
+    RoleProvisionError,
+    provision_roles,
+)
 from linescope.reads import ReadTools
 from linescope.tools import ToolDispatcher
 
@@ -23,10 +29,13 @@ from linescope.tools import ToolDispatcher
 @pytest.fixture
 def roles(db):
     db, _ = maintenance_fixture.__wrapped__(db)
-    passwords = {READ_ROLE: secrets.token_hex(32), WRITE_ROLE: secrets.token_hex(32)}
+    passwords = {role: secrets.token_hex(32) for role in (READ_ROLE, WRITE_ROLE, PROJECTION_ROLE)}
     try:
         provision_roles(
-            db, query_password=passwords[READ_ROLE], runtime_password=passwords[WRITE_ROLE]
+            db,
+            query_password=passwords[READ_ROLE],
+            runtime_password=passwords[WRITE_ROLE],
+            projection_password=passwords[PROJECTION_ROLE],
         )
         stores = {
             role: Database(
@@ -44,7 +53,7 @@ def roles(db):
         yield db, stores, passwords
     finally:
         with db.transaction() as connection:
-            for role in (READ_ROLE, WRITE_ROLE):
+            for role in (READ_ROLE, WRITE_ROLE, PROJECTION_ROLE):
                 if connection.execute(
                     "SELECT 1 FROM pg_roles WHERE rolname=%s", (role,)
                 ).fetchone():
@@ -136,7 +145,10 @@ def test_runtime_prepare_approve_execute_and_replay_work_without_admin_authority
             connection.execute("SELECT count(*) AS n FROM update_audit_event").fetchone()["n"] == 3
         )
     provision_roles(
-        admin, query_password=passwords[READ_ROLE], runtime_password=passwords[WRITE_ROLE]
+        admin,
+        query_password=passwords[READ_ROLE],
+        runtime_password=passwords[WRITE_ROLE],
+        projection_password=passwords[PROJECTION_ROLE],
     )
     with stores[READ_ROLE].transaction() as connection:
         assert (
@@ -169,7 +181,9 @@ def test_future_objects_are_denied_until_explicit_grants(roles):
 @pytest.mark.parametrize("password", ["", "x", "' OR 1=1 --", None])
 def test_password_validation_rejects_without_database_access(password):
     with pytest.raises(RoleProvisionError):
-        provision_roles(None, query_password=password, runtime_password="a" * 64)
+        provision_roles(
+            None, query_password=password, runtime_password="a" * 64, projection_password="c" * 64
+        )
 
 
 def test_private_env_upgrade_preserves_credentials_and_is_idempotent(tmp_path):
@@ -189,6 +203,7 @@ def test_private_env_upgrade_preserves_credentials_and_is_idempotent(tmp_path):
     assert (
         after.count("LINESCOPE_QUERY_PASSWORD=") == after.count("LINESCOPE_RUNTIME_PASSWORD=") == 1
     )
+    assert after.count("LINESCOPE_PROJECTION_PASSWORD=") == 1
     assert not module.upgrade(destination)
     assert destination.read_text() == after
     destination.chmod(0o644)
@@ -201,7 +216,10 @@ def test_reprovision_clears_unexpected_column_permissions(roles):
     with admin.transaction() as connection:
         connection.execute("GRANT UPDATE (equipment_name) ON equipment TO linescope_query")
     provision_roles(
-        admin, query_password=passwords[READ_ROLE], runtime_password=passwords[WRITE_ROLE]
+        admin,
+        query_password=passwords[READ_ROLE],
+        runtime_password=passwords[WRITE_ROLE],
+        projection_password=passwords[PROJECTION_ROLE],
     )
     with pytest.raises(psycopg.errors.InsufficientPrivilege):
         with stores[READ_ROLE].transaction() as connection:
@@ -220,7 +238,10 @@ def test_privileged_existing_role_is_rejected_without_changes(roles):
     try:
         with pytest.raises(RoleProvisionError, match="administrator review"):
             provision_roles(
-                admin, query_password=passwords[READ_ROLE], runtime_password=passwords[WRITE_ROLE]
+                admin,
+                query_password=passwords[READ_ROLE],
+                runtime_password=passwords[WRITE_ROLE],
+                projection_password=passwords[PROJECTION_ROLE],
             )
         with admin.transaction() as connection:
             assert connection.execute(
@@ -234,12 +255,14 @@ def test_privileged_existing_role_is_rejected_without_changes(roles):
 
 def test_failed_provision_rolls_back_role_creation_and_acl_changes(db):
     with pytest.raises(RoleProvisionError, match="provisioning failed"):
-        provision_roles(db, query_password="a" * 64, runtime_password="b" * 64)
+        provision_roles(
+            db, query_password="a" * 64, runtime_password="b" * 64, projection_password="c" * 64
+        )
     with db.transaction() as connection:
         assert (
             connection.execute(
                 "SELECT count(*) AS n FROM pg_roles WHERE rolname=ANY(%s::text[])",
-                ([READ_ROLE, WRITE_ROLE],),
+                ([READ_ROLE, WRITE_ROLE, PROJECTION_ROLE],),
             ).fetchone()["n"]
             == 0
         )
@@ -311,4 +334,112 @@ def test_assignment_execute_with_runtime_role_preserves_atomic_outbox(roles, den
 
 def test_same_query_and_runtime_password_is_rejected():
     with pytest.raises(RoleProvisionError):
-        provision_roles(None, query_password="a" * 64, runtime_password="a" * 64)
+        provision_roles(
+            None, query_password="a" * 64, runtime_password="a" * 64, projection_password="c" * 64
+        )
+
+
+@pytest.mark.parametrize(
+    "statement",
+    [
+        "UPDATE equipment_current_state SET version=version+1",
+        "INSERT INTO graph_outbox DEFAULT VALUES",
+        "DELETE FROM graph_outbox",
+        "UPDATE graph_outbox SET aggregate_version=aggregate_version+1",
+        "UPDATE graph_outbox SET payload='{}'::jsonb",
+        "UPDATE graph_projection_control SET fatal_error=NULL",
+        "SELECT * FROM approval",
+        "SELECT * FROM update_audit_event",
+        "CREATE TABLE forbidden(id int)",
+        "CREATE TEMP TABLE forbidden(id int)",
+        "SET ROLE linescope_runtime",
+    ],
+)
+def test_projection_role_denies_business_and_event_tampering(roles, statement):
+    _, stores, _ = roles
+    with pytest.raises(psycopg.errors.InsufficientPrivilege):
+        with stores[PROJECTION_ROLE].transaction() as connection:
+            connection.execute(statement)
+
+
+def test_projection_role_claims_and_retries_with_real_leadership(roles):
+    from test_projection_queue import queued
+
+    from linescope.graph_leadership import graph_leadership
+    from linescope.projection_queue import ProjectionQueue
+    from linescope.projection_state import ProjectionState
+
+    admin, stores, _ = roles
+    queued.__wrapped__(admin)
+    store = stores[PROJECTION_ROLE]
+    queue = ProjectionQueue(store)
+    with graph_leadership(store) as leader:
+        claimed = queue.claim(leader)
+        assert claimed["status"] == "PROCESSING"
+        assert queue.fail(leader, claimed) is True
+        with admin.transaction() as connection:
+            assert (
+                connection.execute(
+                    "SELECT status FROM graph_outbox WHERE outbox_id=%s",
+                    (claimed["outbox_id"],),
+                ).fetchone()["status"]
+                == "RETRYABLE"
+            )
+        ProjectionState(store).observe()
+
+
+def test_projection_role_acknowledges_and_recovers_without_control_write(roles):
+    from test_projection_application import GENERATION, RecordingAdapter
+    from test_projection_queue import queued
+
+    from linescope.graph_leadership import graph_leadership
+    from linescope.projection_application import ProjectionApplication
+    from linescope.projection_queue import ProjectionQueue
+
+    admin, stores, _ = roles
+    queued.__wrapped__(admin)
+    with admin.transaction() as connection:
+        connection.execute(
+            "UPDATE graph_projection_control SET active_generation=%s,fatal_error=NULL",
+            (GENERATION,),
+        )
+    store = stores[PROJECTION_ROLE]
+    queue = ProjectionQueue(store)
+    with graph_leadership(store) as leader:
+        event = queue.claim(leader)
+        assert ProjectionApplication(store).apply(leader, event, RecordingAdapter())
+        expired = queue.claim(leader)
+        with admin.transaction() as connection:
+            connection.execute(
+                "UPDATE graph_outbox SET processing_started_at=statement_timestamp()-interval '31 seconds' WHERE outbox_id=%s",
+                (expired["outbox_id"],),
+            )
+        assert queue.recover_expired(leader) == [expired["outbox_id"]]
+
+
+@pytest.mark.parametrize("password", ["", "' OR 1=1 --", None, "a" * 64, "b" * 64])
+def test_projection_password_is_validated_before_database_access(password):
+    with pytest.raises(RoleProvisionError):
+        provision_roles(
+            None, query_password="a" * 64, runtime_password="b" * 64, projection_password=password
+        )
+
+
+def test_reprovision_removes_projection_payload_and_control_permissions(roles):
+    admin, stores, passwords = roles
+    with admin.transaction() as connection:
+        connection.execute("GRANT UPDATE (payload) ON graph_outbox TO linescope_projection")
+        connection.execute("GRANT UPDATE ON graph_projection_control TO linescope_projection")
+    provision_roles(
+        admin,
+        query_password=passwords[READ_ROLE],
+        runtime_password=passwords[WRITE_ROLE],
+        projection_password=passwords[PROJECTION_ROLE],
+    )
+    for statement in (
+        "UPDATE graph_outbox SET payload='{}'::jsonb",
+        "UPDATE graph_projection_control SET fatal_error=NULL",
+    ):
+        with pytest.raises(psycopg.errors.InsufficientPrivilege):
+            with stores[PROJECTION_ROLE].transaction() as connection:
+                connection.execute(statement)
