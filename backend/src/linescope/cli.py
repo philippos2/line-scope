@@ -34,10 +34,14 @@ def main():
                 # failure still prevents Compose from starting the API.
                 query_password = os.environ.get("LINESCOPE_QUERY_PASSWORD", "")
                 runtime_password = os.environ.get("LINESCOPE_RUNTIME_PASSWORD", "")
-                validate_passwords(query_password, runtime_password)
+                projection_password = os.environ.get("LINESCOPE_PROJECTION_PASSWORD", "")
+                validate_passwords(query_password, runtime_password, projection_password)
                 applied = database.migrate()
                 provision_roles(
-                    database, query_password=query_password, runtime_password=runtime_password
+                    database,
+                    query_password=query_password,
+                    runtime_password=runtime_password,
+                    projection_password=projection_password,
                 )
             except (RoleProvisionError, psycopg.Error):
                 parser.exit(
