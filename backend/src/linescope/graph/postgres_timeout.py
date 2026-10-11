@@ -1,5 +1,6 @@
 """Cap the caller-owned Rebuild transaction without extending existing limits."""
 
+from contextlib import contextmanager
 from math import isfinite
 
 from ..persistence.core_timeouts import read_timeout_limits, set_local_timeout_limits
@@ -25,3 +26,12 @@ def cap_postgres_transaction(connection, leadership):
         connection, statement_ms=limits["statement_timeout"], lock_ms=limits["lock_timeout"]
     )
     leadership.require()
+
+
+@contextmanager
+def postgres_budget_transaction(database, leadership):
+    """Own a short transaction; normal leaders retain configured limits."""
+    with database.transaction() as connection:
+        if hasattr(leadership, "remaining"):
+            cap_postgres_transaction(connection, leadership)
+        yield connection

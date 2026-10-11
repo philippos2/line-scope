@@ -1,0 +1,9 @@
+# Rebuild drainのPostgreSQL transactionへの残り予算伝播
+
+仕様正本はtransaction-designのOutbox/Projection/Rebuild境界とoperations §10。本記録は実装判断の履歴。
+
+- RebuildQueueのclaim・期限切れattempt回収・失敗記録、Projection適用前の正本確認とNeo4j commit後のACKで、deadline guardの残り予算をPostgreSQLのtransaction-local timeoutへ反映する。
+- 短いtransactionを所有する共通context managerをgraph/postgres_timeoutへ追加する。deadlineのない通常leaderは従来設定を維持する。Core/bind、既存上限の非延長、接続・transaction所有権は既存処理に従う。
+- 正本確認とACKは別transactionのまま。外部I/O中にevent row lockを保持せず、controllerの排他mutation lockは呼出元が保持する。Neo4j commit後のACK失敗をAPPLIED扱いせず、外部適用を自動再実行しない。commit済みGraphの重複適用は既存marker/version/hashで回復する。
+- 実PGでqueue設定伝播、外部適用後のACK予算再計算、ACK row lock timeout時のPROCESSING保持・再適用なし、適用前の予算不足時の外部I/O拒否を確認する。正常workerの回帰も実行する。
+- leader照会、接続確立・ネットワーク・CPU、全statementごとの残り時間再設定は対象外。厳密なwall-clock上限完成とは扱わない。正本文書・API・DB schemaは変更せず、LogiScopeコードは再利用していない。
