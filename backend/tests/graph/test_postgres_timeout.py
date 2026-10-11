@@ -123,3 +123,74 @@ def test_snapshot_phase_recomputes_budget_on_same_lock_connection(empty, adapter
     with graph_leadership(empty) as leader:
         service.run(leader)
     assert seen == [{"statement_timeout": 1000, "lock_timeout": 1000}]
+
+
+def test_control_short_transactions_receive_guard_budget(empty, monkeypatch):
+    import linescope.graph.rebuild_control as module
+
+    control = module.RebuildControl(empty)
+    seen = []
+    original = module.cap_postgres_transaction
+
+    def inspect(connection, leadership):
+        original(connection, leadership)
+        seen.append(read_timeout_limits(connection))
+
+    monkeypatch.setattr(module, "cap_postgres_transaction", inspect)
+    leadership = guard(0.2)
+    ticket = control.begin(leadership)
+    with empty.transaction() as lock:
+        acquire_graph_mutation_lock(lock, shared=False)
+        assert control.observe(leadership, lock).recovery_ticket() == ticket
+        control.heartbeat(leadership, lock, ticket)
+        replacement = control.resume(leadership, lock, ticket)
+    assert replacement.rebuild_id != ticket.rebuild_id
+    assert seen == [{"statement_timeout": 200, "lock_timeout": 200}] * 4
+    assert control.fail(SimpleNamespace(require=lambda: None), replacement)
+    assert len(seen) == 4
+
+
+def test_control_begin_lock_timeout_preserves_committed_state(empty):
+    from linescope.graph.rebuild_control import RebuildControl
+
+    before = row(empty)
+    with empty.transaction() as holder:
+        holder.execute("SELECT * FROM graph_projection_control FOR UPDATE").fetchone()
+        with pytest.raises((psycopg.errors.LockNotAvailable, psycopg.errors.QueryCanceled)):
+            RebuildControl(empty).begin(guard(0.1))
+    assert row(empty) == before
+
+
+def test_expired_control_guard_refuses_begin_without_state_change(empty):
+    from linescope.graph.rebuild_control import RebuildControl
+
+    before = row(empty)
+    with pytest.raises(GraphTransactionBudgetExpired):
+        RebuildControl(empty).begin(guard(0.0009))
+    assert row(empty) == before
+
+
+def test_controller_publication_short_transaction_recomputes_budget(empty, adapters, monkeypatch):
+    import linescope.graph.rebuild_control as module
+
+    clock = Clock()
+    service, _ = controller(empty, adapters, timeout_ms=6000, clock=clock, wait=clock.wait)
+    original = module.publish_rebuild
+    build = service.generation.build
+    seen = []
+
+    def elapsed(**kwargs):
+        result = build(**kwargs)
+        clock.now += 5
+        return result
+
+    def inspect(connection, *args):
+        seen.append(read_timeout_limits(connection))
+        return original(connection, *args)
+
+    monkeypatch.setattr(service.generation, "build", elapsed)
+    monkeypatch.setattr(module, "publish_rebuild", inspect)
+    with graph_leadership(empty) as leader:
+        service.run(leader)
+    assert seen == [{"statement_timeout": 1000, "lock_timeout": 1000}]
+    assert not row(empty)["rebuild_flag"]
