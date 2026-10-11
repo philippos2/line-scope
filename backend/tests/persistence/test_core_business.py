@@ -8,7 +8,7 @@ from test_execute import approved as equipment_fixture
 from test_maintenance_plan_execute import approved as plan_fixture
 from test_production_schedule_execute import world as schedule_fixture
 
-from linescope.core_business import (
+from linescope.persistence.core_business import (
     update_equipment_state,
     update_maintenance_plan,
     update_production_schedule,
@@ -68,7 +68,7 @@ def test_stale_version_at_write_cannot_silently_overwrite(
 def test_approval_target_lock_blocks_writer_until_transaction_end(factory, table, key, locker, db):
     import psycopg
 
-    from linescope import core_business
+    from linescope.persistence import core_business
 
     prepared = factory.__wrapped__(db)
     target = prepared[-1].snapshot.data["targets"][0]

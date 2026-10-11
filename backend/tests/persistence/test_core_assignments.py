@@ -8,7 +8,7 @@ import pytest
 from test_production_assignment_execute import ASSIGNMENT
 from test_production_assignment_execute import world as assignment_fixture
 
-from linescope.core_assignments import lock_assignment_equipment, update_assignment
+from linescope.persistence.core_assignments import lock_assignment_equipment, update_assignment
 
 
 def test_stale_assignment_write_cannot_overwrite_or_change_immutable_keys(db):

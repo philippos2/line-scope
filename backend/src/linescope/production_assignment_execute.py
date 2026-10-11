@@ -5,17 +5,17 @@ from psycopg.errors import ForeignKeyViolation, UniqueViolation
 from .approvals import ProductionAssignmentApproval
 from .assignments import normalize_operation_assignments
 from .canonical import normalize_timestamp
-from .core_assignments import (
-    insert_assignment,
-    lock_assignment_equipment,
-    request_changes_assignments,
-    update_assignment,
-)
 from .dependency_cycles import DependencyCycleError, validate_dependency_cycles
 from .dependency_prepare import OBSERVE
 from .execute import ProductionScheduleExecute, _UpdateExecute
 from .graph.graph_locks import acquire_graph_mutation_lock
 from .graph.outbox import enqueue_graph_target
+from .persistence.core_assignments import (
+    insert_assignment,
+    lock_assignment_equipment,
+    request_changes_assignments,
+    update_assignment,
+)
 from .proposals import ProposalError
 from .snapshot import CATEGORIES
 

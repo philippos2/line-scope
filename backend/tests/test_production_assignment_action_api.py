@@ -12,8 +12,8 @@ from test_production_assignment_prepare import service as production_fixture
 from test_production_schedule_api import client_for
 from test_production_schedule_approval import business, current
 
-from linescope.database import Database
 from linescope.graph.graph_locks import acquire_graph_mutation_lock
+from linescope.persistence.database import Database
 from linescope.production_assignment_execute import ASSIGNMENT, ProductionAssignmentExecute
 from linescope.proposals import ProposalError
 

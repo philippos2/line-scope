@@ -107,7 +107,7 @@ def test_replacement_audit_failure_preserves_old_request(db, action):
 
 @pytest.mark.parametrize("with_approval", [True, False])
 def test_core_audit_preserves_jsonb_nulls_and_untrusted_text(db, with_approval):
-    from linescope.core_audit import insert_audit_event
+    from linescope.persistence.core_audit import insert_audit_event
 
     db.migrate()
     owner = context()

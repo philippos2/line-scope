@@ -347,7 +347,7 @@ def test_graph_lock_precedes_request_row_lock_for_execute_and_retire(world, publ
 def test_graph_lock_timeout_preserves_approval_and_allows_retry(world, shared):
     from dataclasses import replace
 
-    from linescope.database import Database
+    from linescope.persistence.database import Database
 
     db, _, saved = world
     before = business(db)
