@@ -10,6 +10,9 @@
 
 ## 維持する原則
 
+- 開発者の指示は、言葉の表面だけでなく、それまでの文脈・実現したい目的・実行時期・制約を合わせて理解する。後の指示で、先の条件が暗黙に解除されたと判断しない。意図を確定できない場合は、行動前に質問し、回答を待つ。
+- 行動前に、影響範囲・可逆性・失敗時に残る状態を把握する。特に取り返しのつかない操作は、影響が不明なまま実行しない。
+- 承認は、その目的・対象・操作・範囲に限って適用する。失敗や拒否が起きても、独断で別の操作へ切り替えたり、承認範囲を広げたりしない。追加の行動が必要なら、現在の状態と影響を示して承認を得る。
 - 責務と境界を分離し、依存方向を予測可能にする。Infrastructure固有の詳細を局所化し、HTTP handlerへSQL/Core/Sessionや業務判断を追加しない。依存組立とreadiness診断は業務handlerと区別する。
 - SOLID、凝集度・結合度、明示性を設計判断に使う。具体的な変更負担・リスクを減らす抽象化とrefactoringを選び、形式だけのInterfaceや先回りの基盤を増やさない。
 - Security、データ整合性、transactionの正しさを利便性より優先する。認証・認可・確定操作をLLMへ委ねず、決定論的な規則はコードで検証する。
@@ -32,8 +35,6 @@ Skill名は対象領域の接頭辞で区別する。現在は`backend-`を使�
 
 ## 作業と引渡し
 
-PRタイトルとコミットメッセージは必ず日本語で作成する。Conventional Commitの接頭辞とAPI名等の正式表記は維持し、説明・本文は日本語にする。Squash commitにも適用する。
-
 GitHubへpush済みの既存履歴を書き換えず、main・作業ブランチともforce-pushしない。2026-10-12の日本語化・PR復旧に対する例外許可は終了しており、今後の操作へ適用しない。
 
-backendのテスト・lintはDocker内で行う。機能ごとに小さく実装→検証→commitし、PRのmergeは開発者が行う。mainの履歴はSquash mergeを標準とし、rewrite / force-pushしない。必須CI、実測結果の追記、使い捨てtest環境の片付けまで確認してからmerge可能と伝える。詳細とコマンドは検証Skillを使う。
+backendのテスト・lintはDocker内で行う。作業の区切りとPR運用は[CONTRIBUTING.md](CONTRIBUTING.md)、検証・引渡しの手順は[backend-verification](.agents/skills/backend-verification/SKILL.md)に従う。
