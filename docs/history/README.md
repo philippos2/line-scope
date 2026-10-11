@@ -446,3 +446,5 @@ Dockerで追加36テスト成功、ruff check / format、git diff --check成功�
 - [残存Rebuild flagのticket引継ぎ](2026-10-11-rebuild-recovery-ticket.md): leader・排他lock・既存Graph検証後の条件付きowner更新、状態維持と旧ticket拒否。controller接続は後続。
 
 - [Rebuild復旧前のcontrol観測](2026-10-11-rebuild-recovery-observation.md)
+
+- [Neo4j generation検証情報の観測](2026-10-11-rebuild-generation-validation.md)
