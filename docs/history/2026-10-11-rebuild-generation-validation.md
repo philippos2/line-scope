@@ -1,0 +1,12 @@
+# Neo4j generation検証情報の観測
+
+仕様正本はtransaction-design §17・§20、operations §10。本記録は実装判断の履歴。
+
+- Neo4jGeneration.observe_validationは固定・parameterized Cypherで対象generationの検証済みmarkerを読む。UUIDを正規化し、明示transactionと既存timeoutを使用する。marker欠落・未検証・検証時刻欠落はGraphGenerationUnavailable、重複・hash形式不正・timezoneなし等の不正時刻はProjectionIntegrityErrorとして拒否する。
+- immutableなGenerationValidationにはgeneration・Snapshot hash・UTC検証時刻だけを返す。markerに存在しないnode/aggregate件数は作らず、Rebuild build結果のVerifiedGenerationとは分ける。
+- このhashは過去のRebuild source Snapshotの証拠。後続Projection後の現在のPostgreSQLとの一致やCURRENTの証明ではない。現在の正本Snapshot hashとの比較を追加していない。
+- require_verifiedのmarker検証をこの読取に集約し、既存の期待hash照合を維持する。曖昧なmarkerを任意選択しない。
+- resumeは取得済みGenerationValidationも受け取れるが、generation照合、実Neo4jの再読取・hash照合、leader/exclusive lock、PostgreSQLの旧ID・pointer・flag条件付き更新を維持する。DTOだけでownerを変更しない。publish/stage_restoreは引き続きbuild結果を要求する。
+- 読取でGraph/control/Outboxを変更しない。controllerへの自動復旧接続、未検証generationのcleanup、hard deadlineのI/O伝播は後続。
+
+実Graph試験で正常な観測、欠落・未検証、不正hash・時刻、DB制約による重複拒否、leader喪失、UUID拒否を確認する。制約がないストアの曖昧な読取結果はadapter境界のstubで防御を確認する。PG観測→Neo4j観測→resumeの結合試験では不一致DTO、観測後のmarker変更による拒否、全状態保持、検証済みmarkerからのowner引継ぎを確認する。SQLAlchemy Core/PG schemaは変更しない。LogiScopeコードは再利用していない。
