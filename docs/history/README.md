@@ -404,3 +404,7 @@ Dockerで追加36テスト成功、ruff check / format、git diff --check成功�
 ## Projection適用・APPLIED保存境界
 
 [適用前後の再検証と排他lockの保持](2026-10-11-projection-application-boundary.md)に、実PostgreSQLの状態遷移・commit失敗・leader喪失試験と、実Neo4j未実装の境界を記録する。
+
+## 実Neo4j Projection adapter
+
+[markerのversion / hash比較とatomic edge置換](2026-10-11-neo4j-projection-adapter.md)に、Cypherのparameter境界・実Neo4j / PostgreSQLの再送試験と未実装の運用構成を記録する。
