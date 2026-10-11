@@ -816,7 +816,7 @@ class HumanExecute(_UpdateExecute):
     """Route saved Targets under the common locks, without shared mutable routing state."""
 
     def _before_load(self, c, request_id):
-        from .graph_locks import acquire_graph_mutation_lock
+        from .graph.graph_locks import acquire_graph_mutation_lock
 
         # Immutable saved Targets are only a routing hint here, not business
         # facts. _load verifies the entire saved Snapshot after coordination.

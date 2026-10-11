@@ -11,7 +11,7 @@ from uuid import UUID, uuid4
 import psycopg
 from neo4j.exceptions import DriverError, Neo4jError
 
-from .logging import EventLogger, request_context
+from ..logging import EventLogger, request_context
 from .neo4j_projection import GraphGenerationUnavailable, Neo4jProjection, ProjectionIntegrityError
 from .projection_application import ProjectionApplication
 from .projection_payload import ProjectionPayloadError

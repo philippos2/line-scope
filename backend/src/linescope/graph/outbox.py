@@ -7,12 +7,12 @@ does not commit, retry conflicts, consume Approval, or run a Projection worker.
 
 from uuid import uuid4
 
-from .assignments import validate_assignment_target
-from .canonical import canonical_json, normalize_uuid
-from .core_outbox import insert_graph_event, read_saved_graph_target
+from ..assignments import validate_assignment_target
+from ..canonical import canonical_json, normalize_uuid
+from ..core_outbox import insert_graph_event, read_saved_graph_target
+from ..relations import validate_relation_target
 from .graph_locks import require_read_committed_transaction
 from .projection_payload import build_projection_payload
-from .relations import validate_relation_target
 
 
 def enqueue_graph_target(connection, update_request_id, target):

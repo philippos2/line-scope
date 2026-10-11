@@ -10,7 +10,7 @@ from psycopg.types.json import Jsonb
 from test_dependency_prepare import prepare
 from test_dependency_prepare import service as dependency_fixture
 
-from linescope.projection_state import ProjectionState
+from linescope.graph.projection_state import ProjectionState
 from linescope.reads import ToolError
 
 

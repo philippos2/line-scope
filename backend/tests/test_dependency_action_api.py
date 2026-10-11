@@ -16,7 +16,7 @@ from test_maintenance_record_create_api import execute
 from linescope.api import create_app
 from linescope.database import Database
 from linescope.dependency_execute import DependencyExecute
-from linescope.graph_locks import acquire_graph_mutation_lock
+from linescope.graph.graph_locks import acquire_graph_mutation_lock
 from linescope.logging import EventLogger
 from linescope.proposals import ProposalError
 from linescope.settings import Settings
