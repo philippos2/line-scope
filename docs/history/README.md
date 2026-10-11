@@ -444,3 +444,5 @@ Dockerで追加36テスト成功、ruff check / format、git diff --check成功�
 - [開発ガイダンス採用 — Phase 1C](2026-10-11-engineering-guidance-phase-1c.md): root AGENTSと四つの正式SkillをGit管理、配置・採否・検証・guardrail残件。
 - [RestoreのRebuild controller接続](2026-10-11-restore-rebuild-controller.md): NULL pointerと未処理Outboxから作業用generation・drain・最終公開へ進む内部経路、途中失敗と期限境界。
 - [残存Rebuild flagのticket引継ぎ](2026-10-11-rebuild-recovery-ticket.md): leader・排他lock・既存Graph検証後の条件付きowner更新、状態維持と旧ticket拒否。controller接続は後続。
+
+- [Rebuild復旧前のcontrol観測](2026-10-11-rebuild-recovery-observation.md)
