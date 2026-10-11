@@ -7,9 +7,9 @@ import pytest
 from fastapi import Request
 from fastapi.testclient import TestClient
 
-from linescope.api import create_app
 from linescope.application.reads import GET_TOOLS, ReadTools, ToolError, json_value
 from linescope.execution import ExecutionContext
+from linescope.interfaces.api import create_app
 from linescope.settings import ROLES, Settings
 
 START = datetime(2020, 1, 1, tzinfo=timezone.utc)

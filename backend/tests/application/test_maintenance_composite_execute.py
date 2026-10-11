@@ -7,7 +7,7 @@ from uuid import UUID
 
 import psycopg
 import pytest
-from test_maintenance_plan_approval_api import act, client_for, current
+from interfaces.test_maintenance_plan_approval_api import act, client_for, current
 
 from application.test_maintenance_plan_execute import settings
 from application.test_maintenance_prepare import (

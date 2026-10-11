@@ -4,16 +4,16 @@ from concurrent.futures import ThreadPoolExecutor
 from uuid import UUID, uuid4
 
 import pytest
+from agent.test_agent_tools import Dispatcher, session
+from agent.test_read_agent import ScriptedLLM, call, request
 from fastapi.testclient import TestClient
-from test_agent_tools import Dispatcher, session
-from test_read_agent import ScriptedLLM, call, request
 
-from linescope.api import create_app
+from linescope.agent.read_agent import ReadAgent
 from linescope.application.reads import ToolError
 from linescope.demo_seed import DEMO_EQUIPMENT, seed_demo
-from linescope.llm import LLMReply
+from linescope.integrations.llm import LLMReply
+from linescope.interfaces.api import create_app
 from linescope.logging import EventLogger, current_request_id, request_context
-from linescope.read_agent import ReadAgent
 from linescope.settings import Settings
 
 SECRET = "private-message-arguments-token-password-sql"
@@ -32,7 +32,7 @@ def entries(output):
 def test_success_has_trusted_identity_target_id_and_monotonic_duration(monkeypatch):
     run, output = captured()
     ticks = iter([10_000_000, 15_000_000])
-    monkeypatch.setattr("linescope.agent_tools.monotonic_ns", lambda: next(ticks))
+    monkeypatch.setattr("linescope.agent.agent_tools.monotonic_ns", lambda: next(ticks))
     call_id, equipment_id = uuid4(), uuid4()
     with request_context(uuid4(), actor_id="other", role="manager"):
         outer_id = current_request_id()

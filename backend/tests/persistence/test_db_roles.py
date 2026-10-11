@@ -9,10 +9,10 @@ import psycopg
 import pytest
 from application.test_maintenance_prepare import AGENT_HASH, create_plan, identity
 from application.test_maintenance_prepare import service as maintenance_fixture
+from interfaces.test_maintenance_plan_approval_api import act, client_for
+from interfaces.test_maintenance_plan_create_api import execute
 from psycopg import sql
 from psycopg.conninfo import make_conninfo
-from test_maintenance_plan_approval_api import act, client_for
-from test_maintenance_plan_create_api import execute
 
 from linescope.application.reads import ReadTools
 from linescope.application.tools import ToolDispatcher

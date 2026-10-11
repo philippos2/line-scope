@@ -7,7 +7,7 @@ from datetime import timedelta
 from uuid import uuid4
 
 import pytest
-from test_maintenance_plan_approval_api import act, client_for
+from interfaces.test_maintenance_plan_approval_api import act, client_for
 
 from application.test_maintenance_prepare import (
     create_plan,

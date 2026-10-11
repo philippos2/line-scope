@@ -4,7 +4,7 @@ import argparse
 import json
 from time import monotonic
 
-from linescope.llm import LLMError, OllamaClient
+from linescope.integrations.llm import LLMError, OllamaClient
 
 
 def main():

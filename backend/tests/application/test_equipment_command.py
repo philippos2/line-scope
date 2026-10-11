@@ -4,11 +4,11 @@ from uuid import uuid4
 import pytest
 
 from application.test_proposals import NOW, context
-from linescope.agent_input import AgentInput
+from linescope.agent.agent_input import AgentInput
+from linescope.agent.update_intent import equipment_state_command
 from linescope.application.equipment_command import EquipmentCommandPrepare
 from linescope.application.reads import ReadResult, ToolError
 from linescope.demo_seed import DEMO_EQUIPMENT, seed_demo
-from linescope.update_intent import equipment_state_command
 
 
 def incoming(owner, message="設備M-204の状態をRUNNINGに変更して", key=None, **fields):
