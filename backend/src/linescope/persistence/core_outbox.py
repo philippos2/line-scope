@@ -61,6 +61,7 @@ _control = table(
     "graph_projection_control",
     column("control_id", Integer()),
     column("rebuild_flag", Boolean()),
+    column("rebuild_id", UUID()),
     column("active_generation", UUID()),
     column("fatal_error", Text()),
 )
@@ -109,9 +110,13 @@ def claim_graph_event(connection, max_attempts=5):
     The caller holds session leadership. This short transaction deliberately
     acquires no mutation advisory lock; application revalidation happens later.
     """
+    rebuilding = select(_control.c.rebuild_flag).where(_control.c.control_id == 1).scalar_subquery()
+    return _claim_graph_event(connection, max_attempts, rebuilding.is_(False))
+
+
+def _claim_graph_event(connection, max_attempts, control_condition):
     now = func.statement_timestamp()
     dead = _outbox.alias("dead_events")
-    rebuilding = select(_control.c.rebuild_flag).where(_control.c.control_id == 1).scalar_subquery()
     candidate = (
         select(_outbox.c.outbox_id)
         .where(
@@ -119,7 +124,7 @@ def claim_graph_event(connection, max_attempts=5):
                 _outbox.c.status == "PENDING",
                 and_(_outbox.c.status == "RETRYABLE", _outbox.c.next_attempt_at <= now),
             ),
-            rebuilding.is_(False),
+            control_condition,
             ~select(dead.c.outbox_id).where(dead.c.status == "DEAD").exists(),
         )
         .order_by(_outbox.c.created_at, _outbox.c.outbox_id)
@@ -184,15 +189,19 @@ def fail_graph_event(connection, event, *, dead, delay_seconds, error_code):
 
 
 def recover_expired_graph_events(connection, lease_seconds):
-    now = func.statement_timestamp()
     rebuilding = select(_control.c.rebuild_flag).where(_control.c.control_id == 1).scalar_subquery()
+    return _recover_expired_graph_events(connection, lease_seconds, rebuilding.is_(False))
+
+
+def _recover_expired_graph_events(connection, lease_seconds, control_condition):
+    now = func.statement_timestamp()
     statement = (
         update(_outbox)
         .where(
             _outbox.c.status == "PROCESSING",
             _outbox.c.processing_started_at
             < now - bindparam("lease", timedelta(seconds=lease_seconds), type_=INTERVAL()),
-            rebuilding.is_(False),
+            control_condition,
         )
         .values(
             status="RETRYABLE",
@@ -269,3 +278,46 @@ def acknowledge_graph_application(connection, event, lease_seconds, generation):
     )
     compiled = statement.compile(dialect=dialect())
     return connection.execute(str(compiled), compiled.params).rowcount == 1
+
+
+def _rebuild_queue_conditions(ticket):
+    return (
+        _control.c.control_id == 1,
+        _control.c.rebuild_flag.is_(True),
+        _control.c.rebuild_id == ticket.rebuild_id,
+        _control.c.active_generation.is_not_distinct_from(ticket.previous_generation),
+    )
+
+
+def read_rebuild_queue_state(connection, ticket):
+    counts = select(
+        func.count().filter(_outbox.c.status != "APPLIED").label("undrained"),
+        func.count().filter(_outbox.c.status == "DEAD").label("dead"),
+    ).subquery("counts")
+    statement = (
+        select(_control.c.active_generation, counts)
+        .select_from(_control.join(counts, _control.c.control_id == 1))
+        .where(*_rebuild_queue_conditions(ticket))
+    )
+    compiled = statement.compile(dialect=dialect())
+    return connection.execute(str(compiled), compiled.params).fetchone()
+
+
+def _rebuild_claim_gate(ticket):
+    return (
+        select(_control.c.control_id)
+        .where(
+            *_rebuild_queue_conditions(ticket),
+            _control.c.active_generation.is_not(None),
+        )
+        .exists()
+    )
+
+
+def claim_rebuild_graph_event(connection, ticket, max_attempts):
+    """Explicit controller-only path; normal worker's gate remains unchanged."""
+    return _claim_graph_event(connection, max_attempts, _rebuild_claim_gate(ticket))
+
+
+def recover_expired_rebuild_graph_events(connection, ticket, lease_seconds):
+    return _recover_expired_graph_events(connection, lease_seconds, _rebuild_claim_gate(ticket))
