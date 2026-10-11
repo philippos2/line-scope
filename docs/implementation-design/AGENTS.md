@@ -81,3 +81,5 @@ PO指示によりUC-BとBusiness Scenarioの意図を既存文書との不整合
 配置整理は本体と対応テストを同じ責務単位で段階的に行い、その後に既存の曖昧な責務境界を改善する。フォルダ移動だけで依存反転やClean Architectureが完成したとは扱わない。新規追加は整理済みpackageを使い、HTTP handlerへSQL / Core / ORM / Session操作や業務ルールを追加しない。起動時の依存組立と業務handlerの処理は区別する。
 
 純粋な業務検証へHTTP frameworkやDB driverの依存を持ち込まない。Applicationがtransactionを所有する場合も、Persistence抽出によってcommit・rollback・lock取得順・version検証・Audit/Outbox原子性を変更しない。既存の例外や混在は明示して段階的に改善し、形だけの抽象化を増やさない。
+
+リファクタリングは、後続作業の具体的な変更負担やミドルウェア変更・バージョンアップの影響範囲を抑えるため、適切なタイミングで行う。現状のコードと判断記録から再開できることを重視し、期待する効果と回帰リスクを比較する。抽象化やリファクタリング自体を目的にしない。
