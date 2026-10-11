@@ -166,6 +166,14 @@ def _claim_graph_event(connection, max_attempts, control_condition):
 
 
 def fail_graph_event(connection, event, *, dead, delay_seconds, error_code):
+    return _fail_graph_event(
+        connection, event, dead=dead, delay_seconds=delay_seconds, error_code=error_code
+    )
+
+
+def _fail_graph_event(
+    connection, event, *, dead, delay_seconds, error_code, control_condition=None
+):
     now = func.statement_timestamp()
     statement = (
         update(_outbox)
@@ -174,6 +182,7 @@ def fail_graph_event(connection, event, *, dead, delay_seconds, error_code):
             _outbox.c.status == "PROCESSING",
             _outbox.c.attempt_count == event["attempt_count"],
             _outbox.c.processing_started_at == event["processing_started_at"],
+            *(() if control_condition is None else (control_condition,)),
         )
         .values(
             status="DEAD" if dead else "RETRYABLE",
@@ -340,6 +349,17 @@ def recover_expired_rebuild_graph_events(connection, ticket, lease_seconds):
 def read_rebuild_graph_application(connection, event, lease_seconds, ticket):
     return _read_graph_application(
         connection, event, lease_seconds, control_condition=_rebuild_claim_gate(ticket)
+    )
+
+
+def fail_rebuild_graph_event(connection, event, ticket, *, dead, delay_seconds, error_code):
+    return _fail_graph_event(
+        connection,
+        event,
+        dead=dead,
+        delay_seconds=delay_seconds,
+        error_code=error_code,
+        control_condition=_rebuild_claim_gate(ticket),
     )
 
 
