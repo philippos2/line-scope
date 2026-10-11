@@ -210,3 +210,105 @@ def test_postcommit_leader_loss_keeps_new_owner_unknown(queued, monkeypatch):
         monkeypatch.undo()
         assert row(db)["rebuild_id"] != old.rebuild_id
         assert row(db)["rebuild_flag"] and row(db)["active_generation"] is None
+
+
+def test_observation_preserves_abandoned_control_and_can_supply_resume_ticket(queued):
+    db, _, _ = queued
+    control = RebuildControl(db)
+    with graph_leadership(db) as old_leader:
+        old = control.begin(old_leader)
+    before, events = row(db), ordered(db)
+    with graph_leadership(db) as leader, db.transaction() as lock:
+        acquire_graph_mutation_lock(lock, shared=False)
+        observation = control.observe(leader, lock)
+        assert observation.rebuild_flag
+        assert observation.recovery_ticket() == old
+        assert observation.fatal_error == before["fatal_error"]
+        assert row(db) == before and ordered(db) == events
+        resumed = control.resume(leader, lock, observation.recovery_ticket())
+        with pytest.raises(RebuildControlRejected):
+            control.resume(leader, lock, observation.recovery_ticket())
+        assert control.fail(leader, resumed)
+
+
+def test_observation_of_completed_control_is_not_recovery_ownership(queued):
+    db, _, _ = queued
+    control = RebuildControl(db)
+    with graph_leadership(db) as leader, db.transaction() as lock:
+        acquire_graph_mutation_lock(lock, shared=False)
+        before = row(db)
+        observation = control.observe(leader, lock)
+        assert not observation.rebuild_flag
+        assert observation.active_generation == before["active_generation"]
+        with pytest.raises(RebuildControlRejected):
+            observation.recovery_ticket()
+        assert row(db) == before
+
+
+@pytest.mark.parametrize("shared", [True, None])
+def test_observation_requires_exclusive_mutation_lock(queued, shared):
+    db, _, _ = queued
+    with graph_leadership(db) as leader, db.transaction() as lock:
+        if shared is not None:
+            acquire_graph_mutation_lock(lock, shared=shared)
+        before = row(db)
+        with pytest.raises(ValueError):
+            RebuildControl(db).observe(leader, lock)
+        assert row(db) == before
+
+
+def test_observation_rejects_lost_leadership(queued):
+    db, _, _ = queued
+    with graph_leadership(db) as leader, db.transaction() as lock:
+        acquire_graph_mutation_lock(lock, shared=False)
+        leader._connection.close()
+        with pytest.raises(GraphLeadershipLost):
+            RebuildControl(db).observe(leader, lock)
+
+
+def test_observation_checks_lock_again_after_read(queued, monkeypatch):
+    import linescope.graph.rebuild_control as module
+
+    db, _, _ = queued
+    original = module.observe_rebuild
+    with graph_leadership(db) as leader, db.transaction() as lock:
+        acquire_graph_mutation_lock(lock, shared=False)
+
+        def lose_lock(connection):
+            result = original(connection)
+            lock.close()
+            return result
+
+        monkeypatch.setattr(module, "observe_rebuild", lose_lock)
+        with pytest.raises(ValueError):
+            RebuildControl(db).observe(leader, lock)
+
+
+def test_observation_reports_pointer_and_error_without_inferring_graph_validity(queued):
+    db, _, _ = queued
+    generation = uuid4()
+    with db.transaction() as c:
+        c.execute(
+            "UPDATE graph_projection_control SET active_generation=%s,fatal_error=%s",
+            (generation, "RESTORE_REQUIRED"),
+        )
+    with graph_leadership(db) as leader, db.transaction() as lock:
+        acquire_graph_mutation_lock(lock, shared=False)
+        before = row(db)
+        observation = RebuildControl(db).observe(leader, lock)
+        assert observation.active_generation == generation
+        assert observation.fatal_error == "RESTORE_REQUIRED"
+        assert row(db) == before
+        with pytest.raises(RebuildControlRejected):
+            observation.recovery_ticket()
+
+
+def test_absent_control_cannot_be_observed_as_recoverable(queued, monkeypatch):
+    import linescope.graph.rebuild_control as module
+
+    db, _, _ = queued
+    monkeypatch.setattr(module, "observe_rebuild", lambda connection: None)
+    with graph_leadership(db) as leader, db.transaction() as lock:
+        acquire_graph_mutation_lock(lock, shared=False)
+        with pytest.raises(RebuildControlRejected, match="absent"):
+            RebuildControl(db).observe(leader, lock)
