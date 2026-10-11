@@ -8,22 +8,13 @@ from fastapi.responses import JSONResponse
 from starlette.concurrency import run_in_threadpool
 from starlette.exceptions import HTTPException
 
-from ..agent.agent_input import AgentInput, ConversationStore
-from ..agent.read_agent import ReadAgent
-from ..application.agent_service import AgentApplication, PreparedAgentResult
-from ..application.approvals import HumanApproval
-from ..application.equipment_command import EquipmentCommandPrepare
-from ..application.execute import HumanExecute
-from ..application.maintenance_command import MaintenanceCommandPrepare
-from ..application.production_command import ProductionCommandPrepare
-from ..application.proposals import ProposalError, ProposalStore
-from ..application.reads import ReadTools, ToolError, json_value
-from ..application.tools import ToolDispatcher
+from ..agent.agent_input import AgentInput
+from ..application.agent_service import PreparedAgentResult
+from ..application.proposals import ProposalError
+from ..application.reads import ToolError, json_value
+from ..bootstrap import build_api_services
 from ..domain.canonical import strict_json
-from ..integrations.llm import OllamaClient
-from ..logging import EventLogger, request_context
-from ..persistence.database import Database
-from ..settings import Settings
+from ..logging import request_context
 from .http_logging import RequestMiddleware
 
 
@@ -62,9 +53,10 @@ def response(
 
 
 def create_app(settings=None, database=None, event_logger=None, *, llm=None, conversations=None):
-    settings = settings or Settings.env()
-    database = database or Database(settings)
-    events = event_logger or EventLogger(settings.log_level)
+    services = build_api_services(
+        settings, database, event_logger, llm=llm, conversations=conversations
+    )
+    settings, database, events = services.settings, services.database, services.events
 
     @asynccontextmanager
     async def lifespan(app):
@@ -80,28 +72,8 @@ def create_app(settings=None, database=None, event_logger=None, *, llm=None, con
         title="LineScope", docs_url=None, redoc_url=None, openapi_url=None, lifespan=lifespan
     )
     app.state.database = database
-    app.state.read_tools = ReadTools(database)
-    equipment_prepare = EquipmentCommandPrepare(database, event_logger=events)
-    maintenance_prepare = MaintenanceCommandPrepare(database, event_logger=events)
-    production_prepare = ProductionCommandPrepare(database, event_logger=events)
-    human_approval = HumanApproval(database, event_logger=events)
-    human_execute = HumanExecute(database, settings, event_logger=events)
-
-    conversations = conversations or ConversationStore()
-    if llm is None and settings.llm_model:
-        llm = OllamaClient(base_url=settings.llm_base_url, model=settings.llm_model)
-    read_agent = (
-        ReadAgent(ToolDispatcher(database), llm, event_logger=events) if llm is not None else None
-    )
-    agent_application = AgentApplication(
-        proposals=ProposalStore(database),
-        conversations=conversations,
-        equipment=equipment_prepare,
-        maintenance=maintenance_prepare,
-        production=production_prepare,
-        read_agent=read_agent,
-    )
-    app.state.conversations = conversations
+    app.state.read_tools = services.reads
+    app.state.conversations = services.conversations
     app.state.events = events
     app.add_middleware(RequestMiddleware, settings=settings, events=events, response=response)
 
@@ -125,7 +97,7 @@ def create_app(settings=None, database=None, event_logger=None, *, llm=None, con
     @app.get("/update-requests/{request_id}")
     def update_request(request: Request, request_id: str):
         try:
-            data = ProposalStore(database).get(request.state.execution_context, request_id)
+            data = services.proposals.get(request.state.execution_context, request_id)
         except ProposalError as error:
             status = {
                 "INVALID_ARGUMENT": 400,
@@ -153,7 +125,7 @@ def create_app(settings=None, database=None, event_logger=None, *, llm=None, con
             return response(request, code="INVALID_ARGUMENT", status_code=400)
         try:
             result = await run_in_threadpool(
-                human_approval.approve,
+                services.approval.approve,
                 request.state.execution_context,
                 approval_id,
                 body["snapshot_hash"],
@@ -169,7 +141,7 @@ def create_app(settings=None, database=None, event_logger=None, *, llm=None, con
             return response(request, code="INVALID_ARGUMENT", status_code=400)
         try:
             result = await run_in_threadpool(
-                human_approval.reject,
+                services.approval.reject,
                 request.state.execution_context,
                 approval_id,
             )
@@ -183,7 +155,7 @@ def create_app(settings=None, database=None, event_logger=None, *, llm=None, con
             return response(request, code="INVALID_ARGUMENT", status_code=400)
         try:
             result = await run_in_threadpool(
-                human_execute.execute, request.state.execution_context, request_id
+                services.execute.execute, request.state.execution_context, request_id
             )
         except ProposalError as error:
             return response(request, code=error.code, status_code=error_status(error.code))
@@ -195,7 +167,7 @@ def create_app(settings=None, database=None, event_logger=None, *, llm=None, con
             "execution_result": result,
         }
         try:
-            observation = await run_in_threadpool(human_execute.observe_current, result)
+            observation = await run_in_threadpool(services.execute.observe_current, result)
         except Exception as error:
             code = error.code if isinstance(error, ProposalError) else "INTERNAL_ERROR"
             if not isinstance(error, ProposalError):
@@ -243,7 +215,7 @@ def create_app(settings=None, database=None, event_logger=None, *, llm=None, con
                 idempotency_key=request.headers.get("idempotency-key"),
             )
             outcome = await run_in_threadpool(
-                agent_application.run,
+                services.agent.run,
                 request.state.execution_context,
                 incoming,
                 retry_requested=request.headers.get("idempotency-key") is not None,
