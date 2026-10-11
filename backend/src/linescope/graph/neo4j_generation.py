@@ -10,7 +10,12 @@ from datetime import datetime, timezone
 from math import isfinite
 
 from ..domain.canonical import normalize_uuid
-from .neo4j_projection import CREATE_EDGE, ProjectionIntegrityError, edge_projection
+from .neo4j_projection import (
+    CREATE_EDGE,
+    GraphGenerationUnavailable,
+    ProjectionIntegrityError,
+    edge_projection,
+)
 from .projection_payload import projection_payload_hash, validate_projection_payload
 from .rebuild_snapshot import RebuildSnapshot
 
@@ -43,6 +48,36 @@ class Neo4jGeneration:
         ):
             raise ValueError("Neo4j transaction timeout must be positive and finite")
         self.driver, self.database, self.timeout_seconds = driver, database, timeout_seconds
+
+    def require_verified(self, *, generation, snapshot_hash, leadership):
+        generation = normalize_uuid(generation)
+        if (
+            type(snapshot_hash) is not str
+            or len(snapshot_hash) != 64
+            or any(c not in "0123456789abcdef" for c in snapshot_hash)
+        ):
+            raise ValueError("A canonical source Snapshot hash is required")
+        leadership.require()
+        with self.driver.session(database=self.database) as session:
+            with session.begin_transaction(timeout=self.timeout_seconds) as tx:
+                marker = tx.run(
+                    "MATCH (g:LineScopeGeneration {generation:$generation}) "
+                    "RETURN g.validated AS validated,g.snapshot_hash AS hash,g.validated_at AS at",
+                    generation=generation,
+                ).single(strict=True)
+                if marker is None or marker["validated"] is not True or marker["at"] is None:
+                    raise GraphGenerationUnavailable("Verified Graph generation is unavailable")
+                validated_at = marker["at"]
+                validated_at = (
+                    validated_at.to_native() if hasattr(validated_at, "to_native") else validated_at
+                )
+                if not isinstance(validated_at, datetime) or validated_at.tzinfo is None:
+                    raise ProjectionIntegrityError("Invalid generation validation time")
+                if marker["hash"] != snapshot_hash:
+                    raise ProjectionIntegrityError("Generation Snapshot hash does not match")
+                leadership.require()
+                tx.commit()
+        leadership.require()
 
     def build(self, *, generation, snapshot, leadership):
         generation = normalize_uuid(generation)

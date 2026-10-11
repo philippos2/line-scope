@@ -9,7 +9,7 @@ from datetime import datetime
 
 from ..domain.canonical import canonical_hash
 from ..persistence.core_graph_snapshot import graph_snapshot_rows
-from .graph_locks import GRAPH_MUTATION_LOCK, require_read_committed_transaction
+from .graph_locks import require_exclusive_graph_mutation_lock
 from .projection_payload import build_projection_payload
 
 
@@ -33,17 +33,7 @@ class RebuildSnapshot:
 
 
 def read_rebuild_snapshot(connection):
-    require_read_committed_transaction(connection)
-    # PostgreSQL coordination query: verify the caller's existing xact lock,
-    # never silently acquire/upgrade one or end its transaction.
-    owned = connection.execute(
-        "SELECT EXISTS(SELECT 1 FROM pg_locks WHERE locktype='advisory' "
-        "AND pid=pg_backend_pid() AND classid=%s::oid AND objid=%s::oid "
-        "AND objsubid=1 AND mode='ExclusiveLock' AND granted) AS owned",
-        (GRAPH_MUTATION_LOCK >> 32, GRAPH_MUTATION_LOCK & 0xFFFFFFFF),
-    ).fetchone()["owned"]
-    if not owned:
-        raise ValueError("Rebuild snapshot requires the exclusive Graph mutation lock")
+    require_exclusive_graph_mutation_lock(connection)
     rows = graph_snapshot_rows(connection)
     nodes = tuple(row["data"] for row in rows if row["category"] == "NODE")
     aggregates = tuple(
