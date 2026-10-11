@@ -448,3 +448,5 @@ Dockerで追加36テスト成功、ruff check / format、git diff --check成功�
 - [Rebuild復旧前のcontrol観測](2026-10-11-rebuild-recovery-observation.md)
 
 - [Neo4j generation検証情報の観測](2026-10-11-rebuild-generation-validation.md)
+
+- [Rebuild controllerの残存flag復旧](2026-10-11-rebuild-controller-recovery.md)
