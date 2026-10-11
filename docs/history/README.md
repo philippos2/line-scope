@@ -3,6 +3,7 @@
 このディレクトリはLineScopeの文書レビュー、仕様判断、変更経緯を保存する。現在の仕様は[deliverables.md](../deliverables.md)が指定する文書群を正本とする。履歴にある過去の指摘・未決定事項を現在の仕様として扱わない。
 
 - [上限付きGraph到達探索の内部計算](2026-10-12-bounded-graph-reachability.md)：最短hop・決定的前駆・depth / node境界。公開Graph Toolへの接続は後続。
+- [Graph代表経路の内部復元と返却数上限](2026-10-12-graph-representative-paths.md)：前駆の整合検証、順序付き経路、PATH_COUNT。公開Evidenceへの接続は後続。
 
 ## 2026-10-09
 
