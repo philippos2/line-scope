@@ -30,32 +30,55 @@ class ProjectionApplication:
         with self.database.transaction() as lock_connection:
             acquire_graph_mutation_lock(lock_connection, shared=False)
             leadership.require()
-            with self.database.transaction() as connection:
-                require_read_committed_transaction(connection)
-                saved = read_graph_application(connection, event, self.lease_seconds)
-            if saved is None:
-                return False
-            payload = validate_projection_payload(saved["payload"])
-            if (
-                payload["aggregate_type"] != saved["aggregate_type"]
-                or payload["aggregate_id"] != str(saved["aggregate_id"])
-                or payload["aggregate_version"] != saved["aggregate_version"]
-            ):
-                raise ProjectionPayloadError("Projection payload disagrees with saved aggregate")
-            leadership.require()
-            adapter.apply(
-                generation=saved["active_generation"],
-                outbox_id=saved["outbox_id"],
-                payload=payload,
-                leadership=leadership,
+            return apply_locked_graph_attempt(
+                self.database,
+                leadership,
+                lock_connection,
+                event,
+                adapter,
+                self.lease_seconds,
+                read_graph_application,
+                acknowledge_graph_application,
+                require_read_committed_transaction,
             )
-            leadership.require()
-            require_read_committed_transaction(lock_connection)
-            with self.database.transaction() as connection:
-                require_read_committed_transaction(connection)
-                changed = acknowledge_graph_application(
-                    connection, event, self.lease_seconds, saved["active_generation"]
-                )
-                leadership.require()
-            leadership.require()
-            return changed
+
+
+def apply_locked_graph_attempt(
+    database,
+    leadership,
+    lock_connection,
+    event,
+    adapter,
+    lease_seconds,
+    read_saved,
+    acknowledge,
+    verify_lock,
+):
+    """Shared commit/ack ordering; entry services supply fixed persistence fences."""
+    with database.transaction() as connection:
+        require_read_committed_transaction(connection)
+        saved = read_saved(connection, event, lease_seconds)
+    if saved is None:
+        return False
+    payload = validate_projection_payload(saved["payload"])
+    if (
+        payload["aggregate_type"] != saved["aggregate_type"]
+        or payload["aggregate_id"] != str(saved["aggregate_id"])
+        or payload["aggregate_version"] != saved["aggregate_version"]
+    ):
+        raise ProjectionPayloadError("Projection payload disagrees with saved aggregate")
+    leadership.require()
+    adapter.apply(
+        generation=saved["active_generation"],
+        outbox_id=saved["outbox_id"],
+        payload=payload,
+        leadership=leadership,
+    )
+    leadership.require()
+    verify_lock(lock_connection)
+    with database.transaction() as connection:
+        require_read_committed_transaction(connection)
+        changed = acknowledge(connection, event, lease_seconds, saved["active_generation"])
+        leadership.require()
+    leadership.require()
+    return changed
