@@ -1,13 +1,13 @@
 # 開発・PR運用
 
 LineScopeはBackend / Frontendを一つのリポジトリで管理する。
-仕様の正本は[成果物一覧](docs/deliverables.md)の19文書。
+仕様の正本と各事項の責務は[成果物一覧](docs/deliverables.md)で確認する。
 
 ## 変更の区切り
 
 機能ごとに作業ブランチを作り、実装 → 対応テスト → checkpoint commitの順で進める。
 ブランチ名は`feat/<feature>`、`fix/<issue>`、`docs/<topic>`等、目的を示す。
-作業ブランチ内の複数commitを許容し、既存main履歴をrewrite / force-pushしない。
+作業ブランチ内の複数commitを許容する。GitHubへpush済みの既存履歴はmain・作業ブランチともrewrite / force-pushしない。2026-10-12の日本語化・PR復旧に対する例外許可は終了しており、今後の操作へ適用しない。
 push・PR作成・mergeはそれぞれ別の操作として報告する。PR準備の指示だけでmergeしない。
 
 ## PRとmain
@@ -15,6 +15,7 @@ push・PR作成・mergeはそれぞれ別の操作として報告する。PR準�
 - 原則1 PR＝main上の1 Squash commit。
 - GitHubではSquash mergeだけを許可し、Merge commit / Rebase mergeは無効にする。
 - PRタイトルは`feat:` / `fix:` / `docs:` / `test:` / `refactor:` / `chore:`のConventional Commit形式。scopeは任意。
+- PRタイトルとコミットメッセージは必ず日本語で作成する。接頭辞とAPI名等の正式表記は維持し、説明・本文は日本語にする。Squash commitにも適用する。
 - squash commitの既定タイトルはPRタイトル、本文はPR本文を使い、merge時にも内容を確認する。
 - mainはPR必須、linear history必須、force-push禁止。管理者も保護対象とする。
 - merge後はfeature branchを削除する。
@@ -25,7 +26,7 @@ GitHub設定を変更する際は既存保護・required checksを維持し、�
 ## CI
 
 現在のrequired checksは`Tests and migrations`と`PR title`とする。
-Backend CIはDocker内でlint / format、実PostgreSQLでの基盤・業務DB制約テスト・migration検証、runtime imageの起動・CLI疎通を実行する。
+Backend CIはDocker内でlint / format、実PostgreSQL / Neo4jによるテスト・migration検証、runtime imageの起動・CLI疎通を実行する。
 全PRでCIを実行し、required jobをpath filterで省略しない。
 Runtime依存はbackend/requirements.lock、開発依存はbackend/requirements-dev.lockで固定し、共通packageのversionを揃えて更新・検証する。
 

@@ -96,10 +96,10 @@ Rebuild controllerは単一workerと同じleader lockを取得してOutboxをdra
 |---|---|---|
 | Backend | Python / FastAPI | HTTP API、認証済み実行Context、Tool制御。最初の実装チェックポイントで起動基盤を作る |
 | 正本DB | PostgreSQL | 業務データ、Approval、UpdateRequest、履歴、Outbox、文書metadata。最初は接続・migration基盤のみ |
-| DBアクセス標準 | SQLAlchemy Core（段階導入） | 構造化query・parameter binding・明示的Transaction。既存実装はPsycopg 3によるRaw SQLであり、Core導入済みとは扱わない |
+| DBアクセス標準 | SQLAlchemy Core | 通常の参照・更新・Audit / Outbox等に導入済み。Psycopg 3の明示的Transactionを維持し、PostgreSQL固有処理等の合理的なRaw SQL例外はbind・固定識別子で扱う |
 | DB driver | Psycopg 3 | PostgreSQL接続。Core導入後もdriverとして使用可能 |
 | ASGI server | Uvicorn | FastAPIのHTTP実行 |
-| 構造依存の派生モデル | Neo4j | CURRENT時の依存探索。後続のGraphチェックポイントで実装する |
+| 構造依存の派生モデル | Neo4j | Projection・Rebuild・分析用読取基盤を内部実装。CURRENT時の公開Graph Tool・Agent接続は後続 |
 | 非構造文書の派生Index | Qdrant | embeddingによる文書検索。後続のRAGチェックポイントで実装する |
 | LLM / embedding model | 評価後に選定 | プロダクト・model versionは未確定。試作アダプターを採用確定・品質承認と扱わない |
 | Client（サーバ実装フェーズ） | HTTP / curl等 | Backendの実装・検証を先に完了する |

@@ -2,178 +2,189 @@
 
 [![Backend CI](https://github.com/philippos2/line-scope/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/philippos2/line-scope/actions/workflows/ci.yml)
 
-**製造現場の業務Object・依存Graph・文書Evidence・承認付きActionをつなぐプロダクト。**
+**設備・工程の依存関係と根拠をつなぎ、製造現場の意思決定を支援するプロダクト。**
 
-設備・工程・生産作業・製品・インフラの関係から、停止時の影響や依存先を調べ、根拠を確認して業務更新へ進めるシステムを目指しています。AIは調査と更新提案を支援し、承認と実行は認証済みの人が操作します。
+設備異常時に「どこまで影響するか」「どの対応が可能か」を調べ、Evidenceを確認して、人間の判断と承認付き変更へ進むことを目指しています。PostgreSQLの業務Object、Neo4jの依存Graph、文書検索、AI Agentを組み合わせる、単一工場のデモです。
 
-> **現在はバックエンドを段階的に開発中です。** PostgreSQLの業務スキーマ、内部Read Tools、更新提案のSnapshot構築・検証と内部保存・再送・提案置換処理と固定Tool dispatcherまで実装しています。HTTPからは認証付きhealth / readinessと保存済み更新要求の閲覧を試せます。Agent・承認・実行・Graph・RAGの接続は後続工程です。
-
-## プロダクトの範囲
-
-LineScopeは、設備異常時の影響・能力・リスク・損失・対応案をEvidence付きで比較し、人間の判断と承認付き変更を支援します。Frontendも対象に含み、サーバサイド完成後に構築します。
-
-AIによる自律的な最終判断・承認・実行、実設備制御、在庫・受注・BOMの完全管理、本番MES / ERP接続、複数工場・マルチテナントは対象外です。未実装やPO判断待ちは対象外と区別します。範囲の正本は[要件定義 §9〜11](docs/requirements/requirements.md#9-プロダクトがやること対象業務)です。
+> **バックエンドを開発中です。** 認証付きAgent API、業務データの参照、一部の更新Prepare、人間によるApproval / Executeを実装しています。GraphのProjection・Rebuild・分析用読取基盤も実装していますが、Graph ToolのAgent接続、RAG、能力・経済・対応案比較、Frontendは未完了です。紹介動画は今後作成します。
 
 ## 主な機能と実装状況
 
-| 領域 | 現在の状態 |
+| 領域 | 現在の実装 |
 |---|---|
-| API基盤 | FastAPI、Bearer認証、Trusted Execution Context、共通Response Envelopeを実装 |
-| 運用ログ | JSON出力、要求ID相関・HTTP結果・秘匿済み例外診断、ログレベル、Docker容量制限を実装。DB監査は後続 |
-| PostgreSQL | 業務10テーブルと更新要求・Target・承認の3テーブル、DB制約、checksum付きmigrationを実装 |
-| 正本参照 | ID参照・設備割当参照・検索の内部Read Tool 13種を実装 |
-| Tool呼出し | Read 13種・Prepare 6種の固定dispatcherを実装。単一／複数入力とカテゴリ境界を検証。Agent・HTTP接続は後続 |
-| Agent受付基盤 | 厳密な入力検証・再送hash、本人限定の30分Context、Tool回数・期限境界・Prepare制限、元messageの保守的な更新意思判定を内部実装。POST /agent・LLM接続は後続 |
-| 更新提案 | 設備状態、保全予定・実績、生産作業の予定値・設備割当、依存関係のCanonical Snapshotを構築・検証 |
-| Prepare / Approval / Execute | 設備状態UPDATE、保全の予定UPDATE・予定／実績CREATE混在、生産作業の予定値UPDATE・設備割当置換、依存関係CREATE／UPDATE／DISABLEの内部Prepareを実装。正本の一貫参照・権限・業務制約・Snapshot保存、再送、原子的な置換に対応。Prepare API / Tool公開、承認／実行処理は後続 |
-| Graph / Outbox | Neo4j Projection、同期管理、依存・影響分析は後続 |
-| RAG / Agent | Ollama試作アダプターと実Qwenの架空Tool疎通を検証。業務Agent・Qdrant・embedding接続とモデル採用評価は後続 |
-| Frontend | サーバサイド完成後に構築。Graph中心のオペレーション画面は候補の一つ |
+| 業務データ参照 | 設備・状態・保全・工程・生産作業・製品・インフラ・依存関係のRead Tools |
+| 自然言語調査 | `POST /agent`からOllamaを使うRead Agent。回答・Evidence・公開Tool Trace・追加情報要求を返す |
+| 更新Prepare | 明示的な設備状態変更、保全予定変更、生産作業予定変更をAgent APIへ接続。その他のPrepareには内部実装もある |
+| 人間の変更操作 | 保存済みSnapshotの閲覧、承認／拒否、requesterによる実行。version検証・監査・Outboxを含む更新Transaction |
+| Graph基盤 | Outbox、Neo4j Projection、generation管理、Rebuild / Restore、CURRENT確認・shared lock下の分析用読取と上限付き隣接関係取得。内部部品であり公開Graph分析は未完了 |
+| ログ・監査 | request_id付きJSON運用ログ、Tool・更新・workerの操作イベント、DB業務監査・確定結果 |
+| デモデータ | `seed-demo`でM-204・M-208と現在状態を投入。工程・製品・依存関係の業務デモ一式は未整備 |
+| 今後の実装 | Graph Tool、Qdrant / embedding、業務判断支援の計算・比較、React等によるFrontend、業務シナリオの通し検証 |
 
-Snapshotは提案内容を固定するためのデータです。構築できることと、承認済み・実行済みであることは別です。設備状態・更新履歴の参照も後続工程です。
+影響・能力・リスク・損失・修理／交換／継続／代替の比較はプロダクト要件に含みますが、必要な業務規則にはPO判断待ちが残ります。未実装とスコープ外を区別します。[要件定義](docs/requirements/requirements.md)・[Use Case](docs/requirements/use-cases.md)
 
 ## システム構成とデータの正本
 
-設計上の全体構成です。実線は現在のAPIとPostgreSQL、点線は後続で接続する機能を示します。
+以下は設計上の構成です。破線のRAG・公開Graph Tool・Frontendは後続です。Projection / Rebuildは内部実装があり、標準Composeへの常駐worker接続は後続です。
 
 ```mermaid
 flowchart LR
-    Client[HTTP / curl] --> API[FastAPI / 認証]
-    API --> PG[(PostgreSQL / 業務正本)]
-    API -.-> Agent[Agent / LLM]
-    Agent -.-> Read[Read Tools]
-    Read -.-> PG
-    Agent -.-> Graph[Graph Tools]
-    Graph -.-> Neo4j[(Neo4j / 依存Graph)]
-    Agent -.-> RAG[RAG / 正本で再認可]
-    RAG -.-> Qdrant[(Qdrant / 文書索引)]
+    Curl[HTTP / curl] --> API[FastAPI / 認証]
+    UI[Frontend / 後続] -.-> API
+    API --> App[Application / Service]
+    App --> Agent[Agent / 固定Tools]
+    Agent <--> LLM[ホストのOllama]
+    Agent --> Read[Read / Prepare]
+    Read --> PG[(PostgreSQL / 業務正本)]
+    Human[人間のApproval / Execute] --> API
+    App --> PG
+    PG --> Outbox[Transactional Outbox]
+    Outbox --> Projection[Projection / Rebuild / 内部実装]
+    Projection --> Neo4j[(Neo4j / 派生Graph)]
+    Agent -.-> Graph[Graph Tool / 後続]
+    Graph -.-> Neo4j
+    Agent -.-> RAG[RAG / 後続]
+    RAG -.-> Qdrant[(Qdrant / 派生Index)]
     RAG -.-> PG
-    Agent -.-> Prepare[Prepare / 更新提案]
-    Prepare -.-> PG
-    Human[人による承認・実行] -.-> Update[Approval / Execute API]
-    Update -.-> PG
-    PG -.-> Outbox[Transactional Outbox / Projection]
-    Outbox -.-> Neo4j
 ```
 
 | 層 | 技術・責務 |
 |---|---|
-| Backend | Python / FastAPI / Uvicorn、Psycopg 3 |
-| 正本DB | PostgreSQL。業務データ・更新要求・承認・履歴・Outboxを保持 |
-| 依存Graph | Neo4j。PostgreSQLから再構築可能な派生Read Model |
-| 文書検索 | Qdrant。再生成可能な派生Vector Index |
-| 実行・検証 | Docker Compose、pytest、Ruff、GitHub Actions |
+| Backend | Python / FastAPI / Uvicorn |
+| DBアクセス | SQLAlchemy Core / Psycopg 3。通常queryはCoreを標準とし、合理的なPostgreSQL固有処理等にはbind付きRaw SQLを使用 |
+| 正本 | PostgreSQL。業務データ・更新要求・承認・監査・履歴・Outbox |
+| 派生Graph | Neo4j。PostgreSQLから再構築可能な依存関係のRead Model |
+| 派生文書索引 | Qdrant。RAG用Vector Index。pgvectorは採用しない |
+| LLM | Ollamaアダプター。具体モデルの採用・品質評価は別途実施 |
+| 検証・実行 | Docker Compose / pytest / Ruff / GitHub Actions |
 
-Graph分析は同期状態CURRENTのときだけ正常利用します。設備状態などの現在値はPostgreSQLで確認します。LLMにApproval / Executeを操作させません。詳細は[アーキテクチャ](docs/design/architecture.md)と[トランザクション設計](docs/implementation-design/transaction-design.md)を参照してください。
+Graphは同期状態CURRENTの場合だけ正常利用します。現在状態の正本はPostgreSQLです。LLMには任意SQL / Cypher、Approval / Executeの実行権限を与えません。[アーキテクチャ](docs/design/architecture.md)・[トランザクション設計](docs/implementation-design/transaction-design.md)
 
 ## DBスキーマ・ER図
 
-設備を中心に、保全予定・実績と、生産作業の複数設備割当を管理します。Product・InfrastructureResourceなどとの依存関係は、型付きのDependencyRelationで表します。
+設備と現在状態、保全予定・実績、工程・生産作業・複数設備割当、製品、インフラ、型付きDependencyRelationを管理します。更新要求・承認・監査・実行履歴・Outboxは別の管理テーブルです。
 
-**[適用済み10テーブルのER図とデータ設計](docs/design/data-model.md#13-適用済み業務スキーマのer図)**
+**[業務10テーブルのER図](docs/design/data-model.md#13-適用済み業務スキーマのer図)**
 
-ER図はSQLのFKを示します。DependencyRelationの多態的な参照やNeo4jの探索方向は、[ドメインモデル](docs/requirements/domain-model.md)を正とします。
+図はSQLのFKを示し、全管理テーブルを含みません。DependencyRelationの多態的参照と探索方向は[ドメインモデル](docs/requirements/domain-model.md)を参照してください。
 
-## 起動する
+## 実装済みのRead Tools
 
-Docker Engine、Docker Compose v2、資格情報生成用のPython 3を用意します。API・migrationはPython 3.14.4の非rootコンテナ、PostgreSQLは18.6で動作します。
+| Tool | 動作 |
+|---|---|
+| `get_equipment` / `get_equipment_state` | 設備と現在状態のID参照 |
+| `get_maintenance_plan` | 保全予定のID参照 |
+| `get_process` / `get_production_operation` | 工程・生産作業のID参照 |
+| `get_product` / `get_infrastructure_resource` / `get_dependency_relation` | 製品・インフラ・依存関係のID参照 |
+| `get_operation_equipment_assignments` | 生産作業の設備割当と親versionの参照 |
+| `search_equipment` / `search_maintenance_plans` / `search_maintenance_records` / `search_dependency_relations` | 条件検索・署名cursorによるページング |
+
+Toolは個別のHTTP endpointとして公開せず、固定dispatcherから呼び出します。入力検証・認可を実行側で行い、構造化Evidenceを返します。過去時刻の参照は現在登録情報の期間評価であり、当時の状態を完全復元するものではありません。[API / Tool契約](docs/implementation-design/api-tools.md)
+
+## Agentと承認付き変更
+
+通常の調査ではLLMが登録済みRead Toolを選び、結果を観測して回答します。更新Prepareは元の入力に対する保守的な明示コマンド判定と認可を通して処理します。任意の日本語表現をすべて変更命令として受理する仕様ではありません。
+
+```text
+調査・Evidence確認
+    → Prepare（before / afterを固定、業務値は未変更）
+    → 人間のApproval（Snapshot hashを確認）
+    → requesterのExecute（versionを再検証して更新）
+```
+
+承認は成立後30分で期限切れになります。確定済みafter Snapshotと、その後に観測した現在値は別です。複数Targetは一つの業務Transactionとして扱います。
+
+## APIを直接呼ぶ
+
+以下は後述のセットアップ後、ホストから実行します。`.env`の`LINESCOPE_USERS`にあるtokenを設定してください。tokenをGitや共有ログへ保存しないでください。
+
+```sh
+BASE_URL='http://127.0.0.1:8000'
+LINESCOPE_TOKEN='<.envにあるBearer token>'
+
+curl -sS "$BASE_URL/health" \
+  -H "Authorization: Bearer $LINESCOPE_TOKEN"
+
+curl -sS "$BASE_URL/health/ready" \
+  -H "Authorization: Bearer $LINESCOPE_TOKEN"
+
+# 自然言語調査には後述のOllama設定が必要
+curl -sS "$BASE_URL/agent" \
+  -H "Authorization: Bearer $LINESCOPE_TOKEN" \
+  -H 'Content-Type: application/json' \
+  -d '{"message":"M-204の現在状態を調べて"}'
+
+# floor / maintenance / managerのいずれかで設備状態の変更準備を作成
+# この呼出しだけでは業務値は変わらず、LLM設定も不要
+curl -sS "$BASE_URL/agent" \
+  -H "Authorization: Bearer $LINESCOPE_TOKEN" \
+  -H 'Content-Type: application/json' \
+  -d '{"message":"設備M-204の状態をRUNNINGに変更して"}'
+```
+
+共通応答は`request_id`、`context_id`、`status`、`answer`、`data`、`evidence`、`warnings`、`errors`を持ちます。調査の`data`には`tool_results`・`tool_trace`・`needs_input`、Prepare結果には`update_request_id`・`approval_id`・canonical Snapshot・hash等を含みます。正常healthは200、認証なしは401、PostgreSQL利用不可のreadinessは503です。readinessはGraph / RAGの準備完了を保証しません。
+
+保存した変更準備を確認する例です。`UPDATE_REQUEST_ID`にPrepare応答のIDを設定します。
+
+```sh
+UPDATE_REQUEST_ID='<Prepare応答のupdate_request_id>'
+curl -sS "$BASE_URL/update-requests/$UPDATE_REQUEST_ID" \
+  -H "Authorization: Bearer $LINESCOPE_TOKEN"
+```
+
+承認／拒否は`POST /approvals/{approval_id}/approve`・`/reject`、実行は`POST /update-requests/{update_request_id}/execute`です。approveは`{"snapshot_hash":"<保存済みhash>"}`をJSONで送り、reject / executeはBodyなしです。承認者とrequesterのtokenは権限要件に従って使い分けます。Agentから承認・実行はできません。再送・状態遷移・error codeは[API契約](docs/implementation-design/api-tools.md)を参照してください。
+
+## 業務シナリオと受入仕様
+
+最重要シナリオは、設備異常について影響・リスク・損失・修理／交換／継続／代替を比較し、根拠と不足情報を提示することです。現在の設備2台のseedだけで、このシナリオ全体が動くわけではありません。
+
+- [Use Case一覧](docs/requirements/use-cases.md)
+- [Given / When / Then形式のBusiness Scenarioと固定期待値](docs/implementation-design/business-scenarios.md)
+- [受入基準](docs/requirements/acceptance-criteria.md)
+
+数値計算は決定論的な規則で検証し、LLMの文章の完全一致を主な判定にしません。下位Integration / Unit Testの成功と、業務シナリオ全体の受入完了は区別します。
+
+## セットアップ・データ準備・起動
+
+Docker Engine・Docker Compose v2と、資格情報生成用のPython 3を用意します。API / migrationはPython 3.14.4の非rootコンテナ、PostgreSQLは18.6です。通常Composeのファイル名は`compose.yaml`です。
 
 ```sh
 git clone https://github.com/philippos2/line-scope.git
 cd line-scope
 python3 scripts/create_demo_env.py
 docker compose up --build -d --wait api
+docker compose run --rm migrate linescope seed-demo
 ```
 
-既存の.envを使う場合は、先に`python3 scripts/upgrade_demo_env.py`で検索・runtime用credentialを追加してください。既存の管理password・利用者token・DB volumeは保持します。APIは非superuserのruntime role、通常検索はSELECT専用roleを使います。詳細は[DB接続・role運用](docs/implementation-design/operations.md#14-postgresql検索接続の段階分離)を参照してください。
+既存`.env`は上書きしません。既存環境では生成を省略し、`python3 scripts/upgrade_demo_env.py`で不足するrole用credentialを追加してから起動してください。資格情報ファイルはGit管理外・mode 0600です。管理者用と検索・runtime・Projection用のDB資格情報を分離します。
 
-PostgreSQLのhealthcheck後にmigrationとDB role / GRANTを適用し、その成功後にAPIを起動します。現在はスキーマを作成するまでで、デモ用業務データのseedは未実装です。
+PostgreSQL → migration / role付与 → APIの順に起動します。APIは`127.0.0.1:8000`に公開し、DB portはホストへ公開しません。API portは`LINESCOPE_API_PORT`で変更できます。seedはM-204（STOPPED）とM-208（RUNNING）を初期投入し、再実行で既存の状態やversionをリセットしません。依存Graphの生成は行いません。
 
-資格情報はGit管理外の`.env`へ権限600で生成します。既存`.env`は上書きしないので、作成済みなら生成コマンドを省略してください。各ロール1名と工場管理者2名の資格情報を生成します。
+### ローカルLLM
 
-APIは`127.0.0.1:8000`、DB portはホストに公開しません。API portは`.env`の`LINESCOPE_API_PORT`で変更できます。
-
-## curlで確認する
-
-`.env`の`LINESCOPE_USERS`は「Bearer token → user_id / role」のJSONです。生成済みtokenを下の変数へ設定します。実際のtokenをGitへ保存しないでください。
+ホストのOllamaにTool calling可能なモデルを用意し、`.env`へ`LINESCOPE_LLM_MODEL=<用意したmodel名>`を設定してAPIを再作成します。
 
 ```sh
-LINESCOPE_TOKEN='<.envにあるBearer token>'
-BASE_URL='http://127.0.0.1:8000'
-
-curl -sS -i "$BASE_URL/health" \
-  -H "Authorization: Bearer $LINESCOPE_TOKEN"
-
-curl -sS -i "$BASE_URL/health/ready" \
-  -H "Authorization: Bearer $LINESCOPE_TOKEN"
+docker compose up -d --no-deps api
 ```
 
-両方とも正常時はHTTP 200です。共通Envelopeの`status`は`ok`、`data`はそれぞれ次の内容になります。`request_id`は呼出しごとにサーバが生成します。
+コンテナの既定接続先は`http://host.docker.internal:11434`です。Ollamaはコンテナから接続できる待ち受け設定が必要です。必要に応じて`LINESCOPE_LLM_BASE_URL`を指定してください。モデルの自動取得は行わず、具体モデルの採用・日本語回答品質は別途評価します。embedding / Qdrantはまだ標準起動へ接続していません。
 
-```json
-{"service":"linescope","alive":true}
-```
-
-```json
-{"service":"linescope","postgresql":"available"}
-```
-
-認証なしの呼出しはHTTP 401、`errors[0].code`は`AUTHENTICATION_REQUIRED`になります。
-
-```sh
-curl -sS -i "$BASE_URL/health"
-unset LINESCOPE_TOKEN
-```
-
-readinessでPostgreSQLへ接続できなければHTTP 503、`DEPENDENCY_UNAVAILABLE`です。Graph・RAG・業務APIの準備完了を表すものではありません。`POST /agent`と承認・実行APIは後続です。
-
-保存済みUpdateRequestは次のAPIで確認できます。本人は自身の要求を、他者はロールごとの履歴閲覧範囲で参照できます。
-
-```sh
-curl -sS -i "$BASE_URL/update-requests/$UPDATE_REQUEST_ID" \
-  -H "Authorization: Bearer $TOKEN"
-```
-
-成功時は200で、確定済みcanonical Snapshot、hash、要求・承認状態、承認時刻・期限を返します。`status`は保存状態、`effective_status`は閲覧時点での状態です。承認期限に到達した要求は、保存状態を変えず`effective_status=EXPIRED`と表示します。現在の業務値でSnapshotを再生成しません。不正IDは400、不存在は404、閲覧権限不足は403です。デモseedとHTTP Prepareは未実装のため、起動直後には参照する更新要求がありません。
-
-## 内部Toolsと更新提案
-
-現在のRead ToolsはPythonの内部呼出しで、HTTP endpointとしては公開していません。
-
-| Tool | 動作 |
-|---|---|
-| `get_equipment` / `get_equipment_state` | 設備と現在状態をID参照 |
-| `get_maintenance_plan` | 保全予定をID参照 |
-| `get_process` / `get_production_operation` | 工程・生産作業をID参照 |
-| `get_product` / `get_infrastructure_resource` / `get_dependency_relation` | 製品・インフラ・依存関係をID参照 |
-| `get_operation_equipment_assignments` | 生産作業のactive設備割当と親versionを同じstatementで参照 |
-| `search_equipment` / `search_maintenance_plans` / `search_maintenance_records` / `search_dependency_relations` | 条件検索と署名cursorによるページング |
-
-参照はREAD COMMITTED / READ ONLYで実行し、正本recordと構造化Evidenceを返します。過去時刻の割当参照は現在登録情報の期間評価であり、当時の状態の完全復元ではありません。
-
-`linescope.snapshot`はCanonical JSON / SHA-256、型・業務値・version・Targetの整合を検証します。設備割当は明示した半開期間だけを置換し、期間外を保持します。予定値と割当の同時変更でも親versionの増分は1です。[API / Tool契約](docs/implementation-design/api-tools.md)、[Snapshotの保存形式](docs/design/data-model.md)、[期間置換の業務ルール](docs/requirements/domain-model.md#152-equipment集合変更)を参照してください。
-
-## 運用ログ
-
-標準CLI / Docker起動ではAPIの起動・終了、HTTP結果、拒否・障害を1行JSONでstdoutへ記録します。Responseのrequest_idで追跡でき、認証済みactor、固定route、結果code、所要時間を含みます。URLの実パラメータ・本文・token・Snapshot・SQL・例外messageは出力しません。例外の診断はクラス名と最大20 frameのmodule / function / lineです。
+### ログ・停止・再起動
 
 ```sh
 docker compose logs --no-log-prefix --since 10m api
+docker compose run --rm migrate
+docker compose down
 ```
 
-既定はLINESCOPE_LOG_LEVEL=INFO。正常なhealth / readinessのpollはDEBUGに抑え、拒否はINFO、一時依存障害はWARNING、内部障害はERRORです。必要なら起動済み環境で次のようにAPIを再作成してDEBUGにできます。DEBUGでも本文やcredentialは記録しません。
+APIの運用ログはstdoutのJSONで、request_id・結果code等を使って追跡できます。本文・token・Snapshot・SQL・例外messageは記録しません。DB業務監査とは別です。通常Composeのログ容量はlocal driverの10m / 3 files、ログレベルは既定INFOです。[ログ設計](docs/implementation-design/operations.md#13-ログ設計)
 
-```sh
-LINESCOPE_LOG_LEVEL=DEBUG docker compose up -d --no-deps api
-```
+通常の`down`は正本DB volumeを保持します。通常停止に`--volumes`を付けないでください。`.env`のDB passwordを変えても既存DBのpasswordは自動更新されません。migrationは適用済みchecksumの変更を拒否します。[role・volume運用](docs/implementation-design/operations.md#14-postgresql検索接続の段階分離)
 
-runtime各サービスはDocker local driverの10m / 3 filesで容量を制限します。APIは構造化イベント、PostgreSQLは既存のnativeログです。容量制限は日数保証ではなく、コンテナ削除で運用ログは失われ得ます。DB監査・成功履歴は別の正本で、実装は後続です。Tool / workerイベントとcommit監査の統合も各機能で追加します。
+## テスト
 
-Uvicorn raw access logと依存loggerの制御は標準のlinescope serve起動で設定します。create_appだけを独自ASGI環境へ組み込む場合、起動側にも同じlogger設定が必要です。通常ログをAgentや一般ユーザーへ公開しません。設計・受入範囲は[ログ設計](docs/implementation-design/operations.md#13-ログ設計)を参照してください。
-
-## テストとCI
-
-Docker内で実PostgreSQLを使って検証します。テスト用Composeは独立したproject・tmpfsを使い、デモの資格情報や永続volumeを共有しません。
+独立した`compose.test.yaml`と使い捨てPostgreSQL / Neo4jを使い、通常デモの資格情報・永続volume・公開portは共有しません。
 
 ```sh
 docker compose -f compose.test.yaml build tests
@@ -183,55 +194,58 @@ docker compose -f compose.test.yaml run --rm tests
 docker compose -f compose.test.yaml down --volumes --remove-orphans
 ```
 
-CIも同じ経路でlint・format・全テストを実行し、実行用imageの起動と同梱migrationを確認します。mainへの反映には`Tests and migrations`と`PR title`の成功を必須とし、人が確認してSquash mergeします。[開発・PR運用](CONTRIBUTING.md)を参照してください。
-
-## 停止・再起動と開発
+LLMの制御テストはFakeを使い、実モデルの品質評価とは分離します。LinuxでホストOllamaへの架空Tool疎通を試す場合は、テストimageのビルド後に次を実行できます。
 
 ```sh
-docker compose logs api
-docker compose run --rm migrate
-docker compose down
+docker run --rm --network host linescope-test-tests \
+  python /workspace/scripts/verify_local_llm.py \
+  --model '<用意したmodel名>'
 ```
 
-通常の`down`はDB volumeを保持します。通常停止時に`--volumes`を付けないでください。`.env`のDBパスワードを書き換えても、既存volumeのパスワードは自動更新されません。migrationは適用後のchecksum変更を拒否し、再実行では適用済みSQLをskipします。
+これは架空Read Toolの2ターン試験で、業務更新・Graph / RAG・製品全体の受入検証は行いません。[テスト計画](docs/implementation-design/test-plan.md)・[検証履歴](docs/history/README.md)
+
+## CI・開発運用
+
+GitHub ActionsでDockerビルド、Ruff check / format、実PostgreSQL / Neo4jによる全テスト、runtime起動・同梱migrationの再実行を確認します。実LLM・実embeddingの品質検証はCIに含めません。
+
+required checksは`Tests and migrations`と`PR title`です。PRタイトル・コミットメッセージは日本語で作成し、人間が確認してSquash mergeします。[開発・PR運用](CONTRIBUTING.md)
+
+## 制限とスコープ外
+
+- Backendは開発途中です。Graph基盤の試験成功は、公開影響分析やGolden Scenario全体の完成を意味しません。
+- 通常Composeが起動するのはPostgreSQL・migration・APIです。Neo4jは現在テストComposeで検証し、常駐workerとQdrantの通常起動は後続です。
+- 調査品質はモデル・データに依存し、任意の日本語質問や根拠のない故障原因推定を保証しません。
+- Frontendはサーバサイド完成後に構築します。現在は画面・紹介動画がありません。
+- AIの自律的な最終判断・Approval / Execute、実設備制御、本番MES / ERP接続、複数工場・マルチテナントは対象外です。
+- 材料・在庫・調達を含むSupply Chain Operational Intelligence、在庫・受注・BOMの完全管理はv1の対象外です。既に与えられた設備・工程の停止状態からの影響分析とは区別します。
+- 能力・経済・安全基準等の未決定業務規則は、UIやデモfixtureの都合で補完しません。未検証の性能・品質を保証値として記載しません。
+
+範囲・PO判断事項の正本は[要件定義](docs/requirements/requirements.md)です。
+
+## リポジトリ構成
 
 ```text
 line-scope/
-├── backend/       # Python package・SQL migrations・tests・依存lock
-├── frontend/      # 後続UIの配置先（現在は案内のみ）
-├── docs/          # 要件・設計・実装設計、変更履歴
-├── scripts/       # デモ資格情報生成・コンテナhealthcheck
+├── backend/
+│   ├── src/linescope/  # interfaces / application / domain / persistence / graph / agent / integrations
+│   └── tests/         # 対応する責務単位のテスト
+├── frontend/          # 後続UIの方針文書
+├── docs/              # 要件・設計・実装設計・変更履歴
+├── scripts/           # 資格情報生成・疎通確認
+├── .agents/skills/    # 開発・レビュー・検証手順
 ├── compose.yaml
 └── compose.test.yaml
 ```
 
-標準実行・検証経路はDockerです。ホストでの補助的な開発、設定・依存lock・volume管理の詳細は[運用手順](docs/implementation-design/operations.md#11-backend基盤チェックポイント)を参照してください。
+## 設計・検証資料と開発用スキル
 
-## 設計・検証資料
+- [文書入口・各事項の正本](docs/deliverables.md)
+- [要件・スコープ](docs/requirements/requirements.md)・[Use Case](docs/requirements/use-cases.md)
+- [業務モデル・Graph意味論](docs/requirements/domain-model.md)・[権限・承認](docs/requirements/access-control.md)
+- [アーキテクチャ](docs/design/architecture.md)・[DB / Graph設計・ER図](docs/design/data-model.md)
+- [API / Tool契約](docs/implementation-design/api-tools.md)・[Transaction / Outbox / 同期](docs/implementation-design/transaction-design.md)
+- [Business Scenario](docs/implementation-design/business-scenarios.md)・[受入基準](docs/requirements/acceptance-criteria.md)・[テスト計画](docs/implementation-design/test-plan.md)
+- [運用手順](docs/implementation-design/operations.md)・[変更・検証履歴](docs/history/README.md)
+- [開発ガイダンス](AGENTS.md)・[PR運用](CONTRIBUTING.md)・[Backend検証Skill](.agents/skills/backend-verification/SKILL.md)
 
-- [仕様文書の成果物一覧・各文書の責務](docs/deliverables.md)
-- [要件とスコープ](docs/requirements/requirements.md)
-- [業務モデル・Graph意味論](docs/requirements/domain-model.md)
-- [権限・承認](docs/requirements/access-control.md)
-- [アーキテクチャ](docs/design/architecture.md)
-- [DB・Graphデータ設計とER図](docs/design/data-model.md)
-- [API / Tool契約](docs/implementation-design/api-tools.md)
-- [トランザクション・Outbox・同期](docs/implementation-design/transaction-design.md)
-- [受入基準](docs/requirements/acceptance-criteria.md)・[テスト計画](docs/implementation-design/test-plan.md)
-- [運用手順](docs/implementation-design/operations.md)
-- [レビュー・実装チェックポイントの履歴](docs/history/README.md)
-
-現在は単一工場のデモ実装を進めています。性能・実モデルの品質・製品全体の受入完了は、各機能の実装と評価後に確認します。
-
-## ローカルLLMの事前疎通
-
-ホストのOllamaで候補モデルを用意した後、Linuxでは次のコマンドでDocker内から架空Read Toolの2ターン試験を実行できます。モデルの自動取得や業務データ更新は行いません。
-
-```sh
-docker compose -f compose.test.yaml build tests
-docker run --rm --network host linescope-test-tests \
-  python /workspace/scripts/verify_local_llm.py \
-  --model qwen3:30b-a3b-instruct-2507-q4_K_M
-```
-
-接続先は既定で `http://127.0.0.1:11434`、変更時は `--base-url` を指定します。試験は架空設備M-204のTool引数と結果の利用を確認し、成功・失敗と所要時間だけを出力します。生応答・内部推論は保存しません。これは試作アダプターの疎通確認であり、モデル採用、POST /agent、実DB・RAG連携、回答品質全般の検証ではありません。Ollama native APIの[chat](https://docs.ollama.com/api/chat)と[Tool calling](https://docs.ollama.com/capabilities/tool-calling)に従います。
+開発用SkillはCoding Agentの作業手順であり、LineScope実行時のAgent機能とは別です。

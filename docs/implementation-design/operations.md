@@ -97,7 +97,7 @@ Restore等でactive_generationが存在せず未処理Outboxが残る場合、co
 Pythonの対応範囲はbackend/pyproject.tomlで管理し、基盤検証環境はPython 3.14.4 / PostgreSQL 18.6。
 package versionはbackend/pyproject.tomlに記録する。Neo4j / Qdrant / LLMの接続は最初の基盤コミットへ含めない。
 
-初回基盤PRは管理表と疎通用SQLのみ。後続の業務スキーマPRで10テーブルを追加済みであり、seed・業務APIは未実装。
+初回基盤PRは管理表と疎通用SQLのみ。現在は業務10テーブルに加え、更新要求・承認・監査・実行履歴・Graph Outbox / 同期管理を実装済み。設備2台のseed、Agent API、更新要求閲覧、Approval / Reject / Execute APIも実装済み。起動可能な範囲と操作例はREADMEを参照する。
 標準起動はDocker Compose。`python3 scripts/create_demo_env.py`でGit管理外の資格情報を生成し、`docker compose up --build -d --wait api`でPostgreSQL → migration → APIの順に起動する。
 API・migrationは非rootコンテナ、DB portは非公開、APIは127.0.0.1に公開。通常の`docker compose down`は正本volumeを保持する。
 テストは独立した`compose.test.yaml`とtmpfs PostgreSQLで実行し、デモの永続volumeを共有しない。
@@ -225,11 +225,11 @@ DB監査・成功履歴は正本backup対象で、Dockerログのrotationと連�
 
 ### 13.8 段階導入と今回の実装境界
 
-設計は本節、実装状況はREADMEとhistoryに分ける。HTTP境界の構造化ログ・相関・秘匿済み例外診断、標準CLIのUvicorn / 依存logger制御、runtime Composeのローテーションは実装済み。DB監査とTool / workerへの操作イベント接続は未実装。
+設計は本節、実装状況はREADMEとhistoryに分ける。HTTP境界の構造化ログ・相関・秘匿済み例外診断、標準CLIのUvicorn / 依存logger制御、runtime Composeのローテーションに加え、Prepare / Approval / ExecuteのDB監査とTool / workerの操作イベントを実装済み。常駐workerの標準Compose接続と運用監視は後続。
 
 今回の基盤チェックポイントで、JSONイベント／許可項目制御、Context設定・解除、ログ設定、HTTP完了・拒否・例外・readiness障害、Uvicorn access log統一、Docker容量制限、秘匿と並行要求のテストを導入した。API / Tool / workerが増える前に共通基盤を揃える価値がある。
 
-DB監査migrationとTransaction統合はPrepare / Approval / Executeの実装に合わせて別チェックポイントで行う。Toolの操作イベントは共通基盤導入後に対象処理へ接続し、Outbox / Rebuildのログは各機能の実装時に追加する。初回に全監査・非同期処理・収集製品を詰め込まない。ログの合格だけで業務Scenarioの受入完了とは扱わない。
+基盤導入時にはDB監査migrationとTransaction統合、Tool操作イベント、Outbox / Rebuildログを別チェックポイントへ分け、その後各機能へ追加した。初回に全監査・非同期処理・収集製品を詰め込む方針ではない。ログの合格だけで業務Scenarioの受入完了とは扱わない。
 
 ## 14. PostgreSQL検索接続の段階分離
 
