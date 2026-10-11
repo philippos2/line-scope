@@ -15,7 +15,8 @@ from uuid import UUID, uuid4
 import psycopg
 
 from .audit import prepare_saved, proposal_replaced
-from .canonical import canonical_json, normalize_uuid
+from .domain.canonical import canonical_json, normalize_uuid
+from .domain.snapshot import CATEGORIES, CanonicalSnapshot
 from .execution import ExecutionContext
 from .persistence.core_proposals import (
     insert_pending_approval,
@@ -26,7 +27,6 @@ from .persistence.core_proposals import (
     lock_replaced_request,
     lock_request_approval,
 )
-from .snapshot import CATEGORIES, CanonicalSnapshot
 
 REQUEST_ROLES = {
     "EQUIPMENT_STATE": {"floor", "maintenance", "manager"},

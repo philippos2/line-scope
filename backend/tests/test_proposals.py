@@ -8,13 +8,9 @@ import psycopg
 import pytest
 from psycopg.types.json import Jsonb
 
-from linescope.canonical import canonical_hash, canonical_json
-from linescope.execution import ExecutionContext
-from linescope.persistence.database import Database
-from linescope.proposals import ProposalError, ProposalStore
-from linescope.relations import dependency_relation_create_target
-from linescope.settings import Settings
-from linescope.snapshot import (
+from linescope.domain.canonical import canonical_hash, canonical_json
+from linescope.domain.relations import dependency_relation_create_target
+from linescope.domain.snapshot import (
     build_dependency_relation_snapshot,
     build_equipment_state_snapshot,
     build_maintenance_snapshot,
@@ -24,6 +20,10 @@ from linescope.snapshot import (
     maintenance_plan_target,
     production_operation_target,
 )
+from linescope.execution import ExecutionContext
+from linescope.persistence.database import Database
+from linescope.proposals import ProposalError, ProposalStore
+from linescope.settings import Settings
 
 PREPARE_HASH = canonical_hash(
     {

@@ -4,15 +4,15 @@ from uuid import UUID, uuid4
 
 import pytest
 
-from linescope.canonical import canonical_hash, canonical_json
-from linescope.execution import ExecutionContext
-from linescope.snapshot import (
+from linescope.domain.canonical import canonical_hash, canonical_json
+from linescope.domain.snapshot import (
     MAX_VERSION,
     CanonicalSnapshot,
     build_production_operation_snapshot,
     maintenance_plan_create_target,
     production_operation_target,
 )
+from linescope.execution import ExecutionContext
 
 
 def current(identifier=1):

@@ -7,9 +7,9 @@ import psycopg
 import pytest
 from psycopg.types.json import Jsonb
 
-from linescope.canonical import canonical_hash
+from linescope.domain.canonical import canonical_hash
+from linescope.domain.snapshot import build_equipment_state_snapshot, equipment_state_target
 from linescope.execution import ExecutionContext
-from linescope.snapshot import build_equipment_state_snapshot, equipment_state_target
 
 pytestmark = pytest.mark.integration
 NOW = datetime(2026, 10, 9, tzinfo=timezone.utc)

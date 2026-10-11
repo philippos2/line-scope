@@ -8,9 +8,9 @@ the transition and its audit atomically, and obtain time from the server.
 import hmac
 import re
 
+from .domain.snapshot import CATEGORIES, CanonicalSnapshot
 from .execution import ExecutionContext
 from .proposals import ProposalError, SavedProposal
-from .snapshot import CATEGORIES, CanonicalSnapshot
 
 APPROVAL_ROLES = {
     "EQUIPMENT_STATE": {"maintenance", "manager"},

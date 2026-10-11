@@ -7,7 +7,7 @@ from time import monotonic
 from urllib.parse import urlsplit
 from uuid import uuid4
 
-from .canonical import canonical_json, strict_json
+from .domain.canonical import canonical_json, strict_json
 from .reads import ToolError
 
 

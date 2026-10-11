@@ -41,7 +41,7 @@ def proposal_replaced(connection, context, previous, replacement_id):
 
 def failed_attempt(store, events, context, action, code, *, request_id=None, approval_id=None):
     """Best-effort separate audit after the main transaction has ended."""
-    from .canonical import normalize_uuid
+    from .domain.canonical import normalize_uuid
     from .proposals import ProposalError
 
     try:

@@ -5,8 +5,8 @@ from uuid import UUID
 
 import pytest
 
-from linescope.assignments import replacement_assignment_targets, validate_assignment_target
-from linescope.canonical import normalize_timestamp
+from linescope.domain.assignments import replacement_assignment_targets, validate_assignment_target
+from linescope.domain.canonical import normalize_timestamp
 
 OPERATION = str(UUID(int=100))
 E1, E2 = str(UUID(int=1)), str(UUID(int=2))
@@ -153,7 +153,7 @@ def test_unbounded_replacement_removes_future_rows_and_disables_without_rewritin
 def test_input_order_timezone_and_audit_values_do_not_affect_generated_targets(monkeypatch):
     source = [row(), row(0, 1, equipment=E2, identifier=11)]
     ids = count(1000)
-    monkeypatch.setattr("linescope.assignments.uuid4", lambda: UUID(int=next(ids)))
+    monkeypatch.setattr("linescope.domain.assignments.uuid4", lambda: UUID(int=next(ids)))
     first = replace(source, equipment_ids=[E2, E1])
     ids = count(1000)
     changed = deepcopy(source[::-1])
@@ -213,7 +213,7 @@ def test_version_overflow_only_blocks_changed_rows_and_id_collision_is_rejected(
     assert replace([row(version=2**63 - 1)], equipment_ids=[E1]) == []
     with pytest.raises(ValueError):
         replace([row(version=2**63 - 1)])
-    monkeypatch.setattr("linescope.assignments.uuid4", lambda: UUID(int=10))
+    monkeypatch.setattr("linescope.domain.assignments.uuid4", lambda: UUID(int=10))
     with pytest.raises(ValueError, match="collision"):
         replace([row()])
 

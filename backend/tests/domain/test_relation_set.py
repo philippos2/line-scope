@@ -3,7 +3,7 @@ from uuid import UUID
 
 import pytest
 
-from linescope.relations import RelationSetConflict, normalize_relation_set
+from linescope.domain.relations import RelationSetConflict, normalize_relation_set
 
 START = "2026-10-09T00:00:00.000000Z"
 MID = "2026-10-10T00:00:00.000000Z"

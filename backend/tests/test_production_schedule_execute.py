@@ -9,7 +9,7 @@ from test_production_prepare import identity, prepare, target
 from test_production_schedule_approval import action, business, current
 from test_production_schedule_approval import world as pending_fixture
 
-from linescope.canonical import normalize_timestamp
+from linescope.domain.canonical import normalize_timestamp
 from linescope.execute import ProductionScheduleExecute
 from linescope.logging import EventLogger
 from linescope.proposals import ProposalError

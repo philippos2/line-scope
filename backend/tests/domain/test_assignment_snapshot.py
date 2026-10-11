@@ -4,14 +4,14 @@ from uuid import UUID, uuid4
 
 import pytest
 
-from linescope.canonical import canonical_hash, canonical_json
-from linescope.execution import ExecutionContext
-from linescope.snapshot import (
+from linescope.domain.canonical import canonical_hash, canonical_json
+from linescope.domain.snapshot import (
     CanonicalSnapshot,
     build_production_operation_snapshot,
     production_operation_assignment_targets,
     production_operation_target,
 )
+from linescope.execution import ExecutionContext
 
 E1, E2 = str(UUID(int=1)), str(UUID(int=2))
 
@@ -158,7 +158,7 @@ def test_empty_source_is_explicit_and_create_id_stays_fixed():
 
 def test_array_order_timezone_audit_and_dict_view_changes_do_not_change_fixed_snapshot(monkeypatch):
     sequence = count(1000)
-    monkeypatch.setattr("linescope.assignments.uuid4", lambda: UUID(int=next(sequence)))
+    monkeypatch.setattr("linescope.domain.assignments.uuid4", lambda: UUID(int=next(sequence)))
     source = [row(), row(11, E1, 12, 14)]
     first = snapshot(targets(source))
     sequence = count(1000)

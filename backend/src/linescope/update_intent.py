@@ -9,7 +9,7 @@ import re
 from dataclasses import dataclass
 
 from .agent_input import AgentInput
-from .canonical import canonical_hash
+from .domain.canonical import canonical_hash
 
 RULE_VERSION = "explicit-update-command:v1"
 IDENTIFIER = r"[A-Za-z0-9][A-Za-z0-9_-]*"

@@ -2,18 +2,18 @@
 
 import re
 
-from .assignments import normalize_operation_assignments
-from .canonical import canonical_hash, normalize_id_set, normalize_timestamp, normalize_uuid
-from .dependency_cycles import DependencyCycleError, validate_dependency_cycles
-from .execution import ExecutionContext
-from .proposals import REQUEST_ROLES, ProposalError, ProposalStore
-from .snapshot import (
+from .domain.assignments import normalize_operation_assignments
+from .domain.canonical import canonical_hash, normalize_id_set, normalize_timestamp, normalize_uuid
+from .domain.dependency_cycles import DependencyCycleError, validate_dependency_cycles
+from .domain.snapshot import (
     MAX_VERSION,
     OPERATION_PATCH_FIELDS,
     build_production_operation_snapshot,
     production_operation_assignment_targets,
     production_operation_target,
 )
+from .execution import ExecutionContext
+from .proposals import REQUEST_ROLES, ProposalError, ProposalStore
 
 
 class ProductionPrepare:

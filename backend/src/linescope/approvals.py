@@ -9,9 +9,10 @@ from uuid import uuid4
 from psycopg.types.json import Jsonb
 
 from .approval_policy import validate_approve, validate_reject
-from .assignments import normalize_operation_assignments
 from .audit import failed_attempt
-from .canonical import normalize_timestamp, normalize_uuid
+from .domain.assignments import normalize_operation_assignments
+from .domain.canonical import normalize_timestamp, normalize_uuid
+from .domain.relations import KEY_FIELDS, normalize_relation_set
 from .execution import ExecutionContext
 from .logging import EventLogger, request_context
 from .persistence.core_approval import (
@@ -30,7 +31,6 @@ from .persistence.core_business import (
     maintenance_record_create_conflicts,
 )
 from .proposals import LOOKUP, ProposalError, ProposalStore, _saved
-from .relations import KEY_FIELDS, normalize_relation_set
 
 
 class _HumanApproval:
