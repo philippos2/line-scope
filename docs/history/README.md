@@ -430,3 +430,5 @@ Dockerで追加36テスト成功、ruff check / format、git diff --check成功�
 - [Rebuild Outbox適用とAPPLIED確認](2026-10-11-rebuild-projection-application.md)
 
 - [Rebuild失敗報告と確定後ログ](2026-10-11-rebuild-failure-reporting.md)
+
+- [Rebuild単一drain step](2026-10-11-rebuild-projection-step.md)
