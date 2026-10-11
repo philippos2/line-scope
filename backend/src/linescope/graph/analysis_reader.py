@@ -13,6 +13,8 @@ from neo4j.exceptions import DriverError, Neo4jError
 
 from ..application.reads import ToolError
 from ..domain.canonical import normalize_uuid
+from ..domain.graph_paths import PathSelection, representative_paths
+from ..domain.graph_reachability import LogicalEdge, Reachability, walk_reachability
 from ..domain.graph_traversal import traversal_types
 from ..domain.relations import ENDPOINTS
 from .analysis_gate import GraphAnalysisGate
@@ -33,6 +35,13 @@ class GraphNode:
 class GraphAdjacency:
     edges: tuple[dict, ...]
     has_more: bool
+
+
+@dataclass(frozen=True)
+class GraphTraversal:
+    reachability: Reachability
+    paths: PathSelection
+    edges: tuple[dict, ...]
 
 
 class _GraphRead:
@@ -73,7 +82,7 @@ class _GraphRead:
             raise ProjectionIntegrityError("Invalid Graph entity state")
         return GraphNode(entity_type, entity_id, row["version"], row["active"])
 
-    def neighbors(self, entity_type, entity_id, *, direction, as_of, limit):
+    def neighbors(self, entity_type, entity_id, *, direction, as_of, limit, after=None):
         """Bounded one-hop facts; no transitive impact or availability inference."""
         if self._closed:
             raise RuntimeError("Graph read context is closed")
@@ -85,6 +94,17 @@ class _GraphRead:
             raise ValueError("A positive server-owned adjacency limit is required")
         if not isinstance(as_of, datetime) or as_of.tzinfo is None or as_of.utcoffset() is None:
             raise ValueError("An aware analysis time is required")
+        if after is not None:
+            if (
+                type(after) is not tuple
+                or len(after) != 3
+                or type(after[0]) is not str
+                or after[0] not in NODE_TYPES
+                or normalize_uuid(after[1]) != after[1]
+                or normalize_uuid(after[2]) != after[2]
+            ):
+                raise ValueError("Invalid server-owned adjacency continuation")
+        after_type, after_id, after_record = after or (None, None, None)
         self._budget.require()
         rows = list(
             self._tx.run(
@@ -96,6 +116,10 @@ class _GraphRead:
                 "AND ((s.entity_type=$type AND s.entity_id=$id AND type(r) IN $forward) "
                 "OR (t.entity_type=$type AND t.entity_id=$id AND type(r) IN $reverse)) "
                 "WITH s,t,r,CASE WHEN type(r) IN $forward THEN t ELSE s END AS neighbor "
+                "WHERE $has_after=false OR neighbor.entity_type>$after_type "
+                "OR (neighbor.entity_type=$after_type AND neighbor.entity_id>$after_id) "
+                "OR (neighbor.entity_type=$after_type AND neighbor.entity_id=$after_id "
+                "AND r.source_record_id>$after_record) "
                 "RETURN s.entity_type AS source_type,s.entity_id AS source_id,"
                 "t.entity_type AS target_type,t.entity_id AS target_id,type(r) AS relation_type,"
                 "r.source_record_id AS source_record_id,r.source_version AS source_version,"
@@ -108,6 +132,10 @@ class _GraphRead:
                 reverse=sorted(reverse),
                 as_of=as_of.astimezone(timezone.utc).isoformat(),
                 limit=limit + 1,
+                has_after=after is not None,
+                after_type=after_type,
+                after_id=after_id,
+                after_record=after_record,
             )
         )
         self._budget.require()
@@ -142,6 +170,61 @@ class _GraphRead:
                 raise ProjectionIntegrityError("Invalid Graph relation identifier")
             edges.append(edge)
         return GraphAdjacency(tuple(edges[:limit]), len(edges) > limit)
+
+    def traverse(
+        self,
+        entity_type,
+        entity_id,
+        *,
+        direction,
+        as_of,
+        max_depth,
+        max_nodes,
+        max_paths,
+        page_size,
+    ):
+        """Internal multi-hop facts, in this context's single generation/tx.
+
+        Deadline/driver failures propagate; no partial result bypasses the
+        successful exit gate. Caller still owns authorization and public DTOs.
+        """
+        for limit in (max_depth, max_nodes, max_paths, page_size):
+            if type(limit) is not int or limit <= 0:
+                raise ValueError("Positive server-owned traversal limits are required")
+        traversal_types(direction)
+        root = self.node(entity_type, entity_id)
+        if root is None or not root.active:
+            raise ToolError("TARGET_NOT_FOUND", "Active Graph target was not found")
+        facts = {}
+
+        def neighbors(node):
+            after = None
+            while True:
+                page = self.neighbors(
+                    *node, direction=direction, as_of=as_of, limit=page_size, after=after
+                )
+                for fact in page.edges:
+                    self._budget.require()
+                    facts[fact["source_record_id"]] = fact
+                    yield LogicalEdge(
+                        node,
+                        (fact["neighbor_type"], fact["neighbor_id"]),
+                        fact["source_record_id"],
+                    )
+                if not page.has_more:
+                    return
+                last = page.edges[-1]
+                after = (last["neighbor_type"], last["neighbor_id"], last["source_record_id"])
+
+        reached = walk_reachability(
+            (root.entity_type, root.entity_id), neighbors, max_depth=max_depth, max_nodes=max_nodes
+        )
+        paths = representative_paths(reached, max_paths=max_paths)
+        used = {identifier for path in paths.paths for identifier in path.source_record_ids}
+        self._budget.require()
+        return GraphTraversal(
+            reached, paths, tuple(facts[identifier] for identifier in sorted(used))
+        )
 
 
 class GraphAnalysisReader:

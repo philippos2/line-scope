@@ -42,14 +42,25 @@ def bounded_reachability(root: Node, edges, *, max_depth: int, max_nodes: int):
     A limit is reported only if a distinct reachable node cannot be visited.
     This does not infer failure, feasibility, availability or SPOF.
     """
-    for value in (max_depth, max_nodes):
-        if type(value) is not int or value <= 0:
-            raise ValueError("Graph limits must be positive integers")
+    _validate_limits(max_depth, max_nodes)
     adjacency = defaultdict(list)
     for edge in edges:
         adjacency[edge.source].append(edge)
     for outgoing in adjacency.values():
         outgoing.sort(key=lambda edge: (edge.target, edge.source_record_id))
+    return walk_reachability(
+        root, lambda node: adjacency[node], max_depth=max_depth, max_nodes=max_nodes
+    )
+
+
+def walk_reachability(root: Node, neighbors, *, max_depth: int, max_nodes: int):
+    """BFS with lazy, complete neighbors ordered by target and record ID.
+
+    The provider may page within a single verified read context. Errors must
+    propagate, never become an empty adjacency. Stop fetching a node once an
+    unvisited target proves truncation; the result must remain incomplete.
+    """
+    _validate_limits(max_depth, max_nodes)
     reached = {root: ReachedNode(root, 0, None, None)}
     frontier = [root]
     reasons = set()
@@ -57,15 +68,15 @@ def bounded_reachability(root: Node, edges, *, max_depth: int, max_nodes: int):
         following = []
         for node in sorted(frontier):
             distance = reached[node].distance
-            for edge in adjacency[node]:
+            for edge in neighbors(node):
                 if edge.target in reached:
                     continue
                 if distance >= max_depth:
                     reasons.add("DEPTH")
-                    continue
+                    break
                 if len(reached) >= max_nodes:
                     reasons.add("NODE_COUNT")
-                    continue
+                    break
                 reached[edge.target] = ReachedNode(
                     edge.target, distance + 1, node, edge.source_record_id
                 )
@@ -74,3 +85,9 @@ def bounded_reachability(root: Node, edges, *, max_depth: int, max_nodes: int):
     reason = "NODE_COUNT" if "NODE_COUNT" in reasons else "DEPTH" if reasons else None
     nodes = tuple(sorted(reached.values(), key=lambda item: (item.distance, item.node)))
     return Reachability(nodes, reason is None, reason)
+
+
+def _validate_limits(max_depth, max_nodes):
+    for value in (max_depth, max_nodes):
+        if type(value) is not int or value <= 0:
+            raise ValueError("Graph limits must be positive integers")
