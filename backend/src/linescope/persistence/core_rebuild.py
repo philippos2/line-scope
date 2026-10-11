@@ -21,6 +21,11 @@ def _execute(connection, statement):
     return connection.execute(str(compiled), compiled.params)
 
 
+def observe_rebuild(connection):
+    """Read committed control without holding a row lock across Graph I/O."""
+    return _execute(connection, select(_control).where(_control.c.control_id == 1)).fetchone()
+
+
 def begin_rebuild(connection, rebuild_id):
     previous = _execute(
         connection, select(_control).where(_control.c.control_id == 1).with_for_update()

@@ -7,6 +7,7 @@ from ..persistence.core_rebuild import (
     begin_rebuild,
     fail_rebuild,
     heartbeat_rebuild,
+    observe_rebuild,
     publish_rebuild,
     resume_rebuild,
     stage_restore_generation,
@@ -25,9 +26,41 @@ class RebuildTicket:
     previous_generation: UUID | None
 
 
+@dataclass(frozen=True)
+class RebuildObservation:
+    rebuild_flag: bool
+    rebuild_id: UUID | None
+    active_generation: UUID | None
+    fatal_error: str | None
+
+    def recovery_ticket(self):
+        if not self.rebuild_flag or self.rebuild_id is None:
+            raise RebuildControlRejected("No abandoned Rebuild ownership is observed")
+        return RebuildTicket(self.rebuild_id, self.active_generation)
+
+
 class RebuildControl:
     def __init__(self, database):
         self.database = database
+
+    def observe(self, leadership, lock_connection):
+        """Observation is not ownership; resume must still compare the old fence."""
+        leadership.require()
+        require_exclusive_graph_mutation_lock(lock_connection)
+        with self.database.transaction() as connection:
+            state = observe_rebuild(connection)
+            if state is None:
+                raise RebuildControlRejected("Rebuild control is absent")
+            leadership.require()
+            require_exclusive_graph_mutation_lock(lock_connection)
+        leadership.require()
+        require_exclusive_graph_mutation_lock(lock_connection)
+        return RebuildObservation(
+            state["rebuild_flag"],
+            state["rebuild_id"],
+            state["active_generation"],
+            state["fatal_error"],
+        )
 
     def begin(self, leadership):
         leadership.require()
