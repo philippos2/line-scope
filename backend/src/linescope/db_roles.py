@@ -13,6 +13,15 @@ from .database import MIGRATION_LOCK
 
 READ_ROLE = "linescope_query"
 WRITE_ROLE = "linescope_runtime"
+PROJECTION_ROLE = "linescope_projection"
+PROJECTION_UPDATE_COLUMNS = (
+    "status",
+    "attempt_count",
+    "next_attempt_at",
+    "processing_started_at",
+    "processed_at",
+    "last_error",
+)
 READ_TABLES = (
     "equipment",
     "equipment_current_state",
@@ -67,12 +76,13 @@ DECLARE
   r text;
   p text;
 BEGIN
-  FOREACH r IN ARRAY ARRAY['linescope_query', 'linescope_runtime'] LOOP
+  FOREACH r IN ARRAY ARRAY['linescope_query', 'linescope_runtime', 'linescope_projection'] LOOP
     IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = r) THEN
       EXECUTE format('CREATE ROLE %I NOLOGIN', r);
     END IF;
     p := current_setting(CASE WHEN r = 'linescope_query'
-         THEN 'linescope.query_password' ELSE 'linescope.runtime_password' END);
+         THEN 'linescope.query_password' WHEN r = 'linescope_runtime'
+         THEN 'linescope.runtime_password' ELSE 'linescope.projection_password' END);
     EXECUTE format('ALTER ROLE %I LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE '
                    'NOREPLICATION NOBYPASSRLS NOINHERIT PASSWORD %L', r, p);
   END LOOP;
@@ -85,25 +95,25 @@ class RoleProvisionError(Exception):
     pass
 
 
-def validate_passwords(query_password, runtime_password):
+def validate_passwords(query_password, runtime_password, projection_password):
     if (
         any(
             type(value) is not str or re.fullmatch(r"[0-9a-f]{64}", value) is None
-            for value in (query_password, runtime_password)
+            for value in (query_password, runtime_password, projection_password)
         )
-        or query_password == runtime_password
+        or len({query_password, runtime_password, projection_password}) != 3
     ):
         raise RoleProvisionError("Distinct generated database passwords are required")
 
 
-def provision_roles(database, *, query_password, runtime_password):
+def provision_roles(database, *, query_password, runtime_password, projection_password):
     """Reapply explicit grants after migrations, preserving all business rows.
 
     Dedicated LineScope DB only. Fixed role names must have no memberships,
     privileged attributes or owned objects. Existing unexpected authority is
     rejected rather than silently reused. Runtime never gets schema ownership.
     """
-    validate_passwords(query_password, runtime_password)
+    validate_passwords(query_password, runtime_password, projection_password)
     try:
         with database.transaction() as connection:
             connection.execute("SELECT pg_advisory_xact_lock(%s)", (MIGRATION_LOCK,))
@@ -121,7 +131,7 @@ def provision_roles(database, *, query_password, runtime_password):
                     OR EXISTS(SELECT 1 FROM pg_shdepend d WHERE d.refclassid='pg_authid'::regclass
                               AND d.refobjid=r.oid AND d.deptype='o')
                   )) AS conflict""",
-                ([READ_ROLE, WRITE_ROLE],),
+                ([READ_ROLE, WRITE_ROLE, PROJECTION_ROLE],),
             ).fetchone()["conflict"]
             if conflict:
                 raise RoleProvisionError(
@@ -133,10 +143,15 @@ def provision_roles(database, *, query_password, runtime_password):
             connection.execute(
                 "SELECT set_config('linescope.runtime_password',%s,true)", (runtime_password,)
             )
+            connection.execute(
+                "SELECT set_config('linescope.projection_password',%s,true)", (projection_password,)
+            )
             connection.execute(ROLE_DDL)
             schema = sql.Identifier(owner["schema"])
             db = sql.Identifier(owner["database"])
-            roles = sql.SQL(", ").join(map(sql.Identifier, (READ_ROLE, WRITE_ROLE)))
+            roles = sql.SQL(", ").join(
+                map(sql.Identifier, (READ_ROLE, WRITE_ROLE, PROJECTION_ROLE))
+            )
             connection.execute(
                 sql.SQL("REVOKE CREATE, TEMPORARY ON DATABASE {} FROM PUBLIC, {}").format(db, roles)
             )
@@ -184,6 +199,12 @@ def provision_roles(database, *, query_password, runtime_password):
                 )
             for role, privilege, tables in (
                 (READ_ROLE, "SELECT", READ_TABLES),
+                (PROJECTION_ROLE, "SELECT", ("graph_outbox", "graph_projection_control")),
+                (
+                    PROJECTION_ROLE,
+                    "UPDATE (" + ", ".join(PROJECTION_UPDATE_COLUMNS) + ")",
+                    ("graph_outbox",),
+                ),
                 (WRITE_ROLE, "SELECT", RUNTIME_READ_TABLES),
                 (WRITE_ROLE, "INSERT", INSERT_TABLES),
                 (WRITE_ROLE, "UPDATE", UPDATE_TABLES),
