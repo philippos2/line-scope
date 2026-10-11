@@ -1,6 +1,6 @@
-"""Initial/normal Rebuild orchestration on an already owned leader session.
+"""Initial/normal/absent-pointer Restore on an already owned leader session.
 
-No worker daemon, Restore staging, crash recovery, role provisioning or CLI.
+No worker daemon, missing Graph behind a non-NULL pointer, crash recovery or CLI.
 Failure never deletes old generations or assumes a cross-store rollback.
 """
 
@@ -9,6 +9,7 @@ from uuid import uuid4
 
 from ..logging import EventLogger, request_context
 from .graph_locks import acquire_graph_mutation_lock
+from .projection_state import ProjectionState
 from .rebuild_control import RebuildControl
 from .rebuild_drain import DeadlineLeadership, RebuildDrain
 from .rebuild_snapshot import read_rebuild_snapshot
@@ -72,6 +73,28 @@ class RebuildController:
                     guard.require()
                     acquire_graph_mutation_lock(lock, shared=False)
                     guard.require()
+                    if ticket.previous_generation is None:
+                        observation = ProjectionState(self.database).observe(lock)
+                        guard.require()
+                        # DEAD follows the normal drain stop path without
+                        # constructing or installing a work generation.
+                        if not observation.counts["DEAD"] and any(
+                            observation.counts[state]
+                            for state in ("PENDING", "PROCESSING", "RETRYABLE")
+                        ):
+                            self.control.heartbeat(guard, lock, ticket)
+                            snapshot = read_rebuild_snapshot(lock)
+                            guard.require()
+                            candidate = uuid4()
+                            work = self.generation.build(
+                                generation=candidate, snapshot=snapshot, leadership=guard
+                            )
+                            guard.require()
+                            # Staging commits a new fence; subsequent drain,
+                            # failure and publication must use that ticket.
+                            ticket = self.control.stage_restore(
+                                guard, lock, ticket, work, self.generation
+                            )
                     drained = self.drain.run(guard, lock, ticket, deadline=guard.deadline)
                     self.control.heartbeat(guard, lock, ticket)
                     snapshot = read_rebuild_snapshot(lock)
