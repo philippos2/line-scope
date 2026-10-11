@@ -13,6 +13,8 @@ from neo4j.exceptions import DriverError, Neo4jError
 
 from ..application.reads import ToolError
 from ..domain.canonical import normalize_uuid
+from ..domain.graph_traversal import traversal_types
+from ..domain.relations import ENDPOINTS
 from .analysis_gate import GraphAnalysisGate
 from .neo4j_generation import NODE_TYPES, read_generation_validation
 from .neo4j_projection import GraphGenerationUnavailable, ProjectionIntegrityError
@@ -25,6 +27,12 @@ class GraphNode:
     entity_id: str
     entity_version: int
     active: bool
+
+
+@dataclass(frozen=True)
+class GraphAdjacency:
+    edges: tuple[dict, ...]
+    has_more: bool
 
 
 class _GraphRead:
@@ -64,6 +72,76 @@ class _GraphRead:
         ):
             raise ProjectionIntegrityError("Invalid Graph entity state")
         return GraphNode(entity_type, entity_id, row["version"], row["active"])
+
+    def neighbors(self, entity_type, entity_id, *, direction, as_of, limit):
+        """Bounded one-hop facts; no transitive impact or availability inference."""
+        if self._closed:
+            raise RuntimeError("Graph read context is closed")
+        if type(entity_type) is not str or entity_type not in NODE_TYPES:
+            raise ValueError("Invalid Graph entity type")
+        entity_id = normalize_uuid(entity_id)
+        forward, reverse = traversal_types(direction)
+        if type(limit) is not int or limit <= 0:
+            raise ValueError("A positive server-owned adjacency limit is required")
+        if not isinstance(as_of, datetime) or as_of.tzinfo is None or as_of.utcoffset() is None:
+            raise ValueError("An aware analysis time is required")
+        self._budget.require()
+        rows = list(
+            self._tx.run(
+                "MATCH (s:LineScopeEntity)-[r]->(t:LineScopeEntity) "
+                "WHERE s.generation=$generation AND t.generation=$generation "
+                "AND r.generation=$generation AND s.active=true AND t.active=true AND r.active=true "
+                "AND r.effective_from<=datetime($as_of) "
+                "AND (r.effective_to IS NULL OR datetime($as_of)<r.effective_to) "
+                "AND ((s.entity_type=$type AND s.entity_id=$id AND type(r) IN $forward) "
+                "OR (t.entity_type=$type AND t.entity_id=$id AND type(r) IN $reverse)) "
+                "WITH s,t,r,CASE WHEN type(r) IN $forward THEN t ELSE s END AS neighbor "
+                "RETURN s.entity_type AS source_type,s.entity_id AS source_id,"
+                "t.entity_type AS target_type,t.entity_id AS target_id,type(r) AS relation_type,"
+                "r.source_record_id AS source_record_id,r.source_version AS source_version,"
+                "r.required AS required,neighbor.entity_type AS neighbor_type,neighbor.entity_id AS neighbor_id "
+                "ORDER BY neighbor_type,neighbor_id,source_record_id LIMIT $limit",
+                generation=self.validation.generation,
+                type=entity_type,
+                id=entity_id,
+                forward=sorted(forward),
+                reverse=sorted(reverse),
+                as_of=as_of.astimezone(timezone.utc).isoformat(),
+                limit=limit + 1,
+            )
+        )
+        self._budget.require()
+        edges = []
+        for row in rows:
+            edge = dict(row)
+            if (
+                edge["source_type"] not in NODE_TYPES
+                or edge["target_type"] not in NODE_TYPES
+                or type(edge["source_version"]) is not int
+                or edge["source_version"] <= 0
+                or (edge["relation_type"] != "USES" and type(edge["required"]) is not bool)
+            ):
+                raise ProjectionIntegrityError("Invalid Graph relation fact")
+            allowed_source, allowed_target = (
+                ({"ProductionOperation"}, {"Equipment"})
+                if edge["relation_type"] == "USES"
+                else ENDPOINTS[edge["relation_type"]]
+            )
+            if edge["source_type"] not in allowed_source or edge["target_type"] not in (
+                allowed_target if allowed_target is not None else {edge["source_type"]}
+            ):
+                raise ProjectionIntegrityError("Invalid Graph relation endpoints")
+            try:
+                identifiers_valid = all(
+                    normalize_uuid(edge[key]) == edge[key]
+                    for key in ("source_id", "target_id", "source_record_id")
+                )
+            except ValueError as error:
+                raise ProjectionIntegrityError("Invalid Graph relation identifier") from error
+            if not identifiers_valid:
+                raise ProjectionIntegrityError("Invalid Graph relation identifier")
+            edges.append(edge)
+        return GraphAdjacency(tuple(edges[:limit]), len(edges) > limit)
 
 
 class GraphAnalysisReader:

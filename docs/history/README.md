@@ -462,3 +462,5 @@ Dockerで追加36テスト成功、ruff check / format、git diff --check成功�
 - [Graph分析のPostgreSQL整合gate](2026-10-11-graph-analysis-consistency-gate.md)
 
 - [検証済みgenerationのGraph分析read adapter](2026-10-11-verified-graph-analysis-reader.md)
+
+- [Graph一段依存関係の固定読取](2026-10-12-graph-adjacency-read.md)
