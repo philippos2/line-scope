@@ -18,6 +18,7 @@ from .neo4j_projection import (
 )
 from .projection_payload import projection_payload_hash, validate_projection_payload
 from .rebuild_snapshot import RebuildSnapshot
+from .transaction_timeout import neo4j_transaction_timeout
 
 NODE_TYPES = {"Equipment", "Process", "ProductionOperation", "Product", "InfrastructureResource"}
 
@@ -75,7 +76,9 @@ class Neo4jGeneration:
         generation = normalize_uuid(generation)
         leadership.require()
         with self.driver.session(database=self.database) as session:
-            with session.begin_transaction(timeout=self.timeout_seconds) as tx:
+            with session.begin_transaction(
+                timeout=neo4j_transaction_timeout(leadership, self.timeout_seconds)
+            ) as tx:
                 markers = list(
                     tx.run(
                         "MATCH (g:LineScopeGeneration {generation:$generation}) "
@@ -155,7 +158,9 @@ class Neo4jGeneration:
         digest = snapshot.snapshot_hash
         leadership.require()
         with self.driver.session(database=self.database) as session:
-            with session.begin_transaction(timeout=self.timeout_seconds) as tx:
+            with session.begin_transaction(
+                timeout=neo4j_transaction_timeout(leadership, self.timeout_seconds)
+            ) as tx:
                 occupied = tx.run(
                     "MATCH (n {generation:$generation}) RETURN count(n) AS count",
                     generation=generation,
