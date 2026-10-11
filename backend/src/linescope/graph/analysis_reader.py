@@ -82,7 +82,9 @@ class _GraphRead:
             raise ProjectionIntegrityError("Invalid Graph entity state")
         return GraphNode(entity_type, entity_id, row["version"], row["active"])
 
-    def neighbors(self, entity_type, entity_id, *, direction, as_of, limit, after=None):
+    def neighbors(
+        self, entity_type, entity_id, *, direction, as_of, limit, after=None, relation_types=None
+    ):
         """Bounded one-hop facts; no transitive impact or availability inference."""
         if self._closed:
             raise RuntimeError("Graph read context is closed")
@@ -90,6 +92,12 @@ class _GraphRead:
             raise ValueError("Invalid Graph entity type")
         entity_id = normalize_uuid(entity_id)
         forward, reverse = traversal_types(direction)
+        if relation_types is not None:
+            if not relation_types or any(
+                type(kind) is not str or kind not in forward | reverse for kind in relation_types
+            ):
+                raise ValueError("Invalid ordinary traversal filter")
+            forward, reverse = forward & set(relation_types), reverse & set(relation_types)
         if type(limit) is not int or limit <= 0:
             raise ValueError("A positive server-owned adjacency limit is required")
         if not isinstance(as_of, datetime) or as_of.tzinfo is None or as_of.utcoffset() is None:
@@ -182,6 +190,7 @@ class _GraphRead:
         max_nodes,
         max_paths,
         page_size,
+        relation_types=None,
     ):
         """Internal multi-hop facts, in this context's single generation/tx.
 
@@ -201,7 +210,12 @@ class _GraphRead:
             after = None
             while True:
                 page = self.neighbors(
-                    *node, direction=direction, as_of=as_of, limit=page_size, after=after
+                    *node,
+                    direction=direction,
+                    as_of=as_of,
+                    limit=page_size,
+                    after=after,
+                    relation_types=relation_types,
                 )
                 for fact in page.edges:
                     self._budget.require()

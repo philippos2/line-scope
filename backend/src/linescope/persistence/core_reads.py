@@ -1,7 +1,8 @@
 """Core-built fixed SELECTs, executed on the caller's psycopg transaction.
 
 These query-only declarations mirror migration 002; they never create schema.
-The bridge is limited to single-record reads, fixed searches and operation assignments.
+The bridge covers single-record reads, fixed searches, operation assignments
+and one-statement Graph equipment state observations.
 It does not supply SQLAlchemy execution/type processing for arbitrary statements
 or write paths.
 """
@@ -157,6 +158,25 @@ def get_record_row(connection, tool: str, identifier: UUID):
     compiled = statement.compile(dialect=dialect())
     # Never interpolate compiled.params or enable literal_binds. psycopg adapts
     # UUID and decodes the native result types using the existing dict_row factory.
+    return connection.execute(str(compiled), compiled.params).fetchone()
+
+
+def get_graph_equipment_states(connection, identifiers):
+    """One statement snapshot, including its timestamp even for an empty set."""
+    statement = select(
+        func.statement_timestamp().label("observed_at"),
+        func.jsonb_agg(
+            func.jsonb_build_object(
+                "equipment_id",
+                _state.c.equipment_id,
+                "state_code",
+                _state.c.state_code,
+                "version",
+                _state.c.version,
+            )
+        ).label("states"),
+    ).where(_state.c.equipment_id.in_([UUID(value) for value in identifiers]))
+    compiled = statement.compile(dialect=dialect(), compile_kwargs={"render_postcompile": True})
     return connection.execute(str(compiled), compiled.params).fetchone()
 
 
