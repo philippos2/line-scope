@@ -423,3 +423,4 @@ Dockerで追加36テスト成功、ruff check / format、git diff --check成功�
 - [LLM adapterの例外境界](2026-10-11-llm-error-boundary.md): 接続例外の独立とAgentによる既存APIエラー契約への変換。
 - [API composition rootの分離](2026-10-11-api-composition-root.md): 依存組立の集約とHTTP境界改善の区切り、残る診断経路・Persistence依存。
 - [Rebuild用正本Snapshot取得](2026-10-11-rebuild-source-snapshot.md): 単一Core statement、全登録ノード・aggregate、lock契約と未実装controller範囲。
+- [Neo4j generation構築・検証](2026-10-11-neo4j-generation-build.md): Snapshot照合後のvalidated marker、初回seedの出所、atomic rollbackとcontroller未実装範囲。

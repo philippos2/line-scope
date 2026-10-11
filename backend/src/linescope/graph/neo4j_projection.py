@@ -73,7 +73,7 @@ class Neo4jProjection:
             with session.begin_transaction(timeout=self.timeout_seconds) as tx:
                 ready = tx.run(
                     "MATCH (g:LineScopeGeneration {generation:$generation,validated:true}) "
-                    "RETURN g.generation AS generation",
+                    "RETURN g.generation AS generation,g.snapshot_hash AS hash",
                     generation=generation,
                 ).single()
                 if ready is None:
@@ -84,7 +84,7 @@ class Neo4jProjection:
                     "aggregate_type:$aggregate_type,aggregate_id:$aggregate_id}) "
                     "SET m._projection_lock=true REMOVE m._projection_lock "
                     "RETURN m.source_version AS version,m.payload_hash AS hash,"
-                    "m.source_outbox_id AS outbox_id",
+                    "m.source_outbox_id AS outbox_id,m.source_rebuild_id AS rebuild_id",
                     **parameters,
                 )
                 marker = marker_result.single(strict=True)
@@ -99,12 +99,23 @@ class Neo4jProjection:
                         or any(c not in "0123456789abcdef" for c in marker["hash"])
                     ):
                         raise ProjectionIntegrityError("Invalid Projection marker hash")
-                    try:
-                        normalize_uuid(marker["outbox_id"])
-                    except ValueError as error:
-                        raise ProjectionIntegrityError(
-                            "Invalid Projection marker source"
-                        ) from error
+                    if marker["outbox_id"] is None:
+                        if (
+                            marker["rebuild_id"] != generation
+                            or type(ready["hash"]) is not str
+                            or len(ready["hash"]) != 64
+                            or any(c not in "0123456789abcdef" for c in ready["hash"])
+                        ):
+                            raise ProjectionIntegrityError("Invalid Rebuild marker source")
+                    else:
+                        try:
+                            normalize_uuid(marker["outbox_id"])
+                        except ValueError as error:
+                            raise ProjectionIntegrityError(
+                                "Invalid Projection marker source"
+                            ) from error
+                        if marker["rebuild_id"] is not None:
+                            raise ProjectionIntegrityError("Ambiguous Projection marker source")
                 if version == payload["aggregate_version"] and marker["hash"] != digest:
                     raise ProjectionIntegrityError(
                         "Same version has a different Projection payload"
@@ -117,7 +128,7 @@ class Neo4jProjection:
                         "MATCH (m:LineScopeProjectionMarker {generation:$generation,"
                         "aggregate_type:$aggregate_type,aggregate_id:$aggregate_id}) "
                         "SET m.source_version=$version,m.payload_hash=$hash,"
-                        "m.source_outbox_id=$outbox_id",
+                        "m.source_outbox_id=$outbox_id REMOVE m.source_rebuild_id",
                         **parameters,
                         version=payload["aggregate_version"],
                         hash=digest,
@@ -128,30 +139,8 @@ class Neo4jProjection:
         leadership.require()
 
     def _replace_edge(self, tx, parameters, payload, outbox_id):
-        state = payload["state"]
         relation = payload["aggregate_type"] == "DependencyRelation"
-        kind = state["relation_type"] if relation else "USES"
-        endpoints = {
-            "source_type": state["source_entity_type"] if relation else "ProductionOperation",
-            "source_id": state["source_entity_id"]
-            if relation
-            else state["production_operation_id"],
-            "target_type": state["target_entity_type"] if relation else "Equipment",
-            "target_id": state["target_entity_id"] if relation else state["equipment_id"],
-        }
-        properties = {
-            "generation": parameters["generation"],
-            "source_record_id": payload["aggregate_id"],
-            "source_version": payload["aggregate_version"],
-            "source_outbox_id": outbox_id,
-            "effective_from": datetime.fromisoformat(state["effective_from"]),
-            "effective_to": datetime.fromisoformat(state["effective_to"])
-            if state["effective_to"] is not None
-            else None,
-            "active": state["active"],
-        }
-        if relation:
-            properties["required"] = state["required"]
+        kind, endpoints, properties = edge_projection(parameters["generation"], payload, outbox_id)
         # Record IDs belong to two aggregate namespaces; never remove USES
         # while replacing a DependencyRelation with the same UUID, or vice versa.
         tx.run(
@@ -169,3 +158,30 @@ class Neo4jProjection:
         ).single(strict=True)["created"]
         if created != 1:
             raise ProjectionIntegrityError("Projection endpoint is absent or ambiguous")
+
+
+def edge_projection(generation, payload, outbox_id):
+    """Shared physical edge mapping for already validated worker/Rebuild payloads."""
+    state = payload["state"]
+    relation = payload["aggregate_type"] == "DependencyRelation"
+    kind = state["relation_type"] if relation else "USES"
+    endpoints = {
+        "source_type": state["source_entity_type"] if relation else "ProductionOperation",
+        "source_id": state["source_entity_id"] if relation else state["production_operation_id"],
+        "target_type": state["target_entity_type"] if relation else "Equipment",
+        "target_id": state["target_entity_id"] if relation else state["equipment_id"],
+    }
+    properties = {
+        "generation": generation,
+        "source_record_id": payload["aggregate_id"],
+        "source_version": payload["aggregate_version"],
+        "source_outbox_id": outbox_id,
+        "effective_from": datetime.fromisoformat(state["effective_from"]),
+        "effective_to": datetime.fromisoformat(state["effective_to"])
+        if state["effective_to"] is not None
+        else None,
+        "active": state["active"],
+    }
+    if relation:
+        properties["required"] = state["required"]
+    return kind, endpoints, properties
