@@ -8,24 +8,13 @@ from dataclasses import dataclass
 from time import monotonic
 from uuid import UUID, uuid4
 
-import psycopg
-from neo4j.exceptions import DriverError, Neo4jError
-
 from ..logging import EventLogger, request_context
-from .neo4j_projection import GraphGenerationUnavailable, Neo4jProjection, ProjectionIntegrityError
+from .neo4j_projection import Neo4jProjection
 from .projection_application import ProjectionApplication
-from .projection_payload import ProjectionPayloadError
+from .projection_attempt import complete_projection_attempt
+from .projection_errors import classify_projection_failure
 from .projection_queue import ProjectionQueue
 from .projection_state import ProjectionState
-
-TRANSIENT_POSTGRES = (
-    psycopg.OperationalError,
-    psycopg.InterfaceError,
-    psycopg.errors.LockNotAvailable,
-    psycopg.errors.QueryCanceled,
-    psycopg.errors.SerializationFailure,
-    psycopg.errors.DeadlockDetected,
-)
 
 
 @dataclass(frozen=True)
@@ -64,16 +53,11 @@ class ProjectionWorker:
             try:
                 try:
                     applied = self.application.apply(leadership, event, self.adapter)
-                except (ProjectionPayloadError, ProjectionIntegrityError):
-                    return self._failed(leadership, event, started, permanent=True)
-                except GraphGenerationUnavailable:
-                    return self._failed(leadership, event, started, permanent=False)
-                except TRANSIENT_POSTGRES:
-                    return self._failed(leadership, event, started, permanent=False)
-                except (Neo4jError, DriverError) as error:
-                    if not error.is_retryable():
+                except Exception as error:
+                    permanent = classify_projection_failure(error)
+                    if permanent is None:
                         raise
-                    return self._failed(leadership, event, started, permanent=False)
+                    return self._failed(leadership, event, started, permanent=permanent)
                 status = "APPLIED" if applied else "FENCED"
                 self._completed(event, started, status)
                 return ProjectionStep(status, event["outbox_id"])
@@ -118,27 +102,4 @@ class ProjectionWorker:
         }
 
     def _completed(self, event, started, status, *, error=None):
-        self.logger.emit(
-            "projection.attempt.completed",
-            component="projection",
-            outcome="success"
-            if status == "APPLIED"
-            else "unknown"
-            if status in {"FENCED", "UNKNOWN"}
-            else "failure",
-            result_code="OK"
-            if status == "APPLIED"
-            else "GRAPH_NOT_CURRENT"
-            if status == "FENCED"
-            else "INTERNAL_ERROR"
-            if status in {"DEAD", "UNKNOWN"}
-            else "DEPENDENCY_UNAVAILABLE",
-            level="INFO"
-            if status == "APPLIED"
-            else "ERROR"
-            if status in {"DEAD", "UNKNOWN"}
-            else "WARNING",
-            error=error,
-            **self._fields(event, started),
-            **({"after_status": status} if status in {"APPLIED", "DEAD", "RETRYABLE"} else {}),
-        )
+        complete_projection_attempt(self.logger, event, started, status, error=error)
