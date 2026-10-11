@@ -14,10 +14,10 @@ from test_maintenance_plan_approval_api import act, headers
 from test_maintenance_record_create_api import execute
 
 from linescope.api import create_app
-from linescope.database import Database
 from linescope.dependency_execute import DependencyExecute
 from linescope.graph.graph_locks import acquire_graph_mutation_lock
 from linescope.logging import EventLogger
+from linescope.persistence.database import Database
 from linescope.proposals import ProposalError
 from linescope.settings import Settings
 

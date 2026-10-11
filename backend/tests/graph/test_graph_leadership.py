@@ -6,7 +6,6 @@ from threading import Barrier
 import psycopg
 import pytest
 
-from linescope.database import MIGRATION_LOCK
 from linescope.graph.graph_leadership import (
     GRAPH_LEADER_LOCK,
     GraphLeaderBusy,
@@ -14,6 +13,7 @@ from linescope.graph.graph_leadership import (
     graph_leadership,
 )
 from linescope.graph.graph_locks import acquire_graph_mutation_lock
+from linescope.persistence.database import MIGRATION_LOCK
 
 
 def test_competing_worker_and_controller_cannot_both_be_leader(db):

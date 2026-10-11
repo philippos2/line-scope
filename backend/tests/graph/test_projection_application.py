@@ -9,10 +9,10 @@ import pytest
 
 from graph.test_outbox import events
 from graph.test_projection_queue import queued as queued
-from linescope.database import Database
 from linescope.graph.graph_leadership import GraphLeadershipLost, graph_leadership
 from linescope.graph.graph_locks import acquire_graph_mutation_lock
 from linescope.graph.projection_application import ProjectionApplication
+from linescope.persistence.database import Database
 
 GENERATION = UUID(int=81)
 

@@ -8,7 +8,7 @@ from conftest import db as database_fixture
 from psycopg.conninfo import make_conninfo
 from test_search_reads import identity
 
-from linescope.database import Database
+from linescope.persistence.database import Database
 from linescope.reads import ReadTools, ToolError
 from linescope.settings import Settings
 from linescope.tools import ToolDispatcher

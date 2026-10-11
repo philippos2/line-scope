@@ -7,7 +7,10 @@ import psycopg
 import pytest
 from test_dependency_execute import world as dependency_fixture
 
-from linescope.core_dependencies import lock_dependency_endpoint, update_dependency_relation
+from linescope.persistence.core_dependencies import (
+    lock_dependency_endpoint,
+    update_dependency_relation,
+)
 
 
 @pytest.mark.parametrize("operation", ["UPDATE", "DISABLE"])

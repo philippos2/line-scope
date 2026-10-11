@@ -395,7 +395,7 @@ def test_read_transaction_blocks_accidental_writes(world, tool):
 @pytest.mark.integration
 @pytest.mark.parametrize("tool", GET_TOOLS)
 def test_core_read_preserves_all_native_values_and_caller_transaction(world, tool):
-    from linescope.core_reads import get_record_row
+    from linescope.persistence.core_reads import get_record_row
 
     db, keys = world
     attack = "'; DROP TABLE equipment; -- 日本語 %_"
@@ -434,7 +434,7 @@ def test_core_read_preserves_all_native_values_and_caller_transaction(world, too
 @pytest.mark.integration
 @pytest.mark.parametrize("tool", GET_TOOLS)
 def test_core_read_bind_uuid_kept_out_of_sql(world, tool):
-    from linescope.core_reads import get_record_row
+    from linescope.persistence.core_reads import get_record_row
 
     db, keys = world
     calls = []
@@ -467,7 +467,7 @@ def test_core_read_bind_uuid_kept_out_of_sql(world, tool):
     ],
 )
 def test_core_assignment_native_values_single_statement_and_transaction(world, at):
-    from linescope.core_reads import get_assignment_rows
+    from linescope.persistence.core_reads import get_assignment_rows
 
     db, keys = world
     identifier = keys["production_operation_id"]

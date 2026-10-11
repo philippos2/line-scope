@@ -281,7 +281,7 @@ def test_core_execution_load_holds_request_and_approval_locks_until_transaction_
     import psycopg
     from psycopg import sql
 
-    from linescope.database import Database
+    from linescope.persistence.database import Database
 
     db, saved = approved
     bounded = Database(replace(db.settings, lock_ms=50))

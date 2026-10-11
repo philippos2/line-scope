@@ -6,7 +6,7 @@ import pytest
 from psycopg import sql
 from psycopg.conninfo import make_conninfo
 
-from linescope.database import Database
+from linescope.persistence.database import Database
 from linescope.settings import Settings
 
 

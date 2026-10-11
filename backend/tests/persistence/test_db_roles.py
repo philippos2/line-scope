@@ -14,8 +14,8 @@ from test_maintenance_plan_create_api import execute
 from test_maintenance_prepare import AGENT_HASH, create_plan, identity
 from test_maintenance_prepare import service as maintenance_fixture
 
-from linescope.database import Database
-from linescope.db_roles import (
+from linescope.persistence.database import Database
+from linescope.persistence.db_roles import (
     PROJECTION_ROLE,
     READ_ROLE,
     WRITE_ROLE,
@@ -189,7 +189,7 @@ def test_password_validation_rejects_without_database_access(password):
 def test_private_env_upgrade_preserves_credentials_and_is_idempotent(tmp_path):
     import importlib.util
 
-    source = Path(__file__).resolve().parents[2] / "scripts" / "upgrade_demo_env.py"
+    source = Path(__file__).resolve().parents[3] / "scripts" / "upgrade_demo_env.py"
     spec = importlib.util.spec_from_file_location("upgrade_demo_env", source)
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
