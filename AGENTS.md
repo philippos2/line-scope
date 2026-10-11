@@ -6,6 +6,8 @@
 
 このファイルはRepository全体に適用する開発原則とSkillの入口。詳細な作業規則の正本は既存の実装支援規則、システム仕様は各正本文書に維持する。不一致は黙って統一せず、根拠と変更案を示す。
 
+開発ガイダンスで「PO」は開発依頼者・プロダクトオーナーを指す。「エンドユーザー」はLineScopeの業務利用者、「利用側component」はコード上の呼出側を指す。指示・仕様判断・PR mergeの主体と、システム内の業務権限を混同しない。
+
 ## 維持する原則
 
 - 責務と境界を分離し、依存方向を予測可能にする。Infrastructure固有の詳細を局所化し、HTTP handlerへSQL/Core/Sessionや業務判断を追加しない。依存組立とreadiness診断は業務handlerと区別する。
@@ -28,4 +30,4 @@
 
 ## 作業と引渡し
 
-backendのテスト・lintはDocker内で行う。機能ごとに小さく実装→検証→commitし、PRのmergeは利用者が行う。mainの履歴はSquash mergeを標準とし、rewrite / force-pushしない。必須CI、実測結果の追記、使い捨てtest環境の片付けまで確認してからmerge可能と伝える。詳細とコマンドは検証Skillを使う。
+backendのテスト・lintはDocker内で行う。機能ごとに小さく実装→検証→commitし、PRのmergeはPOが行う。mainの履歴はSquash mergeを標準とし、rewrite / force-pushしない。必須CI、実測結果の追記、使い捨てtest環境の片付けまで確認してからmerge可能と伝える。詳細とコマンドは検証Skillを使う。

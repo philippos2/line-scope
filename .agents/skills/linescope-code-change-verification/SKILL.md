@@ -30,7 +30,7 @@ Business Scenarioは意味論的結果・決定論的fixtureで検証し、LLM�
 
 ## CheckpointとPR
 
-利用者の指示と既存変更を確認してmainをff-onlyで更新し、意味のあるbranchに小さいcheckpointを残す。無関係な未完成作業は破棄せず、必要時だけstashし、どこに残したか報告する。
+PO（開発依頼者・プロダクトオーナー）の指示と既存変更を確認してmainをff-onlyで更新し、意味のあるbranchに小さいcheckpointを残す。無関係な未完成作業は破棄せず、必要時だけstashし、どこに残したか報告する。
 
 Conventional Commit titleと既存PRテンプレート（概要/検証/残課題・対象外）を使い、変更理由と実際の検証を記載する。mainはSquash mergeを標準とし、過去履歴のrewrite/force-pushはしない。GitHub設定・required checksの現状を推測で変更しない。POがmergeする運用を維持する。
 

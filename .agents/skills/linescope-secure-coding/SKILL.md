@@ -11,7 +11,7 @@ description: LineScopeのauthorization、role、Trusted Execution Context、Tool
 
 ## 入力と権限
 
-認証済みContextの注入元と利用側を追う。Body、利用者自己申告、LLM Tool引数、RAG本文、外部metadataをidentity/role/permissionの根拠にしない。型検証と認可は別に確認する。
+認証済みContextの注入元と利用側を追う。Body、エンドユーザーによる自己申告、LLM Tool引数、RAG本文、外部metadataをidentity/role/permissionの根拠にしない。型検証と認可は別に確認する。
 
 Tool側と確定操作の境界で現在の認可・owner・全Target条件を正本と照合する。AgentにApproval/Executeや任意SQL/Cypherを公開しない。認証設定参照不能と権限喪失を区別してfail closedにする。
 
