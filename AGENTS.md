@@ -6,6 +6,8 @@
 
 このファイルはRepository全体に適用する開発原則とSkillの入口。詳細な作業規則の正本は既存の実装支援規則、システム仕様は各正本文書に維持する。不一致は黙って統一せず、根拠と変更案を示す。
 
+開発ガイダンスで「開発者」はこのRepositoryの開発依頼者を指す。「PO」は業務仕様を判断するプロダクトオーナーを指す。現在は同じ人物だが、役割を区別する。「エンドユーザー」はLineScopeを業務で操作する人、「呼出元のモジュール」はインターフェースを呼び出すコードを指す。指示・仕様判断・PR mergeの主体と、システム内の業務権限を混同しない。
+
 ## 維持する原則
 
 - 責務と境界を分離し、依存方向を予測可能にする。Infrastructure固有の詳細を局所化し、HTTP handlerへSQL/Core/Sessionや業務判断を追加しない。依存組立とreadiness診断は業務handlerと区別する。
@@ -21,11 +23,13 @@
 
 | 対象 | Skill |
 |---|---|
-| router / service / repository / adapterの責務、依存方向、新component、構造変更、refactoring | [linescope-architecture-review](.agents/skills/linescope-architecture-review/SKILL.md) |
-| 認証・認可、Trusted Execution Context、Tool入力、SQL/Cypher、LLM/RAG、secret、DB role、外部エラー | [linescope-secure-coding](.agents/skills/linescope-secure-coding/SKILL.md) |
-| UpdateRequest / Approval / Execute、Snapshot / version、retry / lock、Outbox / Projection / Rebuild / Restore | [linescope-transaction-review](.agents/skills/linescope-transaction-review/SKILL.md) |
-| 変更の検証、pytest / ruff / migration、checkpoint commit、PR / CI引渡し | [linescope-code-change-verification](.agents/skills/linescope-code-change-verification/SKILL.md) |
+| router / service / repository / adapterの責務、依存方向、新component、構造変更、refactoring | [backend-architecture](.agents/skills/backend-architecture/SKILL.md) |
+| 認証・認可、Trusted Execution Context、Tool入力、SQL/Cypher、LLM/RAG、secret、DB role、外部エラー | [backend-secure-coding](.agents/skills/backend-secure-coding/SKILL.md) |
+| UpdateRequest / Approval / Execute、Snapshot / version、retry / lock、Outbox / Projection / Rebuild / Restore | [backend-transaction-review](.agents/skills/backend-transaction-review/SKILL.md) |
+| 変更の検証、pytest / ruff / migration、checkpoint commit、PR / CI引渡し | [backend-verification](.agents/skills/backend-verification/SKILL.md) |
+
+Skill名は対象領域の接頭辞で区別する。現在は`backend-`を使い、Frontend着手時に必要な`frontend-architecture`、`ui-component-design`、`frontend-data-access`、`accessibility-review`、`frontend-verification`等を追加する。未使用の空Skillは先に作らない。
 
 ## 作業と引渡し
 
-backendのテスト・lintはDocker内で行う。機能ごとに小さく実装→検証→commitし、PRのmergeは利用者が行う。mainの履歴はSquash mergeを標準とし、rewrite / force-pushしない。必須CI、実測結果の追記、使い捨てtest環境の片付けまで確認してからmerge可能と伝える。詳細とコマンドは検証Skillを使う。
+backendのテスト・lintはDocker内で行う。機能ごとに小さく実装→検証→commitし、PRのmergeは開発者が行う。mainの履歴はSquash mergeを標準とし、rewrite / force-pushしない。必須CI、実測結果の追記、使い捨てtest環境の片付けまで確認してからmerge可能と伝える。詳細とコマンドは検証Skillを使う。

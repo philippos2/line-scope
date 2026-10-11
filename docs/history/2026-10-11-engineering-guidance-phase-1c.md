@@ -44,3 +44,7 @@ FAILED遷移、ApplicationのPersistence依存、Graph Read / Qdrant接続等の
 四つのSkillのquick_validate、変更Markdownの相対リンク、Git ignore状態、diff整合を確認する。代表作業（通常Read、重要更新、移動refactoring、文書のみ、PR引渡し）への発動条件と手順を照合する。独立Agentによる行動評価は未実施。Production code・DB・migration・CI定義の変更はなく、ローカル全pytestは再実行しない。必須CIの実測結果はPR本文へ記録する。
 
 ガイダンスは履歴より現在の正本・コードを優先して使い、実作業で判明した不足へ限定修正する。新しいAgentが過去の会話を知らなくても、入口→対象正本→Skill→実経路→必要試験を辿れる状態を維持する。
+
+## 採用後の名称・主体の明確化
+
+開発者の指摘により、正式Skillの名前を`backend-architecture`、`backend-secure-coding`、`backend-transaction-review`、`backend-verification`へ変更し、folderとfrontmatter nameを一致させた。上記の採用時名称・旧草案は時点の記録。rootと旧indexの現在のリンクは新名称へ更新する。開発の指示・PR mergeは「開発者」、業務仕様の判断は「PO」、システム利用は「エンドユーザー」、コードの呼出側は「呼出元のモジュール」と表記する。Frontend用Skillは着手時に必要なものを追加する。
