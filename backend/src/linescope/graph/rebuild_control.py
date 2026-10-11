@@ -8,6 +8,7 @@ from ..persistence.core_rebuild import (
     fail_rebuild,
     heartbeat_rebuild,
     publish_rebuild,
+    resume_rebuild,
     stage_restore_generation,
 )
 from .graph_locks import require_exclusive_graph_mutation_lock
@@ -114,6 +115,42 @@ class RebuildControl:
         # Match begin/publish: post-commit loss remains unknown, never undo it.
         leadership.require()
         return RebuildTicket(ticket.rebuild_id, generation)
+
+    def resume(self, leadership, lock_connection, ticket, *, verified=None, adapter=None):
+        """Adopt a remaining flag; never infer completed publication or clear it.
+
+        Caller has acquired leadership and the exclusive mutation lock, and
+        supplies the observed old ticket. A non-NULL pointer requires actual
+        committed Neo4j validation, not just a caller-provided DTO. Recovery
+        orchestration, absent Graph repair and generation cleanup remain separate.
+        """
+        self._ticket(ticket)
+        leadership.require()
+        require_exclusive_graph_mutation_lock(lock_connection)
+        if ticket.previous_generation is not None:
+            if (
+                not isinstance(verified, VerifiedGeneration)
+                or UUID(verified.generation) != ticket.previous_generation
+                or adapter is None
+            ):
+                raise RebuildControlRejected("Recovery requires proof of the existing generation")
+            adapter.require_verified(
+                generation=ticket.previous_generation,
+                snapshot_hash=verified.snapshot_hash,
+                leadership=leadership,
+            )
+        elif verified is not None or adapter is not None:
+            raise RebuildControlRejected("Recovery proof must match the existing pointer")
+        leadership.require()
+        require_exclusive_graph_mutation_lock(lock_connection)
+        rebuild_id = uuid4()
+        with self.database.transaction() as connection:
+            if not resume_rebuild(connection, ticket, rebuild_id):
+                raise RebuildControlRejected("Recovery ownership or publication state changed")
+            require_exclusive_graph_mutation_lock(lock_connection)
+            leadership.require()
+        leadership.require()
+        return RebuildTicket(rebuild_id, ticket.previous_generation)
 
     @staticmethod
     def _ticket(ticket):
