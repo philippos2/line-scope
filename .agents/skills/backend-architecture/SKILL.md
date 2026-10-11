@@ -1,9 +1,9 @@
 ---
-name: linescope-architecture-review
-description: LineScopeのrouter、application service、repository、adapter、PostgreSQL/Neo4j/Qdrantの責務境界や依存方向を変える設計・新component・refactoringをレビューする。配置だけの変更と契約変更を区別する。
+name: backend-architecture
+description: LineScopeバックエンドのrouter、application service、repository、adapter、PostgreSQL/Neo4j/Qdrantの責務境界や依存方向を変える設計・新component・refactoringをレビューする。配置だけの変更と契約変更を区別する。
 ---
 
-# LineScope Architecture Review
+# LineScope Backend Architecture Review
 
 一般的なPattern名を先に当てはめない。
 
@@ -22,7 +22,7 @@ description: LineScopeのrouter、application service、repository、adapter、P
 - SRP: HTTP、業務検証、認可、永続化、外部I/Oなど、異なる変更理由を不用意に集約していないか。
 - OCP: 新規機能で既存の安全制御を広範に変更しない構造か。未要求のPlugin基盤は作らない。
 - LSP: Fake/Stubが本番adapterのerror、timeout、limit、状態と結果の確定性まで契約を守るか。mock成功を実DBの整合性保証にしない。
-- ISP: 利用者が不要なwrite/管理能力へ依存せず、目的に合う小さい窓口か。
+- ISP: 呼出元のモジュールが不要なwrite/管理能力へ依存せず、目的に合う小さい窓口か。
 - DIP: 業務判断がDB/LLM具象詳細へ不必要に依存しないか。差し替え理由のないInterfaceを増やさない。
 
 ## 構造変更の扱い
