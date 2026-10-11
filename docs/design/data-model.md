@@ -289,7 +289,7 @@ RDB再帰CTEでも実装可能だが、可変長Path、根拠経路、共通依�
 
 ## 10. Neo4j Projection識別
 
-全ノード・エッジにgenerationを付与し、Toolはactive_generationのみ参照。ノード識別子は(generation, entity_type, entity_id)。Projection markerは(generation, aggregate_type, aggregate_id)の一意制約を持ち、source_version、payload_hash、source_outbox_idを保持する。
+全ノード・エッジにgenerationを付与し、Toolはactive_generationのみ参照。業務ノードの共通labelはLineScopeEntity、種別はentity_typeで識別する。Projection markerのlabelはLineScopeProjectionMarker、generation markerはLineScopeGenerationとする。ノード識別子は(generation, entity_type, entity_id)。Projection markerは(generation, aggregate_type, aggregate_id)の一意制約を持ち、source_version、payload_hash、source_outbox_idを保持する。
 
 markerへのwrite lock取得後、version比較・旧エッジ除去・新エッジ生成・marker更新を単一Neo4j Transactionで行う。endpoint / type変更でもsource_record_idで旧エッジを除去。DISABLEはactive=falseを保持しmarkerを削除しない。USESのsource_record_idはassignment_id。端点ノードは正本seed / Rebuildから作成し、不存在を推測生成しない。
 
