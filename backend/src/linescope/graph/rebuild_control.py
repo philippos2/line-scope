@@ -3,7 +3,12 @@
 from dataclasses import dataclass
 from uuid import UUID, uuid4
 
-from ..persistence.core_rebuild import begin_rebuild, fail_rebuild, publish_rebuild
+from ..persistence.core_rebuild import (
+    begin_rebuild,
+    fail_rebuild,
+    heartbeat_rebuild,
+    publish_rebuild,
+)
 from .graph_locks import require_exclusive_graph_mutation_lock
 from .neo4j_generation import VerifiedGeneration
 
@@ -49,9 +54,11 @@ class RebuildControl:
             leadership=leadership,
         )
         leadership.require()
+        require_exclusive_graph_mutation_lock(lock_connection)
         with self.database.transaction() as connection:
             if not publish_rebuild(connection, ticket, generation):
                 raise RebuildControlRejected("Rebuild is stale or Outbox is not drained")
+            require_exclusive_graph_mutation_lock(lock_connection)
             leadership.require()
         leadership.require()
 
@@ -63,6 +70,17 @@ class RebuildControl:
             leadership.require()
         leadership.require()
         return changed
+
+    def heartbeat(self, leadership, lock_connection, ticket):
+        self._ticket(ticket)
+        leadership.require()
+        require_exclusive_graph_mutation_lock(lock_connection)
+        with self.database.transaction() as connection:
+            if not heartbeat_rebuild(connection, ticket):
+                raise RebuildControlRejected("Rebuild heartbeat ownership is stale")
+            require_exclusive_graph_mutation_lock(lock_connection)
+            leadership.require()
+        leadership.require()
 
     @staticmethod
     def _ticket(ticket):

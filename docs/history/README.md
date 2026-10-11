@@ -434,3 +434,5 @@ Dockerで追加36テスト成功、ruff check / format、git diff --check成功�
 - [Rebuild単一drain step](2026-10-11-rebuild-projection-step.md)
 
 - [Rebuild drainの絶対deadline](2026-10-11-rebuild-drain-deadline.md)
+
+- [Rebuild controller接続](2026-10-11-rebuild-controller.md)
