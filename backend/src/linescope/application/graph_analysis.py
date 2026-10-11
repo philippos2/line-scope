@@ -6,6 +6,7 @@ LLM execution or mutation. Results are returned only after the read gate exits.
 
 from dataclasses import asdict
 from datetime import datetime, timezone
+from math import isfinite
 
 from ..domain.graph_traversal import traversal_types
 from .graph_request import GraphLimits, validate_graph_request
@@ -21,7 +22,17 @@ def _key(node):
 
 
 class GraphAnalysis:
-    def __init__(self, reader, states, *, system_limits, budget_factory, clock=None, page_size=100):
+    def __init__(
+        self,
+        reader,
+        states,
+        *,
+        system_limits,
+        budget_factory,
+        clock=None,
+        page_size=100,
+        completion_reserve_ms=None,
+    ):
         if not isinstance(system_limits, GraphLimits):
             raise ValueError("Server Graph limits are required")
         if type(page_size) is not int or page_size <= 0:
@@ -30,6 +41,19 @@ class GraphAnalysis:
         self.system_limits, self.budget_factory = system_limits, budget_factory
         self.clock = clock or (lambda: datetime.now(timezone.utc))
         self.page_size = page_size
+        reserve = (
+            system_limits.timeout_ms / 10
+            if completion_reserve_ms is None
+            else completion_reserve_ms
+        )
+        if (
+            type(reserve) not in (int, float)
+            or not isfinite(reserve)
+            or reserve <= 0
+            or reserve >= system_limits.timeout_ms
+        ):
+            raise ValueError("Completion reserve must be positive and below the total timeout")
+        self.completion_reserve_ms = reserve
 
     def call(self, context, tool, arguments):
         request = validate_graph_request(
@@ -47,6 +71,7 @@ class GraphAnalysis:
                 max_paths=limits.max_paths,
                 page_size=self.page_size,
                 relation_types=request.relation_types,
+                should_stop=lambda: budget.remaining() <= self.completion_reserve_ms / 1000,
             )
             equipment_ids = sorted(
                 item.node[1] for item in result.reachability.nodes if item.node[0] == "Equipment"
