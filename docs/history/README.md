@@ -6,6 +6,7 @@
 - [Graph代表経路の内部復元と返却数上限](2026-10-12-graph-representative-paths.md)：前駆の整合検証、順序付き経路、PATH_COUNT。公開Evidenceへの接続は後続。
 - [Graph分析専用の時間budget](2026-10-12-graph-analysis-budget.md)：server timeout・期限境界とdriverへの残時間。公開ToolとTIMEOUT partialへの接続は後続。
 - [複数段Graph到達探索への接続](2026-10-12-graph-multihop-traversal.md)：隣接ページ取得からBFS・経路・関係事実への接続。公開Tool / Agent接続は後続。
+- [通常Graph探索の入力・認可境界](2026-10-12-graph-request-validation.md)：Context認可、typed target、server as_of / limits。公開Tool / Agent接続は後続。
 
 ## 2026-10-09
 
