@@ -36,6 +36,8 @@ class DeadlineLeadership:
         remaining = self.deadline - self.clock()
         if remaining <= 0:
             raise RebuildDrainTimeout("Rebuild drain deadline expired")
+        if isinstance(self.leadership, DeadlineLeadership):
+            remaining = min(remaining, self.leadership.remaining())
         return remaining
 
     def require(self):
