@@ -110,6 +110,79 @@ def test_limit_detects_unreturned_fact_and_orders_by_typed_id(edges):
     )
 
 
+def test_continuation_pages_match_full_read_without_duplicates(edges):
+    built, at, _ = edges
+    db, driver, _, origin, _ = built
+    with GraphAnalysisReader(db, driver).open(budget()) as read:
+        full = read.neighbors("Equipment", origin, direction="IMPACT", as_of=at, limit=20)
+        first = read.neighbors("Equipment", origin, direction="IMPACT", as_of=at, limit=1)
+        last = first.edges[-1]
+        cursor = (last["neighbor_type"], last["neighbor_id"], last["source_record_id"])
+        second = read.neighbors(
+            "Equipment", origin, direction="IMPACT", as_of=at, limit=1, after=cursor
+        )
+        last = second.edges[-1]
+        empty = read.neighbors(
+            "Equipment",
+            origin,
+            direction="IMPACT",
+            as_of=at,
+            limit=1,
+            after=(last["neighbor_type"], last["neighbor_id"], last["source_record_id"]),
+        )
+    assert first.has_more and not second.has_more
+    assert first.edges + second.edges == full.edges
+    assert empty.edges == () and not empty.has_more
+
+
+def test_parallel_relations_to_same_neighbor_are_not_skipped(edges):
+    built, at, created = edges
+    db, driver, generation, origin, _ = built
+    neighbor = created["SUPPLIES"][0]
+    with driver.session() as session:
+        session.run(
+            "MATCH (s:LineScopeEntity {generation:$generation,entity_type:'Equipment',entity_id:$origin}),"
+            "(t:LineScopeEntity {generation:$generation,entity_type:'Equipment',entity_id:$neighbor}) "
+            "CREATE (s)-[r:CONTROLS]->(t) SET r=$props",
+            generation=generation,
+            origin=origin,
+            neighbor=neighbor,
+            props={
+                "generation": generation,
+                "source_record_id": str(uuid4()),
+                "source_version": 1,
+                "active": True,
+                "required": False,
+                "effective_from": at,
+            },
+        ).consume()
+    with GraphAnalysisReader(db, driver).open(budget()) as read:
+        full = read.neighbors("Equipment", origin, direction="IMPACT", as_of=at, limit=20)
+        collected, after = [], None
+        for _ in range(4):
+            page = read.neighbors(
+                "Equipment", origin, direction="IMPACT", as_of=at, limit=1, after=after
+            )
+            collected.extend(page.edges)
+            if not page.has_more:
+                break
+            last = page.edges[-1]
+            after = (last["neighbor_type"], last["neighbor_id"], last["source_record_id"])
+    assert tuple(collected) == full.edges
+    assert len(collected) == 3
+    assert sum(item["neighbor_id"] == neighbor for item in collected) == 2
+
+
+@pytest.mark.parametrize(
+    "after", [(), ("Equipment",), ("BadType", "bad", "bad"), ["Equipment", "bad", "bad"]]
+)
+def test_invalid_continuation_rejected(edges, after):
+    built, at, _ = edges
+    db, driver, _, origin, _ = built
+    with GraphAnalysisReader(db, driver).open(budget()) as read, pytest.raises(ValueError):
+        read.neighbors("Equipment", origin, direction="IMPACT", as_of=at, limit=1, after=after)
+
+
 @pytest.mark.parametrize("limit", [0, -1, True])
 def test_invalid_limit_rejected_before_query(edges, limit):
     built, at, _ = edges

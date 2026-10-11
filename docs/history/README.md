@@ -5,6 +5,7 @@
 - [上限付きGraph到達探索の内部計算](2026-10-12-bounded-graph-reachability.md)：最短hop・決定的前駆・depth / node境界。公開Graph Toolへの接続は後続。
 - [Graph代表経路の内部復元と返却数上限](2026-10-12-graph-representative-paths.md)：前駆の整合検証、順序付き経路、PATH_COUNT。公開Evidenceへの接続は後続。
 - [Graph分析専用の時間budget](2026-10-12-graph-analysis-budget.md)：server timeout・期限境界とdriverへの残時間。公開ToolとTIMEOUT partialへの接続は後続。
+- [複数段Graph到達探索への接続](2026-10-12-graph-multihop-traversal.md)：隣接ページ取得からBFS・経路・関係事実への接続。公開Tool / Agent接続は後続。
 
 ## 2026-10-09
 
