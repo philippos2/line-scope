@@ -8,6 +8,7 @@ from ..persistence.core_outbox import (
     recover_expired_graph_events,
 )
 from .graph_locks import require_read_committed_transaction
+from .projection_failure import projection_failure
 
 
 class ProjectionQueue:
@@ -57,18 +58,9 @@ class ProjectionQueue:
         A stale/duplicate report returns False. Attempt count increments only
         on claim. A permanent failure or the last allowed attempt becomes DEAD.
         """
-        attempt = event["attempt_count"]
-        if type(permanent) is not bool or type(attempt) is not int or attempt < 1:
-            raise ValueError("Invalid Projection failure metadata")
-        dead = permanent or attempt >= self.max_attempts
-        code = (
-            "PROJECTION_PERMANENT_FAILURE"
-            if permanent
-            else "PROJECTION_ATTEMPTS_EXHAUSTED"
-            if dead
-            else "PROJECTION_TRANSIENT_FAILURE"
+        dead, code, delay = projection_failure(
+            event["attempt_count"], self.max_attempts, permanent=permanent
         )
-        delay = min(2 ** min(attempt - 1, 6), 60)
         leadership.require()
         with self.database.transaction() as connection:
             require_read_committed_transaction(connection)
