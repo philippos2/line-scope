@@ -15,6 +15,7 @@ from ..persistence.core_outbox import (
 )
 from .graph_locks import require_exclusive_graph_mutation_lock, require_read_committed_transaction
 from .neo4j_projection import GraphGenerationUnavailable
+from .postgres_timeout import postgres_budget_transaction
 from .projection_failure import projection_failure
 from .rebuild_control import RebuildControlRejected, RebuildTicket
 
@@ -39,7 +40,7 @@ class RebuildQueue:
             raise ValueError("An internal Rebuild ticket is required")
         leadership.require()
         require_exclusive_graph_mutation_lock(lock_connection)
-        with self.database.transaction() as connection:
+        with postgres_budget_transaction(self.database, leadership) as connection:
             require_read_committed_transaction(connection)
             state = read_rebuild_queue_state(connection, ticket)
             if state is None:
@@ -88,7 +89,7 @@ class RebuildQueue:
         started = monotonic()
         leadership.require()
         require_exclusive_graph_mutation_lock(lock_connection)
-        with self.database.transaction() as connection:
+        with postgres_budget_transaction(self.database, leadership) as connection:
             require_read_committed_transaction(connection)
             changed = fail_rebuild_graph_event(
                 connection, event, ticket, dead=dead, delay_seconds=delay, error_code=code
