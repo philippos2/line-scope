@@ -6,7 +6,7 @@ before further Graph work. This service never treats an adapter failure as
 APPLIED, never retries an external commit itself, and is not a Rebuild drain.
 """
 
-from .core_outbox import acknowledge_graph_application, read_graph_application
+from ..core_outbox import acknowledge_graph_application, read_graph_application
 from .graph_locks import acquire_graph_mutation_lock, require_read_committed_transaction
 from .projection_payload import ProjectionPayloadError, validate_projection_payload
 

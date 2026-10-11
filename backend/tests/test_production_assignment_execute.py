@@ -17,10 +17,10 @@ from linescope.assignments import normalize_operation_assignments
 from linescope.canonical import normalize_timestamp
 from linescope.database import Database
 from linescope.execute import HumanExecute
-from linescope.graph_locks import acquire_graph_mutation_lock
+from linescope.graph.graph_locks import acquire_graph_mutation_lock
+from linescope.graph.projection_payload import build_projection_payload
 from linescope.logging import EventLogger
 from linescope.production_assignment_execute import ASSIGNMENT, ProductionAssignmentExecute
-from linescope.projection_payload import build_projection_payload
 from linescope.proposals import ProposalError
 from linescope.settings import Settings
 

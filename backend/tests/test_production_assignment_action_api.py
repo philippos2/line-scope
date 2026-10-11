@@ -13,7 +13,7 @@ from test_production_schedule_api import client_for
 from test_production_schedule_approval import business, current
 
 from linescope.database import Database
-from linescope.graph_locks import acquire_graph_mutation_lock
+from linescope.graph.graph_locks import acquire_graph_mutation_lock
 from linescope.production_assignment_execute import ASSIGNMENT, ProductionAssignmentExecute
 from linescope.proposals import ProposalError
 

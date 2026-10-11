@@ -14,10 +14,10 @@ from test_dependency_prepare import service as dependency_fixture
 from test_production_prepare import identity
 
 from linescope.dependency_execute import DependencyExecute
-from linescope.graph_locks import acquire_graph_mutation_lock
+from linescope.graph.graph_locks import acquire_graph_mutation_lock
+from linescope.graph.projection_payload import build_projection_payload
+from linescope.graph.projection_state import ProjectionState
 from linescope.logging import EventLogger
-from linescope.projection_payload import build_projection_payload
-from linescope.projection_state import ProjectionState
 from linescope.proposals import ProposalError
 from linescope.relations import normalize_relation_set
 from linescope.settings import Settings

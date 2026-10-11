@@ -7,16 +7,16 @@ from uuid import UUID
 import psycopg
 import pytest
 from neo4j.exceptions import ClientError, ConfigurationError, ServiceUnavailable, TransientError
-from test_neo4j_projection import facts, seed_endpoints
-from test_neo4j_projection import graph as graph
-from test_neo4j_projection import graph_driver as graph_driver
-from test_outbox import events
-from test_projection_queue import queued as queued
 
-from linescope.graph_leadership import GraphLeadershipLost, graph_leadership
+from graph.test_neo4j_projection import facts, seed_endpoints
+from graph.test_neo4j_projection import graph as graph
+from graph.test_neo4j_projection import graph_driver as graph_driver
+from graph.test_outbox import events
+from graph.test_projection_queue import queued as queued
+from linescope.graph.graph_leadership import GraphLeadershipLost, graph_leadership
+from linescope.graph.projection_state import ProjectionState
+from linescope.graph.projection_worker import ProjectionWorker
 from linescope.logging import EventLogger, current_request_id
-from linescope.projection_state import ProjectionState
-from linescope.projection_worker import ProjectionWorker
 
 SECRET = "private-password-payload-sql"
 
@@ -251,7 +251,7 @@ def test_failure_persistence_fault_remains_unknown_and_recoverable(queued):
 
 
 def test_graph_commit_then_transient_ack_fault_retries_idempotently(graph, queued, monkeypatch):
-    from linescope import projection_application as module
+    from linescope.graph import projection_application as module
 
     db, _, _ = queued
     _, generation, adapter = graph
@@ -343,7 +343,7 @@ def test_changed_generation_is_fenced_without_inventing_retry_or_applied(graph, 
 
 @pytest.mark.parametrize("timeout", [30, 31])
 def test_real_adapter_timeout_must_fit_lease_before_any_connection(timeout):
-    from linescope.neo4j_projection import Neo4jProjection
+    from linescope.graph.neo4j_projection import Neo4jProjection
 
     with pytest.raises(ValueError, match="shorter"):
         ProjectionWorker(object(), Neo4jProjection(None, timeout_seconds=timeout))

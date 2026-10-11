@@ -7,7 +7,7 @@ from test_assignments import row as assignment
 from test_relation_snapshot import current as relation
 
 from linescope.canonical import canonical_hash, canonical_json
-from linescope.projection_payload import (
+from linescope.graph.projection_payload import (
     build_projection_payload,
     load_projection_payload,
     projection_payload_hash,

@@ -5,12 +5,12 @@ from uuid import UUID
 
 import psycopg
 import pytest
-from test_outbox import events
-from test_projection_queue import queued as queued
 
-from linescope.graph_leadership import graph_leadership
-from linescope.projection_queue import ProjectionQueue
-from linescope.projection_state import ProjectionState
+from graph.test_outbox import events
+from graph.test_projection_queue import queued as queued
+from linescope.graph.graph_leadership import graph_leadership
+from linescope.graph.projection_queue import ProjectionQueue
+from linescope.graph.projection_state import ProjectionState
 
 
 def event_row(db, identifier):

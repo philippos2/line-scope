@@ -6,13 +6,13 @@ from uuid import UUID
 
 import psycopg
 import pytest
-from test_outbox import events
-from test_projection_queue import queued as queued
 
+from graph.test_outbox import events
+from graph.test_projection_queue import queued as queued
 from linescope.database import Database
-from linescope.graph_leadership import GraphLeadershipLost, graph_leadership
-from linescope.graph_locks import acquire_graph_mutation_lock
-from linescope.projection_application import ProjectionApplication
+from linescope.graph.graph_leadership import GraphLeadershipLost, graph_leadership
+from linescope.graph.graph_locks import acquire_graph_mutation_lock
+from linescope.graph.projection_application import ProjectionApplication
 
 GENERATION = UUID(int=81)
 
@@ -249,7 +249,7 @@ def test_leadership_loss_after_adapter_prevents_ack(application):
 
 
 def test_acknowledgement_keeps_mutation_lock_until_commit(application, monkeypatch):
-    from linescope import projection_application as module
+    from linescope.graph import projection_application as module
 
     db, queue, service = application
     contender = Database(replace(db.settings, lock_ms=50, statement_ms=1000))
@@ -298,7 +298,7 @@ def test_lost_leadership_before_application_cannot_call_adapter(application):
 
 
 def test_lost_mutation_connection_after_adapter_prevents_ack(application, monkeypatch):
-    from linescope import projection_application as module
+    from linescope.graph import projection_application as module
 
     db, queue, service = application
     connections = []
@@ -318,7 +318,7 @@ def test_lost_mutation_connection_after_adapter_prevents_ack(application, monkey
 
 
 def test_leader_loss_before_ack_commit_rolls_back_applied(application, monkeypatch):
-    from linescope import projection_application as module
+    from linescope.graph import projection_application as module
 
     db, queue, service = application
     original = module.acknowledge_graph_application

@@ -10,8 +10,8 @@ import pytest
 from psycopg.pq import TransactionStatus
 
 from linescope.database import MIGRATION_LOCK, Database
-from linescope.graph_locks import GRAPH_MUTATION_LOCK, acquire_graph_mutation_lock
-from linescope.projection_state import ProjectionState
+from linescope.graph.graph_locks import GRAPH_MUTATION_LOCK, acquire_graph_mutation_lock
+from linescope.graph.projection_state import ProjectionState
 
 
 @pytest.fixture

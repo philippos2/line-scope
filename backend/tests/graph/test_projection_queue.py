@@ -4,13 +4,13 @@ from uuid import UUID
 
 import psycopg
 import pytest
-from test_outbox import events
-from test_outbox import world as saved_fixture
 
-from linescope.graph_leadership import GraphLeadershipLost, graph_leadership
-from linescope.graph_locks import acquire_graph_mutation_lock
-from linescope.outbox import enqueue_graph_target
-from linescope.projection_queue import ProjectionQueue
+from graph.test_outbox import events
+from graph.test_outbox import world as saved_fixture
+from linescope.graph.graph_leadership import GraphLeadershipLost, graph_leadership
+from linescope.graph.graph_locks import acquire_graph_mutation_lock
+from linescope.graph.outbox import enqueue_graph_target
+from linescope.graph.projection_queue import ProjectionQueue
 
 
 @pytest.fixture

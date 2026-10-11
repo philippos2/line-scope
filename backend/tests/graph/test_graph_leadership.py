@@ -7,13 +7,13 @@ import psycopg
 import pytest
 
 from linescope.database import MIGRATION_LOCK
-from linescope.graph_leadership import (
+from linescope.graph.graph_leadership import (
     GRAPH_LEADER_LOCK,
     GraphLeaderBusy,
     GraphLeadershipLost,
     graph_leadership,
 )
-from linescope.graph_locks import acquire_graph_mutation_lock
+from linescope.graph.graph_locks import acquire_graph_mutation_lock
 
 
 def test_competing_worker_and_controller_cannot_both_be_leader(db):
