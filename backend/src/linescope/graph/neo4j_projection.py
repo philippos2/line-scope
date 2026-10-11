@@ -10,6 +10,7 @@ from math import isfinite
 from ..domain.canonical import normalize_uuid
 from ..domain.relations import ENDPOINTS
 from .projection_payload import projection_payload_hash, validate_projection_payload
+from .transaction_timeout import neo4j_transaction_timeout
 
 SCHEMA = (
     "CREATE CONSTRAINT linescope_entity_identity IF NOT EXISTS "
@@ -70,7 +71,9 @@ class Neo4jProjection:
         leadership.require()
         # Explicit transaction: retry belongs to the PG Outbox lifecycle.
         with self.driver.session(database=self.database) as session:
-            with session.begin_transaction(timeout=self.timeout_seconds) as tx:
+            with session.begin_transaction(
+                timeout=neo4j_transaction_timeout(leadership, self.timeout_seconds)
+            ) as tx:
                 ready = tx.run(
                     "MATCH (g:LineScopeGeneration {generation:$generation,validated:true}) "
                     "RETURN g.generation AS generation,g.snapshot_hash AS hash",
