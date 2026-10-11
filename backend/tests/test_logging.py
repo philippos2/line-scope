@@ -13,8 +13,8 @@ from fastapi import Request
 from fastapi.testclient import TestClient
 from starlette.exceptions import HTTPException
 
-from linescope.api import create_app, response
-from linescope.http_logging import RequestMiddleware
+from linescope.interfaces.api import create_app, response
+from linescope.interfaces.http_logging import RequestMiddleware
 from linescope.logging import (
     EventLogger,
     configure_runtime_logging,

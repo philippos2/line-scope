@@ -58,7 +58,7 @@ def main():
     else:
         import uvicorn
 
-        from .api import create_app
+        from .interfaces.api import create_app
 
         events = EventLogger(settings.log_level)
         configure_runtime_logging(events)

@@ -418,3 +418,4 @@ Dockerで追加36テスト成功、ruff check / format、git diff --check成功�
 - [Persistence関連コード・テストの配置整理](2026-10-11-persistence-layout.md): DB接続・Coreクエリ・role管理の移動、対応テスト、migration配置の維持。
 - [業務検証・Snapshot関連の配置整理](2026-10-11-domain-layout.md): 純粋検証5モジュールと対応テスト、境界・依存方向を継続確認する作業規則。
 - [業務サービス関連の配置整理](2026-10-11-application-layout.md): Applicationの16モジュールと対応テスト、境界改善を別工程とする現状整理。
+- [API / Agent / LLM接続の配置整理](2026-10-11-api-agent-layout.md): 主要配置整理の区切り、本体とテストの対応、共通基盤と境界改善の残課題。

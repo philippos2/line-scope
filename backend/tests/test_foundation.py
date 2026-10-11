@@ -5,7 +5,7 @@ import psycopg
 import pytest
 from fastapi.testclient import TestClient
 
-from linescope.api import create_app
+from linescope.interfaces.api import create_app
 from linescope.settings import Settings
 
 
