@@ -1,6 +1,6 @@
-"""Initial/normal/absent-pointer Restore on an already owned leader session.
+"""Rebuild/Restore and abandoned-flag recovery on an owned leader session.
 
-No worker daemon, missing Graph behind a non-NULL pointer, crash recovery or CLI.
+No worker daemon, repair of missing Graph behind a non-NULL pointer or CLI.
 Failure never deletes old generations or assumes a cross-store rollback.
 """
 
@@ -47,6 +47,24 @@ class RebuildController:
         self.drain = RebuildDrain(_HeartbeatStep(self.control, step), clock=clock, wait=wait)
 
     def run(self, leadership):
+        """Start a new Rebuild; remaining ownership requires explicit recovery."""
+        return self._run(leadership, recovery=False)
+
+    def recover(self, leadership):
+        """Adopt a remaining flag only after PG and actual Graph verification."""
+        return self._run(leadership, recovery=True)
+
+    def _started(self, ticket):
+        self.logger.emit(
+            "rebuild.started",
+            component="rebuild",
+            outcome="success",
+            result_code="OK",
+            rebuild_id=ticket.rebuild_id,
+            graph_generation=ticket.previous_generation,
+        )
+
+    def _run(self, leadership, *, recovery):
         """Build a fresh generation, then publish only verified, drained state.
 
         Leader is acquired by caller before this method. The controller owns
@@ -57,22 +75,37 @@ class RebuildController:
         started = self.clock()
         guard = DeadlineLeadership(leadership, started + self.timeout_ms / 1000, self.clock)
         ticket = None
+        observed_ticket = None
         candidate = None
         with request_context(uuid4()):
             try:
-                ticket = self.control.begin(guard)
-                self.logger.emit(
-                    "rebuild.started",
-                    component="rebuild",
-                    outcome="success",
-                    result_code="OK",
-                    rebuild_id=ticket.rebuild_id,
-                    graph_generation=ticket.previous_generation,
-                )
+                if not recovery:
+                    ticket = self.control.begin(guard)
+                    self._started(ticket)
                 with self.database.transaction() as lock:
                     guard.require()
                     acquire_graph_mutation_lock(lock, shared=False)
                     guard.require()
+                    if recovery:
+                        observed = self.control.observe(guard, lock)
+                        observed_ticket = observed.recovery_ticket()
+                        old = observed_ticket
+                        proof = None
+                        if old.previous_generation is not None:
+                            proof = self.generation.observe_validation(
+                                generation=old.previous_generation, leadership=guard
+                            )
+                        guard.require()
+                        # Assign only the newly confirmed owner. A pre-adoption
+                        # failure must never clear or fail the abandoned ticket.
+                        ticket = self.control.resume(
+                            guard,
+                            lock,
+                            old,
+                            verified=proof,
+                            adapter=self.generation if proof is not None else None,
+                        )
+                        self._started(ticket)
                     if ticket.previous_generation is None:
                         observation = ProjectionState(self.database).observe(lock)
                         guard.require()
@@ -128,6 +161,7 @@ class RebuildController:
                         # Keep the original failure; do not reconnect or claim
                         # that failure state persisted without confirmation.
                         diagnostic = cleanup_error
+                diagnostic_ticket = ticket if ticket is not None else observed_ticket
                 self.logger.emit(
                     "rebuild.failed",
                     component="rebuild",
@@ -135,12 +169,12 @@ class RebuildController:
                     result_code="INTERNAL_ERROR",
                     level="ERROR",
                     error=diagnostic,
-                    rebuild_id=None if ticket is None else ticket.rebuild_id,
+                    rebuild_id=None if diagnostic_ticket is None else diagnostic_ticket.rebuild_id,
                     graph_generation=candidate
                     if candidate is not None
                     else None
-                    if ticket is None
-                    else ticket.previous_generation,
+                    if diagnostic_ticket is None
+                    else diagnostic_ticket.previous_generation,
                     duration_ms=max(0, int((self.clock() - started) * 1000)),
                 )
                 raise
