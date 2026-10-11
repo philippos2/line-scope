@@ -32,3 +32,18 @@ def acquire_graph_mutation_lock(connection, *, shared):
         "SELECT pg_advisory_xact_lock_shared(%s)" if shared else "SELECT pg_advisory_xact_lock(%s)"
     )
     connection.execute(statement, (GRAPH_MUTATION_LOCK,))
+
+
+def require_exclusive_graph_mutation_lock(connection):
+    """Verify an existing lock without acquiring/upgrading or ending it."""
+    require_read_committed_transaction(connection)
+    # PostgreSQL coordination query: verify the caller's existing xact lock,
+    # never silently acquire/upgrade one or end its transaction.
+    owned = connection.execute(
+        "SELECT EXISTS(SELECT 1 FROM pg_locks WHERE locktype='advisory' "
+        "AND pid=pg_backend_pid() AND classid=%s::oid AND objid=%s::oid "
+        "AND objsubid=1 AND mode='ExclusiveLock' AND granted) AS owned",
+        (GRAPH_MUTATION_LOCK >> 32, GRAPH_MUTATION_LOCK & 0xFFFFFFFF),
+    ).fetchone()["owned"]
+    if not owned:
+        raise ValueError("Rebuild requires the exclusive Graph mutation lock")
