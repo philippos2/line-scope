@@ -1,8 +1,10 @@
-"""Real PG/Neo4j initial and normal Rebuild lifecycle, plus failure boundaries."""
+"""Real PG/Neo4j Rebuild/Restore lifecycle, plus failure boundaries."""
 
 import io
 import json
+from copy import deepcopy
 from dataclasses import replace
+from datetime import UTC, datetime
 from uuid import UUID, uuid4
 
 import psycopg
@@ -16,10 +18,12 @@ from graph.test_projection_queue import queued as queued
 from graph.test_rebuild_control import row
 from graph.test_rebuild_drain import Clock
 from graph.test_rebuild_queue import world as world
+from linescope.application.dependency_execute import DependencyExecute
 from linescope.graph.graph_leadership import GraphLeadershipLost, graph_leadership
 from linescope.graph.graph_locks import acquire_graph_mutation_lock
 from linescope.graph.neo4j_generation import Neo4jGeneration
 from linescope.graph.neo4j_projection import Neo4jProjection, ProjectionIntegrityError
+from linescope.graph.projection_payload import projection_payload_hash
 from linescope.graph.projection_state import ProjectionState
 from linescope.graph.rebuild_control import RebuildControl, RebuildControlRejected
 from linescope.graph.rebuild_controller import RebuildController
@@ -68,6 +72,182 @@ def controller(db, adapters, **kwargs):
 def logs(output):
     assert SECRET not in output.getvalue()
     return [json.loads(line) for line in output.getvalue().splitlines()]
+
+
+@pytest.fixture
+def restore(queued):
+    db, saved, _ = queued
+    # Restore fixture represents committed business state and its pending
+    # Outbox. queued alone only stages the after-state event payloads.
+    with db.transaction() as c:
+        acquire_graph_mutation_lock(c, shared=False)
+        DependencyExecute._apply(
+            c, saved.update_request_id, saved.snapshot.data["targets"], datetime.now(UTC)
+        )
+        c.execute(
+            "UPDATE graph_projection_control SET active_generation=NULL,fatal_error='RESTORE_REQUIRED'"
+        )
+    return db
+
+
+@pytest.mark.parametrize("newer_source", [False, True])
+def test_restore_stages_drains_and_publishes_distinct_final_generation(
+    restore, adapters, monkeypatch, newer_source
+):
+    if newer_source:
+        with restore.transaction() as c:
+            c.execute("UPDATE dependency_relation SET version=version+1")
+    service, output = controller(restore, adapters)
+    build = adapters[1].build
+    stages = []
+
+    def inspect(**kwargs):
+        stages.append(kwargs["generation"])
+        if len(stages) == 1:
+            assert row(restore)["active_generation"] is None
+            assert all(event["status"] == "PENDING" for event in events(restore))
+        else:
+            assert row(restore)["active_generation"] == stages[0]
+            assert row(restore)["rebuild_flag"]
+            assert row(restore)["fatal_error"] == "RESTORE_REQUIRED"
+            assert ProjectionState(restore).observe().status == "REBUILDING"
+            assert all(event["status"] == "APPLIED" for event in events(restore))
+        return build(**kwargs)
+
+    monkeypatch.setattr(adapters[1], "build", inspect)
+    with graph_leadership(restore) as leader:
+        result = service.run(leader)
+    assert len(stages) == 2 and stages[0] != stages[1]
+    assert row(restore)["active_generation"] == stages[1] == UUID(result.generation)
+    assert ProjectionState(restore).observe().status == "CURRENT"
+    assert logs(output)[-1]["event_count"] == 3
+    expected = {str(event["aggregate_id"]): event for event in events(restore)}
+    with adapters[1].driver.session() as session:
+        markers = list(
+            session.run(
+                "MATCH (m:LineScopeProjectionMarker {generation:$g}) "
+                "WHERE m.aggregate_type='DependencyRelation' AND m.aggregate_id IN $ids "
+                "RETURN m.aggregate_id AS id,m.source_version AS version,m.payload_hash AS hash",
+                g=str(stages[0]),
+                ids=list(expected),
+            )
+        )
+    assert len(markers) == len(expected)
+    for marker in markers:
+        event = expected[marker["id"]]
+        source = deepcopy(event["payload"])
+        source["aggregate_version"] += int(newer_source)
+        source["state"]["version"] += int(newer_source)
+        assert marker["version"] == source["aggregate_version"]
+        assert marker["hash"] == projection_payload_hash(source)
+
+
+def test_restore_dead_never_builds_or_changes_events(restore, adapters, monkeypatch):
+    with restore.transaction() as c:
+        c.execute("UPDATE graph_outbox SET status='DEAD'")
+    before = events(restore)
+
+    def forbidden(**kwargs):
+        pytest.fail("DEAD must stop before a work generation is built")
+
+    monkeypatch.setattr(adapters[1], "build", forbidden)
+    service, output = controller(restore, adapters)
+    with graph_leadership(restore) as leader, pytest.raises(RebuildDrainStopped):
+        service.run(leader)
+    assert events(restore) == before
+    assert row(restore)["active_generation"] is None
+    assert row(restore)["fatal_error"] == "REBUILD_FAILED"
+    assert logs(output)[-1]["outcome"] == "failure"
+
+
+@pytest.mark.parametrize("fault", ["stage_verify", "drain", "final_build"])
+def test_restore_failure_preserves_committed_work_pointer_and_never_completes(
+    restore, adapters, monkeypatch, fault
+):
+    service, output = controller(restore, adapters)
+    builds = []
+    build = adapters[1].build
+
+    def track(**kwargs):
+        builds.append(kwargs["generation"])
+        if fault == "final_build" and len(builds) == 2:
+            raise ProjectionIntegrityError(SECRET)
+        return build(**kwargs)
+
+    def fail(*args, **kwargs):
+        raise ProjectionIntegrityError(SECRET)
+
+    monkeypatch.setattr(adapters[1], "build", track)
+    if fault == "stage_verify":
+        monkeypatch.setattr(adapters[1], "require_verified", fail)
+    elif fault == "drain":
+        monkeypatch.setattr(service.drain, "run", fail)
+    with graph_leadership(restore) as leader, pytest.raises(ProjectionIntegrityError):
+        service.run(leader)
+    saved = row(restore)
+    assert not saved["rebuild_flag"] and saved["fatal_error"] == "REBUILD_FAILED"
+    assert saved["active_generation"] == (None if fault == "stage_verify" else builds[0])
+    assert ProjectionState(restore).observe().status == "ERROR"
+    assert all(
+        event["status"] == ("APPLIED" if fault == "final_build" else "PENDING")
+        for event in events(restore)
+    )
+    assert logs(output)[-1]["outcome"] == "failure"
+    assert all(entry["event"] != "rebuild.completed" for entry in logs(output))
+    with restore.transaction() as c:
+        acquire_graph_mutation_lock(c, shared=True)
+
+
+def test_restore_poststage_leader_loss_retains_unknown_work_generation(
+    restore, adapters, monkeypatch
+):
+    service, output = controller(restore, adapters)
+    stage = service.control.stage_restore
+    with graph_leadership(restore) as leader:
+
+        def close(*args):
+            stage(*args)
+            leader._connection.close()
+            raise GraphLeadershipLost(SECRET)
+
+        monkeypatch.setattr(service.control, "stage_restore", close)
+        with pytest.raises(GraphLeadershipLost):
+            service.run(leader)
+    assert row(restore)["active_generation"] is not None
+    assert row(restore)["rebuild_flag"]
+    assert row(restore)["fatal_error"] == "RESTORE_REQUIRED"
+    assert all(event["status"] == "PENDING" for event in events(restore))
+    assert logs(output)[-1]["outcome"] == "unknown"
+
+
+@pytest.mark.parametrize("phase", ["work_build", "drain_wait"])
+def test_restore_shared_deadline_never_publishes_and_retires_current_ticket(
+    restore, adapters, monkeypatch, phase
+):
+    clock = Clock()
+    build = adapters[1].build
+
+    def expire(**kwargs):
+        result = build(**kwargs)
+        clock.now += 3
+        return result
+
+    if phase == "work_build":
+        monkeypatch.setattr(adapters[1], "build", expire)
+    else:
+        with restore.transaction() as c:
+            c.execute(
+                "UPDATE graph_outbox SET status='RETRYABLE',next_attempt_at=statement_timestamp()+interval '1 hour'"
+            )
+    before = events(restore)
+    service, output = controller(restore, adapters, timeout_ms=2500, clock=clock, wait=clock.wait)
+    with graph_leadership(restore) as leader, pytest.raises(RebuildDrainTimeout):
+        service.run(leader)
+    control = row(restore)
+    assert (control["active_generation"] is None) == (phase == "work_build")
+    assert not control["rebuild_flag"] and control["fatal_error"] == "REBUILD_FAILED"
+    assert events(restore) == before
+    assert logs(output)[-1]["outcome"] == "failure"
 
 
 def test_initial_rebuild_publishes_verified_empty_graph_and_logs_completion(empty, adapters):
