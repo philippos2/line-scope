@@ -7,7 +7,7 @@ from linescope.agent.agent_input import AgentInput
 from linescope.agent.read_agent import ReadAgent
 from linescope.application.reads import ReadResult, ToolError
 from linescope.application.tools import ToolDispatcher
-from linescope.integrations.llm import LLMReply, ToolCall
+from linescope.integrations.llm import LLMError, LLMReply, ToolCall
 
 
 class ScriptedLLM:
@@ -203,3 +203,21 @@ def test_unconnected_modes_are_not_silently_ignored(field, value):
         ReadAgent(Dispatcher(), llm).run(context(), incoming)
     assert error.value.code == "INVALID_ARGUMENT"
     assert not llm.requests
+
+
+@pytest.mark.parametrize(
+    "code", ["DEPENDENCY_UNAVAILABLE", "AGENT_LIMIT_REACHED", "INTERNAL_ERROR"]
+)
+def test_provider_failure_is_translated_without_tool_execution(code):
+    class FailedProvider:
+        def complete(self, messages, *, schemas, deadline):
+            raise LLMError(code, "Sanitized provider failure")
+
+    dispatcher = Dispatcher()
+    with pytest.raises(ToolError) as error:
+        ReadAgent(dispatcher, FailedProvider()).run(context(), request())
+    assert error.value.code == code
+    assert error.value.message == "Sanitized provider failure"
+    assert error.value.details == {}
+    assert isinstance(error.value.__cause__, LLMError)
+    assert dispatcher.calls == 0

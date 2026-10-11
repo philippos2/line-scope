@@ -7,12 +7,16 @@ from time import monotonic
 from urllib.parse import urlsplit
 from uuid import uuid4
 
-from ..application.reads import ToolError
 from ..domain.canonical import canonical_json, strict_json
 
 
-class LLMError(ToolError):
-    pass
+class LLMError(Exception):
+    """Provider failure; the caller translates it into its public error contract."""
+
+    def __init__(self, code, message):
+        super().__init__(message)
+        self.code = code
+        self.message = message
 
 
 @dataclass(frozen=True)

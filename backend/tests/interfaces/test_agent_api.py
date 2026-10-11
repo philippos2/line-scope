@@ -9,8 +9,7 @@ from fastapi.testclient import TestClient
 
 from linescope.agent.agent_input import AgentInput, ConversationStore
 from linescope.application.proposals import ProposalStore
-from linescope.application.reads import ToolError
-from linescope.integrations.llm import LLMReply, OllamaClient
+from linescope.integrations.llm import LLMError, LLMReply, OllamaClient
 from linescope.interfaces.api import create_app
 from linescope.settings import Settings
 
@@ -182,7 +181,7 @@ def test_replay_revalidates_request_role(seeded):
 def test_llm_failure_envelope(code, status):
     class Broken:
         def complete(self, *args, **kwargs):
-            raise ToolError(code, "Fixed diagnostic")
+            raise LLMError(code, "Fixed diagnostic")
 
     with TestClient(create_app(settings(), llm=Broken())) as client:
         result = client.post("/agent", json={"message": "query"}, headers=HEADERS)
