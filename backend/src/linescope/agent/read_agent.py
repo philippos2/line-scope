@@ -5,7 +5,7 @@ from time import monotonic
 
 from ..application.reads import ReadResult, ToolError
 from ..domain.canonical import canonical_json
-from ..integrations.llm import LLMReply
+from ..integrations.llm import LLMError, LLMReply
 from .agent_tools import AgentToolSession
 
 SYSTEM_PROMPT = """あなたはLineScopeの参照専用アシスタントです。
@@ -65,7 +65,10 @@ class ReadAgent:
             session.check_deadline()
             # Once all calls are consumed, permit only a final explanation.
             schemas = session.schemas() if session.calls < session.max_calls else {}
-            reply = self.llm.complete(messages, schemas=schemas, deadline=session.deadline)
+            try:
+                reply = self.llm.complete(messages, schemas=schemas, deadline=session.deadline)
+            except LLMError as error:
+                raise ToolError(error.code, error.message) from error
             session.check_deadline()
             if not isinstance(reply, LLMReply):
                 raise ToolError("INTERNAL_ERROR", "Invalid internal LLM reply")
