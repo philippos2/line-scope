@@ -1,9 +1,9 @@
 ---
-name: linescope-architecture-review
-description: LineScopeのrouter、application service、repository、adapter、PostgreSQL/Neo4j/Qdrantの責務境界や依存方向を変える設計・新component・refactoringをレビューする。配置だけの変更と契約変更を区別する。
+name: backend-architecture
+description: LineScopeバックエンドのrouter、application service、repository、adapter、PostgreSQL/Neo4j/Qdrantの責務境界や依存方向を変える設計・新component・refactoringをレビューする。配置だけの変更と契約変更を区別する。
 ---
 
-# LineScope Architecture Review
+# LineScope Backend Architecture Review
 
 一般的なPattern名を先に当てはめない。
 

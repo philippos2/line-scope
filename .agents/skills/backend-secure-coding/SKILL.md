@@ -1,9 +1,9 @@
 ---
-name: linescope-secure-coding
-description: LineScopeのauthorization、role、Trusted Execution Context、Tool argument、SQL/Cypher、LLM/RAG入力、secret、DB role、外部error responseに関係する実装・変更・security reviewを検証する。
+name: backend-secure-coding
+description: LineScopeバックエンドのauthorization、role、Trusted Execution Context、Tool argument、SQL/Cypher、LLM/RAG入力、secret、DB role、外部error responseに関係する実装・変更・security reviewを検証する。
 ---
 
-# LineScope Secure Coding
+# LineScope Backend Secure Coding
 
 入力からauthority/SQL/出力へ至るdata flowを確認し、文字列操作の存在だけで脆弱性と断定しない。
 
