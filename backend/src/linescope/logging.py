@@ -144,8 +144,8 @@ def _fields(values):
             result[key] = value
         elif key == "tool" and type(value) is str:
             # Resolve lazily: the Tool registry also uses the logging boundary.
-            from .reads import SCHEMAS
-            from .tools import PREPARE_CATEGORIES
+            from .application.reads import SCHEMAS
+            from .application.tools import PREPARE_CATEGORIES
 
             if value in SCHEMAS or value in PREPARE_CATEGORIES:
                 result[key] = value

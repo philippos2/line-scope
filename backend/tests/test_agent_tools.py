@@ -1,11 +1,11 @@
 from uuid import UUID
 
 import pytest
-from test_proposals import NOW, context
+from application.test_proposals import NOW, context
 
 from linescope.agent_input import AgentInput
 from linescope.agent_tools import AgentToolSession
-from linescope.reads import ReadResult, ToolError
+from linescope.application.reads import ReadResult, ToolError
 
 PREPARE = "prepare_equipment_state_update"
 
@@ -144,9 +144,9 @@ def test_invalid_budget_configuration(kwargs):
 
 
 def test_saved_prepare_is_preserved_if_deadline_expires(db):
-    from test_proposals import PREPARE_HASH, snapshot
+    from application.test_proposals import PREPARE_HASH, snapshot
 
-    from linescope.proposals import ProposalStore
+    from linescope.application.proposals import ProposalStore
 
     db.migrate()
     now = [0]
@@ -181,7 +181,7 @@ def test_saved_prepare_is_preserved_if_deadline_expires(db):
 
 
 def test_real_dispatcher_read_and_prepare_keep_business_state_unchanged(db):
-    from linescope.tools import ToolDispatcher
+    from linescope.application.tools import ToolDispatcher
 
     db.migrate()
     with db.transaction() as connection:

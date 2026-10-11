@@ -5,15 +5,15 @@ from datetime import datetime, timedelta
 from uuid import UUID
 
 import pytest
+from application.test_maintenance_prepare import identity, prepare, update
+from application.test_maintenance_prepare import service as maintenance_fixture
+from application.test_production_prepare import prepare as prepare_production
+from application.test_production_prepare import service as production_fixture
 from fastapi.testclient import TestClient
-from test_maintenance_prepare import identity, prepare, update
-from test_maintenance_prepare import service as maintenance_fixture
-from test_production_prepare import prepare as prepare_production
-from test_production_prepare import service as production_fixture
 
 from linescope.api import create_app
+from linescope.application.proposals import ProposalStore
 from linescope.logging import EventLogger
-from linescope.proposals import ProposalStore
 from linescope.settings import Settings
 
 

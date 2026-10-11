@@ -5,12 +5,12 @@ from uuid import uuid4
 
 import psycopg
 import pytest
-from test_execute import approved as approved_equipment
-from test_proposals import context
+from application.test_execute import approved as approved_equipment
+from application.test_proposals import context
 
-from linescope.execute import EquipmentExecute
+from linescope.application.execute import EquipmentExecute
+from linescope.application.proposals import ProposalError, ProposalStore
 from linescope.logging import EventLogger
-from linescope.proposals import ProposalError, ProposalStore
 from linescope.settings import Settings
 
 

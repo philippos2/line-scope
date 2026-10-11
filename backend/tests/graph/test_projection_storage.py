@@ -6,12 +6,12 @@ from uuid import UUID, uuid4
 
 import psycopg
 import pytest
+from application.test_dependency_prepare import prepare
+from application.test_dependency_prepare import service as dependency_fixture
 from psycopg.types.json import Jsonb
-from test_dependency_prepare import prepare
-from test_dependency_prepare import service as dependency_fixture
 
+from linescope.application.reads import ToolError
 from linescope.graph.projection_state import ProjectionState
-from linescope.reads import ToolError
 
 
 @pytest.fixture

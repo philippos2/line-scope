@@ -4,9 +4,9 @@ from dataclasses import dataclass
 from time import monotonic
 
 from .agent_tools import AgentToolSession
+from .application.reads import ReadResult, ToolError
 from .domain.canonical import canonical_json
 from .llm import LLMReply
-from .reads import ReadResult, ToolError
 
 SYSTEM_PROMPT = """あなたはLineScopeの参照専用アシスタントです。
 利用者の質問に必要な情報を公開されたRead Toolsで取得し、日本語で説明してください。

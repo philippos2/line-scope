@@ -4,18 +4,21 @@ from dataclasses import replace
 from uuid import UUID
 
 import pytest
+from application.test_production_assignment_execute import assert_committed
+from application.test_production_assignment_prepare import END, NEW_END, START, prepare, target
+from application.test_production_assignment_prepare import service as production_fixture
+from application.test_production_schedule_approval import business, current
 from test_maintenance_plan_approval_api import act, headers
 from test_maintenance_record_create_api import execute
-from test_production_assignment_execute import assert_committed
-from test_production_assignment_prepare import END, NEW_END, START, prepare, target
-from test_production_assignment_prepare import service as production_fixture
 from test_production_schedule_api import client_for
-from test_production_schedule_approval import business, current
 
+from linescope.application.production_assignment_execute import (
+    ASSIGNMENT,
+    ProductionAssignmentExecute,
+)
+from linescope.application.proposals import ProposalError
 from linescope.graph.graph_locks import acquire_graph_mutation_lock
 from linescope.persistence.database import Database
-from linescope.production_assignment_execute import ASSIGNMENT, ProductionAssignmentExecute
-from linescope.proposals import ProposalError
 
 
 @pytest.fixture

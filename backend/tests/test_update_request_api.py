@@ -1,8 +1,8 @@
 from uuid import uuid4
 
 import pytest
+from application.test_proposals import category_snapshot, context, save
 from fastapi.testclient import TestClient
-from test_proposals import category_snapshot, context, save
 
 from linescope.api import create_app
 from linescope.settings import Settings
@@ -11,7 +11,7 @@ from linescope.settings import Settings
 @pytest.fixture
 def stored(db):
     db.migrate()
-    from linescope.proposals import ProposalStore
+    from linescope.application.proposals import ProposalStore
 
     return db, ProposalStore(db)
 
@@ -104,7 +104,7 @@ def test_approved_times_and_snapshot_remain_stored_facts(stored):
     from datetime import timedelta
     from uuid import UUID
 
-    from test_proposals import NOW
+    from application.test_proposals import NOW
 
     db, store = stored
     saved = save(store)
@@ -182,9 +182,9 @@ def test_storage_failure_envelope_is_sanitized(kind, code):
 def test_effective_status_expiry_boundary(offset, expected):
     from datetime import timedelta
 
-    from test_proposals import NOW
+    from application.test_proposals import NOW
 
-    from linescope.proposals import _effective_status
+    from linescope.application.proposals import _effective_status
 
     assert _effective_status("APPROVED", NOW, NOW + timedelta(microseconds=offset)) == expected
 
@@ -193,9 +193,9 @@ def test_effective_status_expiry_boundary(offset, expected):
     "status", ["WAITING_APPROVAL", "COMPLETED", "REJECTED", "EXPIRED", "INVALIDATED", "FAILED"]
 )
 def test_effective_status_preserves_other_states(status):
-    from test_proposals import NOW
+    from application.test_proposals import NOW
 
-    from linescope.proposals import _effective_status
+    from linescope.application.proposals import _effective_status
 
     assert _effective_status(status, NOW, NOW) == status
 
@@ -203,7 +203,7 @@ def test_effective_status_preserves_other_states(status):
 def test_expired_approval_is_display_only(stored):
     from datetime import timedelta
 
-    from test_proposals import NOW
+    from application.test_proposals import NOW
 
     db, store = stored
     saved = save(store)
