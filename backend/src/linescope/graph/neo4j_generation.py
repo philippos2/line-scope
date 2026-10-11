@@ -40,6 +40,39 @@ class GenerationValidation:
     validated_at: datetime
 
 
+def read_generation_validation(tx, generation):
+    """Fixed marker read in the caller-owned transaction; never commit it."""
+    markers = list(
+        tx.run(
+            "MATCH (g:LineScopeGeneration {generation:$generation}) "
+            "RETURN g.validated AS validated,g.snapshot_hash AS hash,g.validated_at AS at "
+            "LIMIT 2",
+            generation=generation,
+        )
+    )
+    if len(markers) > 1:
+        raise ProjectionIntegrityError("Ambiguous generation validation marker")
+    if not markers or markers[0]["validated"] is not True or markers[0]["at"] is None:
+        raise GraphGenerationUnavailable("Verified Graph generation is unavailable")
+    marker = markers[0]
+    validated_at = marker["at"]
+    validated_at = validated_at.to_native() if hasattr(validated_at, "to_native") else validated_at
+    if (
+        not isinstance(validated_at, datetime)
+        or validated_at.tzinfo is None
+        or validated_at.utcoffset() is None
+    ):
+        raise ProjectionIntegrityError("Invalid generation validation time")
+    digest = marker["hash"]
+    if (
+        type(digest) is not str
+        or len(digest) != 64
+        or any(c not in "0123456789abcdef" for c in digest)
+    ):
+        raise ProjectionIntegrityError("Invalid generation Snapshot hash")
+    return GenerationValidation(generation, digest, validated_at.astimezone(timezone.utc))
+
+
 def _properties(values):
     # Neo4j omits null properties; compare their actual physical representation.
     return {
@@ -79,40 +112,11 @@ class Neo4jGeneration:
             with session.begin_transaction(
                 timeout=neo4j_transaction_timeout(leadership, self.timeout_seconds)
             ) as tx:
-                markers = list(
-                    tx.run(
-                        "MATCH (g:LineScopeGeneration {generation:$generation}) "
-                        "RETURN g.validated AS validated,g.snapshot_hash AS hash,g.validated_at AS at "
-                        "LIMIT 2",
-                        generation=generation,
-                    )
-                )
-                if len(markers) > 1:
-                    raise ProjectionIntegrityError("Ambiguous generation validation marker")
-                if not markers or markers[0]["validated"] is not True or markers[0]["at"] is None:
-                    raise GraphGenerationUnavailable("Verified Graph generation is unavailable")
-                marker = markers[0]
-                validated_at = marker["at"]
-                validated_at = (
-                    validated_at.to_native() if hasattr(validated_at, "to_native") else validated_at
-                )
-                if (
-                    not isinstance(validated_at, datetime)
-                    or validated_at.tzinfo is None
-                    or validated_at.utcoffset() is None
-                ):
-                    raise ProjectionIntegrityError("Invalid generation validation time")
-                digest = marker["hash"]
-                if (
-                    type(digest) is not str
-                    or len(digest) != 64
-                    or any(c not in "0123456789abcdef" for c in digest)
-                ):
-                    raise ProjectionIntegrityError("Invalid generation Snapshot hash")
+                validation = read_generation_validation(tx, generation)
                 leadership.require()
                 tx.commit()
         leadership.require()
-        return GenerationValidation(generation, digest, validated_at.astimezone(timezone.utc))
+        return validation
 
     def build(self, *, generation, snapshot, leadership):
         generation = normalize_uuid(generation)
