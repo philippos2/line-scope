@@ -13,7 +13,7 @@ from ..persistence.core_rebuild import (
     stage_restore_generation,
 )
 from .graph_locks import require_exclusive_graph_mutation_lock
-from .neo4j_generation import VerifiedGeneration
+from .neo4j_generation import GenerationValidation, VerifiedGeneration
 
 
 class RebuildControlRejected(RuntimeError):
@@ -162,7 +162,7 @@ class RebuildControl:
         require_exclusive_graph_mutation_lock(lock_connection)
         if ticket.previous_generation is not None:
             if (
-                not isinstance(verified, VerifiedGeneration)
+                not isinstance(verified, (VerifiedGeneration, GenerationValidation))
                 or UUID(verified.generation) != ticket.previous_generation
                 or adapter is None
             ):
