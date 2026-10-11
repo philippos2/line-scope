@@ -110,6 +110,8 @@ Neo4jはsource_versionで古いイベントを拒否し、同version再適用は
 
 ## 9. Projection失敗
 
+通常workerは、保存payloadのschema / 正規化 / aggregate不一致とmarker整合性不正をイベントの恒久不正として扱う。Neo4j driverがretryableとする障害、generation未検証 / 不在、PostgreSQLの接続・lock / statement timeout等の一時障害は再試行対象とする。再試行不可のdriver設定 / query異常、未知の例外、leader喪失はworkerを停止し、イベントを恒久不正と推測してDEADへ変更しない。確定できないPROCESSINGは後続のlease回収対象とし、APPLIEDや失敗保存成功を断定しない。ERROR / REBUILDINGの間は通常workerのclaimを開始せず、初期化・復旧待ちの間にattemptを消費しない。
+
 一時障害:
 - RETRYABLE
 - exponential backoff

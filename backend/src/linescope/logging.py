@@ -108,6 +108,10 @@ ENUM_FIELDS = {
         "EXPIRED",
         "INVALIDATED",
         "FAILED",
+        "PROCESSING",
+        "APPLIED",
+        "RETRYABLE",
+        "DEAD",
     },
 }
 ENUM_FIELDS["after_status"] = ENUM_FIELDS["before_status"]

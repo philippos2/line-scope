@@ -200,12 +200,17 @@ def recover_expired_graph_events(connection, lease_seconds):
             next_attempt_at=now,
             last_error="PROJECTION_LEASE_EXPIRED",
         )
-        .returning(_outbox.c.outbox_id)
+        .returning(
+            _outbox.c.outbox_id,
+            _outbox.c.update_request_id,
+            _outbox.c.aggregate_type,
+            _outbox.c.aggregate_id,
+            _outbox.c.aggregate_version,
+            _outbox.c.attempt_count,
+        )
     )
     compiled = statement.compile(dialect=dialect())
-    return [
-        row["outbox_id"] for row in connection.execute(str(compiled), compiled.params).fetchall()
-    ]
+    return connection.execute(str(compiled), compiled.params).fetchall()
 
 
 def _application_conditions(event, lease_seconds, generation=None):

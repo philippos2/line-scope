@@ -99,7 +99,12 @@ class Neo4jProjection:
                         or any(c not in "0123456789abcdef" for c in marker["hash"])
                     ):
                         raise ProjectionIntegrityError("Invalid Projection marker hash")
-                    normalize_uuid(marker["outbox_id"])
+                    try:
+                        normalize_uuid(marker["outbox_id"])
+                    except ValueError as error:
+                        raise ProjectionIntegrityError(
+                            "Invalid Projection marker source"
+                        ) from error
                 if version == payload["aggregate_version"] and marker["hash"] != digest:
                     raise ProjectionIntegrityError(
                         "Same version has a different Projection payload"
