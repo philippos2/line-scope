@@ -408,3 +408,7 @@ Dockerで追加36テスト成功、ruff check / format、git diff --check成功�
 ## 実Neo4j Projection adapter
 
 [markerのversion / hash比較とatomic edge置換](2026-10-11-neo4j-projection-adapter.md)に、Cypherのparameter境界・実Neo4j / PostgreSQLの再送試験と未実装の運用構成を記録する。
+
+## Projection workerの1件処理・失敗分類
+
+[claimから適用・再試行・DEADへの接続](2026-10-11-projection-worker-step.md)に、同期状態gate・例外分類・構造化ログ・実DB再送試験と常駐運用の未実装範囲を記録する。

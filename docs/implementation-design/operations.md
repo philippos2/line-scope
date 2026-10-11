@@ -168,7 +168,7 @@ HTTPのrequest_idは受信ごとに新しく生成し、Response Envelopeと運�
 
 context_idは複数ターン、update_request_id / approval_idは変更準備から承認・実行、outbox_id / graph_generationは反映・分析を結ぶ。retryではrequest_idを使い回さず、同じ業務IDと試行番号で関連付ける。context_id・retry key・request_idを権限や冪等性の根拠として混同しない。prepare_retry_key / idempotency_keyの生値はログへ追加せず、保存されたUpdateRequest IDで追跡する。
 
-workerは新しい実行request_idとoutbox_id / update_request_idを記録する。元HTTPとの関係は業務IDと監査を経由して追えるようにし、未保存の元request_idを推測しない。Graph結果はgenerationと観測時刻、経済分析は入力観測時刻と評価期間を区別する。
+workerは新しい実行request_idとoutbox_id / update_request_idを記録する。同期状態確認だけでBLOCKED / IDLEとなった場合は架空のattempt完了ログを出さない。lease回収は実際にRETRYABLEをcommitした行、上限済みclaimの退役は実際にDEADをcommitした行だけを記録する。元HTTPとの関係は業務IDと監査を経由して追えるようにし、未保存の元request_idを推測しない。Graph結果はgenerationと観測時刻、経済分析は入力観測時刻と評価期間を区別する。
 
 ### 13.4 レベルとイベント
 
@@ -181,7 +181,7 @@ workerは新しい実行request_idとoutbox_id / update_request_idを記録す�
 | proposal.saved / replayed / replaced | commit後INFO | 要求・承認ID、hash、旧要求ID（replaced時）、replayed |
 | approval.completed / execute.completed | commit後INFO、拒否はINFO | 主体、要求・承認ID、前後状態、code |
 | execution.outcome_unknown | ERROR。commit結果を確認できないとき | 要求ID、code。成功／rollbackを断定しない |
-| projection.attempt.completed / retry_scheduled | 成功INFO、再試行WARNING | Outbox / aggregate ID・version、attempt_count、code、duration_ms |
+| projection.attempt.completed / retry_scheduled | 成功INFO、再試行・lease回収・再検証拒否WARNING、予期しない障害はERROR | Outbox / aggregate ID・version、attempt_count、code、duration_ms |
 | projection.dead | ERROR | 同上。fatalな詳細は秘匿して固定code |
 | rebuild.started / completed / failed | 開始・完了INFO、失敗ERROR | rebuild_id、generation、件数、duration_ms（終了時） |
 | audit.persist_failed | ERROR | 関連要求ID、code。監査欠落を正常記録と扱わない |

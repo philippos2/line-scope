@@ -8,7 +8,7 @@ APPLIED, never retries an external commit itself, and is not a Rebuild drain.
 
 from .core_outbox import acknowledge_graph_application, read_graph_application
 from .graph_locks import acquire_graph_mutation_lock, require_read_committed_transaction
-from .projection_payload import validate_projection_payload
+from .projection_payload import ProjectionPayloadError, validate_projection_payload
 
 
 class ProjectionApplication:
@@ -41,7 +41,7 @@ class ProjectionApplication:
                 or payload["aggregate_id"] != str(saved["aggregate_id"])
                 or payload["aggregate_version"] != saved["aggregate_version"]
             ):
-                raise ValueError("Projection payload disagrees with saved aggregate")
+                raise ProjectionPayloadError("Projection payload disagrees with saved aggregate")
             leadership.require()
             adapter.apply(
                 generation=saved["active_generation"],
