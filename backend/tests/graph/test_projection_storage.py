@@ -215,7 +215,7 @@ def test_upgrade_preserves_existing_requests_and_has_no_fabricated_events(db):
             if p.name.endswith(".sql") and p.name < "006"
         ]
     )
-    from test_update_request_schema import insert_request, insert_target
+    from persistence.test_update_request_schema import insert_request, insert_target
 
     with db.transaction() as c:
         request = insert_request(c)

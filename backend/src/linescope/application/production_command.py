@@ -1,9 +1,9 @@
 """Server-bound schedule-only Prepare from explicit original-message values."""
 
-from ..agent_input import AgentInput
-from ..agent_tools import AgentToolSession
+from ..agent.agent_input import AgentInput
+from ..agent.agent_tools import AgentToolSession
+from ..agent.update_intent import production_schedule_command
 from ..execution import ExecutionContext
-from ..update_intent import production_schedule_command
 from .proposals import REQUEST_ROLES, ProposalError, ProposalStore
 from .reads import ToolError
 from .tools import ToolDispatcher

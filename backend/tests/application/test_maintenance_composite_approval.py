@@ -4,7 +4,7 @@ from concurrent.futures import ThreadPoolExecutor
 from uuid import UUID
 
 import pytest
-from test_maintenance_plan_approval_api import act, client_for, current, headers
+from interfaces.test_maintenance_plan_approval_api import act, client_for, current, headers
 
 from application.test_maintenance_prepare import create_plan, create_record, prepare, update
 from application.test_maintenance_prepare import service as maintenance_fixture

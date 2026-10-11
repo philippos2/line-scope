@@ -4,16 +4,16 @@ import io
 from uuid import UUID
 
 import pytest
+from agent.test_read_agent import ScriptedLLM, call
 from fastapi.testclient import TestClient
+from interfaces.test_agent_api import HEADERS, settings
 from psycopg import sql
-from test_agent_api import HEADERS, settings
-from test_read_agent import ScriptedLLM, call
 
 from application.test_search_reads import identity
 from application.test_search_reads import search_world as search_fixture
-from linescope.api import create_app
 from linescope.application.reads import ReadTools, ToolError
-from linescope.llm import LLMReply
+from linescope.integrations.llm import LLMReply
+from linescope.interfaces.api import create_app
 from linescope.logging import EventLogger
 
 ATTACKS = ["' OR 1=1 --", "'; DROP TABLE equipment; --"]
@@ -118,8 +118,8 @@ def test_sql_and_identifier_injection_arguments_are_rejected(world, tool, argume
 def test_untrusted_plan_code_survives_prepare_human_execute_and_reread(db, attack):
     from uuid import uuid4
 
-    from test_maintenance_plan_approval_api import act, client_for
-    from test_maintenance_plan_create_api import execute
+    from interfaces.test_maintenance_plan_approval_api import act, client_for
+    from interfaces.test_maintenance_plan_create_api import execute
 
     from application.test_maintenance_prepare import AGENT_HASH, create_plan
     from application.test_maintenance_prepare import identity as maintenance_identity
@@ -197,8 +197,8 @@ def test_untrusted_plan_code_survives_prepare_human_execute_and_reread(db, attac
 def test_untrusted_record_text_survives_human_execution(db, attack, field):
     from uuid import uuid4
 
-    from test_maintenance_plan_approval_api import act, client_for
-    from test_maintenance_record_create_api import execute
+    from interfaces.test_maintenance_plan_approval_api import act, client_for
+    from interfaces.test_maintenance_record_create_api import execute
 
     from application.test_maintenance_prepare import AGENT_HASH, create_record
     from application.test_maintenance_prepare import identity as maintenance_identity
