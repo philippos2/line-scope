@@ -426,3 +426,5 @@ Dockerで追加36テスト成功、ruff check / format、git diff --check成功�
 - [Neo4j generation構築・検証](2026-10-11-neo4j-generation-build.md): Snapshot照合後のvalidated marker、初回seedの出所、atomic rollbackとcontroller未実装範囲。
 - [Rebuild control遷移・公開のfence](2026-10-11-rebuild-control-transitions.md): 開始・失敗・検証済み世代公開、Outbox全状態gate、stale報告拒否と復旧未実装範囲。
 - [Rebuild専用Outbox claim・lease回収](2026-10-11-rebuild-outbox-queue.md): 所有gate、DEAD停止・WAITING / DRAINED区別、通常workerと共通の状態遷移。
+
+- [Rebuild Outbox適用とAPPLIED確認](2026-10-11-rebuild-projection-application.md)

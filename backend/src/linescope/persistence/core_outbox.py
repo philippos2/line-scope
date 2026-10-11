@@ -222,7 +222,7 @@ def _recover_expired_graph_events(connection, lease_seconds, control_condition):
     return connection.execute(str(compiled), compiled.params).fetchall()
 
 
-def _application_conditions(event, lease_seconds, generation=None):
+def _application_conditions(event, lease_seconds, generation=None, *, control_condition=None):
     dead = _outbox.alias("dead_events")
     control = select(_control.c.control_id).where(
         _control.c.control_id == 1,
@@ -240,13 +240,17 @@ def _application_conditions(event, lease_seconds, generation=None):
         _outbox.c.processing_started_at
         > func.statement_timestamp()
         - bindparam("lease", timedelta(seconds=lease_seconds), type_=INTERVAL()),
-        control.exists(),
+        control.exists() if control_condition is None else control_condition,
         ~select(dead.c.outbox_id).where(dead.c.status == "DEAD").exists(),
     )
 
 
 def read_graph_application(connection, event, lease_seconds):
     """Read the saved attempt and generation in one snapshot, without row locks."""
+    return _read_graph_application(connection, event, lease_seconds)
+
+
+def _read_graph_application(connection, event, lease_seconds, *, control_condition=None):
     statement = (
         select(
             _outbox.c.outbox_id,
@@ -257,7 +261,7 @@ def read_graph_application(connection, event, lease_seconds):
             _control.c.active_generation,
         )
         .select_from(_outbox.join(_control, _control.c.control_id == 1))
-        .where(*_application_conditions(event, lease_seconds))
+        .where(*_application_conditions(event, lease_seconds, control_condition=control_condition))
     )
     compiled = statement.compile(dialect=dialect())
     return connection.execute(str(compiled), compiled.params).fetchone()
@@ -265,9 +269,19 @@ def read_graph_application(connection, event, lease_seconds):
 
 def acknowledge_graph_application(connection, event, lease_seconds, generation):
     """Acknowledge only a still-live exact attempt in the same generation."""
+    return _acknowledge_graph_application(connection, event, lease_seconds, generation)
+
+
+def _acknowledge_graph_application(
+    connection, event, lease_seconds, generation, *, control_condition=None
+):
     statement = (
         update(_outbox)
-        .where(*_application_conditions(event, lease_seconds, generation))
+        .where(
+            *_application_conditions(
+                event, lease_seconds, generation, control_condition=control_condition
+            )
+        )
         .values(
             status="APPLIED",
             processed_at=func.statement_timestamp(),
@@ -321,3 +335,20 @@ def claim_rebuild_graph_event(connection, ticket, max_attempts):
 
 def recover_expired_rebuild_graph_events(connection, ticket, lease_seconds):
     return _recover_expired_graph_events(connection, lease_seconds, _rebuild_claim_gate(ticket))
+
+
+def read_rebuild_graph_application(connection, event, lease_seconds, ticket):
+    return _read_graph_application(
+        connection, event, lease_seconds, control_condition=_rebuild_claim_gate(ticket)
+    )
+
+
+def acknowledge_rebuild_graph_application(connection, event, lease_seconds, generation, ticket):
+    gate = (
+        select(_control.c.control_id)
+        .where(*_rebuild_queue_conditions(ticket), _control.c.active_generation == generation)
+        .exists()
+    )
+    return _acknowledge_graph_application(
+        connection, event, lease_seconds, generation, control_condition=gate
+    )
