@@ -1,5 +1,6 @@
 """Fenced Rebuild lifecycle primitives, not a complete controller or drain loop."""
 
+from contextlib import contextmanager
 from dataclasses import dataclass
 from uuid import UUID, uuid4
 
@@ -14,6 +15,7 @@ from ..persistence.core_rebuild import (
 )
 from .graph_locks import require_exclusive_graph_mutation_lock
 from .neo4j_generation import GenerationValidation, VerifiedGeneration
+from .postgres_timeout import cap_postgres_transaction
 
 
 class RebuildControlRejected(RuntimeError):
@@ -47,7 +49,7 @@ class RebuildControl:
         """Observation is not ownership; resume must still compare the old fence."""
         leadership.require()
         require_exclusive_graph_mutation_lock(lock_connection)
-        with self.database.transaction() as connection:
+        with self._transaction(leadership) as connection:
             state = observe_rebuild(connection)
             if state is None:
                 raise RebuildControlRejected("Rebuild control is absent")
@@ -64,7 +66,7 @@ class RebuildControl:
 
     def begin(self, leadership):
         leadership.require()
-        with self.database.transaction() as connection:
+        with self._transaction(leadership) as connection:
             rebuild_id = uuid4()
             previous = begin_rebuild(connection, rebuild_id)
             if previous is None:
@@ -90,7 +92,7 @@ class RebuildControl:
         )
         leadership.require()
         require_exclusive_graph_mutation_lock(lock_connection)
-        with self.database.transaction() as connection:
+        with self._transaction(leadership) as connection:
             if not publish_rebuild(connection, ticket, generation):
                 raise RebuildControlRejected("Rebuild is stale or Outbox is not drained")
             require_exclusive_graph_mutation_lock(lock_connection)
@@ -110,7 +112,7 @@ class RebuildControl:
         self._ticket(ticket)
         leadership.require()
         require_exclusive_graph_mutation_lock(lock_connection)
-        with self.database.transaction() as connection:
+        with self._transaction(leadership) as connection:
             if not heartbeat_rebuild(connection, ticket):
                 raise RebuildControlRejected("Rebuild heartbeat ownership is stale")
             require_exclusive_graph_mutation_lock(lock_connection)
@@ -140,7 +142,7 @@ class RebuildControl:
         )
         leadership.require()
         require_exclusive_graph_mutation_lock(lock_connection)
-        with self.database.transaction() as connection:
+        with self._transaction(leadership) as connection:
             if not stage_restore_generation(connection, ticket, generation):
                 raise RebuildControlRejected("Restore is stale, DEAD or has no undrained events")
             require_exclusive_graph_mutation_lock(lock_connection)
@@ -177,13 +179,22 @@ class RebuildControl:
         leadership.require()
         require_exclusive_graph_mutation_lock(lock_connection)
         rebuild_id = uuid4()
-        with self.database.transaction() as connection:
+        with self._transaction(leadership) as connection:
             if not resume_rebuild(connection, ticket, rebuild_id):
                 raise RebuildControlRejected("Recovery ownership or publication state changed")
             require_exclusive_graph_mutation_lock(lock_connection)
             leadership.require()
         leadership.require()
         return RebuildTicket(rebuild_id, ticket.previous_generation)
+
+    @contextmanager
+    def _transaction(self, leadership):
+        with self.database.transaction() as connection:
+            # Normal leadership has no deadline; the controller supplies its
+            # trusted deadline guard. Failure persistence keeps its own budget.
+            if hasattr(leadership, "remaining"):
+                cap_postgres_transaction(connection, leadership)
+            yield connection
 
     @staticmethod
     def _ticket(ticket):
