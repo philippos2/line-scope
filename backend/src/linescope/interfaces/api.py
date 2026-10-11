@@ -10,21 +10,16 @@ from starlette.exceptions import HTTPException
 
 from ..agent.agent_input import AgentInput, ConversationStore
 from ..agent.read_agent import ReadAgent
-from ..agent.update_intent import (
-    equipment_state_command,
-    maintenance_plan_command,
-    production_schedule_command,
-)
+from ..application.agent_service import AgentApplication, PreparedAgentResult
 from ..application.approvals import HumanApproval
 from ..application.equipment_command import EquipmentCommandPrepare
 from ..application.execute import HumanExecute
 from ..application.maintenance_command import MaintenanceCommandPrepare
 from ..application.production_command import ProductionCommandPrepare
-from ..application.proposals import REQUEST_ROLES, ProposalError, ProposalStore
+from ..application.proposals import ProposalError, ProposalStore
 from ..application.reads import ReadTools, ToolError, json_value
 from ..application.tools import ToolDispatcher
 from ..domain.canonical import strict_json
-from ..domain.snapshot import CATEGORIES
 from ..integrations.llm import OllamaClient
 from ..logging import EventLogger, request_context
 from ..persistence.database import Database
@@ -97,6 +92,14 @@ def create_app(settings=None, database=None, event_logger=None, *, llm=None, con
         llm = OllamaClient(base_url=settings.llm_base_url, model=settings.llm_model)
     read_agent = (
         ReadAgent(ToolDispatcher(database), llm, event_logger=events) if llm is not None else None
+    )
+    agent_application = AgentApplication(
+        proposals=ProposalStore(database),
+        conversations=conversations,
+        equipment=equipment_prepare,
+        maintenance=maintenance_prepare,
+        production=production_prepare,
+        read_agent=read_agent,
     )
     app.state.conversations = conversations
     app.state.events = events
@@ -221,34 +224,6 @@ def create_app(settings=None, database=None, event_logger=None, *, llm=None, con
         data.update(observation)
         return response(request, json_value(data))
 
-    async def prepared_response(request, context, saved):
-        try:
-            data = await run_in_threadpool(
-                ProposalStore(database).get, context, saved.update_request_id
-            )
-        except ProposalError as error:
-            # The proposal is already durable. A response-read failure must not
-            # hide its identity or imply rollback of the saved request.
-            return response(
-                request,
-                json_value(
-                    {
-                        "update_request_id": saved.update_request_id,
-                        "approval_id": saved.approval_id,
-                        "status": saved.status,
-                    }
-                ),
-                code=error.code,
-                status_code=error_status(error.code),
-            )
-        return response(
-            request,
-            json_value(data),
-            answer="保存済みの変更要求を返します。状態とSnapshotを確認してください。"
-            if saved.replayed
-            else "変更準備を作成しました。業務データや設備の現在状態は変更していません。人間による承認と実行が必要です。",
-        )
-
     @app.post("/agent")
     async def agent(request: Request):
         received_at = datetime.now(timezone.utc)
@@ -267,50 +242,28 @@ def create_app(settings=None, database=None, event_logger=None, *, llm=None, con
                 received_at=received_at,
                 idempotency_key=request.headers.get("idempotency-key"),
             )
-            context = request.state.execution_context
-            if request.headers.get("idempotency-key") is not None:
-                saved = await run_in_threadpool(
-                    ProposalStore(database).find_by_retry,
-                    context,
-                    incoming.retry_key,
-                    agent_input_hash=incoming.input_hash,
-                )
-                if saved is not None:
-                    category = CATEGORIES[saved.snapshot.data["targets"][0]["target_type"]]
-                    if context.role not in REQUEST_ROLES[category]:
-                        raise ToolError(
-                            "AUTHORIZATION_DENIED", "Prepare retry permission is required"
-                        )
-                    return await prepared_response(request, context, saved)
-            previous = (
-                conversations.get(context, incoming.context_id)["messages"]
-                if incoming.context_id
-                else []
-            )
-            if equipment_state_command(incoming) is not None:
-                saved = await run_in_threadpool(equipment_prepare.run, context, incoming)
-                return await prepared_response(request, context, saved)
-            if maintenance_plan_command(incoming) is not None:
-                saved = await run_in_threadpool(maintenance_prepare.run, context, incoming)
-                return await prepared_response(request, context, saved)
-            if production_schedule_command(incoming) is not None:
-                saved = await run_in_threadpool(production_prepare.run, context, incoming)
-                return await prepared_response(request, context, saved)
-            if read_agent is None:
-                raise ToolError("DEPENDENCY_UNAVAILABLE", "LLM is not configured")
-            result = await run_in_threadpool(
-                read_agent.run,
-                context,
+            outcome = await run_in_threadpool(
+                agent_application.run,
+                request.state.execution_context,
                 incoming,
-                previous_messages=previous if incoming.context_id else None,
+                retry_requested=request.headers.get("idempotency-key") is not None,
             )
-            context_id = incoming.context_id
-            if result.needs_input or context_id:
-                stored = {"messages": [*previous, incoming.message]}
-                if context_id:
-                    conversations.update(context, context_id, stored)
-                else:
-                    context_id = conversations.create(context, stored)
+            if isinstance(outcome, PreparedAgentResult):
+                if outcome.error_code:
+                    return response(
+                        request,
+                        json_value(outcome.data),
+                        code=outcome.error_code,
+                        status_code=error_status(outcome.error_code),
+                    )
+                return response(
+                    request,
+                    json_value(outcome.data),
+                    answer="保存済みの変更要求を返します。状態とSnapshotを確認してください。"
+                    if outcome.replayed
+                    else "変更準備を作成しました。業務データや設備の現在状態は変更していません。人間による承認と実行が必要です。",
+                )
+            result, context_id = outcome.analysis, outcome.context_id
             data = {
                 "needs_input": result.needs_input,
                 "tool_results": [
