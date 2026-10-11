@@ -1,10 +1,10 @@
 from uuid import UUID
 
 import pytest
-from test_proposals import NOW, context
+from application.test_proposals import NOW, context
 
 from linescope.agent_input import AgentInput, ConversationStore
-from linescope.proposals import ProposalError
+from linescope.application.proposals import ProposalError
 
 
 def parse(body, key=None):
@@ -138,9 +138,9 @@ def test_persistent_retry_survives_conversation_expiry(db):
     import json
     from uuid import uuid4
 
-    from test_proposals import PREPARE_HASH, snapshot
+    from application.test_proposals import PREPARE_HASH, snapshot
 
-    from linescope.proposals import ProposalStore
+    from linescope.application.proposals import ProposalStore
 
     db.migrate()
     owner = context()

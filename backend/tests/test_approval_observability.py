@@ -3,13 +3,13 @@ import json
 from uuid import uuid4
 
 import pytest
-from test_approvals import prepared as equipment_prepared
-from test_proposals import context
+from application.test_approvals import prepared as equipment_prepared
+from application.test_proposals import context
 
-from linescope.approvals import EquipmentApproval
+from linescope.application.approvals import EquipmentApproval
+from linescope.application.proposals import ProposalError, ProposalStore
 from linescope.demo_seed import DEMO_EQUIPMENT
 from linescope.logging import EventLogger
-from linescope.proposals import ProposalError, ProposalStore
 
 
 @pytest.fixture

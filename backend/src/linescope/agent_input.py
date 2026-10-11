@@ -12,9 +12,9 @@ from threading import Lock
 from time import monotonic
 from uuid import uuid4
 
+from .application.proposals import ProposalError
 from .domain.canonical import canonical_hash, normalize_timestamp, normalize_uuid, strict_json
 from .execution import ExecutionContext
-from .proposals import ProposalError
 
 
 def _authenticated(context):

@@ -5,7 +5,7 @@ from uuid import UUID
 
 import psycopg
 import pytest
-from test_dependency_execute import world as dependency_fixture
+from application.test_dependency_execute import world as dependency_fixture
 
 from linescope.persistence.core_dependencies import (
     lock_dependency_endpoint,

@@ -1,13 +1,13 @@
 from uuid import UUID, uuid4
 
 import pytest
-from test_proposals import NOW, context
+from application.test_proposals import NOW, context
 
 from linescope.agent_input import AgentInput
+from linescope.application.reads import ReadResult, ToolError
+from linescope.application.tools import ToolDispatcher
 from linescope.llm import LLMReply, ToolCall
 from linescope.read_agent import ReadAgent
-from linescope.reads import ReadResult, ToolError
-from linescope.tools import ToolDispatcher
 
 
 class ScriptedLLM:

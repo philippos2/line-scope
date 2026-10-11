@@ -5,8 +5,8 @@ from uuid import uuid4
 
 import psycopg
 import pytest
-from test_dependency_prepare import create, disable, prepare, update
-from test_dependency_prepare import service as dependency_fixture
+from application.test_dependency_prepare import create, disable, prepare, update
+from application.test_dependency_prepare import service as dependency_fixture
 
 from linescope.graph.graph_locks import acquire_graph_mutation_lock
 from linescope.graph.outbox import enqueue_graph_target
@@ -129,8 +129,8 @@ def test_autocommit_cannot_save_a_detached_event(world):
 
 
 def test_assignment_events_skip_parent_schedule_target(db):
-    from test_production_assignment_prepare import prepare as assignment_prepare
-    from test_production_assignment_prepare import service as assignment_fixture
+    from application.test_production_assignment_prepare import prepare as assignment_prepare
+    from application.test_production_assignment_prepare import service as assignment_fixture
 
     db, service = assignment_fixture.__wrapped__(db)
     saved = assignment_prepare(service)

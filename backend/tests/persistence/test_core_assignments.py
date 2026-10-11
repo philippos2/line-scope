@@ -5,8 +5,8 @@ from uuid import UUID
 
 import psycopg
 import pytest
-from test_production_assignment_execute import ASSIGNMENT
-from test_production_assignment_execute import world as assignment_fixture
+from application.test_production_assignment_execute import ASSIGNMENT
+from application.test_production_assignment_execute import world as assignment_fixture
 
 from linescope.persistence.core_assignments import lock_assignment_equipment, update_assignment
 

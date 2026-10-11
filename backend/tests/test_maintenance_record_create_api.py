@@ -4,16 +4,16 @@ import io
 from concurrent.futures import ThreadPoolExecutor
 
 import pytest
+from application.test_maintenance_prepare import prepare
+from application.test_maintenance_record_create_approval import current, insert_conflict
+from application.test_maintenance_record_create_approval import prepared as create_fixture
 from fastapi.testclient import TestClient
 from test_maintenance_plan_approval_api import act, client_for, headers
-from test_maintenance_prepare import prepare
-from test_maintenance_record_create_approval import current, insert_conflict
-from test_maintenance_record_create_approval import prepared as create_fixture
 
 from linescope.api import create_app
-from linescope.execute import MaintenanceRecordCreateExecute
+from linescope.application.execute import MaintenanceRecordCreateExecute
+from linescope.application.proposals import ProposalError
 from linescope.logging import EventLogger
-from linescope.proposals import ProposalError
 from linescope.settings import Settings
 
 

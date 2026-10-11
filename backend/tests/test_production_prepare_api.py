@@ -5,9 +5,9 @@ from datetime import datetime, timezone
 from uuid import UUID, uuid4
 
 import pytest
+from application.test_production_prepare import service as production_fixture
 from fastapi.testclient import TestClient
 from test_maintenance_plan_approval_api import headers
-from test_production_prepare import service as production_fixture
 from test_production_schedule_api import client_for
 from test_read_agent import ScriptedLLM, call
 

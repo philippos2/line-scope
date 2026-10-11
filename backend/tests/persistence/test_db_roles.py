@@ -7,13 +7,15 @@ from uuid import UUID, uuid4
 
 import psycopg
 import pytest
+from application.test_maintenance_prepare import AGENT_HASH, create_plan, identity
+from application.test_maintenance_prepare import service as maintenance_fixture
 from psycopg import sql
 from psycopg.conninfo import make_conninfo
 from test_maintenance_plan_approval_api import act, client_for
 from test_maintenance_plan_create_api import execute
-from test_maintenance_prepare import AGENT_HASH, create_plan, identity
-from test_maintenance_prepare import service as maintenance_fixture
 
+from linescope.application.reads import ReadTools
+from linescope.application.tools import ToolDispatcher
 from linescope.persistence.database import Database
 from linescope.persistence.db_roles import (
     PROJECTION_ROLE,
@@ -22,8 +24,6 @@ from linescope.persistence.db_roles import (
     RoleProvisionError,
     provision_roles,
 )
-from linescope.reads import ReadTools
-from linescope.tools import ToolDispatcher
 
 
 @pytest.fixture
@@ -289,14 +289,14 @@ def test_admin_command_rejects_missing_secrets_before_migration(db, monkeypatch,
 
 @pytest.mark.parametrize("deny_outbox", [False, True])
 def test_assignment_execute_with_runtime_role_preserves_atomic_outbox(roles, deny_outbox):
-    from test_production_assignment_approval import action
-    from test_production_assignment_execute import execute as execute_assignment
-    from test_production_assignment_prepare import prepare
-    from test_production_assignment_prepare import service as production_fixture
-    from test_production_schedule_approval import business, current
+    from application.test_production_assignment_approval import action
+    from application.test_production_assignment_execute import execute as execute_assignment
+    from application.test_production_assignment_prepare import prepare
+    from application.test_production_assignment_prepare import service as production_fixture
+    from application.test_production_schedule_approval import business, current
 
-    from linescope.production_prepare import ProductionPrepare
-    from linescope.proposals import ProposalError
+    from linescope.application.production_prepare import ProductionPrepare
+    from linescope.application.proposals import ProposalError
 
     admin, stores, _ = roles
     production_fixture.__wrapped__(admin)

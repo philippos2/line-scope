@@ -4,14 +4,14 @@ from dataclasses import replace
 from uuid import UUID
 
 import pytest
+from application.test_search_reads import identity
 from conftest import db as database_fixture
 from psycopg.conninfo import make_conninfo
-from test_search_reads import identity
 
+from linescope.application.reads import ReadTools, ToolError
+from linescope.application.tools import ToolDispatcher
 from linescope.persistence.database import Database
-from linescope.reads import ReadTools, ToolError
 from linescope.settings import Settings
-from linescope.tools import ToolDispatcher
 
 
 @pytest.fixture
