@@ -506,3 +506,5 @@ Dockerで追加36テスト成功、ruff check / format、git diff --check成功�
 [除外対象に対する一段代替候補の集約](2026-10-12-substitute-candidate-selection.md)に、候補OR、対象と他の除外、空集合・未知・不完全性・循環の扱いと統合前の残作業を記録した。
 
 [一段代替を用いる除外後の構造成立](2026-10-12-exclusion-fulfillment.md)に、重要対象の全AND条件維持、対象付き候補評価、不完全性・未知とGraph統合前の残作業を記録した。
+
+[重要対象ごとのSPOF候補分類](2026-10-12-spof-candidate-classification.md)に、除外前／後の成立、代替未知、対象別分類とGraph統合前の残作業を記録した。
