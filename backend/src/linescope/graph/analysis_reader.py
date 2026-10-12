@@ -21,6 +21,7 @@ from ..domain.graph_reachability import (
     walk_reachability,
 )
 from ..domain.graph_requirement_rules import required_dependency
+from ..domain.graph_substitute_candidate import SUBSTITUTE_TYPES
 from ..domain.graph_traversal import traversal_types
 from ..domain.relations import ENDPOINTS
 from .analysis_gate import GraphAnalysisGate
@@ -264,6 +265,82 @@ class _GraphRead:
         return GraphTraversal(
             reached, paths, tuple(facts[identifier] for identifier in sorted(used))
         )
+
+    def substitute_candidates(self, entity_type, entity_id, *, as_of, limit, after=None):
+        """One incoming CAN_SUBSTITUTE page; never a transitive or available result."""
+        if self._closed:
+            raise RuntimeError("Graph read context is closed")
+        if type(entity_type) is not str or entity_type not in SUBSTITUTE_TYPES:
+            raise ValueError("Invalid substitute target type")
+        entity_id = normalize_uuid(entity_id)
+        if type(limit) is not int or limit <= 0:
+            raise ValueError("A positive server-owned candidate page limit is required")
+        if not isinstance(as_of, datetime) or as_of.tzinfo is None or as_of.utcoffset() is None:
+            raise ValueError("An aware analysis time is required")
+        if after is not None and (
+            type(after) is not tuple
+            or len(after) != 3
+            or after[0] != entity_type
+            or normalize_uuid(after[1]) != after[1]
+            or normalize_uuid(after[2]) != after[2]
+        ):
+            raise ValueError("Invalid server-owned candidate continuation")
+        root = self.node(entity_type, entity_id)
+        if root is None or not root.active:
+            raise ToolError("TARGET_NOT_FOUND", "Active Graph target was not found")
+        after_type, after_id, after_record = after or (None, None, None)
+        self._budget.require()
+        rows = list(
+            self._tx.run(
+                "MATCH (s:LineScopeEntity)-[r:CAN_SUBSTITUTE]->(t:LineScopeEntity) "
+                "WHERE s.generation=$generation AND t.generation=$generation "
+                "AND r.generation=$generation AND s.active=true AND t.active=true AND r.active=true "
+                "AND t.entity_type=$type AND t.entity_id=$id "
+                "AND r.effective_from<=datetime($as_of) "
+                "AND (r.effective_to IS NULL OR datetime($as_of)<r.effective_to) "
+                "AND ($has_after=false OR s.entity_type>$after_type "
+                "OR (s.entity_type=$after_type AND s.entity_id>$after_id) "
+                "OR (s.entity_type=$after_type AND s.entity_id=$after_id AND r.source_record_id>$after_record)) "
+                "RETURN s.entity_type AS source_type,s.entity_id AS source_id,"
+                "t.entity_type AS target_type,t.entity_id AS target_id,'CAN_SUBSTITUTE' AS relation_type,"
+                "r.source_record_id AS source_record_id,r.source_version AS source_version,"
+                "r.required AS required,s.entity_type AS neighbor_type,s.entity_id AS neighbor_id "
+                "ORDER BY neighbor_type,neighbor_id,source_record_id LIMIT $limit",
+                generation=self.validation.generation,
+                type=entity_type,
+                id=entity_id,
+                as_of=as_of.astimezone(timezone.utc).isoformat(),
+                limit=limit + 1,
+                has_after=after is not None,
+                after_type=after_type,
+                after_id=after_id,
+                after_record=after_record,
+            )
+        )
+        self._budget.require()
+        edges = []
+        for row in rows:
+            edge = dict(row)
+            if (
+                edge["source_type"] != entity_type
+                or edge["target_type"] != entity_type
+                or edge["target_id"] != entity_id
+                or type(edge["source_version"]) is not int
+                or edge["source_version"] <= 0
+                or edge["required"] is not False
+            ):
+                raise ProjectionIntegrityError("Invalid direct substitute relation")
+            try:
+                valid = all(
+                    normalize_uuid(edge[key]) == edge[key]
+                    for key in ("source_id", "target_id", "source_record_id")
+                )
+            except ValueError as error:
+                raise ProjectionIntegrityError("Invalid substitute relation identifier") from error
+            if not valid:
+                raise ProjectionIntegrityError("Invalid substitute relation identifier")
+            edges.append(edge)
+        return GraphAdjacency(tuple(edges[:limit]), len(edges) > limit)
 
     def mandatory_closure(
         self,

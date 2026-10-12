@@ -510,3 +510,5 @@ Dockerで追加36テスト成功、ruff check / format、git diff --check成功�
 [重要対象ごとのSPOF候補分類](2026-10-12-spof-candidate-classification.md)に、除外前／後の成立、代替未知、対象別分類とGraph統合前の残作業を記録した。
 
 [成立評価用の必須Graph閉包](2026-10-12-mandatory-graph-closure.md)に、全必須facts・交差／循環辺、方向とrequired、上限・gateと実DB検証を記録した。
+
+[一段CAN_SUBSTITUTEの内部Graph読取](2026-10-12-direct-substitute-read.md)に、source→target、ページ送り・一段制限、filter・破損検証と統合前の残作業を記録した。
