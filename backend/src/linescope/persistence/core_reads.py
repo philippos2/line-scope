@@ -2,7 +2,7 @@
 
 These query-only declarations mirror migration 002; they never create schema.
 The bridge covers single-record reads, fixed searches, operation assignments
-and one-statement Graph equipment state observations.
+and one-statement Graph source-state observations.
 It does not supply SQLAlchemy execution/type processing for arbitrary statements
 or write paths.
 """
@@ -176,6 +176,56 @@ def get_graph_equipment_states(connection, identifiers):
             )
         ).label("states"),
     ).where(_state.c.equipment_id.in_([UUID(value) for value in identifiers]))
+    compiled = statement.compile(dialect=dialect(), compile_kwargs={"render_postcompile": True})
+    return connection.execute(str(compiled), compiled.params).fetchone()
+
+
+def get_graph_availability_states(connection, equipment_ids, operation_ids):
+    """Observe both authoritative state sets at one PostgreSQL statement time."""
+    equipment_states = (
+        select(
+            func.jsonb_agg(
+                func.jsonb_build_object(
+                    "equipment_id",
+                    _state.c.equipment_id,
+                    "state_code",
+                    _state.c.state_code,
+                    "version",
+                    _state.c.version,
+                )
+            )
+        )
+        .select_from(_state.join(_equipment, _state.c.equipment_id == _equipment.c.equipment_id))
+        .where(
+            _equipment.c.active.is_(True),
+            _state.c.equipment_id.in_([UUID(value) for value in equipment_ids]),
+        )
+        .scalar_subquery()
+    )
+    operation_states = (
+        select(
+            func.jsonb_agg(
+                func.jsonb_build_object(
+                    "production_operation_id",
+                    _operation.c.production_operation_id,
+                    "planned_status",
+                    _operation.c.planned_status,
+                    "version",
+                    _operation.c.version,
+                )
+            )
+        )
+        .where(
+            _operation.c.active.is_(True),
+            _operation.c.production_operation_id.in_([UUID(value) for value in operation_ids]),
+        )
+        .scalar_subquery()
+    )
+    statement = select(
+        func.statement_timestamp().label("observed_at"),
+        equipment_states.label("states"),
+        operation_states.label("operations"),
+    )
     compiled = statement.compile(dialect=dialect(), compile_kwargs={"render_postcompile": True})
     return connection.execute(str(compiled), compiled.params).fetchone()
 
