@@ -43,3 +43,7 @@ Toolが返した計算結果・単位・期間・式とEvidenceを説明し、LL
 ## Graph Tool結果のLLM向け表現
 
 通常Graph ToolのdataとEvidenceに同一のrepresentative_pathsが含まれる場合、AgentはLLM入力だけでEvidence側の重複を省き、`representative_paths_location: data.representative_paths`で所在を示す。dataの経路は全件保持する。異なる値は省略しない。サーバに保持するTool結果、APIのEvidence、Graph分析のcomplete / limit / generation / state情報は変更しない。これは同一データの重複送信の除去であり、探索結果の切捨てや部分結果の完全扱いではない。
+
+LLM向け通常Graph結果は、同一のtyped nodeを`graph_node_catalog`、同一エッジ（全属性が一致するもの）を`graph_edge_catalog`へまとめ、`node_ref` / `edge_ref`から参照する。各経路のノード順・エッジ順・属性・件数は保持し、省略やsamplingを行わない。参照表を展開すると元のdata / Evidenceへ復元できる表現とする。Tool引数には参照名でなくcatalogの実IDを使う。HTTP返却のdata / Evidenceは従来の形式を維持する。
+
+最終自然言語回答は100〜200字程度の要約を目安に、対象、直接・間接の影響候補、探索の完全性、不明事項を優先する。経路全件やUUIDの再列挙は避け、構造化結果へ案内する。文字数を強制して回答を途中切断する処理ではなく、Promptによる説明方針である。Graphの到達関係から運転停止・能力・安全性を断定しない原則は維持する。

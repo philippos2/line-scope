@@ -3,6 +3,7 @@ from uuid import UUID, uuid4
 import pytest
 from application.test_proposals import NOW, context
 
+from agent.test_graph_model_view import restore
 from linescope.agent.agent_input import AgentInput
 from linescope.agent.read_agent import ReadAgent
 from linescope.application.reads import ReadResult, ToolError
@@ -237,7 +238,7 @@ def test_graph_paths_are_sent_once_without_mutating_server_evidence(tool):
         },
     )
     payload = model_tool_payload(tool, result)
-    assert payload["data"]["representative_paths"] == paths
+    assert restore(payload["data"], payload)["representative_paths"] == paths
     assert "representative_paths" not in payload["evidence"]
     assert payload["evidence"]["representative_paths_location"] == "data.representative_paths"
     assert payload["evidence"]["graph_generation"] == "g1"
@@ -270,6 +271,6 @@ def test_agent_graph_model_view_and_returned_evidence_are_separate():
     llm = ScriptedLLM(call("trace_downstream_impact", {}), LLMReply("経路を確認しました。", ()))
     outcome = ReadAgent(GraphDispatcher(), llm).run(context(), request())
     payload = json.loads(llm.requests[-1][0][-1]["content"])
-    assert payload["data"]["representative_paths"] == paths
+    assert restore(payload["data"], payload)["representative_paths"] == paths
     assert "representative_paths" not in payload["evidence"]
     assert outcome.observations[0].result.evidence["representative_paths"] == paths
