@@ -287,3 +287,13 @@ Raw SQLは管理専用のPostgreSQL DDL例外。passwordはbindしたtransaction
 公式根拠: [PostgreSQL role属性](https://www.postgresql.org/docs/18/sql-createrole.html)、[default privilegesの適用範囲](https://www.postgresql.org/docs/18/sql-alterdefaultprivileges.html)。
 
 通常Projection用credentialは`LINESCOPE_PROJECTION_PASSWORD`。migration管理サービスだけがprovision用に受け取り、APIには渡さない。この段階ではworkerサービスは起動しない。既存.envは上記upgradeで不足credentialを追加してから起動する。worker roleはcontroller / Rebuild / heartbeat管理権限を兼ねない。
+
+## 15. APIの通常Graph分析接続
+
+APIは信頼されたサーバ設定`LINESCOPE_NEO4J_URI`、`LINESCOPE_NEO4J_USER`、`LINESCOPE_NEO4J_PASSWORD`、`LINESCOPE_NEO4J_DATABASE`（既定neo4j）から分析driverを構築する。URIへcredentialを埋め込まず、credentialと接続先はSettingsのreprに出さない。URI未指定ではGraph Toolを非公開とし、credentialだけの設定や不正URIは起動拒否する。接続不可から別のGraphやPostgreSQL探索へfallbackしない。
+
+探索上限は`LINESCOPE_GRAPH_MAX_DEPTH`、`LINESCOPE_GRAPH_MAX_NODES`、`LINESCOPE_GRAPH_MAX_PATHS`、`LINESCOPE_GRAPH_TIMEOUT_MS`で指定する。既定値は§10のsystem上限に従い、正整数のみを受け付ける。エンドユーザーやLLMの入力から接続先・credential・timeoutを変更しない。接続プール待ちにもGraph timeoutを適用し、driverの自動transaction retryは無効とする。
+
+APIが構築したdriverはサービス終了時に閉じ、構築途中の失敗でも解放する。テスト等で注入したdriverは呼出元が所有し、API終了時に閉じない。Graph read gateのCURRENT確認・generation検証・全体budgetを維持する。readinessは従来どおりPostgreSQLの確認であり、Graph利用可能性を保証するものではない。
+
+接続アカウントは分析用に必要な読取権限へ制限する。driverのREAD_ACCESS指定をDB roleの権限制限の代替としない。標準ComposeのNeo4j・worker起動と権限制御の実環境検証は、現在のAPI接続実装とは別の後続作業である。
