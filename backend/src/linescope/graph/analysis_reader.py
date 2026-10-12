@@ -150,6 +150,11 @@ class _GraphRead:
         edges = []
         for row in rows:
             edge = dict(row)
+            if edge["relation_type"] == "USES":
+                # Assignment has no required column. An active USES relation
+                # is intrinsically required (domain-model §7), not unknown.
+                # Derive this read fact without changing persisted replay hashes.
+                edge["required"] = True
             if (
                 edge["source_type"] not in NODE_TYPES
                 or edge["target_type"] not in NODE_TYPES

@@ -6,6 +6,7 @@ from threading import Event
 
 import psycopg
 
+from .demo_graph_seed import seed_graph_demo
 from .demo_seed import SeedConflict, seed_demo
 from .logging import EventLogger, configure_runtime_logging
 from .persistence.database import Database
@@ -34,6 +35,9 @@ def main():
         "project-graph", help="Run the normal Outbox Projection worker"
     )
     projection.add_argument("--once", action="store_true")
+    commands.add_parser(
+        "seed-demo-graph", help="Explicitly bootstrap the initial Graph demo fixture"
+    )
     serve = commands.add_parser("serve")
     serve.add_argument("--host", default="127.0.0.1")
     serve.add_argument("--port", type=int, default=8000)
@@ -63,11 +67,19 @@ def main():
         else:
             applied = database.migrate()
         print(json.dumps({"applied": applied}))
-    elif args.command == "seed-demo":
+    elif args.command in {"seed-demo", "seed-demo-graph"}:
         try:
-            print(json.dumps(seed_demo(Database(settings))))
+            print(
+                json.dumps(
+                    (seed_demo if args.command == "seed-demo" else seed_graph_demo)(
+                        Database(settings)
+                    )
+                )
+            )
         except SeedConflict as error:
-            parser.exit(1, f"seed-demo: {error}\n")
+            parser.exit(1, f"{args.command}: {error}\n")
+        except psycopg.Error:
+            parser.exit(1, "Demo bootstrap failed; check migrations and administrative access.\n")
     elif args.command in {"install-graph-schema", "rebuild-graph"}:
         from neo4j import GraphDatabase
 
