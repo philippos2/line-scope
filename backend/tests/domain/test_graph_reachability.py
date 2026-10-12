@@ -138,3 +138,17 @@ def test_timeout_overrides_prior_node_count_limit():
         should_stop=stop,
     )
     assert result.limit_reason == "TIMEOUT" and len(result.nodes) == 2
+
+
+def test_shared_budget_still_visits_known_nodes_after_rejected_new_node():
+    from linescope.domain.graph_reachability import TraversalNodeBudget, walk_reachability
+
+    a, b, known, blocked = ("Product", "A"), ("Product", "B"), ("Process", "Z"), ("Process", "A")
+    budget = TraversalNodeBudget(3, roots=[a, b, known])
+    edges = [LogicalEdge(b, blocked, "blocked"), LogicalEdge(b, known, "known")]
+    result = walk_reachability(
+        b, lambda node: edges if node == b else [], max_depth=2, max_nodes=3, node_budget=budget
+    )
+    assert {item.node for item in result.nodes} == {b, known}
+    assert not result.complete and result.limit_reason == "NODE_COUNT"
+    assert budget.nodes == {a, b, known}

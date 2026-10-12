@@ -14,7 +14,12 @@ from neo4j.exceptions import DriverError, Neo4jError
 from ..application.reads import ToolError
 from ..domain.canonical import normalize_uuid
 from ..domain.graph_paths import PathSelection, representative_paths
-from ..domain.graph_reachability import LogicalEdge, Reachability, walk_reachability
+from ..domain.graph_reachability import (
+    LogicalEdge,
+    Reachability,
+    TraversalNodeBudget,
+    walk_reachability,
+)
 from ..domain.graph_traversal import traversal_types
 from ..domain.relations import ENDPOINTS
 from .analysis_gate import GraphAnalysisGate
@@ -197,6 +202,7 @@ class _GraphRead:
         page_size,
         relation_types=None,
         should_stop=None,
+        node_budget=None,
     ):
         """Internal multi-hop facts, in this context's single generation/tx.
 
@@ -242,6 +248,7 @@ class _GraphRead:
             max_depth=max_depth,
             max_nodes=max_nodes,
             should_stop=should_stop,
+            node_budget=node_budget,
         )
         paths = representative_paths(reached, max_paths=max_paths)
         used = {identifier for path in paths.paths for identifier in path.source_record_ids}
@@ -249,6 +256,56 @@ class _GraphRead:
         return GraphTraversal(
             reached, paths, tuple(facts[identifier] for identifier in sorted(used))
         )
+
+    def common_dependency_searches(
+        self,
+        targets,
+        *,
+        as_of,
+        max_depth,
+        max_nodes,
+        page_size,
+        relation_types=None,
+        should_stop=None,
+    ):
+        """All upstream searches share this generation, as_of and distinct-node budget.
+
+        Keep every predecessor path needed by common-candidate selection; the
+        caller applies its output path limit only after intersecting searches.
+        """
+        if type(targets) not in (list, tuple) or len(targets) < 2:
+            raise ValueError("Multiple distinct typed targets are required")
+        if any(type(target) is not tuple or len(target) != 2 for target in targets):
+            raise ValueError("Typed targets are required")
+        if any(any(type(item) is not str or not item for item in target) for target in targets):
+            raise ValueError("Typed target strings are required")
+        targets = [(kind, normalize_uuid(identifier)) for kind, identifier in targets]
+        for limit in (max_depth, max_nodes, page_size):
+            if type(limit) is not int or limit <= 0:
+                raise ValueError("Positive server-owned traversal limits are required")
+        if len(set(targets)) != len(targets):
+            raise ValueError("Distinct targets are required")
+        budget = TraversalNodeBudget(max_nodes, roots=targets)
+        for target in sorted(targets):
+            root = self.node(*target)
+            if root is None or not root.active:
+                raise ToolError("TARGET_NOT_FOUND", "Active Graph target was not found")
+        results = []
+        for target in sorted(targets):
+            result = self.traverse(
+                *target,
+                direction="UPSTREAM",
+                as_of=as_of,
+                max_depth=max_depth,
+                max_nodes=max_nodes,
+                max_paths=max_nodes,
+                page_size=page_size,
+                relation_types=relation_types,
+                should_stop=should_stop,
+                node_budget=budget,
+            )
+            results.append((target, result))
+        return tuple(results)
 
 
 class GraphAnalysisReader:

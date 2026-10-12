@@ -1,0 +1,13 @@
+# 共通依存の複数対象Graph読取
+
+仕様正本ではなく、実装チェックポイントの記録。
+
+GraphAnalysisReaderの既存shared gateと単一Neo4j transaction内で、複数対象の上流探索を実行する内部経路を追加した。全対象の存在・activeを先に検証し、typed IDを正規化して対象順を固定する。同じgeneration、as_of、read budget、should_stopを使う。対象欠落時は全体を拒否する。
+
+純粋BFSへserver-owned TraversalNodeBudgetを追加した。全対象のrootを先に予算へ含め、全探索でdistinct node数を共有する。新規nodeの予算が不足しても、他の対象が既に確認したnodeへの探索は継続できる。上限拒否はNODE_COUNTとして不完全性を保持し、従来の単一対象呼出しは共有予算を指定しないため挙動を維持する。
+
+対象ごとの内部探索では全predecessor経路のsource factsを保持し、共通候補を選んだ後に出力paths予算を適用する。対象別に先にpathsを切って共通候補の証拠を失わない。root数を収容できない予算は内部入力不正として拒否し、公開入力との整合は後続Applicationで検証する。
+
+実PostgreSQL / Neo4j試験で、デモ2製品の共通6候補と全対象経路、単一世代、全体node上限、missing target拒否、soft timeout、出力paths不足を確認した。既存reader / traversal / gate / Applicationの回帰も実施した。
+
+今回は内部読取接続まで。Tool登録、認可・公開入力schema、全探索のEquipment状態Evidence、API / Agent返却は後続。ロック取得順・Projection・DB権限・API契約は変更していない。AC-G04全体の完了とは扱わない。
