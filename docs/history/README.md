@@ -512,3 +512,5 @@ Dockerで追加36テスト成功、ruff check / format、git diff --check成功�
 [成立評価用の必須Graph閉包](2026-10-12-mandatory-graph-closure.md)に、全必須facts・交差／循環辺、方向とrequired、上限・gateと実DB検証を記録した。
 
 [一段CAN_SUBSTITUTEの内部Graph読取](2026-10-12-direct-substitute-read.md)に、source→target、ページ送り・一段制限、filter・破損検証と統合前の残作業を記録した。
+
+[共有予算内の一段代替分析facts収集](2026-10-12-substitute-analysis-facts.md)に、元対象・候補・必須上流の共有予算、部分結果と評価器／Evidence接続前の残作業を記録した。
