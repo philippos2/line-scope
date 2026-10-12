@@ -58,7 +58,11 @@ def build_api_services(
     events = event_logger or EventLogger(settings.log_level)
     conversations = conversations or ConversationStore()
     if llm is None and settings.llm_model:
-        llm = OllamaClient(base_url=settings.llm_base_url, model=settings.llm_model)
+        llm = OllamaClient(
+            base_url=settings.llm_base_url,
+            model=settings.llm_model,
+            context_tokens=settings.llm_context_tokens,
+        )
     owned_driver = None
     if settings.neo4j_uri is not None and graph_driver is None:
         owned_driver = GraphDatabase.driver(

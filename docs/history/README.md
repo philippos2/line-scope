@@ -484,3 +484,5 @@ Dockerで追加36テスト成功、ruff check / format、git diff --check成功�
 [通常依存Graphのデモ初期投入](2026-10-12-graph-demo-seed.md)に、fixture・初回Rebuild前の追加制限・Core / transaction・API検証を記録した。
 
 [Graph分析の読取ロール権限と実LLM probe](2026-10-12-graph-query-permissions.md)に、同期メタデータの列単位権限、実LOGIN回帰試験、任意実行probeの範囲を記録した。
+
+[実LLM Graph応答のコンテキスト設定](2026-10-12-llm-graph-context.md)に、Ollama入力超過の根拠とサーバ設定・予算維持を記録した。

@@ -39,3 +39,7 @@ Prepare可否、context所有者、retry key、Tool上限はagent-designとtrans
 Toolが返した計算結果・単位・期間・式とEvidenceを説明し、LLMで数値を再計算しない。6つのリスク次元とuncertaintyを分ける。RUNNINGを安全・能力の保証とせず、CAN_SUBSTITUTEを完全吸収の保証としない。安全基準不明、未知費用、探索不完全を明示し、優劣や安全を断定しない。
 
 観測事実、利用者報告、仮定、推定、確定を区別する。比較の前提を省略しない。150 daysは定義済み条件の単純費用回収期間として説明する。Golden分析への回答で自律的なPrepare / Approval / Executeを提案済み操作として報告しない。
+
+## Graph Tool結果のLLM向け表現
+
+通常Graph ToolのdataとEvidenceに同一のrepresentative_pathsが含まれる場合、AgentはLLM入力だけでEvidence側の重複を省き、`representative_paths_location: data.representative_paths`で所在を示す。dataの経路は全件保持する。異なる値は省略しない。サーバに保持するTool結果、APIのEvidence、Graph分析のcomplete / limit / generation / state情報は変更しない。これは同一データの重複送信の除去であり、探索結果の切捨てや部分結果の完全扱いではない。

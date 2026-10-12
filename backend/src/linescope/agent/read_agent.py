@@ -38,6 +38,19 @@ class ReadAgentResult:
     needs_input: bool
 
 
+def model_tool_payload(tool, result):
+    """Keep server Evidence intact; send identical Graph paths only once."""
+    evidence = dict(result.evidence)
+    if (
+        tool in {"trace_downstream_impact", "trace_upstream_dependencies"}
+        and "representative_paths" in result.data
+        and evidence.get("representative_paths") == result.data["representative_paths"]
+    ):
+        del evidence["representative_paths"]
+        evidence["representative_paths_location"] = "data.representative_paths"
+    return {"data": result.data, "evidence": evidence}
+
+
 class ReadAgent:
     def __init__(self, dispatcher, llm, *, clock=monotonic, event_logger=None):
         self.dispatcher, self.llm, self.clock = dispatcher, llm, clock
@@ -146,7 +159,7 @@ class ReadAgent:
                 if failure is None:
                     errors.pop(signature, None)
                     observations.append(ReadObservation(call.call_id, call.name, result))
-                    payload = {"data": result.data, "evidence": result.evidence}
+                    payload = model_tool_payload(call.name, result)
                 else:
                     errors[signature] = failure
                     payload = {"errors": [failure]}
