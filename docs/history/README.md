@@ -500,3 +500,5 @@ Dockerで追加36テスト成功、ruff check / format、git diff --check成功�
 [必須依存・利用可能性の基礎規則](2026-10-12-graph-requirement-rules.md)に、関係別必須性、正本状態の変換、三値AND / ORと評価器への接続前の残作業を記録した。
 
 [必須依存の構造成立評価](2026-10-12-mandatory-structural-fulfillment.md)に、AND・除外・循環・情報欠落の内部計算と、運転利用可能性・代替評価との責務境界を記録した。
+
+[一段代替候補自身の成立・利用可能性](2026-10-12-substitute-candidate-evaluation.md)に、候補の全必須条件、正本利用可能性、過去時点のUNKNOWNと統合前の残作業を記録した。
