@@ -488,3 +488,5 @@ Dockerで追加36テスト成功、ruff check / format、git diff --check成功�
 [実LLM Graph応答のコンテキスト設定](2026-10-12-llm-graph-context.md)に、Ollama入力超過の根拠とサーバ設定・予算維持を記録した。
 
 [通常GraphのLLM入力表現と応答時間](2026-10-12-graph-agent-model-view.md)に、復元可能な参照表、実LLM読取probeの成功と自然言語品質の残課題を記録した。
+
+[通常Graph到達探索の評価範囲](2026-10-12-graph-analysis-scope.md)に、探索完全性と未評価次元の区別、構造化契約・説明方針・検証を記録した。

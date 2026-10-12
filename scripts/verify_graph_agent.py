@@ -48,6 +48,9 @@ def validate_result(payload):
         or data["complete"] is not True
         or data["graph_sync_state"] != "CURRENT"
         or data["analysis_mode"] != "CURRENT"
+        or data.get("analysis_scope") != "DEPENDENCY_REACHABILITY"
+        or data.get("not_evaluated")
+        != ["OPERATIONAL_IMPACT", "CAPACITY", "SAFETY", "ECONOMICS"]
         or reached != expected
     ):
         raise ValueError("GRAPH_FIXTURE_MISMATCH")
@@ -72,6 +75,8 @@ def validate_result(payload):
     if (
         len(evidence) != 1
         or not evidence[0].get("graph_generation")
+        or evidence[0].get("analysis_scope") != data["analysis_scope"]
+        or evidence[0].get("not_evaluated") != data["not_evaluated"]
         or evidence[0].get("representative_paths") != data["representative_paths"]
         or len(data["representative_paths"]) != 6
         or evidence[0].get("state_versions") != {"Equipment:" + root["entity_id"]: 1}

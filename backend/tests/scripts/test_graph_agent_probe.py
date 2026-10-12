@@ -41,6 +41,8 @@ def fixture():
                         },
                         "complete": True,
                         "graph_sync_state": "CURRENT",
+                        "analysis_scope": "DEPENDENCY_REACHABILITY",
+                        "not_evaluated": ["OPERATIONAL_IMPACT", "CAPACITY", "SAFETY", "ECONOMICS"],
                         "analysis_mode": "CURRENT",
                         "reached_nodes": nodes,
                         "representative_paths": paths,
@@ -54,6 +56,8 @@ def fixture():
                     "tool": "trace_downstream_impact",
                     "tool_call_id": "g1",
                     "graph_generation": "generation1",
+                    "analysis_scope": "DEPENDENCY_REACHABILITY",
+                    "not_evaluated": ["OPERATIONAL_IMPACT", "CAPACITY", "SAFETY", "ECONOMICS"],
                     "representative_paths": copy.deepcopy(paths),
                     "state_versions": {"Equipment:" + str(DEMO_EQUIPMENT[0][0]): 1},
                 }
@@ -76,6 +80,8 @@ def test_matching_server_results_pass_without_asserting_llm_prose():
         "evidence",
         "version",
         "warning",
+        "scope",
+        "evaluated_safety",
     ],
 )
 def test_partial_or_ungrounded_results_fail(fault):
@@ -93,6 +99,10 @@ def test_partial_or_ungrounded_results_fail(fault):
         payload["evidence"]["tool_results"][0]["representative_paths"] = []
     elif fault == "version":
         payload["evidence"]["tool_results"][0]["state_versions"] = {}
+    elif fault == "scope":
+        data.pop("analysis_scope")
+    elif fault == "evaluated_safety":
+        data["not_evaluated"].remove("SAFETY")
     else:
         payload["warnings"] = [{"code": "RESOURCE_BUSY"}]
     with pytest.raises(ValueError):

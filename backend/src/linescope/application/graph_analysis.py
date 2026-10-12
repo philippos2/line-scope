@@ -12,6 +12,8 @@ from ..domain.graph_traversal import traversal_types
 from .graph_request import GraphLimits, validate_graph_request
 from .reads import ReadResult, ToolError, json_value
 
+UNEVALUATED_DIMENSIONS = ("OPERATIONAL_IMPACT", "CAPACITY", "SAFETY", "ECONOMICS")
+
 
 def _typed(node):
     return {"entity_type": node[0], "entity_id": node[1]}
@@ -116,6 +118,8 @@ class GraphAnalysis:
             analysis_mode = "EXPLICIT_HISTORICAL" if "explicit_as_of" in arguments else "CURRENT"
             data = {
                 "analysis_mode": analysis_mode,
+                "analysis_scope": "DEPENDENCY_REACHABILITY",
+                "not_evaluated": list(UNEVALUATED_DIMENSIONS),
                 "graph_sync_state": "CURRENT",
                 "complete": result.paths.complete,
                 "limit_reason": result.paths.limit_reason,
@@ -138,6 +142,8 @@ class GraphAnalysis:
             evidence = {
                 "source": "NEO4J_AND_POSTGRESQL",
                 "analysis_mode": analysis_mode,
+                "analysis_scope": "DEPENDENCY_REACHABILITY",
+                "not_evaluated": list(UNEVALUATED_DIMENSIONS),
                 "tool": tool,
                 "graph_generation": read.validation.generation,
                 "graph_observed_at": read.observed_at,
