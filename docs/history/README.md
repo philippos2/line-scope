@@ -514,3 +514,5 @@ Dockerで追加36テスト成功、ruff check / format、git diff --check成功�
 [一段CAN_SUBSTITUTEの内部Graph読取](2026-10-12-direct-substitute-read.md)に、source→target、ページ送り・一段制限、filter・破損検証と統合前の残作業を記録した。
 
 [共有予算内の一段代替分析facts収集](2026-10-12-substitute-analysis-facts.md)に、元対象・候補・必須上流の共有予算、部分結果と評価器／Evidence接続前の残作業を記録した。
+
+[代替Graph factsとPostgreSQL正本状態の接続](2026-10-13-substitute-state-evaluation.md)に、同一statementの状態観測、UNKNOWN／過去時点、内部Application境界と公開前の残作業を記録した。
