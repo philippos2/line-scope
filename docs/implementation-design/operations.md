@@ -306,4 +306,24 @@ workerのPostgreSQL接続はlinescope_projectionを使い、API tokenやLLM設�
 
 SIGTERM / SIGINTは終了要求を設定し、待機を解除する。処理中の場合は1反復を終えてから閉じ、途中のcommitを取消済みと扱わない。Composeの停止猶予は45秒とする。強制終了されたPROCESSINGは既存lease回復へ委ねる。Rebuildは次反復のleader取得との間で排他を獲得できる。
 
-`linescope project-graph --once`は1反復だけ行い、起動・停止のJSON運用ログとstatus行を出力する。初回未構築やERROR / REBUILDINGはBLOCKEDであり、起動確認の成功をGraph分析可能と混同しない。normal workerが暗黙にschema / generationを構築・修復することはない。初回RebuildとデモGraph投入のCLIは後続である。
+`linescope project-graph --once`は1反復だけ行い、起動・停止のJSON運用ログとstatus行を出力する。初回未構築やERROR / REBUILDINGはBLOCKEDであり、起動確認の成功をGraph分析可能と混同しない。normal workerが暗黙にschema / generationを構築・修復することはない。初回Rebuildは§17の管理CLIで実行する。工程・製品・依存関係の業務デモ投入は後続である。
+
+## 17. 初回Graph構築の管理CLI
+
+私有.envの準備と通常サービス起動後、管理者が次を明示実行する。`graph-admin`はtools profileの管理サービスで、通常起動に含めず、既定commandはhelpのみとする。API / Agent Toolへこれらの操作を公開しない。
+
+```sh
+docker compose run --rm migrate linescope seed-demo
+docker compose run --build --rm graph-admin linescope install-graph-schema
+docker compose run --build --rm graph-admin linescope rebuild-graph
+```
+
+seed-demoは既存の設備・現在状態だけを投入し、工程・製品・依存Graphの業務デモ一式ではない。Graph構築前に投入する。正本を直接seedで変更した後に既存Graphを最新と仮定せず、Rebuildで正本から構築する。
+
+schema作成は専用leader → mutation排他lockの順で取得し、固定constraintだけを作成する。各Neo4j statementは既定10秒以下の明示transactionで行う。既存constraintを破壊せずIF NOT EXISTSで再実行できる。複数DDL全体を一つの分散transactionとは扱わず、途中失敗時に既に確定したconstraintが残り得る。schema作成だけでCURRENTにはしない。
+
+Rebuildは既存controllerの60秒予算、leader、rebuild flag、排他lock、drain、正本Snapshot、generation検証・公開を使用する。未確認markerや未処理Outboxを無視してCURRENTを設定しない。旧generationは削除しない。成功結果は検証済みgeneration / Snapshot hash / 件数であり、全業務シナリオの合格ではない。
+
+残存rebuild flagは通常Rebuildで暗黙に回復しない。状態と運用ログを確認後、必要な場合だけ`docker compose run --build --rm graph-admin linescope rebuild-graph --recover`を明示実行する。接続・leader喪失や応答不明時に自動再実行しない。終了codeだけから跨storeのrollbackを推測せず、CURRENTと検証済みmarkerを再確認する。
+
+graph-adminは管理用PostgreSQL / Neo4j接続を使い、PostgreSQLのruntime / Projection roleへDDL・Rebuild権限を拡大しない。作成中の通常workerはleader競合またはREBUILDINGにより待機する。READ_ONLYのAPI・Agentから管理操作を起動できる経路は追加しない。

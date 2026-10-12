@@ -39,11 +39,14 @@ class GraphGenerationUnavailable(RuntimeError):
     """The target generation has not been verified and published for use."""
 
 
-def install_projection_schema(driver, *, database="neo4j"):
+def install_projection_schema(driver, *, database="neo4j", timeout_seconds=10):
     """Admin-only setup; never called from normal event application."""
+    timeout = neo4j_transaction_timeout(None, timeout_seconds)
     with driver.session(database=database) as session:
         for statement in SCHEMA:
-            session.run(statement).consume()
+            with session.begin_transaction(timeout=timeout) as transaction:
+                transaction.run(statement).consume()
+                transaction.commit()
 
 
 class Neo4jProjection:
