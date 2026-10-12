@@ -19,14 +19,14 @@ M = ("Equipment", "20400000-0000-4000-8000-000000000001")
 OTHER = ("Equipment", "20800000-0000-4000-8000-000000000001")
 
 
-def evaluate(reader, db, *, historical=False, states=None):
+def evaluate(reader, db, *, historical=False, states=None, excluded=()):
     budget = GraphAnalysisBudget(5000)
     with reader.open(budget) as read:
         facts = collect_substitute_facts(
             read, M, as_of=AS_OF, max_depth=16, max_nodes=3, page_size=1
         )
         result = evaluate_substitute_facts(
-            facts, states or GraphStateReader(db), budget, historical=historical
+            facts, states or GraphStateReader(db), budget, historical=historical, excluded=excluded
         )
     return result
 
@@ -138,3 +138,25 @@ def test_inactive_operation_is_not_a_state_availability_fact(reader_world, db):
     )
     result = GraphStateReader(db).read_availability([], [identifier], GraphAnalysisBudget(5000))
     assert result["operations"] is None
+
+
+def test_excluded_candidate_is_unavailable_even_when_postgres_says_running(reader_world, db):
+    result = evaluate(reader_world[0], db, excluded=(OTHER,))
+    assert result.selection.availability == "UNAVAILABLE"
+    assert result.selection.excluded_nodes == frozenset({M, OTHER})
+    assert any(
+        row["equipment_id"] == OTHER[1] and row["state_code"] == "RUNNING"
+        for row in result.observation["states"]
+    )
+
+
+@pytest.mark.parametrize(
+    "excluded", [None, "x", (False,), (("SQL", OTHER[1]),), (("Equipment", "invalid"),)]
+)
+def test_bad_exclusions_fail_before_state_read(reader_world, db, excluded):
+    class NoStateRead:
+        def read_availability(self, *args):
+            pytest.fail("Invalid exclusions must be rejected before state I/O")
+
+    with pytest.raises(ValueError):
+        evaluate(reader_world[0], db, states=NoStateRead(), excluded=excluded)

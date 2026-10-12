@@ -13,6 +13,7 @@ from ..domain.graph_substitute_selection import (
     SubstituteSelection,
     select_substitutes_for_exclusion,
 )
+from .graph_request import ENTITY_TYPES
 from .reads import ToolError
 
 
@@ -23,9 +24,21 @@ class ObservedSubstituteEvaluation:
     missing_states: tuple
 
 
-def evaluate_substitute_facts(facts, states, budget, *, historical):
+def evaluate_substitute_facts(facts, states, budget, *, historical, excluded=()):
     if type(historical) is not bool:
         raise ValueError("Explicit historical analysis mode is required")
+    if type(excluded) not in (list, tuple, set, frozenset):
+        raise ValueError("Typed exclusions are required")
+    for node in excluded:
+        if (
+            type(node) is not tuple
+            or len(node) != 2
+            or type(node[0]) is not str
+            or node[0] not in ENTITY_TYPES
+            or type(node[1]) is not str
+            or normalize_uuid(node[1]) != node[1]
+        ):
+            raise ValueError("Canonical typed exclusions are required")
     nodes = set(facts.prerequisites) | {facts.target} | set(facts.candidates)
     for dependencies in facts.prerequisites.values():
         nodes.update(dependencies)
@@ -86,6 +99,7 @@ def evaluate_substitute_facts(facts, states, budget, *, historical):
         availability,
         complete=facts.complete,
         historical=historical,
+        excluded=excluded,
     )
     budget.require()
     stateful = {node for node in nodes if node[0] in {"Equipment", "ProductionOperation"}}

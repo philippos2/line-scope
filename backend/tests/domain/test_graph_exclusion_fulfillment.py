@@ -63,8 +63,8 @@ def test_complete_empty_candidate_set_proves_unrestored_dependency():
 
 def test_incomplete_replacement_is_global_indeterminate():
     graph = {A: (), B: (), C: (), TARGET: (A, C)}
-    a = selection(A, [B], graph, {B: "AVAILABLE"}, complete=False)
-    c = selection(C, [], graph, {})
+    a = selection(A, [B], graph, {B: "AVAILABLE"}, complete=False, excluded=(C,))
+    c = selection(C, [], graph, {}, excluded=(A,))
     assert evaluate(graph, {A: a, C: c}, excluded=(A, C)).reason == "INCOMPLETE"
 
 
@@ -118,3 +118,17 @@ def test_selection_for_another_original_cannot_be_reused():
     c = selection(C, [B], graph, {B: "AVAILABLE"})
     with pytest.raises(ValueError):
         evaluate(graph, {A: c})
+
+
+def test_single_exclusion_selection_cannot_be_reused_for_multiple_exclusions():
+    graph = {A: (), B: (), C: (), TARGET: (A, C)}
+    a = selection(A, [B], graph, {B: "AVAILABLE"})
+    with pytest.raises(ValueError):
+        evaluate(graph, {A: a}, excluded=(A, C))
+
+
+def test_selection_for_extra_exclusion_cannot_be_reused_for_fewer_exclusions():
+    graph = {A: (), B: (), C: (), TARGET: (A,)}
+    a = selection(A, [B], graph, {B: "AVAILABLE"}, excluded=(C,))
+    with pytest.raises(ValueError):
+        evaluate(graph, {A: a}, excluded=(A,))

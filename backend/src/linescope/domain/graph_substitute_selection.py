@@ -24,6 +24,7 @@ class EvaluatedSubstitute:
 @dataclass(frozen=True)
 class SubstituteSelection:
     target: Node
+    excluded_nodes: frozenset[Node]
     candidates: tuple[EvaluatedSubstitute, ...]
     availability: str
     complete: bool
@@ -86,11 +87,15 @@ def select_substitutes_for_exclusion(
     )
     reasons = {item.evaluation.reason for item in evaluated}
     if not complete or "INCOMPLETE" in reasons:
-        return SubstituteSelection(target, evaluated, "UNKNOWN", False, "INCOMPLETE")
+        return SubstituteSelection(
+            target, frozenset(exclusions), evaluated, "UNKNOWN", False, "INCOMPLETE"
+        )
     if "MANDATORY_CYCLE" in reasons:
-        return SubstituteSelection(target, evaluated, "UNKNOWN", True, "MANDATORY_CYCLE")
+        return SubstituteSelection(
+            target, frozenset(exclusions), evaluated, "UNKNOWN", True, "MANDATORY_CYCLE"
+        )
     availability = substitute_availability(
         [item.evaluation.availability for item in evaluated], complete=True
     )
     reason = "UNKNOWN_AVAILABILITY" if availability == "UNKNOWN" else None
-    return SubstituteSelection(target, evaluated, availability, True, reason)
+    return SubstituteSelection(target, frozenset(exclusions), evaluated, availability, True, reason)
