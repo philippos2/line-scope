@@ -504,3 +504,5 @@ Dockerで追加36テスト成功、ruff check / format、git diff --check成功�
 [一段代替候補自身の成立・利用可能性](2026-10-12-substitute-candidate-evaluation.md)に、候補の全必須条件、正本利用可能性、過去時点のUNKNOWNと統合前の残作業を記録した。
 
 [除外対象に対する一段代替候補の集約](2026-10-12-substitute-candidate-selection.md)に、候補OR、対象と他の除外、空集合・未知・不完全性・循環の扱いと統合前の残作業を記録した。
+
+[一段代替を用いる除外後の構造成立](2026-10-12-exclusion-fulfillment.md)に、重要対象の全AND条件維持、対象付き候補評価、不完全性・未知とGraph統合前の残作業を記録した。
