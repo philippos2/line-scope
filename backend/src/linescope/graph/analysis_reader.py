@@ -20,6 +20,7 @@ from ..domain.graph_reachability import (
     TraversalNodeBudget,
     walk_reachability,
 )
+from ..domain.graph_requirement_rules import required_dependency
 from ..domain.graph_traversal import traversal_types
 from ..domain.relations import ENDPOINTS
 from .analysis_gate import GraphAnalysisGate
@@ -46,6 +47,13 @@ class GraphAdjacency:
 class GraphTraversal:
     reachability: Reachability
     paths: PathSelection
+    edges: tuple[dict, ...]
+
+
+@dataclass(frozen=True)
+class GraphMandatoryClosure:
+    reachability: Reachability
+    prerequisites: dict
     edges: tuple[dict, ...]
 
 
@@ -255,6 +263,77 @@ class _GraphRead:
         self._budget.require()
         return GraphTraversal(
             reached, paths, tuple(facts[identifier] for identifier in sorted(used))
+        )
+
+    def mandatory_closure(
+        self,
+        entity_type,
+        entity_id,
+        *,
+        as_of,
+        max_depth,
+        max_nodes,
+        page_size,
+        should_stop=None,
+        node_budget=None,
+    ):
+        """Keep all mandatory facts, including cross edges and cycle back edges.
+
+        Optional dependencies do not consume the semantic node/depth budget.
+        Incomplete closure must never be evaluated as a complete source graph.
+        The existing generation/exit gate and transaction deadline still apply.
+        """
+        for limit in (max_depth, max_nodes, page_size):
+            if type(limit) is not int or limit <= 0:
+                raise ValueError("Positive server-owned closure limits are required")
+        if not isinstance(as_of, datetime) or as_of.tzinfo is None or as_of.utcoffset() is None:
+            raise ValueError("An aware analysis time is required")
+        root = self.node(entity_type, entity_id)
+        if root is None or not root.active:
+            raise ToolError("TARGET_NOT_FOUND", "Active Graph target was not found")
+        facts, dependencies = {}, {}
+
+        def neighbors(node):
+            dependencies.setdefault(node, set())
+            after = None
+            while True:
+                page = self.neighbors(
+                    *node,
+                    direction="UPSTREAM",
+                    as_of=as_of,
+                    limit=page_size,
+                    after=after,
+                )
+                for fact in page.edges:
+                    self._budget.require()
+                    try:
+                        mandatory = required_dependency(fact["relation_type"], fact["required"])
+                    except ValueError as error:
+                        raise ProjectionIntegrityError("Invalid mandatory relation flag") from error
+                    if not mandatory:
+                        continue
+                    upstream = (fact["neighbor_type"], fact["neighbor_id"])
+                    facts[fact["source_record_id"]] = fact
+                    dependencies[node].add(upstream)
+                    yield LogicalEdge(node, upstream, fact["source_record_id"])
+                if not page.has_more:
+                    return
+                last = page.edges[-1]
+                after = (last["neighbor_type"], last["neighbor_id"], last["source_record_id"])
+
+        reached = walk_reachability(
+            (root.entity_type, root.entity_id),
+            neighbors,
+            max_depth=max_depth,
+            max_nodes=max_nodes,
+            should_stop=should_stop,
+            node_budget=node_budget,
+        )
+        self._budget.require()
+        return GraphMandatoryClosure(
+            reached,
+            {node: tuple(sorted(values)) for node, values in sorted(dependencies.items())},
+            tuple(facts[identifier] for identifier in sorted(facts)),
         )
 
     def common_dependency_searches(
