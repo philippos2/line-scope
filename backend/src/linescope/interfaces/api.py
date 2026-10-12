@@ -10,6 +10,7 @@ from starlette.exceptions import HTTPException
 
 from ..agent.agent_input import AgentInput
 from ..application.agent_service import PreparedAgentResult
+from ..application.graph_request import TOOLS as GRAPH_TOOLS
 from ..application.proposals import ProposalError
 from ..application.reads import ToolError, json_value
 from ..bootstrap import build_api_services
@@ -52,9 +53,22 @@ def response(
     )
 
 
-def create_app(settings=None, database=None, event_logger=None, *, llm=None, conversations=None):
+def create_app(
+    settings=None,
+    database=None,
+    event_logger=None,
+    *,
+    llm=None,
+    conversations=None,
+    graph_driver=None,
+):
     services = build_api_services(
-        settings, database, event_logger, llm=llm, conversations=conversations
+        settings,
+        database,
+        event_logger,
+        llm=llm,
+        conversations=conversations,
+        graph_driver=graph_driver,
     )
     settings, database, events = services.settings, services.database, services.events
 
@@ -65,6 +79,7 @@ def create_app(settings=None, database=None, event_logger=None, *, llm=None, con
         try:
             yield
         finally:
+            await run_in_threadpool(services.close)
             with request_context(uuid4()):
                 events.emit("service.stopped", component="api", outcome="success", result_code="OK")
 
@@ -104,6 +119,9 @@ def create_app(settings=None, database=None, event_logger=None, *, llm=None, con
                 "AUTHENTICATION_REQUIRED": 401,
                 "AUTHORIZATION_DENIED": 403,
                 "TARGET_NOT_FOUND": 404,
+                "GRAPH_NOT_CURRENT": 503,
+                "GRAPH_UNAVAILABLE": 503,
+                "GRAPH_REBUILDING": 503,
                 "RESOURCE_BUSY": 503,
                 "DEPENDENCY_UNAVAILABLE": 503,
             }.get(error.code, 500)
@@ -269,7 +287,11 @@ def create_app(settings=None, database=None, event_logger=None, *, llm=None, con
                 answer=result.answer,
                 evidence=evidence,
                 context_id=context_id,
-                partial=bool(result.errors and result.observations),
+                partial=bool(result.errors and result.observations)
+                or any(
+                    item.tool in GRAPH_TOOLS and item.result.data.get("complete") is False
+                    for item in result.observations
+                ),
                 warnings=list(result.errors),
             )
         except (ProposalError, ToolError) as error:
@@ -303,6 +325,9 @@ def error_status(code):
         "APPROVAL_ALREADY_CONSUMED": 409,
         "APPROVAL_EXPIRED": 410,
         "BUSINESS_RULE_VIOLATION": 422,
+        "GRAPH_NOT_CURRENT": 503,
+        "GRAPH_UNAVAILABLE": 503,
+        "GRAPH_REBUILDING": 503,
         "RESOURCE_BUSY": 503,
         "DEPENDENCY_UNAVAILABLE": 503,
         "AGENT_LIMIT_REACHED": 503,

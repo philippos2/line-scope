@@ -181,6 +181,7 @@ def test_historical_scope_does_not_claim_historical_equipment_state(world):
             "explicit_as_of": (at - timedelta(seconds=1)).isoformat(),
         },
     )
+    assert result.data["analysis_mode"] == result.evidence["analysis_mode"] == "EXPLICIT_HISTORICAL"
     assert result.data["reached_nodes"] == [] and result.data["complete"]
     assert result.evidence["temporal_scope"] == "CURRENT_REGISTRATION_AT_AS_OF"
     assert result.evidence["state_temporal_scope"] == "CURRENT_STATE_AT_OBSERVATION"

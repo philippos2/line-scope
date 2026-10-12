@@ -113,7 +113,9 @@ class GraphAnalysis:
                 )
             states = sorted(observation["states"] or [], key=lambda state: state["equipment_id"])
             present = {state["equipment_id"] for state in states}
+            analysis_mode = "EXPLICIT_HISTORICAL" if "explicit_as_of" in arguments else "CURRENT"
             data = {
+                "analysis_mode": analysis_mode,
                 "graph_sync_state": "CURRENT",
                 "complete": result.paths.complete,
                 "limit_reason": result.paths.limit_reason,
@@ -135,6 +137,7 @@ class GraphAnalysis:
             }
             evidence = {
                 "source": "NEO4J_AND_POSTGRESQL",
+                "analysis_mode": analysis_mode,
                 "tool": tool,
                 "graph_generation": read.validation.generation,
                 "graph_observed_at": read.observed_at,
