@@ -12,6 +12,7 @@ push・PR作成・mergeはそれぞれ別の操作として報告する。PR準�
 
 ## PRとmain
 
+- PRの確認・mergeは開発者が行う。
 - 原則1 PR＝main上の1 Squash commit。
 - GitHubではSquash mergeだけを許可し、Merge commit / Rebase mergeは無効にする。
 - PRタイトルは`feat:` / `fix:` / `docs:` / `test:` / `refactor:` / `chore:`のConventional Commit形式。scopeは任意。

@@ -233,7 +233,7 @@ def create_app(settings=None, database=None, event_logger=None, *, llm=None, con
                     json_value(outcome.data),
                     answer="保存済みの変更要求を返します。状態とSnapshotを確認してください。"
                     if outcome.replayed
-                    else "変更準備を作成しました。業務データや設備の現在状態は変更していません。人間による承認と実行が必要です。",
+                    else "変更準備を作成しました。業務データや設備の現在状態は変更していません。承認者による承認と元requesterによる実行が必要です。",
                 )
             result, context_id = outcome.analysis, outcome.context_id
             data = {

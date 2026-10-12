@@ -22,7 +22,7 @@ POが共有したChatGPTのUI/UX意見書へのCodexの評価記録。正式なU
 | Unknown / MissingとEvidence | Adopt | AC-B09／11に合う。未知・未探索・取得不能を0や不存在と区別し、結論から入力・式・正本・文書・前提へ遡れるようにする |
 | Graphの主役固定を避ける | Modify | 以前のGraph中心案は候補であり固定仕様ではない。状況要約・比較を主な作業面にし、Graphを影響説明と経路確認に強く使う方向を推奨。詳細配置は後続で検証する |
 | Chatと次の問い合わせ候補 | Adopt | 問い合わせ・説明・探索の入口として有効。選択肢をクリックしただけでPrepareせず、明示更新意思を確認する。Approval／ExecuteはAgentへ委任しない |
-| AnalysisとActionの分離 | Adopt | サーバ保存のcanonical before／proposed、承認状態、確定after、後続currentを区別する。元requesterのExecuteと人間のApprovalの境界を保つ |
+| AnalysisとActionの分離 | Adopt | サーバ保存のcanonical before／proposed、承認状態、確定after、後続currentを区別する。元requesterのExecuteと承認者のApprovalの境界を保つ |
 | HomeのOperational Overview | Defer / Needs product decision | 正本の設備状態の一覧と、Incident・通知・Severity・工場全体の損失集計は別。後者は登録・検知・権限・集計規則等の業務定義が必要 |
 | 配色・アイコン・Component配置 | Defer | 落ち着いた意味色、読みやすさ、色以外の状態表現は妥当。具体テーマ・部品・ライブラリはUI段階で検証する |
 | 例示の未定義状態・数値をそのまま採用 | Reject | DEGRADED／MAINTENANCE等を現行状態enumへ追加しない。例示の安全閾値・Severity・架空profileを正式な事実や業務ルールにしない |

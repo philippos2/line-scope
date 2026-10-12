@@ -4,9 +4,9 @@
 
 **設備・工程の依存関係と根拠をつなぎ、製造現場の意思決定を支援するプロダクト。**
 
-設備異常時に「どこまで影響するか」「どの対応が可能か」を調べ、Evidenceを確認して、人間の判断と承認付き変更へ進むことを目指しています。PostgreSQLの業務Object、Neo4jの依存Graph、文書検索、AI Agentを組み合わせる、単一工場のデモです。
+設備異常時に「どこまで影響するか」「どの対応が可能か」を調べ、Evidenceを確認して、エンドユーザーの判断と承認付き変更へ進むことを目指しています。PostgreSQLの業務Object、Neo4jの依存Graph、文書検索、AI Agentを組み合わせる、単一工場のデモです。
 
-> **バックエンドを開発中です。** 認証付きAgent API、業務データの参照、一部の更新Prepare、人間によるApproval / Executeを実装しています。GraphのProjection・Rebuild・分析用読取基盤も実装していますが、Graph ToolのAgent接続、RAG、能力・経済・対応案比較、Frontendは未完了です。紹介動画は今後作成します。
+> **バックエンドを開発中です。** 認証付きAgent API、業務データの参照、一部の更新Prepare、承認者・requesterによるApproval / Executeを実装しています。GraphのProjection・Rebuild・分析用読取基盤も実装していますが、Graph ToolのAgent接続、RAG、能力・経済・対応案比較、Frontendは未完了です。紹介動画は今後作成します。
 
 ## 主な機能と実装状況
 
@@ -15,7 +15,7 @@
 | 業務データ参照 | 設備・状態・保全・工程・生産作業・製品・インフラ・依存関係のRead Tools |
 | 自然言語調査 | `POST /agent`からOllamaを使うRead Agent。回答・Evidence・公開Tool Trace・追加情報要求を返す |
 | 更新Prepare | 明示的な設備状態変更、保全予定変更、生産作業予定変更をAgent APIへ接続。その他のPrepareには内部実装もある |
-| 人間の変更操作 | 保存済みSnapshotの閲覧、承認／拒否、requesterによる実行。version検証・監査・Outboxを含む更新Transaction |
+| 承認・実行操作 | 保存済みSnapshotの閲覧、承認／拒否、requesterによる実行。version検証・監査・Outboxを含む更新Transaction |
 | Graph基盤 | Outbox、Neo4j Projection、generation管理、Rebuild / Restore、CURRENT確認・shared lock下の分析用読取と上限付き隣接関係取得。内部部品であり公開Graph分析は未完了 |
 | ログ・監査 | request_id付きJSON運用ログ、Tool・更新・workerの操作イベント、DB業務監査・確定結果 |
 | デモデータ | `seed-demo`でM-204・M-208と現在状態を投入。工程・製品・依存関係の業務デモ一式は未整備 |
@@ -36,7 +36,7 @@ flowchart LR
     Agent <--> LLM[ホストのOllama]
     Agent --> Read[Read / Prepare]
     Read --> PG[(PostgreSQL / 業務正本)]
-    Human[人間のApproval / Execute] --> API
+    Human[承認者のApproval / requesterのExecute] --> API
     App --> PG
     PG --> Outbox[Transactional Outbox]
     Outbox --> Projection[Projection / Rebuild / 内部実装]
@@ -88,7 +88,7 @@ Toolは個別のHTTP endpointとして公開せず、固定dispatcherから呼�
 ```text
 調査・Evidence確認
     → Prepare（before / afterを固定、業務値は未変更）
-    → 人間のApproval（Snapshot hashを確認）
+    → 承認者のApproval（Snapshot hashを確認）
     → requesterのExecute（versionを再検証して更新）
 ```
 
@@ -208,7 +208,7 @@ docker run --rm --network host linescope-test-tests \
 
 GitHub ActionsでDockerビルド、Ruff check / format、実PostgreSQL / Neo4jによる全テスト、runtime起動・同梱migrationの再実行を確認します。実LLM・実embeddingの品質検証はCIに含めません。
 
-required checksは`Tests and migrations`と`PR title`です。PRタイトル・コミットメッセージは日本語で作成し、人間が確認してSquash mergeします。[開発・PR運用](CONTRIBUTING.md)
+開発・PR運用は[CONTRIBUTING.md](CONTRIBUTING.md)を参照してください。
 
 ## 制限とスコープ外
 

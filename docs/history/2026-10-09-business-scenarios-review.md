@@ -36,7 +36,7 @@ BS-G01の専用数値fixtureとUC-B14の将来停止予約variantは判断確定
 | Domain / Graph | OPはProcessとして固定し、Operation variantはAssignment由来USES。required方向、一段置換、全AND成立、CURRENT、最短hop、過去as_ofの限定を維持 |
 | DB / API / Tool | 必要な新入力・計算契約を明示し、未確定列・endpoint・status・型を実装済みとして書かない。数量は既存Snapshot v1へfloatを追加しない |
 | 権限 | 新情報の権限はPO-B07。既存全Target条件・単一カテゴリ・Graphロール・Evidence認可を維持 |
-| Approval / Execute | 分析のみではPrepareなし。人間Approvalと元requester Executeを維持。予約停止を現時点UPDATEに読み替えない |
+| Approval / Execute | 分析のみではPrepareなし。承認者のApprovalと元requester Executeを維持。予約停止を現時点UPDATEに読み替えない |
 | Transaction / Outbox | 状態遷移、lock順、Outbox、Rebuildは維持。判断支援計算をcommitや承認消費と混同しない |
 | Evidence / RAG | 計算入力・式・版・時刻・仮定を追跡。文書検索結果だけで安全基準や費用を確定しない |
 | 未知と完全性 | Graph complete、経済incomplete、能力不足、安全未確認を区別。UNKNOWNと0・NONE・NULLの意味を混同しない |

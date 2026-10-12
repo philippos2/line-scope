@@ -59,7 +59,7 @@ def test_original_values_create_pending_snapshot_without_llm(world, message, fie
         assert target["target_id"] == str(UUID(int=20))
         assert target["before"]["version"] == 5 and target["after"]["version"] == 6
         assert target["after"][field] == value and not llm.requests
-        assert "人間による承認と実行が必要" in response.json()["answer"]
+        assert "承認者による承認と元requesterによる実行が必要" in response.json()["answer"]
     with world.transaction() as c:
         assert c.execute(
             "SELECT plan_status,version FROM maintenance_plan WHERE maintenance_plan_id=%s",
