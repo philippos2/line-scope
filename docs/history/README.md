@@ -472,3 +472,5 @@ Dockerで追加36テスト成功、ruff check / format、git diff --check成功�
 - [検証済みgenerationのGraph分析read adapter](2026-10-11-verified-graph-analysis-reader.md)
 
 - [Graph一段依存関係の固定読取](2026-10-12-graph-adjacency-read.md)
+
+[通常Graph Toolの内部登録とAgent接続](2026-10-12-graph-tool-dispatch.md)に、サービス注入時だけの公開、Agent結果保持と非CURRENT拒否、API起動構成の残作業を記録した。

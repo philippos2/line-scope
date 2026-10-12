@@ -6,8 +6,11 @@ Agent orchestration and Approval/Execute are separate responsibilities.
 
 from copy import deepcopy
 
+from ..domain.graph_traversal import IMPACT_FORWARD, IMPACT_REVERSE
 from ..execution import ExecutionContext
 from .dependency_prepare import DependencyPrepare
+from .graph_request import ENTITY_TYPES, LIMIT_NAMES
+from .graph_request import TOOLS as GRAPH_TOOLS
 from .prepare import EquipmentStatePrepare, MaintenancePrepare
 from .production_prepare import ProductionPrepare
 from .proposals import ProposalError
@@ -148,8 +151,37 @@ def _single_schemas():
     return schemas
 
 
+def _graph_schemas():
+    target = _object(
+        {"entity_type": {"type": "string", "enum": sorted(ENTITY_TYPES)}, "entity_id": UUID_SCHEMA}
+    )
+    properties = {
+        "target": target,
+        "relation_types": {
+            "type": "array",
+            "minItems": 1,
+            "items": {"type": "string", "enum": sorted(IMPACT_FORWARD | IMPACT_REVERSE)},
+        },
+        "explicit_as_of": TIME_SCHEMA,
+        **{"requested_" + name: {"type": "integer", "minimum": 1} for name in LIMIT_NAMES},
+    }
+    return {
+        name: {
+            **_object(properties, ["target"]),
+            "description": (
+                "Trace downstream impact candidates."
+                if direction == "IMPACT"
+                else "Trace upstream dependencies."
+            )
+            + " Server-built paths and Evidence; complete=false means incomplete search, not no impact. Reachability does not prove stoppage, safety or sufficient capacity. Timeout and identity are server-controlled.",
+        }
+        for name, direction in GRAPH_TOOLS.items()
+    }
+
+
 class ToolDispatcher:
-    def __init__(self, database):
+    def __init__(self, database, *, graph=None):
+        self.graph = graph
         self.reads = ReadTools(database)
         self.prepares = {
             "EQUIPMENT_STATE": EquipmentStatePrepare(database),
@@ -161,6 +193,8 @@ class ToolDispatcher:
     def schemas(self):
         """Advertise implemented Tools only; unknown fields are forbidden."""
         schemas = self.reads.schemas()
+        if self.graph is not None:
+            schemas.update(_graph_schemas())
         singles = _single_schemas()
         for name, category in PREPARE_CATEGORIES.items():
             item_schemas = [
@@ -199,6 +233,8 @@ class ToolDispatcher:
             raise ToolError("AUTHENTICATION_REQUIRED", "Trusted execution context is required")
         if type(tool) is not str:
             raise ToolError("INVALID_ARGUMENT", "Tool name must be text")
+        if tool in GRAPH_TOOLS and self.graph is not None:
+            return self.graph.call(context, tool, arguments)
         if tool not in PREPARE_CATEGORIES:
             return self.reads.run(context, tool, arguments)
         if type(arguments) is not dict:
