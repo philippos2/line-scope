@@ -22,6 +22,7 @@ def exclusion_fulfillment(target, prerequisites, replacements, *, excluded, comp
             node not in excluded
             or not isinstance(selection, SubstituteSelection)
             or selection.target != node
+            or selection.excluded_nodes != frozenset(excluded)
             or type(selection.availability) is not str
             or selection.availability not in AVAILABILITIES
             or type(selection.complete) is not bool

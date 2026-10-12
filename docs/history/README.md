@@ -518,3 +518,5 @@ Dockerで追加36テスト成功、ruff check / format、git diff --check成功�
 [代替Graph factsとPostgreSQL正本状態の接続](2026-10-13-substitute-state-evaluation.md)に、同一statementの状態観測、UNKNOWN／過去時点、内部Application境界と公開前の残作業を記録した。
 
 [代替探索の公開前入力境界](2026-10-13-alternative-request-validation.md)に、全入力集合・認可・実効共有予算・filter拒否と公開前の残作業を記録した。
+
+[複数除外条件を維持する代替評価](2026-10-13-multiple-exclusion-evaluation.md)に、全除外集合の伝達・評価結果への保持・異なる条件への流用拒否と公開前の残作業を記録した。
