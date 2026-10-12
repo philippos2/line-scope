@@ -23,6 +23,13 @@ def main():
     commands.add_parser(
         "seed-demo", help="Explicitly bootstrap read-demo equipment after migrations"
     )
+    commands.add_parser("install-graph-schema", help="Explicit admin-only Neo4j constraint setup")
+    rebuild = commands.add_parser(
+        "rebuild-graph", help="Explicit admin-only verified Graph rebuild"
+    )
+    rebuild.add_argument(
+        "--recover", action="store_true", help="Explicitly recover an abandoned Rebuild flag"
+    )
     projection = commands.add_parser(
         "project-graph", help="Run the normal Outbox Projection worker"
     )
@@ -61,6 +68,54 @@ def main():
             print(json.dumps(seed_demo(Database(settings))))
         except SeedConflict as error:
             parser.exit(1, f"seed-demo: {error}\n")
+    elif args.command in {"install-graph-schema", "rebuild-graph"}:
+        from neo4j import GraphDatabase
+
+        from .graph.administration import GraphAdministration
+
+        if settings.neo4j_uri is None:
+            parser.exit(1, "Graph administration requires configured Neo4j.\n")
+        events = EventLogger(settings.log_level)
+        configure_runtime_logging(events)
+        try:
+            with GraphDatabase.driver(
+                settings.neo4j_uri,
+                auth=(settings.neo4j_user, settings.neo4j_password),
+                connection_timeout=settings.connect_seconds,
+                connection_acquisition_timeout=5,
+                max_transaction_retry_time=0,
+            ) as driver:
+                administration = GraphAdministration(
+                    Database(settings),
+                    driver,
+                    graph_database=settings.neo4j_database,
+                    logger=events,
+                )
+                if args.command == "install-graph-schema":
+                    administration.install_schema()
+                    print(json.dumps({"schema_installed": True}))
+                else:
+                    verified = administration.rebuild(recover=args.recover)
+                    print(
+                        json.dumps(
+                            {
+                                "generation": verified.generation,
+                                "snapshot_hash": verified.snapshot_hash,
+                                "node_count": verified.node_count,
+                                "aggregate_count": verified.aggregate_count,
+                            }
+                        )
+                    )
+        except Exception as error:
+            events.emit(
+                "runtime.diagnostic",
+                component="rebuild",
+                outcome="failure",
+                result_code="INTERNAL_ERROR",
+                level="ERROR",
+                error=error,
+            )
+            parser.exit(1, "Graph administration failed; inspect Graph state before retrying.\n")
     elif args.command == "project-graph":
         from neo4j import GraphDatabase
 

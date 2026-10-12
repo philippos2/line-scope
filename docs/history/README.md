@@ -478,3 +478,5 @@ Dockerで追加36テスト成功、ruff check / format、git diff --check成功�
 [APIのGraph分析接続とHTTP契約](2026-10-12-api-graph-runtime.md)に、設定・driver所有権・HTTPの部分結果とGraphエラー、標準Composeの残作業を記録した。
 
 [常駐Projectionと標準Compose接続](2026-10-12-projection-runtime-compose.md)に、反復と停止、leader解放、Compose接続、初回Graph構築の残作業を記録した。
+
+[初回Graph構築の明示管理CLI](2026-10-12-graph-initialization-cli.md)に、schema作成・Rebuild・明示回復と管理権限、業務デモの残作業を記録した。
