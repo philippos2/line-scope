@@ -520,3 +520,5 @@ Dockerで追加36テスト成功、ruff check / format、git diff --check成功�
 [代替探索の公開前入力境界](2026-10-13-alternative-request-validation.md)に、全入力集合・認可・実効共有予算・filter拒否と公開前の残作業を記録した。
 
 [複数除外条件を維持する代替評価](2026-10-13-multiple-exclusion-evaluation.md)に、全除外集合の伝達・評価結果への保持・異なる条件への流用拒否と公開前の残作業を記録した。
+
+[複数重要対象・全除外の代替分析データ収集](2026-10-13-alternative-analysis-facts.md)に、全入力確認・共有予算・全体の不完全性と公開前の残作業を記録した。
