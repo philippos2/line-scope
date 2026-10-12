@@ -354,3 +354,5 @@ docker compose run --rm --no-deps \
 probeは`/agent`へ固定の読取質問を一回送り、M-204からの6対象・2製品・代表経路・CURRENT・サーバEvidence・初期state versionを照合する。変更済みfixtureは対象外であり、自動resetしない。Approve / Execute / Prepareは要求しない。HTTP redirectは拒否し、tokenや回答本文、外部例外を結果へ出さない。成功でも自然言語の品質・全Business Scenarioの合格・model選定完了を意味しない。LLMの60秒予算を延長しない。
 
 管理CLIのleader競合を避けるため、初回schema / Rebuildを実行するときは通常workerを`docker compose stop projection`で停止し、管理操作完了後に`docker compose start projection`で再開できる。管理操作が失敗した場合は状態を確認し、応答不明の操作を自動retryしない。
+
+Ollamaのコンテキスト枠はサーバ設定`LINESCOPE_LLM_CONTEXT_TOKENS`（既定16384、正整数）で指定する。modelの対応枠とGPU / RAMに合わせて設定し、エンドユーザーやTool引数から変更しない。既定8192では初期GraphのTool結果を含む約10880 tokenの入力がOllamaに拒否されたため拡大した。大きなGraph・会話履歴が常に収まる保証ではなく、LLM実行予算60秒・回答上限・Graph探索上限は維持する。入力超過時の自動枠拡張やTool結果の暗黙切捨ては行わない。

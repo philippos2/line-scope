@@ -89,7 +89,9 @@ def parse_reply(body, schemas):
 
 
 class OllamaClient:
-    def __init__(self, *, base_url, model, max_response_bytes=262144, clock=monotonic):
+    def __init__(
+        self, *, base_url, model, max_response_bytes=262144, context_tokens=16384, clock=monotonic
+    ):
         url = urlsplit(base_url)
         if (
             url.scheme not in {"http", "https"}
@@ -105,6 +107,9 @@ class OllamaClient:
             raise ValueError("An explicit model is required")
         if type(max_response_bytes) is not int or max_response_bytes <= 0:
             raise ValueError("Response limit must be a positive integer")
+        if type(context_tokens) is not int or context_tokens <= 0:
+            raise ValueError("Context tokens must be a positive integer")
+        self.context_tokens = context_tokens
         self.url, self.model, self.max_response_bytes, self.clock = (
             url,
             model,
@@ -128,7 +133,7 @@ class OllamaClient:
                 "messages": messages,
                 "stream": False,
                 "think": False,
-                "options": {"temperature": 0, "num_ctx": 8192, "num_predict": 700},
+                "options": {"temperature": 0, "num_ctx": self.context_tokens, "num_predict": 700},
                 "tools": [
                     {
                         "type": "function",

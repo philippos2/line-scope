@@ -248,3 +248,29 @@ def test_explicit_wrong_call_type_is_rejected():
     )
     with pytest.raises(LLMError):
         parse_reply(raw, SCHEMAS)
+
+
+@pytest.mark.parametrize("tokens", [8192, 16384])
+def test_server_context_size_is_sent_to_provider(provider, tokens):
+    url, state = provider
+    OllamaClient(base_url=url, model="candidate", context_tokens=tokens).complete(
+        [], schemas={}, deadline=monotonic() + 5
+    )
+    assert state["request"]["options"]["num_ctx"] == tokens
+
+
+@pytest.mark.parametrize("tokens", [True, 0, -1, 1.5, "16384"])
+def test_invalid_context_size_is_rejected(tokens):
+    from linescope.settings import Settings
+
+    with pytest.raises(ValueError):
+        Settings(llm_context_tokens=tokens)
+    with pytest.raises(ValueError):
+        OllamaClient(base_url="http://localhost:11434", model="candidate", context_tokens=tokens)
+
+
+def test_context_size_environment(monkeypatch):
+    from linescope.settings import Settings
+
+    monkeypatch.setenv("LINESCOPE_LLM_CONTEXT_TOKENS", "24576")
+    assert Settings.env().llm_context_tokens == 24576

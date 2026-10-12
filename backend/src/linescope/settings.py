@@ -18,6 +18,7 @@ class Settings:
     log_level: str = "INFO"
     llm_base_url: str = field(default="http://127.0.0.1:11434", repr=False)
     llm_model: str = field(default="", repr=False)
+    llm_context_tokens: int = 16384
     read_dsn: str | None = field(default=None, repr=False)
 
     neo4j_uri: str | None = field(default=None, repr=False)
@@ -89,6 +90,7 @@ class Settings:
         elif self.neo4j_user or self.neo4j_password:
             raise ValueError("Neo4j credentials require a configured URI")
         for name in (
+            "llm_context_tokens",
             "connect_seconds",
             "statement_ms",
             "lock_ms",

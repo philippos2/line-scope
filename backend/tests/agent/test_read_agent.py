@@ -221,3 +221,55 @@ def test_provider_failure_is_translated_without_tool_execution(code):
     assert error.value.details == {}
     assert isinstance(error.value.__cause__, LLMError)
     assert dispatcher.calls == 0
+
+
+@pytest.mark.parametrize("tool", ["trace_downstream_impact", "trace_upstream_dependencies"])
+def test_graph_paths_are_sent_once_without_mutating_server_evidence(tool):
+    from linescope.agent.read_agent import model_tool_payload
+
+    paths = [{"nodes": ["root", "target"], "edges": ["SUPPLIES"]}]
+    result = ReadResult(
+        {"representative_paths": paths},
+        {
+            "representative_paths": paths,
+            "source": "NEO4J_AND_POSTGRESQL",
+            "graph_generation": "g1",
+        },
+    )
+    payload = model_tool_payload(tool, result)
+    assert payload["data"]["representative_paths"] == paths
+    assert "representative_paths" not in payload["evidence"]
+    assert payload["evidence"]["representative_paths_location"] == "data.representative_paths"
+    assert payload["evidence"]["graph_generation"] == "g1"
+    assert result.evidence["representative_paths"] == paths
+
+
+def test_distinct_graph_paths_are_not_silently_discarded():
+    from linescope.agent.read_agent import model_tool_payload
+
+    result = ReadResult(
+        {"representative_paths": ["data-path"]}, {"representative_paths": ["evidence-path"]}
+    )
+    assert model_tool_payload("trace_downstream_impact", result)["evidence"] == result.evidence
+    assert model_tool_payload("get_equipment", result)["evidence"] == result.evidence
+
+
+def test_agent_graph_model_view_and_returned_evidence_are_separate():
+    import json
+
+    paths = [{"nodes": ["root", "target"], "edges": ["SUPPLIES"]}]
+    result = ReadResult({"representative_paths": paths}, {"representative_paths": paths})
+
+    class GraphDispatcher(Dispatcher):
+        def schemas(self):
+            return {"trace_downstream_impact": {"type": "object"}}
+
+        def run(self, *args, **kwargs):
+            return result
+
+    llm = ScriptedLLM(call("trace_downstream_impact", {}), LLMReply("経路を確認しました。", ()))
+    outcome = ReadAgent(GraphDispatcher(), llm).run(context(), request())
+    payload = json.loads(llm.requests[-1][0][-1]["content"])
+    assert payload["data"]["representative_paths"] == paths
+    assert "representative_paths" not in payload["evidence"]
+    assert outcome.observations[0].result.evidence["representative_paths"] == paths
