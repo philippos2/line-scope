@@ -271,7 +271,7 @@ upgradeはmode 0600の既存.envへ不足する3種類のrole passwordだけを�
 デモmasterの初期投入はAPI roleでは行わず、管理用migrateサービスを明示利用する。
 
 ```sh
-docker compose run --rm migrate linescope seed-demo
+docker compose run --rm migrate linescope seed-demo-graph
 ```
 
 LineScope専用DBを対象とする管理処理であり、他製品とschema / roleを共有するDBへそのまま適用しない。既存の同名roleにmembership・Object ownership・特権属性があれば自動で流用せず管理者確認を要求する。APIには管理DSN・role provision用password環境変数を渡さない。
@@ -306,19 +306,19 @@ workerのPostgreSQL接続はlinescope_projectionを使い、API tokenやLLM設�
 
 SIGTERM / SIGINTは終了要求を設定し、待機を解除する。処理中の場合は1反復を終えてから閉じ、途中のcommitを取消済みと扱わない。Composeの停止猶予は45秒とする。強制終了されたPROCESSINGは既存lease回復へ委ねる。Rebuildは次反復のleader取得との間で排他を獲得できる。
 
-`linescope project-graph --once`は1反復だけ行い、起動・停止のJSON運用ログとstatus行を出力する。初回未構築やERROR / REBUILDINGはBLOCKEDであり、起動確認の成功をGraph分析可能と混同しない。normal workerが暗黙にschema / generationを構築・修復することはない。初回Rebuildは§17の管理CLIで実行する。工程・製品・依存関係の業務デモ投入は後続である。
+`linescope project-graph --once`は1反復だけ行い、起動・停止のJSON運用ログとstatus行を出力する。初回未構築やERROR / REBUILDINGはBLOCKEDであり、起動確認の成功をGraph分析可能と混同しない。normal workerが暗黙にschema / generationを構築・修復することはない。初回Rebuildは§17の管理CLIで実行する。業務Graphの初期投入は§18に従う。
 
 ## 17. 初回Graph構築の管理CLI
 
 私有.envの準備と通常サービス起動後、管理者が次を明示実行する。`graph-admin`はtools profileの管理サービスで、通常起動に含めず、既定commandはhelpのみとする。API / Agent Toolへこれらの操作を公開しない。
 
 ```sh
-docker compose run --rm migrate linescope seed-demo
+docker compose run --rm migrate linescope seed-demo-graph
 docker compose run --build --rm graph-admin linescope install-graph-schema
 docker compose run --build --rm graph-admin linescope rebuild-graph
 ```
 
-seed-demoは既存の設備・現在状態だけを投入し、工程・製品・依存Graphの業務デモ一式ではない。Graph構築前に投入する。正本を直接seedで変更した後に既存Graphを最新と仮定せず、Rebuildで正本から構築する。
+seed-demoは設備・現在状態のみ、seed-demo-graphは§18の業務Graph fixtureを投入する。いずれも新規追加は初回Rebuild前に行う。正本を直接seedで変更した後に既存Graphを最新と仮定せず、Rebuildで正本から構築する。
 
 schema作成は専用leader → mutation排他lockの順で取得し、固定constraintだけを作成する。各Neo4j statementは既定10秒以下の明示transactionで行う。既存constraintを破壊せずIF NOT EXISTSで再実行できる。複数DDL全体を一つの分散transactionとは扱わず、途中失敗時に既に確定したconstraintが残り得る。schema作成だけでCURRENTにはしない。
 
@@ -327,3 +327,15 @@ Rebuildは既存controllerの60秒予算、leader、rebuild flag、排他lock、
 残存rebuild flagは通常Rebuildで暗黙に回復しない。状態と運用ログを確認後、必要な場合だけ`docker compose run --build --rm graph-admin linescope rebuild-graph --recover`を明示実行する。接続・leader喪失や応答不明時に自動再実行しない。終了codeだけから跨storeのrollbackを推測せず、CURRENTと検証済みmarkerを再確認する。
 
 graph-adminは管理用PostgreSQL / Neo4j接続を使い、PostgreSQLのruntime / Projection roleへDDL・Rebuild権限を拡大しない。作成中の通常workerはleader競合またはREBUILDINGにより待機する。READ_ONLYのAPI・Agentから管理操作を起動できる経路は追加しない。
+
+## 18. 業務Graphデモの初期投入
+
+`linescope seed-demo-graph`は固定fixtureとしてEquipment M-204 / M-208、Process P-10 / P-20、ProductionOperation OP-30 / OP-40、Product P-100 / P-200、InfrastructureResource R-02を投入する。1件のEquipment割当からUSES、9件のDependencyRelationからSUPPLIES / PRECEDES / PRODUCES / CAN_SUBSTITUTEを生成する。正本9 nodeと10 aggregateをRebuildする。デモ日時は2026-01-01からの固定fixtureで、作業予定は2027-01-01まで、有効関係は終端なしとする。業務一般の期間規則へ昇格させない。
+
+M-204停止を与えた条件で、通常下流分析は直接2対象（Process / ProductionOperation）、間接4対象（後続Process / ProductionOperation / 2 Product）へ到達する。上流分析ではR-02への経路を確認できる。M-208→M-204のCAN_SUBSTITUTEは通常到達探索へ混ぜず、能力十分や安全性を保証しない。損失・費用・生産能力・安全基準等の未決定データは追加しない。
+
+seedは初期デモ用の管理操作であり、Approval / 業務履歴 / Outboxを捏造しない。全投入を一つのPostgreSQL transaction、mutation排他lock、control row lockの下で行う。新規投入時は同じtransactionで要Rebuild状態にし、エンドユーザー向け更新の代替として使わない。DB操作は固定table / columnのCore queryとbindで行う。
+
+公開済みgenerationへ新規正本行をseedで追加する操作は拒否し、全rollbackする。初回Rebuild前に投入する。既存fixtureに他の関係が混在する場合や、設備がinactive、ID / 業務キー・既存関係が衝突する場合も拒否し、上書き・暗黙修復・既存データの削除をしない。公開後に追加不要の同一fixtureを再実行する場合はCURRENTを維持する。名称・現在状態・version等は保持し、関係の編集済み意味を初期値へ戻さない。
+
+既存のGraph構築済み環境へのデモ切替は自動resetしない。新しい隔離デモ環境で初期投入するか、別途の明示管理手順を検討する。Graph Rebuild・実LLMの選択品質・業務Scenarioの受入は区別し、seedだけで分析可能と扱わない。

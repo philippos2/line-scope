@@ -4,6 +4,14 @@ from uuid import UUID
 
 from psycopg.errors import UniqueViolation
 
+from .graph.graph_locks import acquire_graph_mutation_lock
+from .persistence.core_demo_seed import (
+    insert_row,
+    lock_seed_control,
+    read_row,
+    require_demo_rebuild,
+)
+
 DEMO_EQUIPMENT = (
     (UUID("20400000-0000-4000-8000-000000000001"), "M-204", "Demo machine M-204", "STOPPED"),
     (UUID("20800000-0000-4000-8000-000000000001"), "M-208", "Demo machine M-208", "RUNNING"),
@@ -14,45 +22,61 @@ class SeedConflict(ValueError):
     """Existing data cannot safely be associated with this fixture."""
 
 
-def seed_demo(database):
-    """Insert missing demo equipment atomically; never reset existing values.
+def _seed_equipment(connection):
+    inserted, retained = [], []
+    for equipment_id, code, name, state in DEMO_EQUIPMENT:
+        created = insert_row(
+            connection,
+            "equipment",
+            {
+                "equipment_id": equipment_id,
+                "equipment_code": code,
+                "equipment_name": name,
+                "equipment_type": "machine",
+                "active": True,
+            },
+        )
+        if created:
+            insert_row(
+                connection,
+                "equipment_current_state",
+                {"equipment_id": equipment_id, "state_code": state},
+            )
+            inserted.append(code)
+            continue
+        existing = read_row(connection, "equipment", equipment_id)
+        if not existing or existing["equipment_code"] != code:
+            raise SeedConflict(f"Demo equipment identity conflict: {code}")
+        if not read_row(connection, "equipment_current_state", equipment_id):
+            raise SeedConflict(f"Existing demo equipment has no current state: {code}")
+        retained.append(code)
+    return {"inserted": inserted, "retained": retained}
 
-    Migrations must already be applied. No relationships, assignments or Graph
-    readiness are created. Fixed UUIDs and codes identify the fixtures; matching
-    existing identities retain all metadata, state, versions and timestamps.
+
+def _lock_seed(connection):
+    acquire_graph_mutation_lock(connection, shared=False)
+    control = lock_seed_control(connection)
+    if control is None or control["rebuild_flag"]:
+        raise SeedConflict("Demo seed requires initialized control and no active Rebuild")
+    return control
+
+
+def seed_demo(database):
+    """Atomic explicit bootstrap; existing values are never reset.
+
+    New rows invalidate Graph in the same transaction. No fake business
+    Approval, history or Outbox is manufactured for administrative fixtures.
     """
-    inserted = []
-    retained = []
     try:
         with database.transaction() as connection:
-            for equipment_id, code, name, state in DEMO_EQUIPMENT:
-                created = connection.execute(
-                    """INSERT INTO equipment
-                       (equipment_id,equipment_code,equipment_name,equipment_type,active)
-                       VALUES(%s,%s,%s,'machine',true)
-                       ON CONFLICT(equipment_id) DO NOTHING RETURNING equipment_id""",
-                    (equipment_id, code, name),
-                ).fetchone()
-                if created:
-                    connection.execute(
-                        "INSERT INTO equipment_current_state(equipment_id,state_code) VALUES(%s,%s)",
-                        (equipment_id, state),
+            control = _lock_seed(connection)
+            result = _seed_equipment(connection)
+            if result["inserted"]:
+                if control["active_generation"] is not None:
+                    raise SeedConflict(
+                        "New demo rows require seeding before the first Graph Rebuild"
                     )
-                    inserted.append(code)
-                    continue
-                existing = connection.execute(
-                    "SELECT equipment_code FROM equipment WHERE equipment_id=%s FOR UPDATE",
-                    (equipment_id,),
-                ).fetchone()
-                if not existing or existing["equipment_code"] != code:
-                    raise SeedConflict(f"Demo equipment identity conflict: {code}")
-                current_state = connection.execute(
-                    "SELECT equipment_id FROM equipment_current_state WHERE equipment_id=%s FOR UPDATE",
-                    (equipment_id,),
-                ).fetchone()
-                if not current_state:
-                    raise SeedConflict(f"Existing demo equipment has no current state: {code}")
-                retained.append(code)
+                require_demo_rebuild(connection)
+            return result
     except UniqueViolation as error:
         raise SeedConflict("Demo equipment business code is already in use") from error
-    return {"inserted": inserted, "retained": retained}

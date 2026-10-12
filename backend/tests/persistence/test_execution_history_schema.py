@@ -47,8 +47,37 @@ def test_upgrade_preserves_pending_requests_without_fabricated_history(db):
             if p.name.endswith(".sql") and p.name < "005"
         ]
     )
-    seed_demo(db)
+    # Freeze the pre-005 fixture against its own schema. Current bootstrap
+    # services also coordinate Graph, which did not exist at this version.
+    from sqlalchemy import Boolean, Text, column, table
+    from sqlalchemy.dialects.postgresql import UUID, insert
+    from sqlalchemy.dialects.postgresql.psycopg import dialect
+
+    old_equipment = table(
+        "equipment",
+        column("equipment_id", UUID()),
+        column("equipment_code", Text()),
+        column("equipment_name", Text()),
+        column("equipment_type", Text()),
+        column("active", Boolean()),
+    )
+    old_state = table(
+        "equipment_current_state", column("equipment_id", UUID()), column("state_code", Text())
+    )
     with db.transaction() as c:
+        for equipment_id, code, name, state in DEMO_EQUIPMENT:
+            for statement in (
+                insert(old_equipment).values(
+                    equipment_id=equipment_id,
+                    equipment_code=code,
+                    equipment_name=name,
+                    equipment_type="machine",
+                    active=True,
+                ),
+                insert(old_state).values(equipment_id=equipment_id, state_code=state),
+            ):
+                compiled = statement.compile(dialect=dialect())
+                c.execute(str(compiled), compiled.params)
         request = insert_request(c)
         insert_approval(c, request["update_request_id"])
     assert db.migrate() == ["005_execution_history.sql", "006_graph_projection_storage.sql"]
