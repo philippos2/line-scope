@@ -199,6 +199,13 @@ def provision_roles(database, *, query_password, runtime_password, projection_pa
                 )
             for role, privilege, tables in (
                 (READ_ROLE, "SELECT", READ_TABLES),
+                # Analysis reads only synchronization metadata, never Outbox payloads.
+                (READ_ROLE, "SELECT (status)", ("graph_outbox",)),
+                (
+                    READ_ROLE,
+                    "SELECT (control_id, rebuild_flag, active_generation, fatal_error)",
+                    ("graph_projection_control",),
+                ),
                 (PROJECTION_ROLE, "SELECT", ("graph_outbox", "graph_projection_control")),
                 (
                     PROJECTION_ROLE,

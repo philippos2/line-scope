@@ -1,0 +1,15 @@
+# Graph分析の読取ロール権限と実LLM probe
+
+仕様正本ではなく、実装・検証の判断記録。
+
+実LLMから標準Composeの`/agent`を呼ぶ調査で、設備検索成功後のGraph同期状態観測が失敗した。GraphAnalysisGateはread接続を使うが、linescope_queryにgraph_outbox / graph_projection_controlの必要列のSELECTがなかった。管理接続を使う既存Graph試験だけではこの起動構成の不整合を検出できなかった。
+
+検索ロールへgraph_outbox.statusとcontrolのcontrol_id / rebuild_flag / active_generation / fatal_errorのみSELECTを付与する。payload・業務要求・監査の閲覧、Graph更新、DDLは許可しない。強いroleへのfallback・transaction / lock / version / Outbox規則の変更は行わない。実LOGINによる同期観測とshared gate、payload閲覧・更新拒否を回帰試験に追加した。
+
+`scripts/verify_graph_agent.py`は初期Graph fixture専用の任意実行probe。認証tokenは環境変数で受け取り、redirectを拒否し、固定の読取質問だけを送る。サーバ結果の対象集合・経路・CURRENT・Evidence・初期state versionを照合する。LLM自然文の完全一致や全Golden Scenarioの合格を要求・主張しない。API / Toolの公開契約とLLM予算は変更しない。
+
+初回管理CLIと常駐workerのleader競合はGraphLeaderBusyとして拒否される。調査環境ではworker停止後に明示管理操作を行い、完了後に再開した。応答不明時の自動再試行は追加しない。
+
+実LLM評価は暫定的にローカルのqwen3:30b-a3b-instruct-2507-q4_K_Mを使用し、既存私有.envや正式model選定は変更していない。検証結果と未解決事項はPRへ実測で記録する。LogiScopeのコード・model設定は再利用していない。
+
+今回の実LLM probeは合格していない。権限修正後の試行でGraph Tool完了ログは成功したが、最終LLM応答はDEPENDENCY_UNAVAILABLEとなった。別試行では最初のLLM呼出しも同じエラーだった。決定論的Graph試験・実LOGIN権限試験の合格と区別し、provider疎通・応答の安定性は後続で調査する。

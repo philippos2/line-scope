@@ -444,3 +444,38 @@ def test_reprovision_removes_projection_payload_and_control_permissions(roles):
         with pytest.raises(psycopg.errors.InsufficientPrivilege):
             with stores[PROJECTION_ROLE].transaction() as connection:
                 connection.execute(statement)
+
+
+def test_query_role_can_observe_graph_sync_with_shared_gate(roles):
+    from linescope.graph.analysis_budget import GraphAnalysisBudget
+    from linescope.graph.analysis_gate import GraphAnalysisGate
+    from linescope.graph.projection_state import ProjectionState
+
+    admin, stores, _ = roles
+    generation = uuid4()
+    with admin.transaction() as connection:
+        connection.execute(
+            "UPDATE graph_projection_control SET active_generation=%s,fatal_error=NULL",
+            (generation,),
+        )
+    assert ProjectionState(stores[READ_ROLE]).observe().status == "CURRENT"
+    with GraphAnalysisGate(stores[READ_ROLE]).open(
+        GraphAnalysisBudget(timeout_ms=5000)
+    ) as observed:
+        assert observed.active_generation == generation
+
+
+@pytest.mark.parametrize(
+    "statement",
+    [
+        "SELECT payload FROM graph_outbox",
+        "SELECT * FROM graph_outbox",
+        "UPDATE graph_outbox SET status='APPLIED'",
+        "UPDATE graph_projection_control SET fatal_error=NULL",
+    ],
+)
+def test_query_graph_metadata_grants_do_not_expose_payload_or_mutation(roles, statement):
+    _, stores, _ = roles
+    with pytest.raises(psycopg.errors.InsufficientPrivilege):
+        with stores[READ_ROLE].transaction() as connection:
+            connection.execute(statement)

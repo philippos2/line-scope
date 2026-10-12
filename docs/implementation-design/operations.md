@@ -249,7 +249,7 @@ READ_DSN未設定時は直接Python利用等の互換性として従来DSNで検
 | 管理・migration・デモ初期投入 | linescope（既存owner） | 管理用。role provisionのためsuperuserを維持しAPIへ渡さない |
 | APIの認可済み変更 | linescope_runtime | 固定対象のSELECT / INSERT / UPDATE。DELETE・TRUNCATE・DDL不可。監査・成功履歴はINSERTのみ、OutboxはSELECT / INSERTのみ、Projection controlはSELECTのみ |
 | 通常Projection worker（常駐起動は後続） | linescope_projection | graph_outbox / graph_projection_controlのSELECT、Outboxのstatus・attempt_count・next_attempt_at・processing_started_at・processed_at・last_errorのみUPDATE。業務表・承認・監査・payload・aggregate情報・control変更・DDL不可 |
-| 通常検索Tool | linescope_query | 既存検索対象10表のSELECTのみ。要求・承認・監査・成功履歴・migration台帳は閲覧不可 |
+| 通常検索Tool | linescope_query | 既存検索対象10表のSELECTと、Graph分析用のgraph_outbox.status、graph_projection_controlのcontrol_id・rebuild_flag・active_generation・fatal_errorのSELECT。Outbox payloadと更新権限は付与しない。要求・承認・監査・成功履歴・migration台帳は閲覧不可 |
 
 3種類のLOGIN roleはNOSUPERUSER / NOCREATEDB / NOCREATEROLE / NOREPLICATION / NOBYPASSRLS / NOINHERIT、他roleへのmembershipとObject ownershipなし。業務利用者ごとの認可は既存API / applicationの責務であり、DB roleを工場長・保全等の業務roleと混同しない。
 
@@ -339,3 +339,18 @@ seedは初期デモ用の管理操作であり、Approval / 業務履歴 / Outbo
 公開済みgenerationへ新規正本行をseedで追加する操作は拒否し、全rollbackする。初回Rebuild前に投入する。既存fixtureに他の関係が混在する場合や、設備がinactive、ID / 業務キー・既存関係が衝突する場合も拒否し、上書き・暗黙修復・既存データの削除をしない。公開後に追加不要の同一fixtureを再実行する場合はCURRENTを維持する。名称・現在状態・version等は保持し、関係の編集済み意味を初期値へ戻さない。
 
 既存のGraph構築済み環境へのデモ切替は自動resetしない。新しい隔離デモ環境で初期投入するか、別途の明示管理手順を検討する。Graph Rebuild・実LLMの選択品質・業務Scenarioの受入は区別し、seedだけで分析可能と扱わない。
+
+## 19. 実LLMの通常Graph読取probe
+
+初期fixtureとRebuildが完了した隔離デモ環境で、APIに実LLM接続を設定してから実行する。`LINESCOPE_PROBE_TOKEN`には既存のmanagerロールの認証tokenを環境変数で設定し、command引数・ログ・Repositoryへ記載しない。
+
+```sh
+docker compose run --rm --no-deps \
+  -e LINESCOPE_PROBE_TOKEN \
+  -v "$PWD/scripts:/probe:ro" \
+  api python /probe/verify_graph_agent.py --base-url http://api:8000
+```
+
+probeは`/agent`へ固定の読取質問を一回送り、M-204からの6対象・2製品・代表経路・CURRENT・サーバEvidence・初期state versionを照合する。変更済みfixtureは対象外であり、自動resetしない。Approve / Execute / Prepareは要求しない。HTTP redirectは拒否し、tokenや回答本文、外部例外を結果へ出さない。成功でも自然言語の品質・全Business Scenarioの合格・model選定完了を意味しない。LLMの60秒予算を延長しない。
+
+管理CLIのleader競合を避けるため、初回schema / Rebuildを実行するときは通常workerを`docker compose stop projection`で停止し、管理操作完了後に`docker compose start projection`で再開できる。管理操作が失敗した場合は状態を確認し、応答不明の操作を自動retryしない。

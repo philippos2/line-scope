@@ -482,3 +482,5 @@ Dockerで追加36テスト成功、ruff check / format、git diff --check成功�
 [初回Graph構築の明示管理CLI](2026-10-12-graph-initialization-cli.md)に、schema作成・Rebuild・明示回復と管理権限、業務デモの残作業を記録した。
 
 [通常依存Graphのデモ初期投入](2026-10-12-graph-demo-seed.md)に、fixture・初回Rebuild前の追加制限・Core / transaction・API検証を記録した。
+
+[Graph分析の読取ロール権限と実LLM probe](2026-10-12-graph-query-permissions.md)に、同期メタデータの列単位権限、実LOGIN回帰試験、任意実行probeの範囲を記録した。
