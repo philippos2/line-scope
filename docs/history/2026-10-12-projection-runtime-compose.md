@@ -1,0 +1,7 @@
+# 常駐Projectionと標準Compose接続
+
+既存の1反復ProjectionWorkerをCLIと停止可能なloopから呼び出す。session leaderは反復内で固定し、反復後に解放する。Rebuildとの排他とlease/fence/ACK境界を維持する。leader喪失・未知例外は停止し、独断でDEADやCURRENTを作らない。
+
+Composeに既存試験と同じ固定Neo4j image、秘密設定、内部接続、volume、health、Projection用PostgreSQL roleのworkerを追加する。workerへAPI token / LLM設定は渡さない。既存.envとデモvolumeは変更しない。運用正本はoperations §15・16。Neo4j Communityのデモ接続を細粒度role制御済みとは扱わない。
+
+実DBでleader競合・解放・未知例外、実CLIプロセスのSIGTERM / SIGINT、既存workerのProjectionとrollback、秘密追記の冪等性を確認する。Compose配置誤りはconfig検証で修正した。使い捨てDBの初期未構築状態はCLIでBLOCKEDとなる。初回Rebuild / デモGraph投入と実LLM品質は後続。一連の通常Graph機能群はまだ完了していない。LogiScopeコードは再利用していない。

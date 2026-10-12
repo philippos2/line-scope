@@ -1,4 +1,4 @@
-"""Append new role secrets without replacing existing credentials or demo data."""
+"""Append missing service secrets without replacing existing credentials or demo data."""
 
 import os
 import secrets
@@ -22,6 +22,7 @@ def upgrade(destination):
                 "LINESCOPE_QUERY_PASSWORD",
                 "LINESCOPE_RUNTIME_PASSWORD",
                 "LINESCOPE_PROJECTION_PASSWORD",
+                "LINESCOPE_NEO4J_PASSWORD",
             )
             if key not in keys
         ]
@@ -45,7 +46,7 @@ def main():
     print(
         "Private .env updated."
         if changed
-        else "Private .env already contains role settings."
+        else "Private .env already contains service settings."
     )
 
 

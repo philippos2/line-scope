@@ -476,3 +476,5 @@ Dockerで追加36テスト成功、ruff check / format、git diff --check成功�
 [通常Graph Toolの内部登録とAgent接続](2026-10-12-graph-tool-dispatch.md)に、サービス注入時だけの公開、Agent結果保持と非CURRENT拒否、API起動構成の残作業を記録した。
 
 [APIのGraph分析接続とHTTP契約](2026-10-12-api-graph-runtime.md)に、設定・driver所有権・HTTPの部分結果とGraphエラー、標準Composeの残作業を記録した。
+
+[常駐Projectionと標準Compose接続](2026-10-12-projection-runtime-compose.md)に、反復と停止、leader解放、Compose接続、初回Graph構築の残作業を記録した。

@@ -296,4 +296,14 @@ APIは信頼されたサーバ設定`LINESCOPE_NEO4J_URI`、`LINESCOPE_NEO4J_USE
 
 APIが構築したdriverはサービス終了時に閉じ、構築途中の失敗でも解放する。テスト等で注入したdriverは呼出元が所有し、API終了時に閉じない。Graph read gateのCURRENT確認・generation検証・全体budgetを維持する。readinessは従来どおりPostgreSQLの確認であり、Graph利用可能性を保証するものではない。
 
-接続アカウントは分析用に必要な読取権限へ制限する。driverのREAD_ACCESS指定をDB roleの権限制限の代替としない。標準ComposeのNeo4j・worker起動と権限制御の実環境検証は、現在のAPI接続実装とは別の後続作業である。
+接続アカウントは分析用に必要な読取権限へ制限する。driverのREAD_ACCESS指定をDB roleの権限制限の代替としない。標準ComposeではNeo4jとProjection workerを起動する。初回generationの構築とGraphデモ投入は別の明示操作であり、起動だけでGraph CURRENTを保証しない。Neo4j Communityの標準デモ接続は同じアカウントを使用するため、READ_ACCESSをサーバ側の読取専用role保証として扱わない。細粒度権限制御を持つ環境への接続は別途検証する。
+
+## 16. 常駐Projectionの起動と停止
+
+`docker compose up --build -d`はNeo4jのhealthとmigration完了後にAPI・projectionを起動する。既存の私有.envは`python scripts/upgrade_demo_env.py`で不足するrole秘密と`LINESCOPE_NEO4J_PASSWORD`を追記でき、既存credential・データは置き換えない。初回.env生成にもこの秘密を含める。Neo4jは専用volumeへ保存し、ホストへポートを公開しない。
+
+workerのPostgreSQL接続はlinescope_projectionを使い、API tokenやLLM設定を渡さない。`linescope project-graph`は既存ProjectionWorkerの反復を行い、各反復ごとに専用session leaderを取得・解放する。BUSY / IDLE / BLOCKED / RETRYABLE等では1秒待機し、APPLIEDでは次の反復へ進む。各eventのclaim・lease・fence・適用・ACK・retry規則は変更しない。未知例外・leader喪失はプロセスを停止し、勝手にDEADへ変更しない。自動再起動は設定していない。
+
+SIGTERM / SIGINTは終了要求を設定し、待機を解除する。処理中の場合は1反復を終えてから閉じ、途中のcommitを取消済みと扱わない。Composeの停止猶予は45秒とする。強制終了されたPROCESSINGは既存lease回復へ委ねる。Rebuildは次反復のleader取得との間で排他を獲得できる。
+
+`linescope project-graph --once`は1反復だけ行い、起動・停止のJSON運用ログとstatus行を出力する。初回未構築やERROR / REBUILDINGはBLOCKEDであり、起動確認の成功をGraph分析可能と混同しない。normal workerが暗黙にschema / generationを構築・修復することはない。初回RebuildとデモGraph投入のCLIは後続である。
