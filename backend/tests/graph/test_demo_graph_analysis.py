@@ -41,6 +41,8 @@ def test_seed_requires_rebuild_and_enables_demo_api(db, adapters, direction):
     assert response.status_code == 200
     data = response.json()["data"]["tool_results"][0]["data"]
     assert data["complete"] and len(data["reached_nodes"]) == 6
+    assert data["analysis_scope"] == "DEPENDENCY_REACHABILITY"
+    assert data["not_evaluated"] == ["OPERATIONAL_IMPACT", "CAPACITY", "SAFETY", "ECONOMICS"]
     products = {
         item["entity_id"] for item in data["reached_nodes"] if item["entity_type"] == "Product"
     }

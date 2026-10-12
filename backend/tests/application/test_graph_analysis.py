@@ -59,6 +59,21 @@ def test_real_graph_and_state_form_server_evidence(world, tool):
     )
     result = service(world).call(context(), tool, {"target": target})
     assert result.data["complete"] and len(result.data["reached_nodes"]) == 2
+    assert (
+        result.data["analysis_scope"]
+        == result.evidence["analysis_scope"]
+        == "DEPENDENCY_REACHABILITY"
+    )
+    assert (
+        result.data["not_evaluated"]
+        == result.evidence["not_evaluated"]
+        == [
+            "OPERATIONAL_IMPACT",
+            "CAPACITY",
+            "SAFETY",
+            "ECONOMICS",
+        ]
+    )
     assert len(result.data["direct_nodes"]) == len(result.data["indirect_nodes"]) == 1
     assert result.data["distances"][target["entity_type"] + ":" + target["entity_id"]] == 0
     assert result.evidence["state_versions"] == {"Equipment:" + origin: 3}
@@ -96,6 +111,8 @@ def test_partial_paths_do_not_expose_omitted_edge_evidence(world):
         {"target": {"entity_type": "Equipment", "entity_id": origin}, "requested_max_paths": 1},
     )
     assert not result.data["complete"] and result.data["limit_reason"] == "PATH_COUNT"
+    assert result.data["analysis_scope"] == "DEPENDENCY_REACHABILITY"
+    assert "SAFETY" in result.data["not_evaluated"]
     assert {
         edge["source_record_id"]
         for path in result.evidence["representative_paths"]

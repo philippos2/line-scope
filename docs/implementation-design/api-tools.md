@@ -260,3 +260,7 @@ UC-Bの実現には、能力・経済入力のRead、決定論的計算、対応
 未来の評価期間は既存as_ofから分離する。現在のas_ofの未来値拒否は維持し、将来分析用入力契約を別途確定する。LLM生成引数へ任意SQL / Cypherや認証主体を含めない。認可は新情報のEvidence・入力まで適用する。
 
 Decision Packageの評価結果を、そのままcanonical SnapshotのafterまたはApprovalとして扱わない。既存context_id / approval_id / update_request_id、Prepare retry key、1カテゴリ・全Target権限、冪等性は維持する。新計算の数量型・単位・丸めは明示し、decimal / floatを既存Snapshot v1へ暗黙追加しない。
+
+## 18. 通常到達探索の評価範囲
+
+trace_downstream_impact / trace_upstream_dependenciesの成功dataとEvidenceに、`analysis_scope=DEPENDENCY_REACHABILITY`と`not_evaluated=[OPERATIONAL_IMPACT, CAPACITY, SAFETY, ECONOMICS]`を返す。complete / limit_reasonは、この到達探索の完全性を表す。not_evaluatedは、このToolが評価していない次元であり、0・問題なし・安全・実際の停止確認を意味しない。現在状態のEvidenceは観測事実として維持し、設備状態の取得と下流の実際の運転影響評価を混同しない。業務判断支援全体がスコープ外という意味ではなく、将来の専用評価の代替にしない。
