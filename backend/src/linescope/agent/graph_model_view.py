@@ -2,7 +2,7 @@
 
 from ..domain.canonical import canonical_json
 
-GRAPH_TOOLS = {"trace_downstream_impact", "trace_upstream_dependencies"}
+GRAPH_TOOLS = {"trace_downstream_impact", "trace_upstream_dependencies", "find_common_dependencies"}
 
 
 def graph_model_view(data, evidence):

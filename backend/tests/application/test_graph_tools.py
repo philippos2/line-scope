@@ -32,7 +32,10 @@ def test_graph_tools_are_advertised_only_with_a_server_adapter():
     assert not set(TOOLS) & absent.schemas().keys()
     configured = ToolDispatcher(NoDatabase(), graph=object())
     schemas = configured.schemas()
-    assert len(schemas) == 21
+    assert len(schemas) == 22
+    assert schemas["find_common_dependencies"]["required"] == ["targets"]
+    assert schemas["find_common_dependencies"]["properties"]["targets"]["minItems"] == 2
+    assert "find_common_dependencies" not in absent.schemas()
     for tool in TOOLS:
         schema = schemas[tool]
         assert schema["required"] == ["target"]
