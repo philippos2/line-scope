@@ -6,7 +6,7 @@
 
 設備異常時に「どこまで影響するか」「どの対応が可能か」を調べ、Evidenceを確認して、エンドユーザーの判断と承認付き変更へ進むことを目指しています。PostgreSQLの業務Object、Neo4jの依存Graph、文書検索、AI Agentを組み合わせる、単一工場のデモです。
 
-> **バックエンドを開発中です。** 認証付きAgent API、業務データの参照、一部の更新Prepare、承認者・requesterによるApproval / Executeを実装しています。GraphのProjection・Rebuild・分析用読取基盤も実装していますが、Graph ToolのAgent接続、RAG、能力・経済・対応案比較、Frontendは未完了です。紹介動画は今後作成します。
+> **バックエンドを開発中です。** 認証付きAgent API、業務データの参照、一部の更新Prepare、承認者・requesterによるApproval / Executeを実装しています。通常Graph ToolのAgent接続と常駐Projectionを実装しています。初回Graphの構築手順・デモ投入、RAG、能力・経済・対応案比較、Frontendは未完了です。紹介動画は今後作成します。
 
 ## 主な機能と実装状況
 
@@ -16,16 +16,16 @@
 | 自然言語調査 | `POST /agent`からOllamaを使うRead Agent。回答・Evidence・公開Tool Trace・追加情報要求を返す |
 | 更新Prepare | 明示的な設備状態変更、保全予定変更、生産作業予定変更をAgent APIへ接続。その他のPrepareには内部実装もある |
 | 承認・実行操作 | 保存済みSnapshotの閲覧、承認／拒否、requesterによる実行。version検証・監査・Outboxを含む更新Transaction |
-| Graph基盤 | Outbox、Neo4j Projection、generation管理、Rebuild / Restore、CURRENT確認・shared lock下の分析用読取と上限付き隣接関係取得。内部部品であり公開Graph分析は未完了 |
+| Graph基盤 | Outbox、Neo4j Projection、generation管理、Rebuild / Restore、CURRENT確認・shared lock下の分析用読取と上限付き隣接関係取得。通常の下流・上流分析をAgent APIへ接続。常駐workerをComposeで起動し、初回generation構築・デモ投入は後続 |
 | ログ・監査 | request_id付きJSON運用ログ、Tool・更新・workerの操作イベント、DB業務監査・確定結果 |
 | デモデータ | `seed-demo`でM-204・M-208と現在状態を投入。工程・製品・依存関係の業務デモ一式は未整備 |
-| 今後の実装 | Graph Tool、Qdrant / embedding、業務判断支援の計算・比較、React等によるFrontend、業務シナリオの通し検証 |
+| 今後の実装 | 初回Graph構築・共通依存・代替・SPOF、Qdrant / embedding、業務判断支援の計算・比較、React等によるFrontend、業務シナリオの通し検証 |
 
 影響・能力・リスク・損失・修理／交換／継続／代替の比較はプロダクト要件に含みますが、必要な業務規則にはPO判断待ちが残ります。未実装とスコープ外を区別します。[要件定義](docs/requirements/requirements.md)・[Use Case](docs/requirements/use-cases.md)
 
 ## システム構成とデータの正本
 
-以下は設計上の構成です。破線のRAG・公開Graph Tool・Frontendは後続です。Projection / Rebuildは内部実装があり、標準Composeへの常駐worker接続は後続です。
+以下は設計上の構成です。破線のRAG・Frontendは後続です。通常Graph Toolと常駐Projectionは接続済みで、初回Rebuild・デモGraphの準備は後続です。
 
 ```mermaid
 flowchart LR
@@ -41,8 +41,8 @@ flowchart LR
     PG --> Outbox[Transactional Outbox]
     Outbox --> Projection[Projection / Rebuild / 内部実装]
     Projection --> Neo4j[(Neo4j / 派生Graph)]
-    Agent -.-> Graph[Graph Tool / 後続]
-    Graph -.-> Neo4j
+    Agent --> Graph[通常Graph Tools]
+    Graph --> Neo4j
     Agent -.-> RAG[RAG / 後続]
     RAG -.-> Qdrant[(Qdrant / 派生Index)]
     RAG -.-> PG
@@ -146,19 +146,19 @@ curl -sS "$BASE_URL/update-requests/$UPDATE_REQUEST_ID" \
 
 ## セットアップ・データ準備・起動
 
-Docker Engine・Docker Compose v2と、資格情報生成用のPython 3を用意します。API / migrationはPython 3.14.4の非rootコンテナ、PostgreSQLは18.6です。通常Composeのファイル名は`compose.yaml`です。
+Docker Engine・Docker Compose v2と、資格情報生成用のPython 3を用意します。API / migration / ProjectionはPython 3.14.4の非rootコンテナ、PostgreSQLは18.6、Neo4jは5.26.31-communityです。通常Composeのファイル名は`compose.yaml`です。
 
 ```sh
 git clone https://github.com/philippos2/line-scope.git
 cd line-scope
 python3 scripts/create_demo_env.py
-docker compose up --build -d --wait api
+docker compose up --build -d --wait api projection
 docker compose run --rm migrate linescope seed-demo
 ```
 
-既存`.env`は上書きしません。既存環境では生成を省略し、`python3 scripts/upgrade_demo_env.py`で不足するrole用credentialを追加してから起動してください。資格情報ファイルはGit管理外・mode 0600です。管理者用と検索・runtime・Projection用のDB資格情報を分離します。
+既存`.env`は上書きしません。既存環境では生成を省略し、`python3 scripts/upgrade_demo_env.py`で不足するrole用credential・Neo4j秘密を追加してから起動してください。資格情報ファイルはGit管理外・mode 0600です。管理者用と検索・runtime・Projection用のDB資格情報を分離します。
 
-PostgreSQL → migration / role付与 → APIの順に起動します。APIは`127.0.0.1:8000`に公開し、DB portはホストへ公開しません。API portは`LINESCOPE_API_PORT`で変更できます。seedはM-204（STOPPED）とM-208（RUNNING）を初期投入し、再実行で既存の状態やversionをリセットしません。依存Graphの生成は行いません。
+PostgreSQLのmigration / role付与とNeo4jのhealth確認後にAPI・Projectionを起動します。APIは`127.0.0.1:8000`に公開し、DB portはホストへ公開しません。API portは`LINESCOPE_API_PORT`で変更できます。seedはM-204（STOPPED）とM-208（RUNNING）を初期投入し、再実行で既存の状態やversionをリセットしません。依存Graphの生成は行いません。初回generationが未構築の間はworkerがBLOCKEDとなり、Graph分析は利用できません。
 
 ### ローカルLLM
 

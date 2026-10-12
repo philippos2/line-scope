@@ -1,6 +1,8 @@
 import argparse
 import json
 import os
+import signal
+from threading import Event
 
 import psycopg
 
@@ -21,6 +23,10 @@ def main():
     commands.add_parser(
         "seed-demo", help="Explicitly bootstrap read-demo equipment after migrations"
     )
+    projection = commands.add_parser(
+        "project-graph", help="Run the normal Outbox Projection worker"
+    )
+    projection.add_argument("--once", action="store_true")
     serve = commands.add_parser("serve")
     serve.add_argument("--host", default="127.0.0.1")
     serve.add_argument("--port", type=int, default=8000)
@@ -55,6 +61,63 @@ def main():
             print(json.dumps(seed_demo(Database(settings))))
         except SeedConflict as error:
             parser.exit(1, f"seed-demo: {error}\n")
+    elif args.command == "project-graph":
+        from neo4j import GraphDatabase
+
+        from .graph.neo4j_projection import Neo4jProjection
+        from .graph.projection_runtime import projection_step, run_projection_loop
+        from .graph.projection_worker import ProjectionWorker
+
+        if settings.neo4j_uri is None:
+            parser.exit(1, "Graph Projection requires configured Neo4j.\n")
+        events = EventLogger(settings.log_level)
+        configure_runtime_logging(events)
+        stop = Event()
+        previous = {}
+        failed = False
+        try:
+            for signum in (signal.SIGTERM, signal.SIGINT):
+                previous[signum] = signal.signal(signum, lambda *_: stop.set())
+            events.emit(
+                "service.started", component="projection", outcome="success", result_code="OK"
+            )
+            with GraphDatabase.driver(
+                settings.neo4j_uri,
+                auth=(settings.neo4j_user, settings.neo4j_password),
+                connection_timeout=settings.connect_seconds,
+                connection_acquisition_timeout=5,
+                max_transaction_retry_time=0,
+            ) as driver:
+                database = Database(settings)
+                worker = ProjectionWorker(
+                    database,
+                    Neo4jProjection(driver, database=settings.neo4j_database),
+                    logger=events,
+                )
+                if args.once:
+                    print(json.dumps({"status": projection_step(database, worker)}))
+                else:
+                    run_projection_loop(database, worker, stop)
+        except Exception as error:
+            failed = True
+            events.emit(
+                "runtime.diagnostic",
+                component="projection",
+                outcome="failure",
+                result_code="INTERNAL_ERROR",
+                level="ERROR",
+                error=error,
+            )
+            parser.exit(1, "Graph Projection stopped; inspect Graph state and operational logs.\n")
+        finally:
+            for signum, handler in previous.items():
+                signal.signal(signum, handler)
+            events.emit(
+                "service.stopped",
+                component="projection",
+                outcome="failure" if failed else "success",
+                result_code="INTERNAL_ERROR" if failed else "OK",
+            )
     else:
         import uvicorn
 

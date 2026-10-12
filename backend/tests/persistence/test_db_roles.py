@@ -204,6 +204,7 @@ def test_private_env_upgrade_preserves_credentials_and_is_idempotent(tmp_path):
         after.count("LINESCOPE_QUERY_PASSWORD=") == after.count("LINESCOPE_RUNTIME_PASSWORD=") == 1
     )
     assert after.count("LINESCOPE_PROJECTION_PASSWORD=") == 1
+    assert after.count("LINESCOPE_NEO4J_PASSWORD=") == 1
     assert not module.upgrade(destination)
     assert destination.read_text() == after
     destination.chmod(0o644)

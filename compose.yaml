@@ -35,6 +35,21 @@ services:
       interval: 5s
       timeout: 5s
       retries: 12
+  neo4j:
+    image: neo4j:5.26.31-community
+    logging: *logging
+    environment:
+      NEO4J_AUTH: neo4j/${LINESCOPE_NEO4J_PASSWORD:?Generate or upgrade private .env}
+      NEO4J_server_memory_heap_initial__size: 128m
+      NEO4J_server_memory_heap_max__size: 512m
+      NEO4J_server_memory_pagecache_size: 128m
+    volumes:
+      - neo4j-data:/data
+    healthcheck:
+      test: [CMD-SHELL, 'cypher-shell -u neo4j -p "$${NEO4J_AUTH#*/}" "RETURN 1" >/dev/null']
+      interval: 5s
+      timeout: 10s
+      retries: 30
   migrate:
     <<: *backend
     command: [linescope, migrate-and-provision]
@@ -51,6 +66,9 @@ services:
     environment:
       <<: *backend-env
       LINESCOPE_DSN: postgresql://linescope_runtime:${LINESCOPE_RUNTIME_PASSWORD:?Generate or upgrade private .env}@postgres:5432/linescope
+      LINESCOPE_NEO4J_URI: bolt://neo4j:7687
+      LINESCOPE_NEO4J_USER: neo4j
+      LINESCOPE_NEO4J_PASSWORD: ${LINESCOPE_NEO4J_PASSWORD:?Generate or upgrade private .env}
       LINESCOPE_READ_DSN: postgresql://linescope_query:${LINESCOPE_QUERY_PASSWORD:?Generate or upgrade private .env}@postgres:5432/linescope
     extra_hosts:
       - host.docker.internal:host-gateway
@@ -59,11 +77,30 @@ services:
     depends_on:
       migrate:
         condition: service_completed_successfully
+      neo4j:
+        condition: service_healthy
     healthcheck:
       test: [CMD, python, /workspace/container_health.py]
       interval: 5s
       timeout: 5s
       retries: 12
 
+  projection:
+    <<: *backend
+    command: [linescope, project-graph]
+    stop_grace_period: 45s
+    environment:
+      LINESCOPE_DSN: postgresql://linescope_projection:${LINESCOPE_PROJECTION_PASSWORD:?Generate or upgrade private .env}@postgres:5432/linescope
+      LINESCOPE_LOG_LEVEL: ${LINESCOPE_LOG_LEVEL:-INFO}
+      LINESCOPE_NEO4J_URI: bolt://neo4j:7687
+      LINESCOPE_NEO4J_USER: neo4j
+      LINESCOPE_NEO4J_PASSWORD: ${LINESCOPE_NEO4J_PASSWORD:?Generate or upgrade private .env}
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      neo4j:
+        condition: service_healthy
+
 volumes:
+  neo4j-data:
   postgres-data:
