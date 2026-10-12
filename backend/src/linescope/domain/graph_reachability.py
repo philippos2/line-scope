@@ -53,7 +53,29 @@ def bounded_reachability(root: Node, edges, *, max_depth: int, max_nodes: int):
     )
 
 
-def walk_reachability(root: Node, neighbors, *, max_depth: int, max_nodes: int, should_stop=None):
+class TraversalNodeBudget:
+    """Server-owned distinct node admission shared by multiple root searches."""
+
+    def __init__(self, max_nodes, *, roots=()):
+        if type(max_nodes) is not int or max_nodes <= 0:
+            raise ValueError("Node budget must be a positive integer")
+        self.max_nodes = max_nodes
+        self.nodes = set(roots)
+        if len(self.nodes) > max_nodes:
+            raise ValueError("Node budget cannot hold all targets")
+
+    def admit(self, node):
+        if node in self.nodes:
+            return True
+        if len(self.nodes) >= self.max_nodes:
+            return False
+        self.nodes.add(node)
+        return True
+
+
+def walk_reachability(
+    root: Node, neighbors, *, max_depth: int, max_nodes: int, should_stop=None, node_budget=None
+):
     """BFS with lazy, complete neighbors ordered by target and record ID.
 
     The provider may page within a single verified read context. Errors must
@@ -63,6 +85,9 @@ def walk_reachability(root: Node, neighbors, *, max_depth: int, max_nodes: int, 
     not waive the caller's final consistency checks or overall deadline.
     """
     _validate_limits(max_depth, max_nodes)
+    if node_budget is not None:
+        if not isinstance(node_budget, TraversalNodeBudget) or not node_budget.admit(root):
+            raise ValueError("Shared node budget must admit the root")
     reached = {root: ReachedNode(root, 0, None, None)}
     frontier = [root]
     reasons = set()
@@ -88,6 +113,9 @@ def walk_reachability(root: Node, neighbors, *, max_depth: int, max_nodes: int, 
                 if len(reached) >= max_nodes:
                     reasons.add("NODE_COUNT")
                     break
+                if node_budget is not None and not node_budget.admit(edge.target):
+                    reasons.add("NODE_COUNT")
+                    continue
                 reached[edge.target] = ReachedNode(
                     edge.target, distance + 1, node, edge.source_record_id
                 )

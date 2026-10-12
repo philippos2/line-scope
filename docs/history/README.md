@@ -492,3 +492,5 @@ Dockerで追加36テスト成功、ruff check / format、git diff --check成功�
 [通常Graph到達探索の評価範囲](2026-10-12-graph-analysis-scope.md)に、探索完全性と未評価次元の区別、構造化契約・説明方針・検証を記録した。
 
 [共通依存候補の選択計算](2026-10-12-common-dependency-selection.md)に、全対象の経路証拠・不完全性・出力予算と、Tool公開までの残作業を記録した。
+
+[共通依存の複数対象Graph読取](2026-10-12-common-dependency-graph-read.md)に、単一世代の読取・共有node予算・経路証拠と公開前の残作業を記録した。
