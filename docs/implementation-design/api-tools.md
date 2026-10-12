@@ -264,3 +264,13 @@ Decision Packageの評価結果を、そのままcanonical Snapshotのafterま�
 ## 18. 通常到達探索の評価範囲
 
 trace_downstream_impact / trace_upstream_dependenciesの成功dataとEvidenceに、`analysis_scope=DEPENDENCY_REACHABILITY`と`not_evaluated=[OPERATIONAL_IMPACT, CAPACITY, SAFETY, ECONOMICS]`を返す。complete / limit_reasonは、この到達探索の完全性を表す。not_evaluatedは、このToolが評価していない次元であり、0・問題なし・安全・実際の停止確認を意味しない。現在状態のEvidenceは観測事実として維持し、設備状態の取得と下流の実際の運転影響評価を混同しない。業務判断支援全体がスコープ外という意味ではなく、将来の専用評価の代替にしない。
+
+## 19. 共通依存Toolの構造化結果
+
+find_common_dependenciesはtargets配列（2件以上のdistinct typed ID）を受ける。UUID正規化後の重複を拒否する。全rootが実効max_nodes以内に収まらない要求はINVALID_ARGUMENT。認可・各対象の存在とactiveを全件確認し、一件でも満たさなければ全体を拒否する。relation_typesとexplicit_as_ofは通常到達探索と同じ規則を使い、CAN_SUBSTITUTEは含めない。
+
+全対象を単一generation / as_of / shared gate / read deadlineの下で探索する。max_nodesは全rootを含むdistinct nodeの共有上限。max_depthは各rootからのhop、max_pathsは返却する対象別代表経路の合計上限。候補ごとに全対象の経路を揃えられなければ、その候補の一部の証拠だけを返さずcomplete=falseとする。
+
+dataはtargets、common_candidates（typed ID配列）、representative_paths、complete、limit_reason、requested_limits、effective_limits、analysis_mode、analysis_scope、not_evaluated、graph_sync_state、determination=NULLを含む。各representative_pathは通常pathのnodes / edges / hopsにtargetとcandidateを加え、入力対象と共通候補を結び付ける。Evidenceへ同じ経路、generation / as_of / 観測時刻 / relation_typesと、探索で確認したEquipmentの現在状態・versionを返す。状態は一回の正本観測にまとめ、過去as_ofを完全なpoint-in-time復元として扱わない。
+
+complete=falseの空候補は「共通依存なし」の確定結果ではない。共通候補は上流到達集合の共通要素であり、原因・必須依存・SPOF・実際の停止の確定判定ではない。分析範囲はDEPENDENCY_REACHABILITY、停止・能力・安全性・経済影響はnot_evaluatedとして維持する。部分結果はHTTP 200 / status=partial、非CURRENTや対象不正は既存のerror contractに従う。

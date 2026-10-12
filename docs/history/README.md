@@ -494,3 +494,5 @@ Dockerで追加36テスト成功、ruff check / format、git diff --check成功�
 [共通依存候補の選択計算](2026-10-12-common-dependency-selection.md)に、全対象の経路証拠・不完全性・出力予算と、Tool公開までの残作業を記録した。
 
 [共通依存の複数対象Graph読取](2026-10-12-common-dependency-graph-read.md)に、単一世代の読取・共有node予算・経路証拠と公開前の残作業を記録した。
+
+[共通依存ToolのApplication / API / Agent接続](2026-10-12-common-dependency-tool.md)に、公開契約・全対象検証・経路と状態Evidence・残る実LLM評価を記録した。

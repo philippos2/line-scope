@@ -15,7 +15,8 @@ from .reads import ToolError
 ENTITY_TYPES = frozenset(
     {"Equipment", "Process", "ProductionOperation", "Product", "InfrastructureResource"}
 )
-TOOLS = {"trace_downstream_impact": "IMPACT", "trace_upstream_dependencies": "UPSTREAM"}
+SINGLE_TOOLS = {"trace_downstream_impact": "IMPACT", "trace_upstream_dependencies": "UPSTREAM"}
+TOOLS = {**SINGLE_TOOLS, "find_common_dependencies": "UPSTREAM"}
 LIMIT_NAMES = ("max_depth", "max_nodes", "max_paths")
 
 
@@ -63,7 +64,7 @@ def validate_graph_request(context, tool, arguments, *, system_limits, server_ti
         fields = {"target", "relation_types", "explicit_as_of"} | {
             "requested_" + name for name in LIMIT_NAMES
         }
-        if type(tool) is not str or tool not in TOOLS:
+        if type(tool) is not str or tool not in SINGLE_TOOLS:
             raise ValueError("Unknown traversal Tool")
         if type(arguments) is not dict or set(arguments) - fields:
             raise ValueError("Invalid Graph fields")
@@ -115,4 +116,50 @@ def validate_graph_request(context, tool, arguments, *, system_limits, server_ti
         tuple(sorted(set(relations))),
         tuple(requested),
         limits,
+    )
+
+
+@dataclass(frozen=True)
+class CommonDependencyRequest:
+    targets: tuple[tuple[str, str], ...]
+    as_of: datetime
+    relation_types: tuple[str, ...]
+    requested_limits: tuple[tuple[str, int], ...]
+    effective_limits: GraphLimits
+
+
+def validate_common_dependency_request(context, arguments, *, system_limits, server_time):
+    if not isinstance(context, ExecutionContext):
+        raise ToolError("AUTHENTICATION_REQUIRED", "Trusted execution context is required")
+    if context.role not in {"maintenance", "production", "manager"}:
+        raise ToolError("AUTHORIZATION_DENIED", "Graph analysis permission is required")
+    if not isinstance(system_limits, GraphLimits):
+        raise ValueError("Server Graph limits are required")
+    fields = {"targets", "relation_types", "explicit_as_of"} | {
+        "requested_" + name for name in LIMIT_NAMES
+    }
+    if type(arguments) is not dict or set(arguments) - fields:
+        raise ToolError("INVALID_ARGUMENT", "Invalid common dependency fields")
+    targets = arguments.get("targets")
+    if type(targets) is not list or not 2 <= len(targets) <= system_limits.max_nodes:
+        raise ToolError(
+            "INVALID_ARGUMENT", "At least two targets within the node budget are required"
+        )
+    base = {key: value for key, value in arguments.items() if key != "targets"}
+    validated = [
+        validate_graph_request(
+            context,
+            "trace_upstream_dependencies",
+            {**base, "target": target},
+            system_limits=system_limits,
+            server_time=server_time,
+        )
+        for target in targets
+    ]
+    roots = tuple(sorted(item.target for item in validated))
+    first = validated[0]
+    if len(set(roots)) != len(roots) or len(roots) > first.effective_limits.max_nodes:
+        raise ToolError("INVALID_ARGUMENT", "Distinct targets must fit the effective node budget")
+    return CommonDependencyRequest(
+        roots, first.as_of, first.relation_types, first.requested_limits, first.effective_limits
     )

@@ -167,9 +167,26 @@ def _graph_schemas():
     }
     return {
         name: {
-            **_object(properties, ["target"]),
+            **(
+                _object(
+                    {
+                        **{key: value for key, value in properties.items() if key != "target"},
+                        "targets": {
+                            "type": "array",
+                            "minItems": 2,
+                            "uniqueItems": True,
+                            "items": target,
+                        },
+                    },
+                    ["targets"],
+                )
+                if name == "find_common_dependencies"
+                else _object(properties, ["target"])
+            ),
             "description": (
-                "Trace downstream impact candidates."
+                "Find common upstream dependency candidates with a path from every target; not a proven cause or SPOF."
+                if name == "find_common_dependencies"
+                else "Trace downstream impact candidates."
                 if direction == "IMPACT"
                 else "Trace upstream dependencies."
             )

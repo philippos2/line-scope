@@ -8,8 +8,9 @@ from dataclasses import asdict
 from datetime import datetime, timezone
 from math import isfinite
 
+from ..domain.graph_common_dependencies import common_dependencies
 from ..domain.graph_traversal import traversal_types
-from .graph_request import GraphLimits, validate_graph_request
+from .graph_request import GraphLimits, validate_common_dependency_request, validate_graph_request
 from .reads import ReadResult, ToolError, json_value
 
 UNEVALUATED_DIMENSIONS = ("OPERATIONAL_IMPACT", "CAPACITY", "SAFETY", "ECONOMICS")
@@ -21,6 +22,41 @@ def _typed(node):
 
 def _key(node):
     return node[0] + ":" + node[1]
+
+
+def serialize_paths(selected_paths, records, direction):
+    forward, _ = traversal_types(direction)
+    paths = []
+    for path in selected_paths:
+        edges = []
+        for index, record_id in enumerate(path.source_record_ids):
+            edge = records[record_id]
+            source = (edge["source_type"], edge["source_id"])
+            target = (edge["target_type"], edge["target_id"])
+            expected = (source, target) if edge["relation_type"] in forward else (target, source)
+            if expected != (path.nodes[index], path.nodes[index + 1]):
+                raise ToolError("GRAPH_UNAVAILABLE", "Graph path facts are inconsistent")
+            edges.append(
+                {
+                    "source_record_id": record_id,
+                    "source_version": edge["source_version"],
+                    "relation_type": edge["relation_type"],
+                    "required": edge["required"],
+                    "source": _typed(source),
+                    "target": _typed(target),
+                    "traversal_direction": direction,
+                    "traversal_source": _typed(path.nodes[index]),
+                    "traversal_target": _typed(path.nodes[index + 1]),
+                }
+            )
+        paths.append(
+            {
+                "nodes": [_typed(node) for node in path.nodes],
+                "edges": edges,
+                "hops": path.hops,
+            }
+        )
+    return paths
 
 
 class GraphAnalysis:
@@ -58,6 +94,8 @@ class GraphAnalysis:
         self.completion_reserve_ms = reserve
 
     def call(self, context, tool, arguments):
+        if tool == "find_common_dependencies":
+            return self._common(context, arguments)
         request = validate_graph_request(
             context, tool, arguments, system_limits=self.system_limits, server_time=self.clock()
         )
@@ -80,39 +118,7 @@ class GraphAnalysis:
             )
             observation = self.states.read(equipment_ids, budget)
             records = {edge["source_record_id"]: edge for edge in result.edges}
-            forward, _ = traversal_types(request.direction)
-            paths = []
-            for path in result.paths.paths:
-                edges = []
-                for index, record_id in enumerate(path.source_record_ids):
-                    edge = records[record_id]
-                    source = (edge["source_type"], edge["source_id"])
-                    target = (edge["target_type"], edge["target_id"])
-                    expected = (
-                        (source, target) if edge["relation_type"] in forward else (target, source)
-                    )
-                    if expected != (path.nodes[index], path.nodes[index + 1]):
-                        raise ToolError("GRAPH_UNAVAILABLE", "Graph path facts are inconsistent")
-                    edges.append(
-                        {
-                            "source_record_id": record_id,
-                            "source_version": edge["source_version"],
-                            "relation_type": edge["relation_type"],
-                            "required": edge["required"],
-                            "source": _typed(source),
-                            "target": _typed(target),
-                            "traversal_direction": request.direction,
-                            "traversal_source": _typed(path.nodes[index]),
-                            "traversal_target": _typed(path.nodes[index + 1]),
-                        }
-                    )
-                paths.append(
-                    {
-                        "nodes": [_typed(node) for node in path.nodes],
-                        "edges": edges,
-                        "hops": path.hops,
-                    }
-                )
+            paths = serialize_paths(result.paths.paths, records, request.direction)
             states = sorted(observation["states"] or [], key=lambda state: state["equipment_id"])
             present = {state["equipment_id"] for state in states}
             analysis_mode = "EXPLICIT_HISTORICAL" if "explicit_as_of" in arguments else "CURRENT"
@@ -158,6 +164,95 @@ class GraphAnalysis:
                 "missing_states": sorted(set(equipment_ids) - present),
                 "state_temporal_scope": "CURRENT_STATE_AT_OBSERVATION",
                 "representative_paths": paths,
+            }
+            budget.require()
+            response = ReadResult(json_value(data), json_value(evidence))
+        return response
+
+    def _common(self, context, arguments):
+        request = validate_common_dependency_request(
+            context,
+            arguments,
+            system_limits=self.system_limits,
+            server_time=self.clock(),
+        )
+        limits = request.effective_limits
+        budget = self.budget_factory(limits.timeout_ms)
+        with self.reader.open(budget) as read:
+            searches = read.common_dependency_searches(
+                request.targets,
+                as_of=request.as_of,
+                max_depth=limits.max_depth,
+                max_nodes=limits.max_nodes,
+                page_size=self.page_size,
+                relation_types=request.relation_types,
+                should_stop=lambda: budget.remaining() <= self.completion_reserve_ms / 1000,
+            )
+            selected = common_dependencies(
+                [(target, result.reachability) for target, result in searches],
+                max_paths=limits.max_paths,
+            )
+            equipment_ids = sorted(
+                {
+                    node.node[1]
+                    for _, result in searches
+                    for node in result.reachability.nodes
+                    if node.node[0] == "Equipment"
+                }
+            )
+            observation = self.states.read(equipment_ids, budget)
+            records = {
+                edge["source_record_id"]: edge for _, result in searches for edge in result.edges
+            }
+            paths = []
+            for candidate in selected.candidates:
+                for item in candidate.paths:
+                    path = serialize_paths([item.path], records, "UPSTREAM")[0]
+                    paths.append(
+                        {
+                            "target": _typed(item.target),
+                            "candidate": _typed(candidate.candidate),
+                            **path,
+                        }
+                    )
+            states = sorted(observation["states"] or [], key=lambda state: state["equipment_id"])
+            mode = "EXPLICIT_HISTORICAL" if "explicit_as_of" in arguments else "CURRENT"
+            scope = {
+                "analysis_mode": mode,
+                "analysis_scope": "DEPENDENCY_REACHABILITY",
+                "not_evaluated": list(UNEVALUATED_DIMENSIONS),
+            }
+            data = {
+                **scope,
+                "targets": [_typed(target) for target in request.targets],
+                "common_candidates": [_typed(item.candidate) for item in selected.candidates],
+                "representative_paths": paths,
+                "graph_sync_state": "CURRENT",
+                "complete": selected.complete,
+                "limit_reason": selected.limit_reason,
+                "requested_limits": dict(request.requested_limits),
+                "effective_limits": asdict(limits),
+                "determination": None,
+            }
+            evidence = {
+                **scope,
+                "source": "NEO4J_AND_POSTGRESQL",
+                "tool": "find_common_dependencies",
+                "graph_generation": read.validation.generation,
+                "graph_observed_at": read.observed_at,
+                "as_of": request.as_of,
+                "temporal_scope": "CURRENT_REGISTRATION_AT_AS_OF",
+                "relation_types": list(request.relation_types),
+                "representative_paths": paths,
+                "state_observed_at": observation["observed_at"],
+                "state_versions": {
+                    _key(("Equipment", state["equipment_id"])): state["version"] for state in states
+                },
+                "current_states": states,
+                "missing_states": sorted(
+                    set(equipment_ids) - {state["equipment_id"] for state in states}
+                ),
+                "state_temporal_scope": "CURRENT_STATE_AT_OBSERVATION",
             }
             budget.require()
             response = ReadResult(json_value(data), json_value(evidence))
