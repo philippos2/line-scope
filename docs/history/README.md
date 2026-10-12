@@ -502,3 +502,5 @@ Dockerで追加36テスト成功、ruff check / format、git diff --check成功�
 [必須依存の構造成立評価](2026-10-12-mandatory-structural-fulfillment.md)に、AND・除外・循環・情報欠落の内部計算と、運転利用可能性・代替評価との責務境界を記録した。
 
 [一段代替候補自身の成立・利用可能性](2026-10-12-substitute-candidate-evaluation.md)に、候補の全必須条件、正本利用可能性、過去時点のUNKNOWNと統合前の残作業を記録した。
+
+[除外対象に対する一段代替候補の集約](2026-10-12-substitute-candidate-selection.md)に、候補OR、対象と他の除外、空集合・未知・不完全性・循環の扱いと統合前の残作業を記録した。
