@@ -274,3 +274,11 @@ find_common_dependenciesはtargets配列（2件以上のdistinct typed ID）を�
 dataはtargets、common_candidates（typed ID配列）、representative_paths、complete、limit_reason、requested_limits、effective_limits、analysis_mode、analysis_scope、not_evaluated、graph_sync_state、determination=NULLを含む。各representative_pathは通常pathのnodes / edges / hopsにtargetとcandidateを加え、入力対象と共通候補を結び付ける。Evidenceへ同じ経路、generation / as_of / 観測時刻 / relation_typesと、探索で確認したEquipmentの現在状態・versionを返す。状態は一回の正本観測にまとめ、過去as_ofを完全なpoint-in-time復元として扱わない。
 
 complete=falseの空候補は「共通依存なし」の確定結果ではない。共通候補は上流到達集合の共通要素であり、原因・必須依存・SPOF・実際の停止の確定判定ではない。分析範囲はDEPENDENCY_REACHABILITY、停止・能力・安全性・経済影響はnot_evaluatedとして維持する。部分結果はHTTP 200 / status=partial、非CURRENTや対象不正は既存のerror contractに従う。
+
+## 20. 代替探索の入力境界
+
+find_alternative_pathsのimportant_targets / excluded_nodesは、ともに1件以上のtyped ID配列を必須とする。各配列内のUUID正規化後の重複を拒否する。両配列に同じtyped IDを指定した場合は入力を保持し、distinct node予算では一件として数える。重要対象と除外対象の重なりから、対象の成立や代替の利用可能性を推測しない。
+
+入力はimportant_targets、excluded_nodes、任意explicit_as_of、requested_max_depth / requested_max_nodes / requested_max_pathsに限定する。relation_typesはNULLを含めて受け付けず、全成立関係と一段CAN_SUBSTITUTEを評価対象とする。role / user_id / context_idとtimeoutは入力から受け付けない。
+
+全入力IDの和集合が実効max_nodesを超える要求は、DB接続前にINVALID_ARGUMENTとして拒否する。認証済みContextのmaintenance / production / managerだけがGraph分析を要求できる。各typed IDのschemaと時間・上限を事前検証し、存在・activeの全件確認は後続の認可済み分析処理で行う。future explicit_as_ofは拒否し、過去時点の利用可能性を現在状態から復元しない。

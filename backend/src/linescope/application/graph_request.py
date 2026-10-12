@@ -163,3 +163,64 @@ def validate_common_dependency_request(context, arguments, *, system_limits, ser
     return CommonDependencyRequest(
         roots, first.as_of, first.relation_types, first.requested_limits, first.effective_limits
     )
+
+
+@dataclass(frozen=True)
+class AlternativePathRequest:
+    important_targets: tuple[tuple[str, str], ...]
+    excluded_nodes: tuple[tuple[str, str], ...]
+    as_of: datetime
+    requested_limits: tuple[tuple[str, int], ...]
+    effective_limits: GraphLimits
+
+
+def validate_alternative_request(context, arguments, *, system_limits, server_time):
+    """Validate all IDs and authority before any existence/active storage read."""
+    if not isinstance(context, ExecutionContext):
+        raise ToolError("AUTHENTICATION_REQUIRED", "Trusted execution context is required")
+    if context.role not in {"maintenance", "production", "manager"}:
+        raise ToolError("AUTHORIZATION_DENIED", "Graph analysis permission is required")
+    if not isinstance(system_limits, GraphLimits):
+        raise ValueError("Server Graph limits are required")
+    fields = {"important_targets", "excluded_nodes", "explicit_as_of"} | {
+        "requested_" + name for name in LIMIT_NAMES
+    }
+    if type(arguments) is not dict or set(arguments) - fields:
+        raise ToolError("INVALID_ARGUMENT", "Invalid alternative analysis fields")
+    base = {
+        key: value
+        for key, value in arguments.items()
+        if key not in {"important_targets", "excluded_nodes"}
+    }
+    groups = []
+    first = None
+    for name in ("important_targets", "excluded_nodes"):
+        targets = arguments.get(name)
+        if type(targets) is not list or not 1 <= len(targets) <= system_limits.max_nodes:
+            raise ToolError(
+                "INVALID_ARGUMENT", "Nonempty typed target sets within the node budget are required"
+            )
+        validated = [
+            validate_graph_request(
+                context,
+                "trace_upstream_dependencies",
+                {**base, "target": target},
+                system_limits=system_limits,
+                server_time=server_time,
+            )
+            for target in targets
+        ]
+        roots = tuple(sorted(item.target for item in validated))
+        if len(set(roots)) != len(roots):
+            raise ToolError(
+                "INVALID_ARGUMENT", "Distinct typed targets are required within each set"
+            )
+        groups.append(roots)
+        first = first or validated[0]
+    if len(set(groups[0]) | set(groups[1])) > first.effective_limits.max_nodes:
+        raise ToolError(
+            "INVALID_ARGUMENT", "All distinct input nodes must fit the effective node budget"
+        )
+    return AlternativePathRequest(
+        groups[0], groups[1], first.as_of, first.requested_limits, first.effective_limits
+    )
