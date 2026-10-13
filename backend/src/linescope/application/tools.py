@@ -162,7 +162,10 @@ def _graph_schemas():
             "minItems": 1,
             "items": {"type": "string", "enum": sorted(IMPACT_FORWARD | IMPACT_REVERSE)},
         },
-        "explicit_as_of": TIME_SCHEMA,
+        "explicit_as_of": {
+            **TIME_SCHEMA,
+            "description": "現在時点の分析ではこのfieldを省略する。エンドユーザーが明示した過去のtimezone付きISO 8601日時だけを指定できる。now、現在、推測した日時を渡さない。",
+        },
         **{"requested_" + name: {"type": "integer", "minimum": 1} for name in LIMIT_NAMES},
     }
     return {
