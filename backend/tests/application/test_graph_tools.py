@@ -33,6 +33,15 @@ def test_graph_tools_are_advertised_only_with_a_server_adapter():
     configured = ToolDispatcher(NoDatabase(), graph=object())
     schemas = configured.schemas()
     assert len(schemas) == 24
+    assert (
+        "省略" in schemas["find_alternative_paths"]["properties"]["explicit_as_of"]["description"]
+    )
+    assert (
+        "now"
+        in schemas["find_single_point_failure_candidates"]["properties"]["explicit_as_of"][
+            "description"
+        ]
+    )
     assert "find_single_point_failure_candidates" not in absent.schemas()
     alternative = schemas["find_alternative_paths"]
     assert alternative["required"] == ["important_targets", "excluded_nodes"]

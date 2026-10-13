@@ -120,6 +120,7 @@ def test_noncurrent_graph_returns_no_spof_or_evidence(db, reader_world, adapters
         ("floor", arguments(), "AUTHORIZATION_DENIED"),
         ("manager", arguments(relation_types=["SUPPLIES"]), "INVALID_ARGUMENT"),
         ("manager", arguments(timeout_ms=1), "INVALID_ARGUMENT"),
+        ("manager", arguments(explicit_as_of="now"), "INVALID_ARGUMENT"),
     ],
 )
 def test_authority_and_arguments_fail_before_opening_graph(db, role, args, code):
