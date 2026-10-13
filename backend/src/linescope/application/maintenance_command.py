@@ -1,4 +1,4 @@
-"""Server-bound, single-plan UPDATE Prepare from explicit original-message values.
+"""Server-bound maintenance CREATE/UPDATE from explicit original-message values.
 
 No LLM-supplied IDs, values or versions are accepted. Unsupported language and
 continuation contexts require the future clarification orchestrator.
@@ -6,7 +6,7 @@ continuation contexts require the future clarification orchestrator.
 
 from ..agent.agent_input import AgentInput
 from ..agent.agent_tools import AgentToolSession
-from ..agent.update_intent import maintenance_plan_command
+from ..agent.update_intent import maintenance_create_command, maintenance_plan_command
 from ..execution import ExecutionContext
 from .proposals import REQUEST_ROLES, ProposalError, ProposalStore
 from .reads import ToolError
@@ -24,11 +24,10 @@ class MaintenanceCommandPrepare:
             raise ToolError("AUTHENTICATION_REQUIRED", "Trusted execution context is required")
         if not isinstance(request, AgentInput):
             raise ToolError("INVALID_ARGUMENT", "Validated original Agent input is required")
-        command = maintenance_plan_command(request)
+        creation = maintenance_create_command(request)
+        command = creation or maintenance_plan_command(request)
         if command is None or request.context_id or request.explicit_as_of:
-            raise ToolError(
-                "INVALID_ARGUMENT", "A new explicit maintenance plan command is required"
-            )
+            raise ToolError("INVALID_ARGUMENT", "A new explicit maintenance command is required")
         if context.role not in REQUEST_ROLES["MAINTENANCE"]:
             raise ToolError("AUTHORIZATION_DENIED", "Maintenance request permission is required")
         # Resolve retry identity before searching mutable current data. Replaying
@@ -44,16 +43,37 @@ class MaintenanceCommandPrepare:
         session = AgentToolSession(
             context, request, self.dispatcher, prepare_authorized=True, event_logger=self.events
         )
+        if creation is not None:
+            found = session.run(
+                "search_equipment",
+                {"filter": {"equipment_code": creation.equipment_code}, "page_size": 2},
+            )
+            equipment = self._unique(found, "equipment")
+            values = {**creation.values, "equipment_id": equipment["equipment_id"]}
+            if creation.plan_code is not None:
+                plans = session.run(
+                    "search_maintenance_plans",
+                    {"filter": {"plan_code": creation.plan_code}, "page_size": 2},
+                )
+                values["maintenance_plan_id"] = self._unique(plans, "maintenance plan")[
+                    "maintenance_plan_id"
+                ]
+            return session.run(creation.tool, values)
         found = session.run(
             "search_maintenance_plans",
             {"filter": {"plan_code": command.plan_code}, "page_size": 2},
         )
-        items = found.data["items"]
-        if not items:
-            raise ToolError("TARGET_NOT_FOUND", "Requested maintenance plan code was not found")
-        if len(items) != 1 or found.data["next_cursor"] is not None:
-            raise ToolError("TARGET_AMBIGUOUS", "Requested maintenance is not uniquely resolved")
+        plan = self._unique(found, "maintenance plan")
         return session.run(
             "prepare_maintenance_plan_update",
-            {"maintenance_plan_id": items[0]["maintenance_plan_id"], "patch": command.patch},
+            {"maintenance_plan_id": plan["maintenance_plan_id"], "patch": command.patch},
         )
+
+    @staticmethod
+    def _unique(found, kind):
+        items = found.data["items"]
+        if not items:
+            raise ToolError("TARGET_NOT_FOUND", f"Requested {kind} code was not found")
+        if len(items) != 1 or found.data["next_cursor"] is not None:
+            raise ToolError("TARGET_AMBIGUOUS", f"Requested {kind} is not uniquely resolved")
+        return items[0]
