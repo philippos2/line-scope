@@ -5,7 +5,6 @@ from uuid import UUID
 
 import pytest
 from application.test_search_reads import identity
-from conftest import db as database_fixture
 from psycopg.conninfo import make_conninfo
 
 from linescope.application.reads import ReadTools, ToolError
@@ -15,8 +14,9 @@ from linescope.settings import Settings
 
 
 @pytest.fixture
-def read_db():
-    yield from database_fixture.__wrapped__()
+def read_db(database_factory):
+    with database_factory() as database:
+        yield database
 
 
 @pytest.mark.parametrize("value", ["", " ", 1, False])

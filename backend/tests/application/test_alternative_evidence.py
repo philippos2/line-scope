@@ -2,10 +2,11 @@ from dataclasses import replace
 from datetime import datetime, timezone
 
 import pytest
-from graph.test_common_dependency_reader import adapters as adapters
 from graph.test_common_dependency_reader import graph_driver as graph_driver
-from graph.test_common_dependency_reader import reader_world as reader_world
 
+from application.graph_evidence_fixtures import db as db
+from application.graph_evidence_fixtures import evidence_world as evidence_world
+from application.graph_evidence_fixtures import reader_world as reader_world
 from linescope.application.alternative_analysis import evaluate_alternative_facts
 from linescope.application.alternative_evidence import build_alternative_result
 from linescope.application.reads import ToolError
