@@ -304,3 +304,13 @@ find_single_point_failure_candidatesは1件以上のimportant_targetsと任意ca
 入力fieldはimportant_targets / candidate_nodes / explicit_as_of / requested_max_depth / requested_max_nodes / requested_max_pathsだけとする。relation_typesはNULLを含めて拒否し、timeout・認証主体を外部から上書きさせない。maintenance / production / managerの認可とschema・時間・上限の検証はDB参照より前に行う。
 
 全明示入力のtyped ID和集合が実効max_nodes以内に収まることを要求する。両配列間の重複は入力を保持し予算では一件と数える。重要対象自身はその対象のSPOF候補にしないが、別の重要対象に対する候補であり得るため、入力境界で両配列の重なりを一律拒否しない。存在・active確認と対象別の必須上流判定は後続の整合性が保証された探索で行う。入力検証の実装だけをTool公開・候補収集・SPOF判定の完成とは扱わない。
+
+## 23. SPOFの構造化結果とEvidence
+
+dataはimportant_targets、findings、representative_paths、complete、limit_reason、determination、analysis_mode、analysis_scope、not_evaluated、graph_sync_stateを含み、公開Application入口でrequested_limits / effective_limitsを付与する。analysis_scope=DEPENDENCY_FULFILLMENTとし、OPERATIONAL_IMPACT / CAPACITY / SAFETY / ECONOMICSは未評価として返す。
+
+findingsは対象と候補の組ごとにimportant_target / candidate / determination / reasons / paths / alternativesを持つ。determinationはCANDIDATE / NOT_CANDIDATE / INDETERMINATE。alternativesは候補一要素だけの除外条件で評価したavailability / reasonと、候補ごとのtyped ID / availability / reasonを含む。複数候補を同時除外した結果へすり替えない。
+
+representative_pathsのpurpose / root / nodes / edges / hops、MANDATORY_DEPENDENCY / SUBSTITUTION方向と関係・状態Evidenceは§21と同じ規則を使う。max_pathsは全分析のrepresentative_paths集合へ共有適用し、findings.pathsはその集合の対象・候補に関する参照用抜粋とする。代替候補自身の必須経路も全体の集合・Evidenceへ保持する。経路根拠が上限で欠けた場合はcomplete=false、全findingsをINDETERMINATE / reasons=[INCOMPLETE_SEARCH]、代替availabilityをUNKNOWNとする。既存探索上限をPATH_COUNTより優先する。
+
+一つでもfindingが未確定、探索不完全、または除外前の重要対象が構造成立しない場合、全体determination=INDETERMINATE。探索完全な空指定はfindings=[]を返すが、循環や未知を「SPOFなし」の証明にしない。現在状態の観測を過去時点の利用可能性へ読み替えない。
