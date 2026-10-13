@@ -10,6 +10,10 @@
 - [認可済みGraph探索とEvidence生成の接続](2026-10-12-graph-analysis-service.md)：実Graph探索・単一statementの状態確認・終了gate後の結果返却。Tool / Agent登録は後続。
 - [Graph時間打切りと部分結果の公開境界](2026-10-12-graph-timeout-partial.md)：確認済みprefixだけのTIMEOUT結果と、総期限・終了同期確認による破棄。
 
+## バックエンド完走の残項目（2026-10-14）
+
+[残項目・PR見積もり・完走ロードマップ](2026-10-14-backend-remaining-work.md)：業務UC/BSと通常API入口を照合した残件。26〜44 PRの暫定内訳、PO依存、固定fixtureで一本通すmilestone、工程順ガント表。過去の8割・9割という報告を撤回し、内部部品の完成と業務受入を区別する。
+
 ## 2026-10-09
 
 | 順序 | 記録 | 内容 |
