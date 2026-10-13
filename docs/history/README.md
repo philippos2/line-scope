@@ -532,3 +532,5 @@ Dockerで追加36テスト成功、ruff check / format、git diff --check成功�
 [SPOF探索の公開前入力境界](2026-10-13-spof-request-validation.md)に、任意候補集合・共有入力予算・認可と公開前の残作業を記録した。
 
 [SPOF候補の共有予算収集](2026-10-13-spof-analysis-facts.md)に、対象別候補・一段代替factsと共有node予算、公開前の残作業を記録した。
+
+[SPOF候補の単独除外と単一状態観測](2026-10-13-spof-state-evaluation.md)に、対象別分類、一回の正本観測、最終gateと公開前の残作業を記録した。
