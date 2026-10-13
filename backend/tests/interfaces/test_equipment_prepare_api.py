@@ -94,6 +94,9 @@ def test_prepare_rejections_are_mapped_and_never_save(world, message, status, co
         "設備M-204の状態をRUNNINGに変更しないで",
         MESSAGE + "？",
         MESSAGE + "、M-208も変更して",
+        "『M-204の現在状態をRUNNINGに変更する準備を作って』",
+        "M-204の現在状態をRUNNINGに変更する準備を作らないで",
+        "M-204の現在状態をRUNNINGに変更する準備を作って？",
     ],
 )
 def test_unsupported_intent_stays_read_only_even_when_llm_asks_to_prepare(world, message):

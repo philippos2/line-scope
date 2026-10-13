@@ -19,6 +19,8 @@ def request(message):
     "message,category",
     [
         ("設備M-204の状態をSTOPPEDに変更して", "EQUIPMENT_STATE"),
+        ("M-204の現在状態をUNDER_MAINTENANCEに変更する準備を作って", "EQUIPMENT_STATE"),
+        ("設備M-204の状態を保全中に変更する準備を作成してください", "EQUIPMENT_STATE"),
         ("M-204の状態を停止に更新してください", "EQUIPMENT_STATE"),
         (" 設備M-204の状態をRUNNINGに変更して。\n", "EQUIPMENT_STATE"),
         ("M-204の保全予定を登録して", "MAINTENANCE"),
@@ -67,6 +69,11 @@ def test_supported_single_commands_keep_original_evidence(message, category):
         "Executeして",
         "設備M-204を停止して",
         "M-204を次回保全で停止する変更準備を作って",
+        "M-204の現在状態をUNDER_MAINTENANCEに変更する準備を作って？",
+        "『M-204の現在状態をUNDER_MAINTENANCEに変更する準備を作って』",
+        "M-204の現在状態をUNDER_MAINTENANCEに変更する準備を作らないで",
+        "もしM-204の現在状態をUNDER_MAINTENANCEに変更する準備を作って",
+        "M-204の現在状態をUNDER_MAINTENANCEに変更する準備を作って、実行して",
     ],
 )
 def test_unsupported_or_unsafe_phrasing_requires_clarification(message):
