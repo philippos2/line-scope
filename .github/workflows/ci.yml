@@ -16,7 +16,7 @@ concurrency:
 
 jobs:
   tests:
-    name: Tests and migrations
+    name: Backend tests and migrations
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
@@ -30,18 +30,43 @@ jobs:
           docker compose -f compose.test.yaml run --rm --no-deps tests ruff check backend scripts
           docker compose -f compose.test.yaml run --rm --no-deps tests ruff format --check backend scripts
       - name: Test Backend and migrations against disposable PostgreSQL and Neo4j
-        run: docker compose -f compose.test.yaml run --rm tests
+        run: docker compose -f compose.test.yaml run --rm tests pytest backend/tests -q -p no:cacheprovider --durations=30
+      - name: Clean disposable test containers
+        if: always()
+        run: docker compose -f compose.test.yaml down --volumes --remove-orphans
+
+  runtime:
+    name: Runtime startup and migrations
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
       - name: Verify runtime startup and packaged migrations
         run: |
           python3 scripts/create_demo_env.py
           docker compose -p linescope-ci-runtime up --build -d --wait --wait-timeout 120 api
           docker compose -p linescope-ci-runtime exec -T api linescope --help
           docker compose -p linescope-ci-runtime run --rm migrate
-      - name: Clean disposable containers
+      - name: Clean disposable runtime containers
         if: always()
         run: |
-          docker compose -f compose.test.yaml down --volumes --remove-orphans
           if test -f .env; then
             docker compose -p linescope-ci-runtime down --volumes --remove-orphans
             rm -f .env
           fi
+
+  verification:
+    name: Tests and migrations
+    needs: [tests, runtime]
+    if: always()
+    runs-on: ubuntu-24.04
+    timeout-minutes: 2
+    env:
+      CI_TEST_RESULT: ${{ needs.tests.result }}
+      CI_RUNTIME_RESULT: ${{ needs.runtime.result }}
+    steps:
+      - name: Require both verification jobs to succeed
+        run: |
+          test "$CI_TEST_RESULT" = success && test "$CI_RUNTIME_RESULT" = success

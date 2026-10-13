@@ -28,6 +28,7 @@ GitHub設定を変更する際は既存保護・required checksを維持し、�
 
 現在のrequired checksは`Tests and migrations`と`PR title`とする。
 Backend CIはDocker内でlint / format、実PostgreSQL / Neo4jによるテスト・migration検証、runtime imageの起動・CLI疎通を実行する。
+テストとruntime検証は独立runnerの並列jobとし、両jobの成功だけを集約check `Tests and migrations`の成功とする。failure / cancelled / skippedは集約を失敗にする。各jobの使い捨てDB環境を分離し、同じDBへsuiteを並列投入しない。pytestは遅い30処理の実測時間を出力し、CI時間と試験範囲を継続して確認する。
 全PRでCIを実行し、required jobをpath filterで省略しない。
 Runtime依存はbackend/requirements.lock、開発依存はbackend/requirements-dev.lockで固定し、共通packageのversionを揃えて更新・検証する。
 
