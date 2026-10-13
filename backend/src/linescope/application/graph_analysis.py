@@ -9,11 +9,9 @@ from datetime import datetime, timezone
 from math import isfinite
 
 from ..domain.graph_common_dependencies import common_dependencies
-from ..domain.graph_traversal import traversal_types
+from .graph_evidence import UNEVALUATED_DIMENSIONS, serialize_paths
 from .graph_request import GraphLimits, validate_common_dependency_request, validate_graph_request
-from .reads import ReadResult, ToolError, json_value
-
-UNEVALUATED_DIMENSIONS = ("OPERATIONAL_IMPACT", "CAPACITY", "SAFETY", "ECONOMICS")
+from .reads import ReadResult, json_value
 
 
 def _typed(node):
@@ -22,41 +20,6 @@ def _typed(node):
 
 def _key(node):
     return node[0] + ":" + node[1]
-
-
-def serialize_paths(selected_paths, records, direction):
-    forward, _ = traversal_types(direction)
-    paths = []
-    for path in selected_paths:
-        edges = []
-        for index, record_id in enumerate(path.source_record_ids):
-            edge = records[record_id]
-            source = (edge["source_type"], edge["source_id"])
-            target = (edge["target_type"], edge["target_id"])
-            expected = (source, target) if edge["relation_type"] in forward else (target, source)
-            if expected != (path.nodes[index], path.nodes[index + 1]):
-                raise ToolError("GRAPH_UNAVAILABLE", "Graph path facts are inconsistent")
-            edges.append(
-                {
-                    "source_record_id": record_id,
-                    "source_version": edge["source_version"],
-                    "relation_type": edge["relation_type"],
-                    "required": edge["required"],
-                    "source": _typed(source),
-                    "target": _typed(target),
-                    "traversal_direction": direction,
-                    "traversal_source": _typed(path.nodes[index]),
-                    "traversal_target": _typed(path.nodes[index + 1]),
-                }
-            )
-        paths.append(
-            {
-                "nodes": [_typed(node) for node in path.nodes],
-                "edges": edges,
-                "hops": path.hops,
-            }
-        )
-    return paths
 
 
 class GraphAnalysis:

@@ -8,7 +8,7 @@ from datetime import datetime
 from ..domain.canonical import normalize_uuid
 from ..domain.graph_paths import representative_paths
 from ..domain.graph_traversal import IMPACT_FORWARD, IMPACT_REVERSE
-from .graph_analysis import UNEVALUATED_DIMENSIONS, serialize_paths
+from .graph_evidence import UNEVALUATED_DIMENSIONS, serialize_paths
 from .reads import ReadResult, ToolError, json_value
 
 
