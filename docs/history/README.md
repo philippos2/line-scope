@@ -540,3 +540,5 @@ Dockerで追加36テスト成功、ruff check / format、git diff --check成功�
 [SPOF分析Toolの公開](2026-10-13-spof-tool-publication.md)に、Tool / API / Agent接続、公開契約試験と未検証範囲を記録した。
 
 [代替・SPOFの実LLM baseline](2026-10-13-fulfillment-agent-baseline.md)に、warm条件のSPOF probe成功、代替引数拒否の失敗、説明品質の残課題を記録した。
+
+[代替分析の現在時点引数修正と再評価](2026-10-13-alternative-agent-arguments.md)に、now引数の原因、契約を維持する修正、同じ二質問の再評価結果を記録した。
