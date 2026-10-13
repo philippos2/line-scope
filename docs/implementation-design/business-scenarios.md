@@ -4,7 +4,7 @@
 
 Use Caseの正本は[use-cases.md](../requirements/use-cases.md)、本書は業務受入試験の正本である。Business Scenario / Acceptance → Agent / Application E2E → Integration → Contract → Unitの階層で検証する。Outbox、lock、Projection retry、Recoveryは既存下位試験に残す。Gherkin形式の採用は実装ライブラリの選定を意味しない。
 
-全ケースは仕様であり未実装・未実行。PO判断待ちを含むケースはBLOCKEDとして追跡し、合格扱いしない。BS-G01の完全な数値fixtureもまだ確定していない。既存の660テスト成功は本書の合格を意味しない。
+各ケースは受入仕様であり、実装・実行状況は§7で保証範囲を区別する。PO判断待ちを含むケースはBLOCKEDとして追跡し、合格扱いしない。BS-G01の完全な数値fixtureもまだ確定していない。下位テストの総件数を本書全体の合格根拠にしない。
 
 正常Graph分析はCURRENT、初期化済みgeneration、有効なactive関係、認可済みActorを前提とする。分析観測時刻と評価対象期間は区別する。Graph非CURRENTの拒否、探索上限・未知availability・権限拒否の試験を下位試験で維持し、部分結果の業務上の表示も確認する。
 
@@ -397,3 +397,12 @@ LLMに数値計算を任せず、固定正本fixtureと決定論的計算処理�
 ## 6. デモとの関係
 
 LogiScopeの動画シナリオ等は「業務の問いから調査・根拠・判断へつながる」雰囲気だけを参考にした。本書の追加ケースと期待結果はLineScopeの要件・不足レビューから導いたものであり、物流モデル、Tool、更新経路、データ、コードを継承していない。動画台本は後続で実装済み・検証済みケースを選んで構成し、本書の受入仕様と区別する。
+
+## 7. API受入チェックポイント
+
+| 対象 | 試験 | 確認済み範囲 | 未確認・残作業 |
+|---|---|---|---|
+| BS-18、UC-B01・13・15、AC-G08・10・11 | `test_graph_business_scenarios.py::test_bs18_analysis_unavailable_is_distinct_from_no_impact`（5条件） | 実PostgreSQL / Neo4jとPOST /agentで、完全探索の空結果、打切りpartial、LAGGING / ERROR / REBUILDINGの拒否、経路・世代Evidenceを検証 | ScriptedLLMでTool呼出しを固定。実LLMの選択・日本語説明品質は未検証 |
+| UC-16・19・20の構造参照フロー、AC-G01・02・05・06・10 | `test_graph_business_scenarios.py::test_equipment_investigation_connects_impact_alternatives_and_spof_without_mutation` | 影響製品、直接・間接分類、代替成立、対象別SPOF結果、各ToolのEvidence、業務更新なし | BS-05 / 06の能力評価、BS-G01の統合業務判断は保証しない |
+
+上記のAPI構造化結果は対象試験でPASS。実LLM品質は未検証であり、自然言語E2Eを含むBusiness Scenario全体の合格とは区別する。表にないケースは、このチェックポイントでは未評価。PO-B01〜08の不足仕様・BLOCKED状態を解消したと扱わない。
