@@ -228,3 +228,72 @@ def validate_alternative_request(context, arguments, *, system_limits, server_ti
     return AlternativePathRequest(
         groups[0], groups[1], first.as_of, first.requested_limits, first.effective_limits
     )
+
+
+@dataclass(frozen=True)
+class SpofRequest:
+    important_targets: tuple[tuple[str, str], ...]
+    candidate_nodes: tuple[tuple[str, str], ...] | None
+    as_of: datetime
+    requested_limits: tuple[tuple[str, int], ...]
+    effective_limits: GraphLimits
+
+
+def validate_spof_request(context, arguments, *, system_limits, server_time):
+    """Keep omitted candidate discovery distinct from an explicit empty set.
+
+    This is an internal input boundary, not Tool publication or Graph access.
+    Candidate membership and per-target self exclusion belong to bounded reads.
+    """
+    if not isinstance(context, ExecutionContext):
+        raise ToolError("AUTHENTICATION_REQUIRED", "Trusted execution context is required")
+    if context.role not in {"maintenance", "production", "manager"}:
+        raise ToolError("AUTHORIZATION_DENIED", "Graph analysis permission is required")
+    if not isinstance(system_limits, GraphLimits):
+        raise ValueError("Server Graph limits are required")
+    fields = {"important_targets", "candidate_nodes", "explicit_as_of"} | {
+        "requested_" + name for name in LIMIT_NAMES
+    }
+    if type(arguments) is not dict or set(arguments) - fields:
+        raise ToolError("INVALID_ARGUMENT", "Invalid SPOF analysis fields")
+    base = {
+        key: value
+        for key, value in arguments.items()
+        if key not in {"important_targets", "candidate_nodes"}
+    }
+    groups, first = {}, None
+    for name in ("important_targets", "candidate_nodes"):
+        if name == "candidate_nodes" and name not in arguments:
+            groups[name] = None
+            continue
+        nodes = arguments.get(name)
+        minimum = 1 if name == "important_targets" else 0
+        if type(nodes) is not list or not minimum <= len(nodes) <= system_limits.max_nodes:
+            raise ToolError("INVALID_ARGUMENT", "Typed node sets must fit the server budget")
+        validated = [
+            validate_graph_request(
+                context,
+                "trace_upstream_dependencies",
+                {**base, "target": node},
+                system_limits=system_limits,
+                server_time=server_time,
+            )
+            for node in nodes
+        ]
+        roots = tuple(sorted(item.target for item in validated))
+        if len(set(roots)) != len(roots):
+            raise ToolError("INVALID_ARGUMENT", "Distinct typed nodes are required within each set")
+        groups[name] = roots
+        if validated:
+            first = first or validated[0]
+    if len(set(groups["important_targets"]) | set(groups["candidate_nodes"] or ())) > (
+        first.effective_limits.max_nodes
+    ):
+        raise ToolError("INVALID_ARGUMENT", "All input nodes must fit the effective node budget")
+    return SpofRequest(
+        groups["important_targets"],
+        groups["candidate_nodes"],
+        first.as_of,
+        first.requested_limits,
+        first.effective_limits,
+    )

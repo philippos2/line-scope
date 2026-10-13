@@ -296,3 +296,11 @@ max_pathsは全重要対象・除外対象・候補の必須代表経路と、�
 探索・Evidenceが完全でも、循環や利用可能性未知があれば判定はINDETERMINATE。すべての対象結果と代替集合が確定した場合だけ全体DETERMINATEとする。理由はCYCLIC_REQUIREMENTS / UNKNOWN_AVAILABILITY等を返し、未知を「候補なし」へ変換しない。
 
 Evidenceは§17の世代・時点・分析範囲に加え、同じrepresentative_paths、全確認済みmandatory_relations / substitution_relations、設備と生産作業のstate_versions、current_states / current_operation_states、型付きmissing_states、state_temporal_scope=CURRENT_STATE_AT_OBSERVATIONを含む。必須循環・交差関係は代表経路だけへ押し込まず、元のrecord ID / version / required / source / targetを関係factsに保持する。過去分析でも現在状態の観測事実を過去状態として表示しない。収集されていない関係を経路や置換Evidenceとして生成しない。
+
+## 22. SPOF探索の入力境界
+
+find_single_point_failure_candidatesは1件以上のimportant_targetsと任意candidate_nodesを受ける。candidate_nodes省略は重要対象の必須上流集合からの候補収集、明示空配列は候補指定なし（自動収集しない）を意味する。明示NULLはINVALID_ARGUMENT。配列内のUUID正規化後の重複を拒否し、typed IDを決定順に正規化する。
+
+入力fieldはimportant_targets / candidate_nodes / explicit_as_of / requested_max_depth / requested_max_nodes / requested_max_pathsだけとする。relation_typesはNULLを含めて拒否し、timeout・認証主体を外部から上書きさせない。maintenance / production / managerの認可とschema・時間・上限の検証はDB参照より前に行う。
+
+全明示入力のtyped ID和集合が実効max_nodes以内に収まることを要求する。両配列間の重複は入力を保持し予算では一件と数える。重要対象自身はその対象のSPOF候補にしないが、別の重要対象に対する候補であり得るため、入力境界で両配列の重なりを一律拒否しない。存在・active確認と対象別の必須上流判定は後続の整合性が保証された探索で行う。入力検証の実装だけをTool公開・候補収集・SPOF判定の完成とは扱わない。
