@@ -11,6 +11,8 @@ description: LineScopeバックエンドの変更後にpytest、ruff、migration
 
 ## 範囲と検証
 
+試験追加・最適化ではtest-plan §1.1〜1.2を適用する。対応AC、因子・水準・制約、境界と既知の相互作用を先に整理し、検証する規則に適した階層へ置く。認可matrix・重大Fail・原子性・競合をペアワイズだけで代替しない。ペアワイズ適用時は二因子被覆の確認を残す。既存ケースの統合はassertion / ACの対応を示し、setup / call / teardownの前後時間を計測する。
+
 変更目的・契約への影響・未完成/仮実装/TODOを確認する。関連試験のbaselineと必要な回帰を選び、Production code/constraint/transaction変更では実DBの必要性を判断する。可逆な文書だけの変更に無関係な試験を新設しない。
 
 backendの試験・lintはDocker内で行う。基本コマンドは次の形とし、実際のCompose定義と整合させる。
