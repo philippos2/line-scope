@@ -20,6 +20,7 @@ TOOLS = {
     **SINGLE_TOOLS,
     "find_common_dependencies": "UPSTREAM",
     "find_alternative_paths": "FULFILLMENT",
+    "find_single_point_failure_candidates": "FULFILLMENT",
 }
 LIMIT_NAMES = ("max_depth", "max_nodes", "max_paths")
 

@@ -19,7 +19,7 @@
 | 全体の単一状態観測・対象別成立評価 | この変更で内部実装・対象試験完了 | 一回の状態観測、全除外適用、対象別結果、最終gate。全体CI / PR引渡しはPRで確認する |
 | 代表経路・置換Evidence・公開DTO | 内部実装・対象試験完了（[後続記録](2026-10-13-alternative-evidence.md)） | 候補自身の必須関係と直接置換、共有path予算と不完全性を実DB試験。公開入口への接続・契約試験は次工程 |
 | 代替Tool / HTTP API / Agent公開 | 実装・対象契約試験完了（[公開記録](2026-10-13-alternative-tool-publication.md)） | 認可、全Target確認、非CURRENT拒否、構造化結果・partial / error、Agentからのnamed Toolを実DB試験。実LLMの選択・説明品質は未検証 |
-| SPOFの全体調整・Tool / HTTP API / Agent公開 | 未完 | 重要対象別候補分類、共有上限、除外前成立、未知・循環・不完全性とEvidenceを契約試験する |
+| SPOFの全体調整・Tool / HTTP API / Agent公開 | 実装・対象契約試験完了（[公開記録](2026-10-13-spof-tool-publication.md)） | 対象別単独除外、一回の状態観測、共有上限、未知・不完全性、Evidence、公開入口を自動試験。実LLMの選択・説明品質と業務受入は後続 |
 | 代替・SPOFの業務受入 | 未完 | Business ScenarioとACに対応するAPI試験を行い、PASS / BLOCKED / NOT_IMPLEMENTEDを区別する |
 
 この表は現在の代替・SPOF機能群の工程であり、バックエンド全体の完成率ではない。RAG・実LLM評価・他の受入範囲は別途棚卸しが必要。requirements §14.3のPO-B01〜08も未確定のままであり、能力・安全・経済判断の要件を完了扱いやスコープ外へ変更しない。

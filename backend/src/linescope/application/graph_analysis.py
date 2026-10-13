@@ -17,8 +17,11 @@ from .graph_request import (
     validate_alternative_request,
     validate_common_dependency_request,
     validate_graph_request,
+    validate_spof_request,
 )
 from .reads import ReadResult, json_value
+from .spof_analysis import evaluate_spof_facts
+from .spof_evidence import build_spof_result
 
 
 def _typed(node):
@@ -64,6 +67,8 @@ class GraphAnalysis:
         self.completion_reserve_ms = reserve
 
     def call(self, context, tool, arguments):
+        if tool == "find_single_point_failure_candidates":
+            return self._spof(context, arguments)
         if tool == "find_alternative_paths":
             return self._alternative(context, arguments)
         if tool == "find_common_dependencies":
@@ -251,6 +256,39 @@ class GraphAnalysis:
                 facts, self.states, budget, historical=historical
             )
             response = build_alternative_result(
+                facts,
+                evaluation,
+                budget,
+                max_paths=limits.max_paths,
+                graph_generation=read.validation.generation,
+                graph_observed_at=read.observed_at,
+                as_of=request.as_of,
+                historical=historical,
+            )
+            response.data["requested_limits"] = dict(request.requested_limits)
+            response.data["effective_limits"] = asdict(limits)
+            budget.require()
+        return response
+
+    def _spof(self, context, arguments):
+        request = validate_spof_request(
+            context, arguments, system_limits=self.system_limits, server_time=self.clock()
+        )
+        limits = request.effective_limits
+        budget = self.budget_factory(limits.timeout_ms)
+        historical = "explicit_as_of" in arguments
+        with self.reader.open(budget) as read:
+            facts = read.spof_facts(
+                request.important_targets,
+                request.candidate_nodes,
+                as_of=request.as_of,
+                max_depth=limits.max_depth,
+                max_nodes=limits.max_nodes,
+                page_size=self.page_size,
+                should_stop=lambda: budget.remaining() <= self.completion_reserve_ms / 1000,
+            )
+            evaluation = evaluate_spof_facts(facts, self.states, budget, historical=historical)
+            response = build_spof_result(
                 facts,
                 evaluation,
                 budget,

@@ -151,7 +151,7 @@ def test_historical_time_normalized_and_future_rejected_even_with_empty_candidat
     assert caught.value.code == "INVALID_ARGUMENT"
 
 
-def test_internal_validation_does_not_publish_unfinished_tool():
+def test_spof_tool_schema_has_optional_candidates_and_no_relation_filter():
     class NoDatabase:
         def for_reads(self):
             return self
@@ -160,4 +160,7 @@ def test_internal_validation_does_not_publish_unfinished_tool():
             pytest.fail("Schema inspection must not access storage")
 
     dispatcher = ToolDispatcher(NoDatabase(), graph=object())
-    assert "find_single_point_failure_candidates" not in dispatcher.schemas()
+    schema = dispatcher.schemas()["find_single_point_failure_candidates"]
+    assert schema["required"] == ["important_targets"]
+    assert "candidate_nodes" in schema["properties"]
+    assert "relation_types" not in schema["properties"]
