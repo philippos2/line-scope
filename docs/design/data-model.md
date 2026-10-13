@@ -321,7 +321,7 @@ Neo4j generation markerはgeneration、validated BOOLEAN、snapshot_hash、valid
 
 ## 13. 適用済み業務スキーマのER図
 
-以下はmigration `002_business_schema.sql`で適用済みの業務10テーブルを示す。migration管理用の`schema_migration`は含めない。更新要求・Target・Approvalは`003_update_request_schema.sql`、業務監査は`004_update_audit_events.sql`、設備状態履歴・実行結果は`005_execution_history.sql`、Outbox・Graph同期管理は`006_graph_projection_storage.sql`で適用済みだが、この業務ER図には含めない。KnowledgeDocumentのDB実装は後続工程。
+以下はmigration `002_business_schema.sql`で適用済みの業務10テーブルを示す。migration管理用の`schema_migration`は含めない。更新要求・Target・Approvalは`003_update_request_schema.sql`、業務監査は`004_update_audit_events.sql`、設備状態履歴・実行結果は`005_execution_history.sql`、Outbox・Graph同期管理は`006_graph_projection_storage.sql`で適用済みだが、この業務ER図には含めない。KnowledgeDocument metadataは`007_knowledge_document.sql`で適用済みで、本図には含めない。本文管理・version有効化・検索の再認可・Qdrant接続は後続工程。
 
 ```mermaid
 erDiagram

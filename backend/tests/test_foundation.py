@@ -102,6 +102,7 @@ def test_concurrent_migration_once_and_checksum_guard(db):
             "004_update_audit_events.sql",
             "005_execution_history.sql",
             "006_graph_projection_storage.sql",
+            "007_knowledge_document.sql",
         ],
     ]
     assert db.migrate() == []
