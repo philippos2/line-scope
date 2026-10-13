@@ -57,6 +57,7 @@ def collect_alternative_facts(
     max_nodes,
     page_size,
     should_stop=None,
+    node_budget=None,
 ):
     targets, excluded = _roots(important_targets), _roots(excluded_nodes)
     for limit in (max_depth, max_nodes, page_size):
@@ -65,7 +66,11 @@ def collect_alternative_facts(
     if not isinstance(as_of, datetime) or as_of.tzinfo is None or as_of.utcoffset() is None:
         raise ValueError("An aware analysis time is required")
     roots = set(targets) | set(excluded)
-    budget = TraversalNodeBudget(max_nodes, roots=roots)
+    budget = node_budget or TraversalNodeBudget(max_nodes, roots=roots)
+    if not isinstance(budget, TraversalNodeBudget) or budget.max_nodes != max_nodes:
+        raise ValueError("Shared node budget must match the analysis limit")
+    if any(not budget.admit(node) for node in sorted(roots)):
+        raise ValueError("Shared budget must admit all input roots")
     for node in sorted(roots):
         registered = read.node(*node)
         if registered is None or not registered.active:
