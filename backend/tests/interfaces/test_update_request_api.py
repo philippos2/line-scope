@@ -67,7 +67,9 @@ def test_owner_visibility_survives_role_change_without_source_create(stored, rol
         assert connection.execute("SELECT count(*) AS n FROM update_request").fetchone()["n"] == 1
 
 
-@pytest.mark.parametrize("identity,status", [("invalid", 400), (str(uuid4()), 404)])
+@pytest.mark.parametrize(
+    "identity,status", [("invalid", 400), (str(uuid4()), 404)], ids=["invalid", "missing"]
+)
 def test_invalid_and_missing_ids(stored, identity, status):
     db, _ = stored
     with client_for(db, "reader", "manager") as client:

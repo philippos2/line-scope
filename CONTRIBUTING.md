@@ -28,7 +28,9 @@ GitHub設定を変更する際は既存保護・required checksを維持し、�
 
 現在のrequired checksは`Tests and migrations`と`PR title`とする。
 Backend CIはDocker内でlint / format、実PostgreSQL / Neo4jによるテスト・migration検証、runtime imageの起動・CLI疎通を実行する。
-テストとruntime検証は独立runnerの並列jobとし、両jobの成功だけを集約check `Tests and migrations`の成功とする。failure / cancelled / skippedは集約を失敗にする。各jobの使い捨てDB環境を分離し、同じDBへsuiteを並列投入しない。pytestは遅い30処理の実測時間を出力し、CI時間と試験範囲を継続して確認する。
+テストは独立runnerの2 shard、runtime検証も別runnerで並列実行し、全jobの成功だけを集約check `Tests and migrations`の成功とする。failure / cancelled / skippedは集約を失敗にする。matrixはfail-fastを無効にして片方の失敗でも他方の検証・片付けを続ける。各jobの使い捨てDB環境を分離し、同じDBへsuiteを並列投入しない。
+shardは全ケースの収集後、`backend/tests/ci_module_timings.json`の実測時間を重みとしてファイル単位で割り当てる。新規ファイルは既定の重みで自動的に含まれ、古い計測の項目は試験範囲を制限しない。各shardのログへ全収集数・選択数・全node ID集合のhashを出す。同じheadの全収集数/hash一致と選択数の合計を確認し、遅い30処理とjob時間を継続して確認する。
+ローカルの通常実行は全件のまま。分割を再現する場合は使い捨て環境で`pytest backend/tests --ci-shard 1/2`と`--ci-shard 2/2`を実行する。同じCompose環境での実行は順番に行う。計測値は性能受入閾値ではなく、負荷が偏った場合に再計測して更新する。
 全PRでCIを実行し、required jobをpath filterで省略しない。
 Runtime依存はbackend/requirements.lock、開発依存はbackend/requirements-dev.lockで固定し、共通packageのversionを揃えて更新・検証する。
 
