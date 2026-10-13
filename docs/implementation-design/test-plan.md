@@ -207,3 +207,11 @@ architecture §15・NFR-04への適合を下位Security / Integration / Recovery
 
 これらは追加試験仕様であり、全実装・実行済みとは扱わない。既存searchのDELETE攻撃文字列1ケースだけでT-SQL01全体の合格としない。型で拒否されるID等の試験だけで、許可された自由文字列のbindを検証したことにしない。
 Core導入時も実PostgreSQLでlock順序・待機timeout・接続寿命・rollback・version・canonical Snapshot / hash・Outbox原子性を回帰検証する。mockでのSQL構造検証だけでは完了としない。
+
+## 16. Graph業務APIシナリオの実行
+
+`backend/tests/interfaces/test_graph_business_scenarios.py`は、Givenの正本fixtureと検証済みGraph、WhenのPOST /agent、Thenの意味論的assertionを使う。Gherkin仕様の意図をpytestで実行し、Cucumber等の新ライブラリを前提にしない。
+
+BS-18の5条件と、影響→代替→SPOFの参照フローを実PostgreSQL / Neo4jで検証する。対応UC / AC、PASSの範囲、実LLM未検証はbusiness-scenarios §7を参照する。Outbox等は状態fixtureの準備に使い、worker復旧・lockの受入assertionをこの業務試験へ混在させない。既存下位試験は維持する。
+
+Dockerで`pytest -p no:cacheprovider backend/tests/interfaces/test_graph_business_scenarios.py -q`を実行する。実LLMのTool選択は別のE2E / Evalsで確認し、ScriptedLLMによるAPI成功をBS-G01合格へ昇格させない。
