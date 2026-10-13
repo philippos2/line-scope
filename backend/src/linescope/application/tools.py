@@ -181,11 +181,33 @@ def _graph_schemas():
                     ["targets"],
                 )
                 if name == "find_common_dependencies"
+                else _object(
+                    {
+                        **{
+                            key: value
+                            for key, value in properties.items()
+                            if key not in {"target", "relation_types"}
+                        },
+                        **{
+                            key: {
+                                "type": "array",
+                                "minItems": 1,
+                                "uniqueItems": True,
+                                "items": target,
+                            }
+                            for key in ("important_targets", "excluded_nodes")
+                        },
+                    },
+                    ["important_targets", "excluded_nodes"],
+                )
+                if name == "find_alternative_paths"
                 else _object(properties, ["target"])
             ),
             "description": (
                 "Find common upstream dependency candidates with a path from every target; not a proven cause or SPOF."
                 if name == "find_common_dependencies"
+                else "Evaluate mandatory structural fulfillment after exclusions with one-step substitutes, not capacity or safety guarantees."
+                if name == "find_alternative_paths"
                 else "Trace downstream impact candidates."
                 if direction == "IMPACT"
                 else "Trace upstream dependencies."

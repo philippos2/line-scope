@@ -24,6 +24,7 @@ from ..domain.graph_requirement_rules import required_dependency
 from ..domain.graph_substitute_candidate import SUBSTITUTE_TYPES
 from ..domain.graph_traversal import traversal_types
 from ..domain.relations import ENDPOINTS
+from .alternative_facts import collect_alternative_facts
 from .analysis_gate import GraphAnalysisGate
 from .neo4j_generation import NODE_TYPES, read_generation_validation
 from .neo4j_projection import GraphGenerationUnavailable, ProjectionIntegrityError
@@ -264,6 +265,28 @@ class _GraphRead:
         self._budget.require()
         return GraphTraversal(
             reached, paths, tuple(facts[identifier] for identifier in sorted(used))
+        )
+
+    def alternative_facts(
+        self,
+        important_targets,
+        excluded_nodes,
+        *,
+        as_of,
+        max_depth,
+        max_nodes,
+        page_size,
+        should_stop=None,
+    ):
+        return collect_alternative_facts(
+            self,
+            important_targets,
+            excluded_nodes,
+            as_of=as_of,
+            max_depth=max_depth,
+            max_nodes=max_nodes,
+            page_size=page_size,
+            should_stop=should_stop,
         )
 
     def substitute_candidates(self, entity_type, entity_id, *, as_of, limit, after=None):
