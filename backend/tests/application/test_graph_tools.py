@@ -32,7 +32,13 @@ def test_graph_tools_are_advertised_only_with_a_server_adapter():
     assert not set(TOOLS) & absent.schemas().keys()
     configured = ToolDispatcher(NoDatabase(), graph=object())
     schemas = configured.schemas()
-    assert len(schemas) == 22
+    assert len(schemas) == 23
+    alternative = schemas["find_alternative_paths"]
+    assert alternative["required"] == ["important_targets", "excluded_nodes"]
+    assert alternative["additionalProperties"] is False
+    assert "relation_types" not in alternative["properties"]
+    assert "timeout_ms" not in alternative["properties"]
+    assert "find_alternative_paths" not in absent.schemas()
     assert schemas["find_common_dependencies"]["required"] == ["targets"]
     assert schemas["find_common_dependencies"]["properties"]["targets"]["minItems"] == 2
     assert "find_common_dependencies" not in absent.schemas()
@@ -47,7 +53,7 @@ def test_graph_tools_are_advertised_only_with_a_server_adapter():
         assert "find_single_point_failure_candidates" not in schemas
         schemas[tool]["properties"]["target"]["required"].clear()
         assert configured.schemas()[tool]["properties"]["target"]["required"]
-    for name in [*TOOLS, "execute", "approve", "cypher"]:
+    for name in [*TOOLS, "find_alternative_paths", "execute", "approve", "cypher"]:
         with pytest.raises(ToolError) as error:
             absent.run(context(), name, {})
         assert error.value.code == "INVALID_ARGUMENT"
