@@ -2,10 +2,11 @@ from dataclasses import replace
 
 import pytest
 from graph.test_alternative_facts import AS_OF, OP, OTHER, M, P, Q
-from graph.test_common_dependency_reader import adapters as adapters
 from graph.test_common_dependency_reader import graph_driver as graph_driver
-from graph.test_common_dependency_reader import reader_world as reader_world
 
+from application.graph_evidence_fixtures import db as db
+from application.graph_evidence_fixtures import evidence_world as evidence_world
+from application.graph_evidence_fixtures import reader_world as reader_world
 from linescope.application.reads import ToolError
 from linescope.application.spof_analysis import evaluate_spof_facts
 from linescope.application.spof_evidence import build_spof_result
