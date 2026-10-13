@@ -10,6 +10,7 @@ from starlette.exceptions import HTTPException
 
 from ..agent.agent_input import AgentInput
 from ..application.agent_service import PreparedAgentResult
+from ..application.demo_decision import DecisionAgentResult
 from ..application.graph_request import TOOLS as GRAPH_TOOLS
 from ..application.proposals import ProposalError
 from ..application.reads import ToolError, json_value
@@ -238,6 +239,14 @@ def create_app(
                 incoming,
                 retry_requested=request.headers.get("idempotency-key") is not None,
             )
+            if isinstance(outcome, DecisionAgentResult):
+                return response(
+                    request,
+                    json_value(outcome.data),
+                    answer=outcome.answer,
+                    evidence=json_value(outcome.evidence),
+                    partial=True,
+                )
             if isinstance(outcome, PreparedAgentResult):
                 if outcome.error_code:
                     return response(

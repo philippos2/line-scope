@@ -29,7 +29,17 @@ class AnalyzedAgentResult:
 
 
 class AgentApplication:
-    def __init__(self, *, proposals, conversations, equipment, maintenance, production, read_agent):
+    def __init__(
+        self,
+        *,
+        proposals,
+        conversations,
+        equipment,
+        maintenance,
+        production,
+        read_agent,
+        decision_flow=None,
+    ):
         self.proposals = proposals
         self.conversations = conversations
         self.commands = (
@@ -38,6 +48,7 @@ class AgentApplication:
             (production_schedule_command, production),
         )
         self.read_agent = read_agent
+        self.decision_flow = decision_flow
 
     def run(self, context, incoming, *, retry_requested=False):
         if not isinstance(context, ExecutionContext):
@@ -61,6 +72,8 @@ class AgentApplication:
         for recognize, command in self.commands:
             if recognize(incoming) is not None:
                 return self._prepared(context, command.run(context, incoming))
+        if self.decision_flow is not None and self.decision_flow.matches(incoming.message):
+            return self.decision_flow.run(context, incoming)
         if self.read_agent is None:
             raise ToolError("DEPENDENCY_UNAVAILABLE", "LLM is not configured")
         result = self.read_agent.run(
