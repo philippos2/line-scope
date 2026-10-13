@@ -16,7 +16,11 @@ ENTITY_TYPES = frozenset(
     {"Equipment", "Process", "ProductionOperation", "Product", "InfrastructureResource"}
 )
 SINGLE_TOOLS = {"trace_downstream_impact": "IMPACT", "trace_upstream_dependencies": "UPSTREAM"}
-TOOLS = {**SINGLE_TOOLS, "find_common_dependencies": "UPSTREAM"}
+TOOLS = {
+    **SINGLE_TOOLS,
+    "find_common_dependencies": "UPSTREAM",
+    "find_alternative_paths": "FULFILLMENT",
+}
 LIMIT_NAMES = ("max_depth", "max_nodes", "max_paths")
 
 
