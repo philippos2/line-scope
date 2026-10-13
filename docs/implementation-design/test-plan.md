@@ -4,6 +4,38 @@
 
 Unit / Integration / API Contract / Transaction / Concurrency / Projection / Graph / RAG / Security / E2E / Recovery
 
+### 1.1 リスクと相互作用に基づくケース選択
+
+ケース数ではなく、要件・不変条件・失敗の検出能力を設計する。新規追加・既存最適化では、次の順で選択理由を残す。
+
+1. 対応UC / AC / T-R、検証する規則、誤動作した場合の影響を特定する。
+2. 入力因子と水準、有効な組合せの制約、既知の相互作用を列挙する。無効入力は通常、他の入力を正常に固定して一つずつ検証し、どの拒否規則が働いたかをassertする。
+3. 同値クラス、境界値、状態遷移、必須の相互作用からケースを選ぶ。空・省略・NULL・0・UNKNOWN等は契約が異なるなら別クラスとする。
+4. 規則単体はUnit、DB constraint / lock / rollbackは実DB Integration、公開schema / 認可 / EnvelopeはContract、業務の一連の操作はBusiness Scenarioで検証する。上位試験へ下位の全ケースを掛け合わせない。
+5. 選択したケース、保証範囲、省略する組合せとその根拠、実行時間をレビューする。未確認の網羅性を主張しない。
+
+| 対象 | 選択方法 | 省略してはならない検証 |
+|---|---|---|
+| 認可・閲覧境界 | §3の全role×operationを維持。owner / requester / approver、全Target拒否を追加 | 許可と拒否、偽identity、権限喪失、fail closed |
+| 状態遷移・更新 | 許可遷移と禁止遷移、境界値、各重要障害点 | 同値更新、期限直前・一致・超過、stale version、Audit / Outbox原子性 |
+| 並行・復旧 | 制御したinterleavingと障害注入 | lock順、二重消費、commit順逆転、rollback、世代切替中断 |
+| Graph成立判定 | AND / OR / 除外 / 一段置換の規則と既知の複合条件 | cycle、UNKNOWN、探索不完全、各上限の境界、複数上限の優先 |
+| 独立した非安全系の入力条件 | 同値クラスを整理した上で、必要時に制約付きペアワイズ | 既知の3因子以上の相互作用と過去の回帰ケースは別途追加 |
+| 業務API / 実LLM | 固定fixtureの代表フローと意味論的assertion。実LLM品質はevalsへ分離 | Business Scenarioの受入結果、Evidence、unknowns、未実装の明示 |
+
+ペアワイズは任意の二因子の各水準組を、有効な制約の範囲で少なくとも一回含めるケース選択であり、全組合せの保証ではない。直交表も因子・水準・制約が適合する場合に限る。`pytest.mark.parametrize`の使用だけでペアワイズを実施したとは扱わない。適用時は因子表、制約、選択ケース、二因子被覆の確認を残す。Security / SafetyのHard Constraint、既知の多因子相互作用、重大Failをペアワイズだけで代替しない。
+
+### 1.2 既存テストの効率改善と計測
+
+全suiteの`--durations=30`と対象suiteの前後計測で、callだけでなくsetup / teardownを確認する。DB準備の累積負担、外部待機、重複フローを区別し、実測した原因から改善する。CI runnerとローカルの秒数は直接比較せず、同じ環境・条件の測定を優先する。
+
+- まず不要な待機や共通準備を見直す。テストサーバーの終了poll短縮を、本体のtimeout・競合待機・期限境界短縮と混同しない。
+- fixture共有は、変更状態の隔離と終了時の復元が保証できる場合だけ行う。function scopeのDBを無条件にsession scopeへ変えない。同じDBを共有するsuiteは並行投入しない。
+- 同じ規則を複数階層で検証すること自体は重複とは限らない。API配線・認可・DB保証等の別の欠陥を検出するなら維持する。
+- ケース統合・置換は、旧assertionと新assertionの対応、失われないAC / 境界 / 障害点を示して行う。時間短縮だけを理由にケースを削除・skipしたりassertionを弱めたりしない。
+
+現在の全suiteをペアワイズ設計済みとは扱わない。既存ケースの全面削減は行わず、変更対象ごとにこの選択手順を適用する。CI jobの分離は待ち時間対策であり、ケース設計の代替ではない。
+
 ## 2. AC対応表
 
 | AC | 主テスト |
