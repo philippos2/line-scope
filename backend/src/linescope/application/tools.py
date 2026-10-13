@@ -201,6 +201,24 @@ def _graph_schemas():
                     ["important_targets", "excluded_nodes"],
                 )
                 if name == "find_alternative_paths"
+                else _object(
+                    {
+                        **{
+                            key: value
+                            for key, value in properties.items()
+                            if key not in {"target", "relation_types"}
+                        },
+                        "important_targets": {
+                            "type": "array",
+                            "minItems": 1,
+                            "uniqueItems": True,
+                            "items": target,
+                        },
+                        "candidate_nodes": {"type": "array", "uniqueItems": True, "items": target},
+                    },
+                    ["important_targets"],
+                )
+                if name == "find_single_point_failure_candidates"
                 else _object(properties, ["target"])
             ),
             "description": (
@@ -208,6 +226,8 @@ def _graph_schemas():
                 if name == "find_common_dependencies"
                 else "Evaluate mandatory structural fulfillment after exclusions with one-step substitutes, not capacity or safety guarantees."
                 if name == "find_alternative_paths"
+                else "Evaluate structural SPOF candidates independently per important target; omit candidate_nodes to discover mandatory ancestors, use [] for no candidate analysis. Not a failure cause or capacity/safety guarantee."
+                if name == "find_single_point_failure_candidates"
                 else "Trace downstream impact candidates."
                 if direction == "IMPACT"
                 else "Trace upstream dependencies."

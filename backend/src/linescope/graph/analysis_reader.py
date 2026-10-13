@@ -28,6 +28,7 @@ from .alternative_facts import collect_alternative_facts
 from .analysis_gate import GraphAnalysisGate
 from .neo4j_generation import NODE_TYPES, read_generation_validation
 from .neo4j_projection import GraphGenerationUnavailable, ProjectionIntegrityError
+from .spof_facts import collect_spof_facts
 from .transaction_timeout import neo4j_transaction_timeout
 
 
@@ -266,6 +267,9 @@ class _GraphRead:
         return GraphTraversal(
             reached, paths, tuple(facts[identifier] for identifier in sorted(used))
         )
+
+    def spof_facts(self, important_targets, candidate_nodes=None, **limits):
+        return collect_spof_facts(self, important_targets, candidate_nodes, **limits)
 
     def alternative_facts(
         self,

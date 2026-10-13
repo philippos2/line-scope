@@ -7,6 +7,7 @@ GRAPH_TOOLS = {
     "trace_upstream_dependencies",
     "find_common_dependencies",
     "find_alternative_paths",
+    "find_single_point_failure_candidates",
 }
 
 
