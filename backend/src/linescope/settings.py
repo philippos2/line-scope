@@ -20,6 +20,7 @@ class Settings:
     llm_model: str = field(default="", repr=False)
     llm_context_tokens: int = 16384
     read_dsn: str | None = field(default=None, repr=False)
+    demo_decision_mock: bool = False
 
     neo4j_uri: str | None = field(default=None, repr=False)
     neo4j_user: str = field(default="", repr=False)
@@ -31,6 +32,8 @@ class Settings:
     graph_timeout_ms: int = 5000
 
     def __post_init__(self):
+        if type(self.demo_decision_mock) is not bool:
+            raise ValueError("Demo decision mode must be a server boolean")
         if type(self.llm_base_url) is not str or type(self.llm_model) is not str:
             raise ValueError("Invalid LLM configuration")
         url = urlsplit(self.llm_base_url)
@@ -127,7 +130,7 @@ class Settings:
             if raw is not None:
                 values[name] = (
                     json.loads(raw)
-                    if name == "users"
+                    if name in {"users", "demo_decision_mock"}
                     else raw
                     if name
                     in {
