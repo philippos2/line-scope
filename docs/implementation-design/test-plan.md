@@ -220,6 +220,6 @@ Dockerで`pytest -p no:cacheprovider backend/tests/interfaces/test_graph_busines
 
 `backend/tests/interfaces/test_controlled_action_scenarios.py`でBS-14の対応済みコマンドvariantとBS-19を検証する。初期fixtureはRUNNING version 10。分析後のPrepareが業務状態を変更せずPENDING Approvalを生成すること、二回のAPI経由の承認・実行でv11の確定結果とv12の現在値を分離すること、最初のExecute再送でbusiness history / state history / Outboxが増えないことをassertする。
 
-後続状態を直接SQLで書き換えて正当な更新を模擬せず、Prepare→別の認証主体のApproval→requesterのExecuteを二回行う。要求GETの保存結果とExecute再送の現在観測を同一response契約と仮定しない。初期fixtureの作成と業務操作を区別する。例文の未対応範囲はbusiness-scenarios §7に残し、試験文言への変更を業務要件の変更にしない。
+後続状態を直接SQLで書き換えて正当な更新を模擬せず、Prepare→別の認証主体のApproval→requesterのExecuteを二回行う。要求GETの保存結果とExecute再送の現在観測を同一response契約と仮定しない。初期fixtureの作成と業務操作を区別する。BS-14は通常の変更命令と元の明示的Prepare例文をともに試験し、実LLM未検証範囲はbusiness-scenarios §7に残す。
 
 Dockerで`pytest -p no:cacheprovider backend/tests/interfaces/test_controlled_action_scenarios.py -q`を実行する。既存Approval / Executeの認可、rollback、競合、期限、再送試験を維持する。

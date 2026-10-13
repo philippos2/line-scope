@@ -85,8 +85,15 @@ def counts(db):
     }
 
 
+@pytest.mark.parametrize(
+    "message",
+    [
+        "設備M-204の状態をUNDER_MAINTENANCEに変更して",
+        "M-204の現在状態をUNDER_MAINTENANCEに変更する準備を作って",
+    ],
+)
 def test_bs14_analysis_then_explicit_prepare_keeps_current_state_unchanged(
-    db, running_world, adapters
+    db, running_world, adapters, message
 ):
     """Given maintenance reviewed analysis of RUNNING version 10;
     When explicitly requesting the supported update command;
@@ -103,7 +110,9 @@ def test_bs14_analysis_then_explicit_prepare_keeps_current_state_unchanged(
             analysis.json()["evidence"]["tool_results"][0]["state_versions"]["Equipment:" + M[1]]
             == 10
         )
-        saved = prepare(client, "UNDER_MAINTENANCE")
+        response = client.post("/agent", json={"message": message}, headers=headers())
+        assert response.status_code == 200
+        saved = response.json()["data"]
         snapshot = saved["canonical_snapshot"]
         assert saved["status"] == "WAITING_APPROVAL" and saved["approval_status"] == "PENDING"
         assert saved["update_request_id"] and saved["approval_id"] and saved["snapshot_hash"]
