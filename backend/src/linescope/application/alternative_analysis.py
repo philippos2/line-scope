@@ -25,6 +25,7 @@ class AlternativeTargetEvaluation:
 
 @dataclass(frozen=True)
 class AlternativeEvaluation:
+    historical: bool
     targets: tuple[AlternativeTargetEvaluation, ...]
     replacements: tuple[SubstituteSelection, ...]
     observation: dict
@@ -92,6 +93,7 @@ def evaluate_alternative_facts(facts, states, budget, *, historical):
         results.append(AlternativeTargetEvaluation(target, before, after))
     budget.require()
     return AlternativeEvaluation(
+        historical,
         tuple(results),
         tuple(replacements[key] for key in sorted(replacements)),
         observation.facts,

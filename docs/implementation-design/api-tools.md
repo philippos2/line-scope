@@ -282,3 +282,17 @@ find_alternative_pathsのimportant_targets / excluded_nodesは、ともに1件�
 入力はimportant_targets、excluded_nodes、任意explicit_as_of、requested_max_depth / requested_max_nodes / requested_max_pathsに限定する。relation_typesはNULLを含めて受け付けず、全成立関係と一段CAN_SUBSTITUTEを評価対象とする。role / user_id / context_idとtimeoutは入力から受け付けない。
 
 全入力IDの和集合が実効max_nodesを超える要求は、DB接続前にINVALID_ARGUMENTとして拒否する。認証済みContextのmaintenance / production / managerだけがGraph分析を要求できる。各typed IDのschemaと時間・上限を事前検証し、存在・activeの全件確認は後続の認可済み分析処理で行う。future explicit_as_ofは拒否し、過去時点の利用可能性を現在状態から復元しない。
+
+## 21. 代替探索の構造化結果とEvidence
+
+dataはimportant_targets、excluded_nodes、target_results、alternatives、representative_paths、complete、limit_reason、determination、analysis_mode、analysis_scope、not_evaluated、graph_sync_stateを含む。requested_limits / effective_limitsは認可済みApplication入口で付与する。analysis_scopeはDEPENDENCY_FULFILLMENTとし、OPERATIONAL_IMPACT / CAPACITY / SAFETY / ECONOMICSはnot_evaluatedへ明示する。
+
+target_resultsはimportant_targetとbefore / afterを持つ。before / afterのdeterminationは構造成立だけを示すESTABLISHED / NOT_ESTABLISHED / INDETERMINATEで、実際の稼働・生産能力・安全性を保証しない。alternativesはexcluded_node、集合のavailability / reason、candidatesを持ち、各candidateはtyped ID、availability、structure、reasonを返す。重要対象・除外対象・分析モードが評価時と異なる結果を流用しない。
+
+representative_pathsはpurpose、root、nodes、edges、hopsを持つ。MANDATORY_DEPENDENCYの経路はUPSTREAM方向。一段CAN_SUBSTITUTEの経路はpurpose=SUBSTITUTION / traversal_direction=SUBSTITUTIONとし、nodesは置換元targetから代替sourceへ並べる。保存source / targetは変更せず、通常上流・影響の経路へCAN_SUBSTITUTEを混ぜない。ゼロhopの起点は経路予算に数えない。
+
+max_pathsは全重要対象・除外対象・候補の必須代表経路と、一段置換経路の合計上限とする。必要な経路が返せない場合はcomplete=false / limit_reason=PATH_COUNT、全体determination=INDETERMINATEとし、before / afterもINDETERMINATE、availabilityもUNKNOWNとして理由INCOMPLETE_SEARCHを示す。探索上限のTIMEOUT / NODE_COUNT / DEPTHはPATH_COUNTより優先する。上限とちょうど同数の経路しか存在しない場合は打切りとしない。
+
+探索・Evidenceが完全でも、循環や利用可能性未知があれば判定はINDETERMINATE。すべての対象結果と代替集合が確定した場合だけ全体DETERMINATEとする。理由はCYCLIC_REQUIREMENTS / UNKNOWN_AVAILABILITY等を返し、未知を「候補なし」へ変換しない。
+
+Evidenceは§17の世代・時点・分析範囲に加え、同じrepresentative_paths、全確認済みmandatory_relations / substitution_relations、設備と生産作業のstate_versions、current_states / current_operation_states、型付きmissing_states、state_temporal_scope=CURRENT_STATE_AT_OBSERVATIONを含む。必須循環・交差関係は代表経路だけへ押し込まず、元のrecord ID / version / required / source / targetを関係factsに保持する。過去分析でも現在状態の観測事実を過去状態として表示しない。収集されていない関係を経路や置換Evidenceとして生成しない。
