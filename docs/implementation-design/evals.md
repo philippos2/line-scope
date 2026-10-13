@@ -47,3 +47,9 @@ model / prompt / dataset versionを記録し、変更時に再評価する。
 business-scenariosの構造化結果を決定論的受入の基準にし、Evalsでは必要なTool選択、結果説明、Evidence対応、条件・unknownsの保持、エンドユーザーの判断境界を評価する。自然言語の完全一致を主assertionにしない。
 
 追加ケース: 能力不足30 units/hourの説明、未知損失を0としないsubtotal、修理費不明時に勝者を作らない、安全情報不足時に安全と断定しない、Hard Safety Constraintを低費用で上書きしない、lead timeと停止時間の区別、150日の意味、分析だけではPrepareしない。実LLM評価と決定論的fixture試験を混同せず、未決定の業務ルールはBLOCKEDとして記録する。モデル具体選定・一般品質閾値は評価後に確定する方針を維持する。
+
+## 8. 代替・SPOFの実LLM baseline
+
+`scripts/verify_graph_agent.py --scenario alternative / spof`を使い、初期Graph fixture、既知typed IDを含む日本語質問、サーバ側の構造化Tool結果を確認する。必要Tool選択、対象・除外／候補、完全性・判定・未評価次元・状態version・Evidenceを検証する。Tool引数拒否で補足確認へ戻った結果は、HTTP 200でも合格にしない。
+
+説明品質は回答の完全一致ではなく、構造上の成立／SPOFと実際の停止・能力・安全性を区別するかを別途レビューする。一回の成功で一般品質閾値を確定しない。初回結果と未解決事項は[2026-10-13実LLM baseline](../history/2026-10-13-fulfillment-agent-baseline.md)を参照する。

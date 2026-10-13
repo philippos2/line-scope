@@ -538,3 +538,5 @@ Dockerで追加36テスト成功、ruff check / format、git diff --check成功�
 [SPOF公開DTOと経路Evidence](2026-10-13-spof-evidence.md)に、公開判定、共有path予算、関係・状態根拠と公開前の残作業を記録した。
 
 [SPOF分析Toolの公開](2026-10-13-spof-tool-publication.md)に、Tool / API / Agent接続、公開契約試験と未検証範囲を記録した。
+
+[代替・SPOFの実LLM baseline](2026-10-13-fulfillment-agent-baseline.md)に、warm条件のSPOF probe成功、代替引数拒否の失敗、説明品質の残課題を記録した。
