@@ -118,7 +118,7 @@ def test_missing_empty_or_oversized_required_set_rejected(args):
         ("requested_timeout_ms", 1),
         ("role", "manager"),
         ("user_id", "owner"),
-        ("context_id", str(uuid4())),
+        pytest.param("context_id", str(uuid4()), id="context-id-spoof"),
     ],
 )
 def test_unknown_fields_and_relation_filter_rejected(field, value):

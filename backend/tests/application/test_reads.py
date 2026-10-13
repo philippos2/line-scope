@@ -230,7 +230,7 @@ def test_invalid_or_spoofed_arguments_fail_before_database(args):
         123,
         "2020-01-01T00:00:00",
         "invalid",
-        (datetime.now(timezone.utc) + timedelta(days=1)).isoformat(),
+        pytest.param((datetime.now(timezone.utc) + timedelta(days=1)).isoformat(), id="future"),
     ],
 )
 def test_invalid_or_future_as_of_rejected(at):

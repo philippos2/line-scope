@@ -10,6 +10,8 @@ from psycopg.conninfo import make_conninfo
 from linescope.persistence.database import Database
 from linescope.settings import Settings
 
+pytest_plugins = ["ci_sharding"]
+
 
 @pytest.fixture(scope="session")
 def database_factory():

@@ -100,7 +100,7 @@ def test_invalid_sets_and_each_node_are_rejected(name, value):
         ("timeout_ms", 1),
         ("requested_timeout_ms", 1),
         ("user_id", "owner"),
-        ("context_id", str(uuid4())),
+        pytest.param("context_id", str(uuid4()), id="context-id-spoof"),
         ("target", A),
     ],
 )

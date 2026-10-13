@@ -179,7 +179,9 @@ def test_hash_mismatch_and_version_conflict_are_409(world):
         assert current["status"] == current["approval_status"] == "INVALIDATED"
 
 
-@pytest.mark.parametrize("identifier,expected", [("bad", 400), (str(uuid4()), 404)])
+@pytest.mark.parametrize(
+    "identifier,expected", [("bad", 400), (str(uuid4()), 404)], ids=["invalid", "missing"]
+)
 def test_invalid_and_missing_approval_ids(world, identifier, expected):
     with client_for(world) as client:
         result = client.post(f"/approvals/{identifier}/reject", headers=headers())
