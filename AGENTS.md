@@ -22,16 +22,25 @@
 
 ## 作業に応じて使うSkills
 
+### Test design
+
+- 複数の入力軸を持つテストを追加する場合は、実装前に展開後のケース数と選定方針を見積もる。全組み合わせの直積を無条件に生成しない。
+- 同じ目的の変更で追加・展開されるケースが20件を超えそうな場合は、実装前に想定件数、必要な理由、削減可能性を報告し、開発者の了承を得る。関数数ではなく`parametrize`等の展開後のケース数で数え、PRやコミットの分割でこの確認を回避しない。
+- 20件は暫定の事前レビュー基準であり、品質上の上限ではない。実測負荷と運用経験から必要なら見直し、根拠と更新後の基準を明記する。件数合わせのために必要な検証を削らない。
+- Security、Authorization、Transaction等の重大Invariantについて全組み合わせ検証が必要な場合も、実装前に理由と想定件数を提示し、開発者の了承を得る。
+- 複数入力軸、`parametrize`の多重化、組み合わせテストでは[test-design](.agents/skills/test-design/SKILL.md)を使用する。Skillは入力空間・重複・リスク・実行負荷に応じて手順を改善する場所であり、上記原則や了承条件を暗黙に変更しない。
+
 変更の意味で選び、該当するSkillを読んで適用する。複数該当する場合は必要なものを組み合わせる。軽微な文言修正で全Skillを読む必要はない。
 
 | 対象 | Skill |
 |---|---|
+| 複数入力軸、parametrize、組み合わせ、境界値、状態遷移、Transaction / Concurrencyのテスト設計 | [test-design](.agents/skills/test-design/SKILL.md) |
 | router / service / repository / adapterの責務、依存方向、新component、構造変更、refactoring | [backend-architecture](.agents/skills/backend-architecture/SKILL.md) |
 | 認証・認可、Trusted Execution Context、Tool入力、SQL/Cypher、LLM/RAG、secret、DB role、外部エラー | [backend-secure-coding](.agents/skills/backend-secure-coding/SKILL.md) |
 | UpdateRequest / Approval / Execute、Snapshot / version、retry / lock、Outbox / Projection / Rebuild / Restore | [backend-transaction-review](.agents/skills/backend-transaction-review/SKILL.md) |
 | 変更の検証、pytest / ruff / migration、checkpoint commit、PR / CI引渡し | [backend-verification](.agents/skills/backend-verification/SKILL.md) |
 
-Skill名は対象領域の接頭辞で区別する。現在は`backend-`を使い、Frontend着手時に必要な`frontend-architecture`、`ui-component-design`、`frontend-data-access`、`accessibility-review`、`frontend-verification`等を追加する。未使用の空Skillは先に作らない。
+領域固有のSkill名は対象領域の接頭辞で区別する。現在は`backend-`を使い、Frontend着手時に必要な`frontend-architecture`、`ui-component-design`、`frontend-data-access`、`accessibility-review`、`frontend-verification`等を追加する。領域共通のテスト設計手順は`test-design`を使う。未使用の空Skillは先に作らない。
 
 ## 作業と引渡し
 
