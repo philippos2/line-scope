@@ -220,7 +220,7 @@ def test_upgrade_preserves_existing_requests_and_has_no_fabricated_events(db):
     with db.transaction() as c:
         request = insert_request(c)
         insert_target(c, request["update_request_id"])
-    assert db.migrate() == ["006_graph_projection_storage.sql"]
+    assert db.migrate() == ["006_graph_projection_storage.sql", "007_knowledge_document.sql"]
     assert db.migrate() == []
     assert ProjectionState(db).observe().status == "ERROR"
     with db.transaction() as c:

@@ -542,3 +542,5 @@ Dockerで追加36テスト成功、ruff check / format、git diff --check成功�
 [代替・SPOFの実LLM baseline](2026-10-13-fulfillment-agent-baseline.md)に、warm条件のSPOF probe成功、代替引数拒否の失敗、説明品質の残課題を記録した。
 
 [代替分析の現在時点引数修正と再評価](2026-10-13-alternative-agent-arguments.md)に、now引数の原因、契約を維持する修正、同じ二質問の再評価結果を記録した。
+
+[KnowledgeDocument metadataスキーマ](2026-10-14-knowledge-document-schema.md)に、正本metadataとDB制約、13ケースの選定、本文管理・有効化・再認可・Qdrant接続の残工程を記録した。

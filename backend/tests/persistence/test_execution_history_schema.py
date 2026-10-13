@@ -80,7 +80,11 @@ def test_upgrade_preserves_pending_requests_without_fabricated_history(db):
                 c.execute(str(compiled), compiled.params)
         request = insert_request(c)
         insert_approval(c, request["update_request_id"])
-    assert db.migrate() == ["005_execution_history.sql", "006_graph_projection_storage.sql"]
+    assert db.migrate() == [
+        "005_execution_history.sql",
+        "006_graph_projection_storage.sql",
+        "007_knowledge_document.sql",
+    ]
     assert db.migrate() == []
     with db.transaction() as c:
         assert (
