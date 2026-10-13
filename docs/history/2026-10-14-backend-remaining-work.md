@@ -142,11 +142,11 @@ business-scenarios §7の部分PASSを覆してはいない。ScriptedLLMを使�
 
 ## 8. 完走ロードマップと成立性の早期確認
 
-### M0: 未完成部品を隔離したmock/fixtureで一本通す
+### M0: 未完成部品をモックで仮置きし、業務経路を一本通す
 
-最初の目的は、完成品を装うことではなく、想定する業務フローが入口から出口まで接続できるか確認すること。
+モックは未完成部品の仮置きとする。まずAPI/curlから入口→分析→比較→変更→結果確認まで動く業務経路を作り、その同じ経路のモックを実装済みの部品へ順次差し替える。
 
-- 質問→対象特定→Graph影響→能力/損失/安全/案比較の構造化結果→Decision Package→Evidence→明示的なPrepare→別承認者のApproval→requester Execute→確定結果/現在値の確認を、固定fixture/Fake AdapterによるAPI E2E試験で一本通す。
+- 質問→対象特定→Graph影響→能力/損失/安全/案比較の構造化結果→Decision Package→Evidence→明示的なPrepare→別承認者のApproval→requester Execute→確定結果/現在値の確認をAPI経由で一本通し、固定fixtureを使うE2E試験でも同じ経路を検証する。
 - 未完成の能力・経済・安全・RAG providerだけを差し替える。既存の認可・Snapshot・Approval/Execute・DB transactionをmockで代替して安全成立としない。
 - fixtureの計算式・デモ条件と正式業務ルールを区別する。PO未決事項の仮値を業務正本や通常運用へ昇格させない。mockのみの結果を実装PASS/Business受入PASSにしない。
 - 固定fixtureを読み替えず、各providerを実装へ置換して同じ意味論的assertionを通す。各機能を別々に完成させた最後に初めて接続を試す進め方を避ける。
@@ -160,7 +160,7 @@ M0のAPI試験/fixtureはV1、正式なDecision Package接続はB7に含めて�
 
 | 作業 | 入口/成立性 | 接続 | 業務入力 | 計算/制約 | 統合 | 実受入 | 運用/完走 |
 |---|:---:|:---:|:---:|:---:|:---:|:---:|:---:|
-| M0 固定fixtureで一本通す（V1） | ■ | ■ | | | | | |
+| M0 モック仮置きで一本通す（V1） | ■ | ■ | | | | | |
 | PO-B01〜08と正式契約（B1） | ◇ | ◇ | ■ | | | | |
 | RAG接続（K1〜K3） | ■ | ■ | ■ | | | | |
 | RAG再構築/実評価（K4/K5） | | | ■ | ■ | | ■ | |
@@ -179,7 +179,7 @@ M0のAPI試験/fixtureはV1、正式なDecision Package接続はB7に含めて�
 
 ```mermaid
 flowchart LR
-    M0[固定fixtureでAPI経路を一本通す] --> Contract[契約と接続の不足を確認]
+    M0[モック仮置きで業務API経路を一本通す] --> Contract[契約と接続の不足を確認]
     PO[PO-B01〜08の決定] --> B1[正式な業務入力/結果契約]
     Contract --> B1
     K1[Qdrant/embedding] --> K2[取込み/有効化]
