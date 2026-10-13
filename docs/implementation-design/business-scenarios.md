@@ -404,5 +404,7 @@ LogiScopeの動画シナリオ等は「業務の問いから調査・根拠・�
 |---|---|---|---|
 | BS-18、UC-B01・13・15、AC-G08・10・11 | `test_graph_business_scenarios.py::test_bs18_analysis_unavailable_is_distinct_from_no_impact`（5条件） | 実PostgreSQL / Neo4jとPOST /agentで、完全探索の空結果、打切りpartial、LAGGING / ERROR / REBUILDINGの拒否、経路・世代Evidenceを検証 | ScriptedLLMでTool呼出しを固定。実LLMの選択・日本語説明品質は未検証 |
 | UC-16・19・20の構造参照フロー、AC-G01・02・05・06・10 | `test_graph_business_scenarios.py::test_equipment_investigation_connects_impact_alternatives_and_spof_without_mutation` | 影響製品、直接・間接分類、代替成立、対象別SPOF結果、各ToolのEvidence、業務更新なし | BS-05 / 06の能力評価、BS-G01の統合業務判断は保証しない |
+| BS-14の対応済みコマンドvariant、UC-B14、AC-B10・11 | `test_controlled_action_scenarios.py::test_bs14_analysis_then_explicit_prepare_keeps_current_state_unchanged` | 分析後に「設備M-204の状態をUNDER_MAINTENANCEに変更して」と要求し、RUNNING v10→UNDER_MAINTENANCE v11のSnapshotとPENDING Approvalを作成。Prepareは現在値を変えず、未承認Executeも拒否 | 元の「現在状態を…変更する準備を作って」という例文は現コマンド文法で未対応。実LLMの分析説明品質・将来停止予約は未検証／PO判断待ち |
+| BS-19、UC-B14・17、AC-B10・11、AC-06〜10・12・15 | `test_controlled_action_scenarios.py::test_bs19_confirmed_after_is_preserved_after_later_authorized_update_and_replay` | 二回ともPrepare→別承認者のApproval→requesterのExecuteを経由。最初の確定after v11と現在RUNNING v12・version差を分離し、再送でも履歴・Outboxが増えない | 要求GETは保存結果、Execute再送は保存結果と現在観測を返す。LLMを承認・実行主体にしない |
 
 上記のAPI構造化結果は対象試験でPASS。実LLM品質は未検証であり、自然言語E2Eを含むBusiness Scenario全体の合格とは区別する。表にないケースは、このチェックポイントでは未評価。PO-B01〜08の不足仕様・BLOCKED状態を解消したと扱わない。

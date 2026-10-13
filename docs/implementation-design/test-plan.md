@@ -215,3 +215,11 @@ Core導入時も実PostgreSQLでlock順序・待機timeout・接続寿命・roll
 BS-18の5条件と、影響→代替→SPOFの参照フローを実PostgreSQL / Neo4jで検証する。対応UC / AC、PASSの範囲、実LLM未検証はbusiness-scenarios §7を参照する。Outbox等は状態fixtureの準備に使い、worker復旧・lockの受入assertionをこの業務試験へ混在させない。既存下位試験は維持する。
 
 Dockerで`pytest -p no:cacheprovider backend/tests/interfaces/test_graph_business_scenarios.py -q`を実行する。実LLMのTool選択は別のE2E / Evalsで確認し、ScriptedLLMによるAPI成功をBS-G01合格へ昇格させない。
+
+## 17. Prepare・承認・確定後確認の業務APIシナリオ
+
+`backend/tests/interfaces/test_controlled_action_scenarios.py`でBS-14の対応済みコマンドvariantとBS-19を検証する。初期fixtureはRUNNING version 10。分析後のPrepareが業務状態を変更せずPENDING Approvalを生成すること、二回のAPI経由の承認・実行でv11の確定結果とv12の現在値を分離すること、最初のExecute再送でbusiness history / state history / Outboxが増えないことをassertする。
+
+後続状態を直接SQLで書き換えて正当な更新を模擬せず、Prepare→別の認証主体のApproval→requesterのExecuteを二回行う。要求GETの保存結果とExecute再送の現在観測を同一response契約と仮定しない。初期fixtureの作成と業務操作を区別する。例文の未対応範囲はbusiness-scenarios §7に残し、試験文言への変更を業務要件の変更にしない。
+
+Dockerで`pytest -p no:cacheprovider backend/tests/interfaces/test_controlled_action_scenarios.py -q`を実行する。既存Approval / Executeの認可、rollback、競合、期限、再送試験を維持する。
