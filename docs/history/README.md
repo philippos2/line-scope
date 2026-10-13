@@ -524,3 +524,5 @@ Dockerで追加36テスト成功、ruff check / format、git diff --check成功�
 [複数重要対象・全除外の代替分析データ収集](2026-10-13-alternative-analysis-facts.md)に、全入力確認・共有予算・全体の不完全性と公開前の残作業を記録した。
 
 [複数対象の単一状態観測と成立評価](2026-10-13-alternative-state-evaluation.md)に、一回の正本観測・対象別評価・最終gate検証と、代替／SPOF公開までの工程表を記録した。
+
+[代替評価の構造化結果と経路Evidence](2026-10-13-alternative-evidence.md)に、共有path予算・置換方向・状態根拠・分析モード一致と公開前の残作業を記録した。
