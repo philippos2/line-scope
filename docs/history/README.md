@@ -528,3 +528,5 @@ Dockerで追加36テスト成功、ruff check / format、git diff --check成功�
 [代替評価の構造化結果と経路Evidence](2026-10-13-alternative-evidence.md)に、共有path予算・置換方向・状態根拠・分析モード一致と公開前の残作業を記録した。
 
 [代替分析Toolの公開](2026-10-13-alternative-tool-publication.md)に、Tool / API / Agentの接続、実DB契約試験と実LLM品質の未検証範囲を記録した。
+
+[SPOF探索の公開前入力境界](2026-10-13-spof-request-validation.md)に、任意候補集合・共有入力予算・認可と公開前の残作業を記録した。
