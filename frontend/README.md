@@ -1,7 +1,7 @@
-# Frontend（後続フェーズ）
+# Frontend
 
 LineScopeのFrontendはBackendと同じリポジトリで管理し、サーバサイド完成後に実装する。
-現在は方針文書のみで、画面コード・build設定・packageは追加していない。
+バックエンドのデモ経路が一段落し、画面設計を具体化した。[オペレーション画面設計](../docs/design/frontend-console.md)と[ローカル画面案](../docs/design/frontend-console-prototype.html)を参照する。実APIへ接続するFrontendコード・build設定・packageは次の工程で追加する。
 仕様の正本と各事項の責務は[文書入口](../docs/deliverables.md)、UI方向性は[要件 §13](../docs/requirements/requirements.md#13-後続frontendフェーズ)で確認する。
 
 ## オペレーション・コンソール案（候補）
