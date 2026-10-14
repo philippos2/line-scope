@@ -190,7 +190,6 @@ def test_known_read_and_unresolved_error_remain_distinct():
     [
         ("context_id", str(UUID(int=3))),
         ("replace_update_request_id", str(UUID(int=4))),
-        ("as_of", "2026-10-08T00:00:00Z"),
     ],
 )
 def test_unconnected_modes_are_not_silently_ignored(field, value):

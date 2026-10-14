@@ -17,6 +17,35 @@ from linescope.interfaces.api import create_app
 from linescope.settings import Settings
 
 
+def test_api_past_time_is_server_bound_and_not_a_historical_state_restore(world):
+    db, driver, origin, _, _, _, _, _ = world
+    llm = ScriptedLLM(
+        call("get_equipment_state", {"equipment_id": origin}),
+        call(
+            "trace_downstream_impact",
+            {"target": {"entity_type": "Equipment", "entity_id": origin}},
+        ),
+        LLMReply("指定時刻の依存関係を確認しました。", ()),
+    )
+    settings = Settings(users={"token": {"user_id": "manager1", "role": "manager"}})
+    with TestClient(create_app(settings, db, llm=llm, graph_driver=driver)) as client:
+        response = client.post(
+            "/agent",
+            json={"message": "当時の影響を調べて", "as_of": "2026-10-08T09:00:00+09:00"},
+            headers={"Authorization": "Bearer token"},
+        )
+    assert response.status_code == 200
+    body = response.json()
+    evidence = body["evidence"]["tool_results"]
+    assert evidence[1]["as_of"] == "2026-10-08T00:00:00.000000Z"
+    assert evidence[1]["analysis_mode"] == "EXPLICIT_HISTORICAL"
+    assert len(body["data"]["tool_results"][1]["data"]["reached_nodes"]) == 2
+    assert evidence[0]["request_temporal_scope"] == "CURRENT_STATE_AT_OBSERVATION"
+    assert evidence[1]["request_temporal_scope"] == "CURRENT_REGISTRATION_AT_AS_OF"
+    assert "完全復元ではありません" in body["answer"]
+    assert "2026-10-08T00:00:00.000000Z" in llm.requests[0][0][0]["content"]
+
+
 @pytest.mark.parametrize("tool", ["trace_downstream_impact", "trace_upstream_dependencies"])
 @pytest.mark.parametrize("owned", [False, True])
 def test_http_agent_returns_paths_and_authoritative_state_evidence(world, tool, owned):

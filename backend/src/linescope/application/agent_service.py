@@ -1,6 +1,6 @@
 """Agent use case orchestration without HTTP or database connection ownership."""
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 
 from ..agent.agent_input import AgentInput
 from ..agent.read_agent import ReadAgentResult
@@ -74,11 +74,10 @@ class AgentApplication:
                 if context.role not in REQUEST_ROLES[category]:
                     raise ToolError("AUTHORIZATION_DENIED", "Prepare retry permission is required")
                 return self._prepared(context, saved)
-        previous = (
-            self.conversations.get(context, incoming.context_id)["messages"]
-            if incoming.context_id
-            else []
+        conversation = (
+            self.conversations.get(context, incoming.context_id) if incoming.context_id else {}
         )
+        previous = conversation.get("messages", [])
         for recognize, command in self.commands:
             if recognize(incoming) is not None:
                 return self._prepared(context, command.run(context, incoming))
@@ -88,14 +87,20 @@ class AgentApplication:
             return self.decision_flow.run(context, incoming)
         if self.read_agent is None:
             raise ToolError("DEPENDENCY_UNAVAILABLE", "LLM is not configured")
+        read_input = incoming
+        if incoming.explicit_as_of is None and conversation.get("explicit_as_of"):
+            read_input = replace(incoming, explicit_as_of=conversation["explicit_as_of"])
         result = self.read_agent.run(
             context,
-            incoming,
+            read_input,
             previous_messages=previous if incoming.context_id else None,
         )
         context_id = incoming.context_id
         if result.needs_input or context_id:
-            stored = {"messages": [*previous, incoming.message]}
+            stored = {
+                "messages": [*previous, incoming.message],
+                "explicit_as_of": read_input.explicit_as_of,
+            }
             if context_id:
                 self.conversations.update(context, context_id, stored)
             else:

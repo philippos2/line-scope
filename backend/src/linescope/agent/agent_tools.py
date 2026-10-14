@@ -17,6 +17,7 @@ from ..application.tools import PREPARE_CATEGORIES
 from ..execution import ExecutionContext
 from ..logging import CODES, request_context
 from .agent_input import AgentInput
+from .temporal_request import bind_time, time_evidence
 from .update_intent import assess_update_intent
 
 TARGET_ID_FIELDS = {key for _, key in GET_TOOLS.values()} | {"maintenance_record_id"}
@@ -188,6 +189,7 @@ class AgentToolSession:
                 # A new turn may retry with the same persisted retry identity.
                 self._prepare_started = True
         try:
+            arguments = bind_time(tool, arguments, self.request.explicit_as_of)
             result = self.dispatcher.run(
                 self.context,
                 tool,
@@ -196,6 +198,7 @@ class AgentToolSession:
                 agent_input_hash=self.request.input_hash,
                 supersedes_update_request_id=self.request.replace_update_request_id,
             )
+            result = time_evidence(tool, result, self.request.explicit_as_of)
         except ToolError:
             self.check_deadline()
             raise

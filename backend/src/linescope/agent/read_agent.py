@@ -75,19 +75,20 @@ class ReadAgent:
         session = AgentToolSession(
             context, request, self.dispatcher, clock=self.clock, event_logger=self.events
         )
-        # These modes require the future context/update/temporal orchestrator.
-        if (
-            (request.context_id and previous_messages is None)
-            or request.replace_update_request_id
-            or request.explicit_as_of
-        ):
-            raise ToolError(
-                "INVALID_ARGUMENT", "This internal read loop accepts a new current-time query"
-            )
+        # Replacement is a separate update workflow.
+        if (request.context_id and previous_messages is None) or request.replace_update_request_id:
+            raise ToolError("INVALID_ARGUMENT", "This read loop requires a valid read context")
         messages = [
             {"role": "system", "content": SYSTEM_PROMPT},
             {"role": "user", "content": request.message},
         ]
+        if request.explicit_as_of:
+            messages[0]["content"] += (
+                "\n今回のAPI指定時刻は" + request.explicit_as_of + "です。"
+                "対応Toolの時刻はサーバが固定します。現在登録された関係・割当の期間評価であり、"
+                "当時の正本・Graph・設備状態を完全復元するものではありません。"
+                "通常Read Toolは現在の登録情報です。過去の稼働状態と読み替えないでください。"
+            )
         if previous_messages:
             messages[1:1] = [{"role": "user", "content": message} for message in previous_messages]
         observations, trace, errors = [], [], {}
@@ -123,8 +124,14 @@ class ReadAgent:
                     )
                 if not reply.content.strip():
                     raise ToolError("INTERNAL_ERROR", "LLM did not provide an explanation")
+                answer = reply.content
+                if request.explicit_as_of:
+                    answer = (
+                        "指定時刻について現在登録情報を評価しています。"
+                        "当時の状態の完全復元ではありません。\n" + answer
+                    )
                 return ReadAgentResult(
-                    reply.content, tuple(observations), tuple(trace), tuple(errors.values()), False
+                    answer, tuple(observations), tuple(trace), tuple(errors.values()), False
                 )
             messages.append(reply.assistant_message())
             for call in reply.tool_calls:
