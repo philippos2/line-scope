@@ -11,7 +11,7 @@ from dataclasses import dataclass
 from ..domain.canonical import canonical_hash
 from .agent_input import AgentInput
 
-RULE_VERSION = "explicit-update-command:v5"
+RULE_VERSION = "explicit-update-command:v6"
 IDENTIFIER = r"[A-Za-z0-9][A-Za-z0-9_-]*"
 COMMAND = r"(?:してください|して下さい|して|せよ)"
 STATE = r"(?:RUNNING|STOPPED|UNDER_MAINTENANCE|UNKNOWN|稼働中|停止|保全中|不明)"
@@ -20,7 +20,7 @@ TIMESTAMP = r"[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(?:\.[0-9]{1,
 # Full-message matching prevents directives inside quotations, questions,
 # conditional sentences or pasted documents from becoming permission evidence.
 EQUIPMENT_STATE_PATTERN = (
-    rf"(?:設備)?(?P<equipment_code>{IDENTIFIER})の(?:現在)?状態を"
+    rf"(?:設備)?(?P<equipment_code>{IDENTIFIER}|\[{IDENTIFIER}(?:,{IDENTIFIER})*\])の(?:現在)?状態を"
     rf"(?P<state>{STATE})に(?:更新|変更)(?:{COMMAND}|する準備を(?:作って|作成{COMMAND}))"
 )
 MAINTENANCE_PLAN_CREATE_PATTERN = (
@@ -109,6 +109,10 @@ class EquipmentStateCommand:
     intent: UpdateIntent
     equipment_code: str
     state_code: str
+
+    @property
+    def equipment_codes(self):
+        return tuple(self.equipment_code.strip("[]").split(","))
 
 
 def equipment_state_command(request):
