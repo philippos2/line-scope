@@ -10,6 +10,7 @@ from dataclasses import dataclass
 from ..domain.demo_comparison import compare, fixture
 from ..domain.demo_constraints import assess_options
 from ..execution import ExecutionContext
+from .decision_maintenance import maintenance_context
 from .reads import ToolError
 
 
@@ -90,10 +91,12 @@ class DemoDecisionFlow:
         assess_options(
             profile, current_state=state.data["state_code"], state_evidence=state.evidence
         )
+        maintenance = maintenance_context(self.reads, context, equipment_id)
         package = {
             "equipment": {"equipment_code": "M-204", **state.data},
             "impact": impact.data,
             "comparison": profile,
+            "maintenance": maintenance,
             "next_actions": {
                 "prepare_message": "設備M-204の状態をUNDER_MAINTENANCEに変更して",
                 "requires_explicit_request": True,
@@ -110,6 +113,9 @@ class DemoDecisionFlow:
                     "calculations": profile["calculations"],
                 },
                 "documents": document_evidence,
+                "maintenance": {
+                    name: maintenance[name]["evidence"] for name in ("plans", "records")
+                },
             },
             f"M-204の現在状態は{state.data['state_code']}です。登録された依存関係の影響候補を取得しました。"
             "費用・能力の入力はモックで、数値は決定論的に計算しています。実際の安全性や最適案は未確定です。"
