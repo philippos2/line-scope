@@ -11,7 +11,7 @@ from dataclasses import dataclass
 from ..domain.canonical import canonical_hash
 from .agent_input import AgentInput
 
-RULE_VERSION = "explicit-update-command:v3"
+RULE_VERSION = "explicit-update-command:v4"
 IDENTIFIER = r"[A-Za-z0-9][A-Za-z0-9_-]*"
 COMMAND = r"(?:してください|して下さい|して|せよ)"
 STATE = r"(?:RUNNING|STOPPED|UNDER_MAINTENANCE|UNKNOWN|稼働中|停止|保全中|不明)"
@@ -33,10 +33,16 @@ MAINTENANCE_RECORD_CREATE_PATTERN = (
     rf"実施(?P<performed_at>{TIMESTAMP})、結果「(?P<result>[^「」\r\n]+)」"
     rf"(?:、保全予定(?P<plan_code>{IDENTIFIER})に紐づけて|で)(?:登録|作成){COMMAND}"
 )
+PRODUCTION_ASSIGNMENT_PATTERN = (
+    rf"生産作業(?P<code>{IDENTIFIER})の設備割当を"
+    rf"開始(?P<start>{TIMESTAMP})、終了(?P<end>{TIMESTAMP}|無期限)、"
+    rf"設備\[(?P<equipment>(?:{IDENTIFIER}(?:,{IDENTIFIER})*)?)\]に置換{COMMAND}"
+)
 PATTERNS = [
     ("EQUIPMENT_STATE", EQUIPMENT_STATE_PATTERN),
     ("MAINTENANCE", MAINTENANCE_PLAN_CREATE_PATTERN),
     ("MAINTENANCE", MAINTENANCE_RECORD_CREATE_PATTERN),
+    ("PRODUCTION_OPERATION", PRODUCTION_ASSIGNMENT_PATTERN),
     ("MAINTENANCE", rf"(?:設備)?{IDENTIFIER}の(?:保全予定|保全実績)を(?:登録|作成){COMMAND}"),
     (
         "MAINTENANCE",
@@ -191,6 +197,34 @@ class ProductionScheduleCommand:
     intent: UpdateIntent
     operation_code: str
     patch: dict
+
+
+@dataclass(frozen=True)
+class ProductionAssignmentCommand:
+    intent: UpdateIntent
+    operation_code: str
+    effective_from: str
+    effective_to: str | None
+    equipment_codes: tuple[str, ...]
+
+
+def production_assignment_command(request):
+    """Explicit full replacement; [] means empty set and 無期限 means NULL."""
+    intent = assess_update_intent(request)
+    if not intent.confirmed or intent.category != "PRODUCTION_OPERATION":
+        return None
+    match = re.fullmatch(
+        PRODUCTION_ASSIGNMENT_PATTERN, request.message[intent.evidence_start : intent.evidence_end]
+    )
+    if match is None:
+        return None
+    return ProductionAssignmentCommand(
+        intent,
+        match["code"],
+        match["start"],
+        None if match["end"] == "無期限" else match["end"],
+        tuple(match["equipment"].split(",")) if match["equipment"] else (),
+    )
 
 
 def production_schedule_command(request):

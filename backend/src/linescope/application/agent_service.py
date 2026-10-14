@@ -8,6 +8,7 @@ from ..agent.update_intent import (
     equipment_state_command,
     maintenance_create_command,
     maintenance_plan_command,
+    production_assignment_command,
     production_schedule_command,
 )
 from ..domain.snapshot import CATEGORIES
@@ -48,6 +49,7 @@ class AgentApplication:
             (maintenance_plan_command, maintenance),
             (maintenance_create_command, maintenance),
             (production_schedule_command, production),
+            (production_assignment_command, production),
         )
         self.read_agent = read_agent
         self.decision_flow = decision_flow
