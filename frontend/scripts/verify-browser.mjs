@@ -17,6 +17,25 @@ try {
   await expect(
     page.getByRole("button", { name: "接続解除", exact: true }),
   ).toBeVisible();
+  await page.reload();
+  await expect(
+    page.getByRole("button", { name: "接続解除", exact: true }),
+  ).toBeVisible();
+  await page.getByRole("button", { name: "接続設定", exact: true }).click();
+  await expect(
+    page.getByRole("heading", { name: "業務データへ接続", exact: true }),
+  ).toBeVisible();
+  await page
+    .getByRole("button", { name: "調査画面へ戻る", exact: true })
+    .click();
+  const cookies = await page.context().cookies();
+  const session = cookies.find((cookie) => cookie.name === "linescope_session");
+  if (
+    !session?.httpOnly ||
+    session.sameSite !== "Strict" ||
+    session.value === token
+  )
+    throw new Error("Invalid browser session cookie");
   await page.getByRole("button", { name: "比較デモ", exact: true }).click();
   await page
     .getByRole("button", { name: "問い合わせを送信", exact: true })
@@ -69,6 +88,10 @@ try {
     throw new Error("Unexpected persisted data");
   await page.getByRole("button", { name: "接続解除", exact: true }).click();
   await expect(page.getByLabel("Bearer token")).toHaveValue("");
+  await page.reload();
+  await expect(
+    page.getByRole("button", { name: "接続する", exact: true }),
+  ).toBeVisible();
   console.log(
     JSON.stringify({
       result: "PASS",

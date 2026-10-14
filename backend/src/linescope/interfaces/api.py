@@ -10,6 +10,7 @@ from starlette.exceptions import HTTPException
 
 from ..agent.agent_input import AgentInput
 from ..application.agent_service import PreparedAgentResult
+from ..application.browser_sessions import BrowserSessions
 from ..application.demo_decision import DecisionAgentResult
 from ..application.graph_request import TOOLS as GRAPH_TOOLS
 from ..application.knowledge_flow import KnowledgeAgentResult
@@ -18,6 +19,7 @@ from ..application.reads import ToolError, json_value
 from ..bootstrap import build_api_services
 from ..domain.canonical import strict_json
 from ..logging import request_context
+from .browser_session import install_session_routes
 from .http_logging import RequestMiddleware
 
 
@@ -92,7 +94,11 @@ def create_app(
     app.state.read_tools = services.reads
     app.state.conversations = services.conversations
     app.state.events = events
-    app.add_middleware(RequestMiddleware, settings=settings, events=events, response=response)
+    sessions = BrowserSessions()
+    install_session_routes(app, sessions, response)
+    app.add_middleware(
+        RequestMiddleware, settings=settings, events=events, response=response, sessions=sessions
+    )
 
     @app.exception_handler(HTTPException)
     async def http_error(request: Request, error: HTTPException):

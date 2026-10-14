@@ -37,10 +37,16 @@ export function envelope(value: unknown): Envelope {
 }
 export async function request(
   token: string,
-  path: "/health/ready" | "/agent",
+  path:
+    | "/health/ready"
+    | "/agent"
+    | "/session"
+    | "/session/login"
+    | "/session/logout",
   body?: JsonObject,
   signal?: AbortSignal,
   retryKey?: string,
+  method?: "GET" | "POST",
 ): Promise<Envelope> {
   let authorization: Headers;
   try {
@@ -51,15 +57,19 @@ export async function request(
   let response: Response;
   try {
     response = await fetch("/api" + path, {
-      method: body ? "POST" : "GET",
+      method: method ?? (body ? "POST" : "GET"),
       headers: {
-        Authorization: authorization.get("Authorization")!,
+        ...(token
+          ? { Authorization: authorization.get("Authorization")! }
+          : {}),
+        "X-LineScope-Browser": "1",
         ...(retryKey ? { "Idempotency-Key": retryKey } : {}),
         ...(body ? { "Content-Type": "application/json" } : {}),
       },
       ...(body ? { body: JSON.stringify(body) } : {}),
       signal,
-      credentials: "omit",
+      credentials: "same-origin",
+      cache: "no-store",
       redirect: "error",
     });
   } catch (error) {

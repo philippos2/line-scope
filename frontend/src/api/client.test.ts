@@ -22,7 +22,7 @@ it("authenticates only the fixed same-origin API and returns the envelope", asyn
   expect(fetcher.mock.calls[0][0]).toBe("/api/agent");
   expect(fetcher.mock.calls[0][1]).toMatchObject({
     headers: { Authorization: "Bearer secret" },
-    credentials: "omit",
+    credentials: "same-origin",
     redirect: "error",
   });
 });

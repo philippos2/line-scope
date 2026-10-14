@@ -5,13 +5,16 @@ from uuid import UUID, uuid4
 
 from starlette.requests import Request
 
+from ..application.browser_sessions import COOKIE
 from ..execution import ExecutionContext
 from ..logging import request_context
+from .browser_session import same_origin_browser
 
 
 class RequestMiddleware:
-    def __init__(self, app, *, settings, events, response):
+    def __init__(self, app, *, settings, events, response, sessions=None):
         self.app, self.settings, self.events, self.response = app, settings, events, response
+        self.sessions = sessions
 
     async def __call__(self, scope, receive, send):
         if scope["type"] != "http":
@@ -34,8 +37,21 @@ class RequestMiddleware:
             try:
                 header = request.headers.get("authorization", "")
                 token = header[7:] if header.startswith("Bearer ") else None
+                cookie_auth = not header and self.sessions is not None
+                if cookie_auth:
+                    token = self.sessions.resolve(request.cookies.get(COOKIE))
                 user = self.settings.users.get(token)
-                if not user:
+                csrf_denied = (
+                    cookie_auth
+                    and scope["method"] not in {"GET", "HEAD", "OPTIONS"}
+                    and not same_origin_browser(request)
+                )
+                if user and csrf_denied:
+                    code = "AUTHORIZATION_DENIED"
+                    await self.response(request, code=code, status_code=403)(
+                        scope, receive, observed_send
+                    )
+                elif not user:
                     code = "AUTHENTICATION_REQUIRED"
                     await self.response(request, code=code, status_code=401)(
                         scope, receive, observed_send
