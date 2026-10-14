@@ -2,6 +2,7 @@
 
 import importlib.util
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 
@@ -36,14 +37,22 @@ def test_fixture_does_not_inherit_normal_demo_settings_or_expose_tokens(monkeypa
     monkeypatch.setenv("LINESCOPE_DSN", "normal-demo-secret")
     monkeypatch.setenv("LINESCOPE_USERS", "normal-demo-token")
     calls = []
-    monkeypatch.setattr(
-        module.subprocess, "run", lambda command, **kwargs: calls.append((command, kwargs))
-    )
+
+    def capture(command, **options):
+        calls.append((command, options))
+        return SimpleNamespace(stdout='{"status":"ok"}\n200')
+
+    monkeypatch.setattr(module.subprocess, "run", capture)
     with module.disposable_fixture() as fixture:
         fixture.docker("up", "-d", "api")
+        fixture.request("/health/ready")
         owner, approver = fixture.owner, fixture.approver
         assert fixture.project.startswith("linescope-minimal-")
     for command, options in calls:
-        assert not any(key.startswith("LINESCOPE_") for key in options["env"])
+        if command[0] == "curl":
+            assert command[1:4] == ["--disable", "--noproxy", "*"]
+            assert owner in options["input"]
+        else:
+            assert not any(key.startswith("LINESCOPE_") for key in options["env"])
         assert owner not in str(command) and approver not in str(command)
         assert "normal-demo-secret" not in str(command)

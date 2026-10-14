@@ -70,6 +70,9 @@ class DemoFixture:
     def request(self, path, *, token=None, data=None, expected=200):
         command = [
             "curl",
+            "--disable",
+            "--noproxy",
+            "*",
             "--silent",
             "--show-error",
             "--max-time",
