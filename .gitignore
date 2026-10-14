@@ -11,3 +11,6 @@ dist/
 !.env.example
 data/
 *.log
+
+frontend/node_modules/
+*.tsbuildinfo
