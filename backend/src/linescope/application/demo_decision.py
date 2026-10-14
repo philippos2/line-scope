@@ -5,78 +5,18 @@ providers are placeholders, not approved capacity/economic/safety rules. No
 proposal, approval or execution is performed by this analysis service.
 """
 
-from copy import deepcopy
 from dataclasses import dataclass
 
+from ..domain.demo_comparison import compare, fixture
 from ..execution import ExecutionContext
 from .reads import ToolError
 
-# Hand-checkable temporary fixture. Values are not business database facts and
-# do not constitute BS-G01 acceptance. Replace this provider on the same path.
-MOCK_PROFILE = {
-    "source": "MOCK_FIXTURE",
-    "fixture_version": "decision-flow-demo:v1",
-    "economics": {
-        "currency": "JPY",
-        "product_loss_per_hour": {"P-100": 120000, "P-200": 80000},
-        "independent_addition": True,
-        "loss_per_hour": 200000,
-    },
-    "options": [
-        {
-            "option": "REPAIR",
-            "feasibility": "MOCK_FEASIBLE",
-            "direct_cost": 300000,
-            "duration_hours": 8,
-            "production_loss": 1600000,
-            "total_cost": 1900000,
-            "formula": "(120000 + 80000) * 8 + 300000",
-        },
-        {
-            "option": "REPLACE",
-            "feasibility": "MOCK_FEASIBLE",
-            "direct_cost": 3000000,
-            "lead_time_days": 14,
-            "duration_hours": None,
-            "production_loss": None,
-            "total_cost": None,
-        },
-        {
-            "option": "SUBSTITUTE",
-            "feasibility": "UNKNOWN",
-            "equipment_code": "M-208",
-            "required_units_per_hour": 90,
-            "available_units_per_hour": 60,
-            "shortage_units_per_hour": 30,
-            "formula": "90 - 60",
-        },
-        {"option": "CONTINUE", "feasibility": "UNKNOWN", "safety_permission": "UNKNOWN"},
-    ],
-    "risk": {
-        dimension: "UNKNOWN"
-        for dimension in ("SAFETY", "PRODUCTION", "QUALITY", "DELIVERY", "CASCADE", "ECONOMIC")
-    },
-    "document_evidence": [
-        {
-            "source": "MOCK_FIXTURE",
-            "reference": "mock-maintenance-manual",
-            "text": "修理・交換・継続・代替を比較するための仮置き資料。実文書検索は未接続。",
-        }
-    ],
-    "unknowns": [
-        "Actual capacity, costs and safety rules are not registered",
-        "Replacement work duration and downtime loss are unknown",
-        "Continued-operation safety permission is unknown",
-        "Document retrieval is a temporary mock",
-    ],
-}
-
 
 class MockDecisionProvider:
-    def read(self, equipment_code):
+    def read(self, equipment_code, *, scenario="STOPPED"):
         if equipment_code != "M-204":
             raise ToolError("TARGET_NOT_FOUND", "The demo fixture covers M-204 only")
-        return deepcopy(MOCK_PROFILE)
+        return compare(fixture(scenario))
 
 
 @dataclass(frozen=True)
@@ -87,13 +27,15 @@ class DecisionAgentResult:
 
 
 class DemoDecisionFlow:
-    def __init__(self, reads, graph, provider):
+    def __init__(self, reads, graph, provider, knowledge=None):
         self.reads, self.graph, self.provider = reads, graph, provider
+        self.knowledge = knowledge
 
     @staticmethod
     def matches(message):
         return "M-204" in message and any(
-            word in message for word in ("比較", "判断材料", "修理", "交換")
+            word in message
+            for word in ("比較", "判断材料", "修理", "交換", "次回更新", "次の更新", "損失", "代替")
         )
 
     def run(self, context, incoming):
@@ -120,12 +62,30 @@ class DemoDecisionFlow:
             "trace_downstream_impact",
             {"target": {"entity_type": "Equipment", "entity_id": equipment_id}},
         )
-        profile = self.provider.read("M-204")
+        scenario = (
+            "DEGRADED"
+            if any(word in incoming.message for word in ("軽微", "次回更新", "次の更新", "30日"))
+            else "STOPPED"
+        )
+        profile = self.provider.read("M-204", scenario=scenario)
         # Mock feasibility must never contradict the observed STOPPED state.
-        if state.data["state_code"] == "STOPPED":
+        if state.data["state_code"] in {"STOPPED", "UNDER_MAINTENANCE"}:
             profile["options"][-1].update(
-                feasibility="INFEASIBLE", reason="CURRENT_EQUIPMENT_STATE_STOPPED"
+                feasibility="INFEASIBLE",
+                reason="CURRENT_EQUIPMENT_STATE_" + state.data["state_code"],
             )
+        documents, document_evidence, document_status = [], {}, "NOT_CONFIGURED"
+        if self.knowledge is not None:
+            try:
+                restored = self.knowledge.retrieve(context, {"query": "M-204 保全 修理 交換"})
+                documents, document_evidence = restored.data["items"], restored.evidence
+                document_status = "MOCK_SEARCH" if restored.data["demo_only"] else "VERIFIED_SOURCE"
+            except ToolError as error:
+                document_status = "UNAVAILABLE"
+                profile["unknowns"].append("Document retrieval failed: " + error.code)
+        profile.update(document_evidence=documents, document_status=document_status)
+        if not documents:
+            profile["unknowns"].append("No verified document evidence is available")
         package = {
             "equipment": {"equipment_code": "M-204", **state.data},
             "impact": impact.data,
@@ -140,9 +100,14 @@ class DemoDecisionFlow:
             {
                 "state": state.evidence,
                 "impact": impact.evidence,
-                "comparison": {"source": profile["source"], "version": profile["fixture_version"]},
+                "comparison": {
+                    "source": profile["source"],
+                    "version": profile["fixture_version"],
+                    "calculations": profile["calculations"],
+                },
+                "documents": document_evidence,
             },
             f"M-204の現在状態は{state.data['state_code']}です。登録された依存関係の影響候補を取得しました。"
-            "費用・能力・リスク・文書はモックの仮置きです。実際の安全性や最適案は未確定です。"
+            "費用・能力の入力はモックで、数値は決定論的に計算しています。実際の安全性や最適案は未確定です。"
             "変更する場合は、明示的な変更準備要求から承認・実行へ進んでください。",
         )

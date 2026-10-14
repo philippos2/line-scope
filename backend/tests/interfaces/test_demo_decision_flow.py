@@ -10,11 +10,12 @@ from linescope.interfaces.api import create_app
 from linescope.settings import Settings
 
 
-def demo_client(db, driver):
+def demo_client(db, driver, **settings):
     return TestClient(
         create_app(
             Settings(
                 demo_decision_mock=True,
+                **settings,
                 users={
                     "requester": {"user_id": "maint1", "role": "maintenance"},
                     "approver": {"user_id": "maint2", "role": "maintenance"},
@@ -27,8 +28,20 @@ def demo_client(db, driver):
     )
 
 
-def test_comparison_to_approved_execution_and_current_confirmation(db, reader_world, adapters):
-    with demo_client(db, adapters[1].driver) as client:
+def test_comparison_to_approved_execution_and_current_confirmation(
+    db, reader_world, adapters, tmp_path
+):
+    from linescope.application.knowledge_flow import KnowledgeIngestion
+    from linescope.integrations.knowledge_factory import knowledge_adapters
+
+    files, index = knowledge_adapters(Settings(knowledge_mock_root=str(tmp_path)))
+    KnowledgeIngestion(db, files, index).ingest(
+        code="MANUAL-204",
+        version=1,
+        title="保全資料",
+        body="M-204 修理と交換の参考手順".encode(),
+    )
+    with demo_client(db, adapters[1].driver, knowledge_mock_root=str(tmp_path)) as client:
         response = client.post(
             "/agent", json={"message": "M-204の修理と交換を比較して"}, headers=headers()
         )
@@ -41,6 +54,12 @@ def test_comparison_to_approved_execution_and_current_confirmation(db, reader_wo
         assert package["comparison"]["options"][0]["total_cost"] == 1900000
         assert package["comparison"]["options"][2]["shortage_units_per_hour"] == 30
         assert body["evidence"]["state"] and body["evidence"]["impact"]
+        assert package["comparison"]["document_status"] == "MOCK_SEARCH"
+        documents = package["comparison"]["document_evidence"]
+        assert documents[0]["text"] == "M-204 修理と交換の参考手順"
+        assert body["evidence"]["documents"]["citations"] == [documents[0]["citation"]]
+        assert body["evidence"]["comparison"]["calculations"][2]["result"] == 1900000
+
         assert counts(db)["business_update_history"] == 0
         prepared = client.post(
             "/agent",
@@ -78,3 +97,33 @@ def test_demo_comparison_does_not_grant_graph_permission(db, reader_world, adapt
 
 def test_demo_mode_is_disabled_by_default():
     assert Settings().demo_decision_mock is False
+
+
+def test_comparison_keeps_facts_and_unknowns_when_knowledge_is_unavailable(
+    db, reader_world, adapters, tmp_path
+):
+    with demo_client(db, adapters[1].driver, knowledge_mock_root=str(tmp_path)) as client:
+        result = client.post(
+            "/agent", json={"message": "M-204の修理と交換を比較して"}, headers=headers()
+        )
+    assert result.status_code == 200 and result.json()["status"] == "partial"
+    comparison = result.json()["data"]["decision_package"]["comparison"]
+    assert comparison["document_status"] == "UNAVAILABLE"
+    assert comparison["document_evidence"] == []
+    assert result.json()["evidence"]["documents"] == {}
+    assert comparison["options"][0]["total_cost"] == 1900000
+    assert counts(db)["business_update_history"] == 0
+
+
+def test_degradation_comparison_does_not_override_current_stopped_state(db, reader_world, adapters):
+    with demo_client(db, adapters[1].driver) as client:
+        result = client.post(
+            "/agent", json={"message": "M-204の次回更新まで30日の損失を比較して"}, headers=headers()
+        )
+    package = result.json()["data"]["decision_package"]
+    values = {item["id"]: item["result"] for item in package["comparison"]["calculations"]}
+    assert values["degradation_loss"] == 480000 and values["simple_cost_recovery"] == 150
+    assert package["equipment"]["state_code"] == "STOPPED"
+    assert package["comparison"]["options"][3]["feasibility"] == "INFEASIBLE"
+    assert package["comparison"]["economic_preference"] is None
+    assert counts(db)["business_update_history"] == 0

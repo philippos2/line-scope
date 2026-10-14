@@ -123,7 +123,9 @@ def build_api_services(
             production=ProductionCommandPrepare(database, event_logger=events),
             dependency=DependencyCommandPrepare(database, event_logger=events),
             read_agent=read_agent,
-            decision_flow=DemoDecisionFlow(ReadTools(database), graph, MockDecisionProvider())
+            decision_flow=DemoDecisionFlow(
+                ReadTools(database), graph, MockDecisionProvider(), knowledge
+            )
             if settings.demo_decision_mock
             else None,
         )
