@@ -17,6 +17,10 @@ from .settings import Settings
 def main():
     parser = argparse.ArgumentParser(prog="linescope")
     commands = parser.add_subparsers(dest="command", required=True)
+    knowledge_rebuild = commands.add_parser(
+        "rebuild-knowledge", help="Admin-only verified knowledge generation/alias rebuild"
+    )
+    knowledge_rebuild.add_argument("--alias", required=True)
     ingest = commands.add_parser(
         "ingest-knowledge", help="Admin-only UTF-8 ingestion into configured knowledge index"
     )
@@ -51,7 +55,35 @@ def main():
     serve.add_argument("--port", type=int, default=8000)
     args = parser.parse_args()
     settings = Settings.env()
-    if args.command == "ingest-knowledge":
+    if args.command == "rebuild-knowledge":
+        from .application.knowledge_rebuild import KnowledgeRebuild
+        from .integrations.knowledge_factory import knowledge_adapters
+
+        adapters = knowledge_adapters(settings)
+        if adapters is None:
+            parser.exit(1, "Explicit real knowledge configuration is required.\n")
+        events = EventLogger(settings.log_level)
+        configure_runtime_logging(events)
+        try:
+            print(
+                json.dumps(
+                    KnowledgeRebuild(Database(settings), *adapters).rebuild(alias=args.alias)
+                )
+            )
+        except Exception as error:
+            events.emit(
+                "runtime.diagnostic",
+                component="rebuild",
+                outcome="failure",
+                result_code="INTERNAL_ERROR",
+                level="ERROR",
+                error=error,
+            )
+            parser.exit(
+                1,
+                "Knowledge rebuild did not confirm publication; inspect alias/generations before retrying.\n",
+            )
+    elif args.command == "ingest-knowledge":
         from pathlib import Path
 
         from .application.knowledge_flow import KnowledgeIngestion

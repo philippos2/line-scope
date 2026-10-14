@@ -86,3 +86,29 @@ def activate_document(connection, document):
         .values(active=False, updated_at=func.clock_timestamp()),
     )
     _execute(connection, insert(_documents).values(**document, active=True))
+
+
+# Session locks do not keep a PostgreSQL transaction open during external I/O.
+KNOWLEDGE_PUBLICATION_LOCK = 734818317984333421
+
+
+def knowledge_publication_lock(connection, *, shared=False):
+    function = func.pg_advisory_lock_shared if shared else func.pg_advisory_lock
+    _execute(connection, select(function(KNOWLEDGE_PUBLICATION_LOCK)))
+
+
+def rebuild_leader_lock(connection, alias):
+    from hashlib import sha256
+
+    key = int.from_bytes(sha256(("knowledge-rebuild:" + alias).encode()).digest()[:8], signed=True)
+    _execute(connection, select(func.pg_advisory_lock(key)))
+
+
+def active_document_rows(connection):
+    return _execute(
+        connection,
+        select(_documents)
+        .where(_documents.c.active.is_(True), _documents.c.access_class == "FACTORY_INTERNAL")
+        .order_by(_documents.c.document_id)
+        .limit(1001),
+    ).fetchall()
