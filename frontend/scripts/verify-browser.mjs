@@ -34,6 +34,12 @@ try {
   await expect(
     page.getByRole("heading", { name: "Object詳細", exact: true }),
   ).toBeVisible();
+  await page.getByRole("button", { name: "対応案の比較", exact: true }).click();
+  await expect(
+    page.getByRole("heading", { name: "対応案を比較する", exact: true }),
+  ).toBeVisible();
+  await expect(page.getByText("¥1,900,000", { exact: true })).toBeVisible();
+  await expect(page.getByText("候補から除外", { exact: true })).toBeVisible();
   await page.screenshot({ path: "/tmp/frontend-1440.png", fullPage: true });
   await page.getByRole("button", { name: "Evidence", exact: true }).click();
   await expect(

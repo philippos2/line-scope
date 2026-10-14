@@ -483,3 +483,64 @@ aside > button {
     order: 0;
   }
 }
+
+.option-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+  margin: 24px 0;
+}
+.option-card {
+  padding: 18px;
+  border: 1px solid var(--line);
+  background: var(--panel);
+  border-radius: 6px;
+  min-width: 0;
+}
+.option-card h3 {
+  margin: 0;
+  font-size: 18px;
+}
+.option-card .title {
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.decision dl {
+  margin: 18px 0;
+}
+.decision dl > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--line);
+}
+.decision dt {
+  color: var(--muted);
+}
+.decision dd {
+  margin: 0;
+  text-align: right;
+}
+.decision details {
+  margin: 12px 0;
+  overflow-wrap: anywhere;
+}
+.decision li {
+  margin: 8px 0;
+}
+.risk-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0 24px;
+}
+.calculation {
+  padding: 12px;
+  border: 1px solid var(--line);
+}
+@media (max-width: 800px) {
+  .option-grid,
+  .risk-grid {
+    grid-template-columns: 1fr;
+  }
+}
