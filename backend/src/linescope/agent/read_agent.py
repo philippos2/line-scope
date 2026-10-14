@@ -7,6 +7,7 @@ from ..application.reads import ReadResult, ToolError
 from ..domain.canonical import canonical_json
 from ..integrations.llm import LLMError, LLMReply
 from .agent_tools import AgentToolSession
+from .graph_answer import downstream_answer
 from .graph_model_view import GRAPH_TOOLS, graph_model_view
 
 SYSTEM_PROMPT = """あなたはLineScopeの参照専用アシスタントです。
@@ -124,7 +125,7 @@ class ReadAgent:
                     )
                 if not reply.content.strip():
                     raise ToolError("INTERNAL_ERROR", "LLM did not provide an explanation")
-                answer = reply.content
+                answer = downstream_answer(observations, has_errors=bool(errors)) or reply.content
                 if request.explicit_as_of:
                     answer = (
                         "指定時刻について現在登録情報を評価しています。"
