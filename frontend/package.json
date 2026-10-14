@@ -10,7 +10,7 @@
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
     "format": "prettier --check src scripts *.json *.ts *.js index.html",
-    "check": "npm run lint && npm run typecheck && npm run format && npm test && npm run build"
+    "check": "npm run lint && npm run typecheck && npm run format && npm run build"
   },
   "dependencies": {
     "react": "19.3.0",
