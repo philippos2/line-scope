@@ -1,6 +1,17 @@
 """Fixed Core SELECT for authoritative KnowledgeDocument revalidation."""
 
-from sqlalchemy import BigInteger, Boolean, Text, column, func, select, table, true, tuple_
+from sqlalchemy import (
+    BigInteger,
+    Boolean,
+    DateTime,
+    Text,
+    column,
+    func,
+    select,
+    table,
+    true,
+    tuple_,
+)
 from sqlalchemy.dialects.postgresql import UUID as PGUUID
 from sqlalchemy.dialects.postgresql.psycopg import dialect
 
@@ -14,6 +25,7 @@ _documents = table(
     column("access_class", Text()),
     column("active", Boolean()),
     column("content_hash", Text()),
+    column("updated_at", DateTime(timezone=True)),
 )
 
 
@@ -40,3 +52,37 @@ def matching_document_rows(connection, references):
     # Expand tuple placeholders for the psycopg bridge, never literal values.
     compiled = statement.compile(dialect=dialect(), compile_kwargs={"render_postcompile": True})
     return connection.execute(str(compiled), compiled.params).fetchall()
+
+
+def _execute(connection, statement):
+    compiled = statement.compile(dialect=dialect(), compile_kwargs={"render_postcompile": True})
+    return connection.execute(str(compiled), compiled.params)
+
+
+def activate_document(connection, document):
+    """Serialize activation after index upsert; never replace a newer version."""
+    from hashlib import sha256
+
+    from sqlalchemy import insert, update
+
+    code = document["document_code"]
+    lock = int.from_bytes(sha256(("knowledge:" + code).encode()).digest()[:8], signed=True)
+    _execute(connection, select(func.pg_advisory_xact_lock(lock)))
+    newest = _execute(
+        connection,
+        select(func.max(_documents.c.document_version).label("latest_version")).where(
+            _documents.c.document_code == code
+        ),
+    ).fetchone()
+    if (
+        newest["latest_version"] is not None
+        and newest["latest_version"] >= document["document_version"]
+    ):
+        raise ValueError("Document version must increase")
+    _execute(
+        connection,
+        update(_documents)
+        .where(_documents.c.document_code == code)
+        .values(active=False, updated_at=func.clock_timestamp()),
+    )
+    _execute(connection, insert(_documents).values(**document, active=True))

@@ -12,6 +12,7 @@ from ..agent.agent_input import AgentInput
 from ..application.agent_service import PreparedAgentResult
 from ..application.demo_decision import DecisionAgentResult
 from ..application.graph_request import TOOLS as GRAPH_TOOLS
+from ..application.knowledge_flow import KnowledgeAgentResult
 from ..application.proposals import ProposalError
 from ..application.reads import ToolError, json_value
 from ..bootstrap import build_api_services
@@ -239,7 +240,7 @@ def create_app(
                 incoming,
                 retry_requested=request.headers.get("idempotency-key") is not None,
             )
-            if isinstance(outcome, DecisionAgentResult):
+            if isinstance(outcome, (DecisionAgentResult, KnowledgeAgentResult)):
                 return response(
                     request,
                     json_value(outcome.data),
@@ -298,7 +299,8 @@ def create_app(
                 context_id=context_id,
                 partial=bool(result.errors and result.observations)
                 or any(
-                    item.tool in GRAPH_TOOLS and item.result.data.get("complete") is False
+                    (item.tool in GRAPH_TOOLS or item.tool == "retrieve_knowledge")
+                    and item.result.data.get("complete") is False
                     for item in result.observations
                 ),
                 warnings=list(result.errors),

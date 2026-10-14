@@ -1,6 +1,7 @@
 """Composition root for API services; constructing it performs no database work."""
 
 from dataclasses import dataclass
+from pathlib import Path
 
 from neo4j import GraphDatabase
 
@@ -14,6 +15,9 @@ from .application.equipment_command import EquipmentCommandPrepare
 from .application.execute import HumanExecute
 from .application.graph_analysis import GraphAnalysis
 from .application.graph_request import GraphLimits
+from .application.knowledge_content import VerifiedKnowledgeContent
+from .application.knowledge_flow import KnowledgeRetrieval
+from .application.knowledge_metadata import KnowledgeMetadataGuard
 from .application.maintenance_command import MaintenanceCommandPrepare
 from .application.production_command import ProductionCommandPrepare
 from .application.proposals import ProposalStore
@@ -22,7 +26,9 @@ from .application.tools import ToolDispatcher
 from .graph.analysis_budget import GraphAnalysisBudget
 from .graph.analysis_reader import GraphAnalysisReader
 from .graph.analysis_states import GraphStateReader
+from .integrations.knowledge_files import ManagedKnowledgeFiles
 from .integrations.llm import OllamaClient
+from .integrations.mock_knowledge_index import MockKnowledgeIndex
 from .logging import EventLogger
 from .persistence.database import Database
 from .settings import Settings
@@ -94,14 +100,27 @@ def build_api_services(
                 ),
                 budget_factory=GraphAnalysisBudget,
             )
+        knowledge = None
+        if settings.knowledge_mock_root:
+            root = Path(settings.knowledge_mock_root)
+            knowledge = KnowledgeRetrieval(
+                VerifiedKnowledgeContent(
+                    KnowledgeMetadataGuard(database),
+                    ManagedKnowledgeFiles(root / "sources", max_bytes=1_000_000),
+                ),
+                MockKnowledgeIndex(root / "mock-index"),
+            )
         proposals = ProposalStore(database)
         read_agent = (
-            ReadAgent(ToolDispatcher(database, graph=graph), llm, event_logger=events)
+            ReadAgent(
+                ToolDispatcher(database, graph=graph, knowledge=knowledge), llm, event_logger=events
+            )
             if llm is not None
             else None
         )
         agent = AgentApplication(
             proposals=proposals,
+            knowledge=knowledge,
             conversations=conversations,
             equipment=EquipmentCommandPrepare(database, event_logger=events),
             maintenance=MaintenanceCommandPrepare(database, event_logger=events),

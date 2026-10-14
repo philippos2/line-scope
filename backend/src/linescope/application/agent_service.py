@@ -43,6 +43,7 @@ class AgentApplication:
         read_agent,
         decision_flow=None,
         dependency=None,
+        knowledge=None,
     ):
         self.proposals = proposals
         self.conversations = conversations
@@ -57,6 +58,7 @@ class AgentApplication:
         if dependency is not None:
             self.commands += ((dependency_command, dependency),)
         self.decision_flow = decision_flow
+        self.knowledge = knowledge
 
     def run(self, context, incoming, *, retry_requested=False):
         if not isinstance(context, ExecutionContext):
@@ -80,6 +82,8 @@ class AgentApplication:
         for recognize, command in self.commands:
             if recognize(incoming) is not None:
                 return self._prepared(context, command.run(context, incoming))
+        if self.knowledge is not None and self.knowledge.matches(incoming.message):
+            return self.knowledge.run(context, incoming)
         if self.decision_flow is not None and self.decision_flow.matches(incoming.message):
             return self.decision_flow.run(context, incoming)
         if self.read_agent is None:
