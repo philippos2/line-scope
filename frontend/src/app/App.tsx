@@ -55,7 +55,7 @@ export function App() {
       if (id === current.current)
         setError(
           caught instanceof ApiError
-            ? `${caught.code}${caught.requestId ? " / " + caught.requestId : ""}`
+            ? `${caught.code === "INVALID_TOKEN_FORMAT" ? "tokenの形式が不正です。tokenファイルの値だけを貼り付けてください。" : caught.code === "CONNECTION_FAILED" ? "APIへ接続できません。ブラウザの通信制限や接続先を確認してください。" : caught.code}${caught.requestId ? " / " + caught.requestId : ""}`
             : "REQUEST_FAILED",
         );
     } finally {

@@ -9,6 +9,9 @@ try {
     viewport: { width: 1440, height: 1000 },
   });
   await page.goto(base);
+  await page.getByLabel("Bearer token").fill("日本語を含む不正なtoken");
+  await page.getByRole("button", { name: "接続する", exact: true }).click();
+  await expect(page.getByRole("alert")).toContainText("tokenの形式が不正です");
   await page.getByLabel("Bearer token").fill(token);
   await page.getByRole("button", { name: "接続する", exact: true }).click();
   await expect(
