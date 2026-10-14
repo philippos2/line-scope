@@ -6,7 +6,7 @@
 
 「M-204で異常が起きた。どこまで影響する？ 修理・交換・代替ではどう違う？」という問いに、業務Object、依存Graph、文書、決定論的計算を組み合わせて判断材料を提示します。最終判断・承認・実行はエンドユーザーが行います。
 
-> 仮置き入力を明示したデモバックエンドは一段落しています。全機能の完成ではありません。実APIから影響調査、仮置き入力による比較、Prepare→Approval→Execute、更新後確認まで接続しています。実Embedding/Qdrant検索とローカルLLMにも疎通済みです。費用・能力・安全条件にはモックが残り、一般LLMの説明品質と正式な業務受入は未完了です。Frontend・紹介動画は後続です。
+> 仮置き入力を明示したデモバックエンドは一段落しています。全機能の完成ではありません。実APIから影響調査、仮置き入力による比較、Prepare→Approval→Execute、更新後確認まで接続しています。実Embedding/Qdrant検索とローカルLLMにも疎通済みです。費用・能力・安全条件にはモックが残り、一般LLMの説明品質と正式な業務受入は未完了です。Frontendでは調査・Graph・比較・Evidenceを確認できます。承認付きAction画面と紹介動画は後続です。
 
 ## 主な機能と検証対象
 
@@ -26,7 +26,7 @@ Graph上の到達や一段代替の構造成立は、実際の停止・十分な
 ```mermaid
 flowchart LR
     Curl[HTTP / curl] --> API[FastAPI / 認証]
-    UI[Frontend / 後続] -.-> API
+    UI[React Frontend] --> API
     API --> App[Application / Service]
     App --> Agent[Agent / 固定Tools]
     Agent <--> LLM[ホストのOllama]
@@ -44,7 +44,7 @@ flowchart LR
     Operator[承認者 / requester] --> API
 ```
 
-Python / FastAPI / Uvicorn、SQLAlchemy Core / Psycopg 3、PostgreSQL、Neo4j、Qdrant、Ollama、Docker Composeを使用します。pgvectorは使用しません。Frontendは後続のReact / TypeScriptを想定しています。
+Python / FastAPI / Uvicorn、SQLAlchemy Core / Psycopg 3、PostgreSQL、Neo4j、Qdrant、Ollama、Docker Composeを使用します。pgvectorは使用しません。FrontendはReact / TypeScript / Viteです。
 
 PostgreSQLが業務データ・更新要求・承認・監査・履歴・Outboxの正本です。Neo4jとQdrantは派生データです。GraphはCURRENTの場合だけ正常利用します。LLMに任意SQL / CypherやApproval / Executeを公開しません。[アーキテクチャ](docs/design/architecture.md)
 
@@ -120,7 +120,7 @@ CIはDockerビルド、Ruff、実DBテストを2 shardで並列実行し、runti
 - 費用・能力・安全・対応策には仮置き入力が残ります。正式な業務規則の未決事項をデモfixtureで補完しません。
 - 自由な日本語回答の品質、根拠のない故障原因推定、全Business Scenarioの合格は保証していません。
 - 過去時点分析は現在登録情報の期間評価であり、当時の状態を完全復元しません。
-- Frontend・紹介動画は後続です。
+- Frontendでは調査・Graph・比較・Evidenceを確認できます。承認付きAction画面と紹介動画は後続です。
 - AIの自律的な最終判断・Approval / Execute、実設備制御、本番MES / ERP接続、複数工場・マルチテナントは対象外です。
 - 材料・在庫・調達を含むSupply Chain Operational Intelligence、在庫・受注・BOMの完全管理はv1の対象外です。与えられた設備・工程の停止状態からの影響分析とは区別します。
 
@@ -133,7 +133,7 @@ line-scope/
 ├── backend/
 │   ├── src/linescope/  # interfaces / application / domain / persistence / graph / agent / integrations
 │   └── tests/         # 対応する責務単位のテスト
-├── frontend/          # 後続UIの方針文書
+├── frontend/          # Reactの分析・比較・Evidence画面
 ├── docs/              # ガイド・要件・設計・実装設計・履歴
 ├── scripts/           # 資格情報生成・デモ疎通・受入検証
 ├── .agents/skills/    # 開発・レビュー・検証手順

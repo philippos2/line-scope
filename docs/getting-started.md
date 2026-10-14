@@ -1,6 +1,6 @@
 # 起動・APIデモガイド
 
-通常の永続環境を起動し、調査・比較・承認付き変更をcurlで試す手順です。Docker Engine、Compose v2、ホストのPython 3、必要に応じてOllamaを使用します。Frontendは未実装です。
+通常の永続環境を起動し、調査・比較・承認付き変更をcurlで試す手順です。Docker Engine、Compose v2、ホストのPython 3、必要に応じてOllamaを使用します。ブラウザ画面でも調査・比較・根拠を確認できます。
 
 ## 最短で通し検証する
 
@@ -24,15 +24,36 @@ Docker Engine・Docker Compose v2と、資格情報生成用のPython 3を用意
 git clone https://github.com/philippos2/line-scope.git
 cd line-scope
 python3 scripts/create_demo_env.py
-docker compose up --build -d --wait api projection
+docker compose up --build -d --wait api
 docker compose run --rm migrate linescope seed-demo-graph
 docker compose run --build --rm graph-admin linescope install-graph-schema
 docker compose run --build --rm graph-admin linescope rebuild-graph
+docker compose up -d projection
 ```
 
 既存`.env`は上書きしません。既存環境では生成を省略し、`python3 scripts/upgrade_demo_env.py`で不足するrole用credential・Neo4j秘密を追加してから起動してください。資格情報ファイルはGit管理外・mode 0600です。管理者用と検索・runtime・Projection用のDB資格情報を分離します。
 
 PostgreSQLのmigration / role付与とNeo4jのhealth確認後にAPI・Projectionを起動します。APIは`127.0.0.1:8000`に公開し、DB portはホストへ公開しません。API portは`LINESCOPE_API_PORT`で変更できます。seedはM-204（STOPPED）・M-208（RUNNING）と工程・生産作業・製品・インフラの関係を初期投入し、再実行で既存の状態やversionをリセットしません。seed自体は依存Graphの生成を行いません。後続の管理CLIで正本から検証済みgenerationを構築します。未構築の間はworkerがBLOCKEDとなり、Graph分析は利用できません。
+
+## ブラウザで操作する
+
+上記のseedとGraph Rebuildを完了してからFrontendを起動します。ホストにNodeをインストールする必要はありません。
+
+```sh
+docker compose -f compose.yaml -f compose.frontend.yaml --profile frontend up --build -d frontend
+```
+
+`http://127.0.0.1:5173`を開きます。接続欄には私有`.env`の`LINESCOPE_USERS`に登録されたtokenの値だけを貼り付けます。管理・生産・保全ロールでGraph分析を利用できます。tokenを共有、Git登録、スクリーンショット掲載しないでください。tokenは画面のメモリだけに保持し、再読み込み・接続解除で消去します。
+
+比較デモを使う場合は私有`.env`で`LINESCOPE_DEMO_DECISION_MOCK=true`を明示設定し、APIを再作成します。既存の値がある場合は重複追記せず編集します。
+
+```sh
+docker compose up -d --no-deps api
+```
+
+「比較デモ」→「問い合わせを送信」でGraph・対応案・Evidenceを確認できます。費用・能力・安全入力は仮置きで、実設備の安全判断には使えません。比較の定型説明はLLMがなくても表示します。通常の自然言語調査には下記のローカルLLM設定が必要です。現在の画面にはApproval／Execute操作はありません。
+
+FrontendのproxyがAPIへ接続するため、ブラウザへDB資格情報を渡しません。Frontendはloopbackの5173番で、`LINESCOPE_FRONTEND_PORT`により変更できます。変更後は同じComposeファイルとprofileで再作成します。通常の停止でvolumeを削除しないでください。
 
 ### ローカルLLM
 

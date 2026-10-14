@@ -48,7 +48,7 @@ LLM / 文書 / Toolの文字列はtextとして表示する。HTML実行・任�
 
 ## 実装の構造
 
-React / TypeScriptを実装候補として具体化し、依存version・Node要件は導入時に公式資料で確認してlockfileに固定する。Graph描画ライブラリは実際の経路を描いた操作性で選ぶ。最初からReduxや汎用Plugin基盤を入れない。
+React / TypeScript / Viteを使用し、依存versionはlockfile、Node imageはDockerfileのdigestで固定する。Graph描画ライブラリは実際の経路を描いた操作性で選ぶ。最初からReduxや汎用Plugin基盤を入れない。
 
 ```text
 frontend/src/
@@ -79,7 +79,13 @@ frontend/src/
 
 ケース追加前にtest-designの因子・境界・重複・件数を見積もる。全組合せを生成しない。最初のAPI接続・Graph表示は実バックエンドでも確認し、fixtureのみの画面成功を結合受入にしない。
 
-## 残り工程と概算PR
+## 実装到達点（#236後）
+
+React / TypeScript / Viteで実APIへ接続する分析・比較・Evidence画面を実装した。Graphは返却された代表経路をSVGで描画する。React Flow等は導入せず、必要性が明確になった場合に評価する。tokenはメモリのみ、Backend非CURRENTのGraphを表示しない。
+
+UI-01〜03の代表デモ経路とUI-06の主要境界を実ブラウザで確認した。完全なUI受入とは扱わない。文書引用のある実応答、UI-04〜05のAction、UI-07の包括的keyboard確認は残る。通常Frontend CIは静的検証とbuild、自動テストは必要最小限とする。最新の残作業は[roadmap](../roadmap.md)、作業・検証方法は[Frontend README](../../frontend/README.md)を参照する。
+
+## 初期工程計画（#231時点）
 
 | 工程 | 一つのPRで通す体験 | 概算PR |
 |---|---|---:|
@@ -90,7 +96,7 @@ frontend/src/
 | UI仕上げ・受入 | レスポンシブ、キーボード、実シナリオの画面受入とガイド | 1 |
 | 修正予備 | 実画面レビューで判明する不具合 | 1〜2 |
 
-本PR後の概算は5〜8 PR。相対的には分析接続とActionが大きく、見た目だけの小PRを完了単位にしない。正式入力・全BS・動画制作はこの見積もりに含めない。
+設計時点の概算は5〜8 PR。相対的には分析接続とActionが大きく、見た目だけの小PRを完了単位にしない。正式入力・全BS・動画制作はこの見積もりに含めない。
 
 ```text
 PR枠                12345678

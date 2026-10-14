@@ -1,53 +1,35 @@
-# Frontend
+# LineScope Frontend
 
-LineScopeのFrontendはBackendと同じリポジトリで管理し、サーバサイド完成後に実装する。
-バックエンドのデモ経路が一段落し、画面設計を具体化した。[オペレーション画面設計](../docs/design/frontend-console.md)と[ローカル画面案](../docs/design/frontend-console-prototype.html)を参照する。実APIへ接続するFrontendコード・build設定・packageは次の工程で追加する。
-仕様の正本と各事項の責務は[文書入口](../docs/deliverables.md)、UI方向性は[要件 §13](../docs/requirements/requirements.md#13-後続frontendフェーズ)で確認する。
+React / TypeScript / Viteで実APIへ接続するオペレーション画面です。Backendと同じリポジトリで管理し、Docker内で起動・buildします。
 
-## オペレーション・コンソール案（候補）
+## 使える機能
 
-POが共有したChatGPT案は、内容を妥当と評価された有力候補の一つ。案全体の採用確定ではなく、後続UI設計で他案と比較する。
-本案ではGraphを主役としてObject / Graph / Evidence / Actionがつながるワークスペースを目指す。
-AIP Analystの見た目・機能の忠実な再現ではなく、LineScopeの製造業務と承認境界を画面で説明する。
+- tokenで接続し、日本語の問い合わせとサーバの回答を表示する。
+- 取得したObjectとCURRENTの下流Graph代表経路を選択・表示する。
+- 修理・交換・継続・代替の比較、制約・不足情報・計算根拠を確認する。
+- Evidenceの情報源・観測日時・Graph世代・入力version・原文を確認する。
 
-| 領域 | 設計候補 |
-|---|---|
-| 左 Object Explorer | Equipment / Process / ProductionOperation / Product / InfrastructureResourceの検索・選択 |
-| 中央 Graph Canvas | 選択Objectの依存展開、エッジ種別、直接/間接影響、Tool Evidenceにある経路の強調 |
-| 右 Agent Panel | 自然言語問い合わせ、回答、Evidence、公開Tool Trace、Graphへの表示連携 |
-| 下部 Action Drawer | canonical Snapshot、before / proposed、承認主体・状態、確定結果・現在値、許可された監査履歴 |
-| 上部 Status Bar | 検証済みGraph同期状態・正本接続・RAG準備状態・採用Agent情報 |
+左ペインは今回取得したObjectの一覧です。全設備の検索画面ではありません。GraphはAPIの代表経路の描画で、React Flowは導入していません。比較の費用・能力・安全条件はMOCK_FIXTUREです。変更Prepare・Approval・Executeの画面は後続です。
 
-初回UIはExplorer / Graph / Agent Panelを優先する候補。Action Drawerは次の反復へ分ける。
-Graph 50% / Object 20% / Agent 30%はデスクトップ設計の出発点とし、実データ・画面幅で検証する。
-Object DetailをGraph選択と連動させ、正本項目・state version・観測時刻・許可された操作を示す。
+## 起動
 
-## ヒーローデモ候補
+[起動ガイド](../docs/getting-started.md#ブラウザで操作する)に従ってBackendの資格情報・seed・Graphを準備してから実行します。
 
-権限のある利用者が「M-204が停止した場合の影響を調べて」と問い、Toolの代表経路を中央Graphで強調する。
-設備から工程・製品へ至る直接/間接影響と根拠を同時に示す。IDや経路は実seed・正本・Tool出力に一致するものを使用する。
-到達関係から生産停止を無条件に断定せず、必要性・代替・探索完全性に応じた表現にする。
+```sh
+docker compose -f compose.yaml -f compose.frontend.yaml --profile frontend up --build -d frontend
+```
 
-## 視覚と技術の候補
+`http://127.0.0.1:5173`を開き、サーバに登録されたtokenの値だけを貼り付けて接続します。tokenはメモリだけに保持し、再読み込み・接続解除で消去します。
 
-charcoal / graphite、dark navy、off-white、細いborderを基調に、色を状態・選択・影響へ使う。
-CURRENT緑 / LAGGING黄 / ERROR赤 / REBUILDING青を文字・記号と併用し、色だけに依存しない。
-React + TypeScript + React Flowを候補とし、TanStack QueryとContext / Zustandの必要性も後続設計で評価する。
-現時点ではframework、依存version、画面の完成仕様を確定しない。
+## 開発と検証
 
-## 仕様との整合
+UIのcomponentは`src/app`／`src/features`、HTTP窓口は`src/api`に置きます。APIの値を表示する責務と、サーバの業務計算・認可を分離します。
 
-- Graph非CURRENTや不完全探索を正常な最新分析として扱わない。保存方向と影響探索方向を区別する。
-- 現場ロールは通常Read中心。Graph分析・更新・承認・履歴の権限はサーバが最終判断する。
-- RUNNING / STOPPED / UNDER_MAINTENANCE / UNKNOWNを使い、DEGRADED / MAINTENANCEや未定義Locationをモデルへ追加しない。
-- AI Recommendation、Human Approval、requesterのExecuteを分ける。canonical Snapshotと確定after / current valueを混同しない。
-- Tool Traceは公開可能な構造化結果に限り、内部推論・credential・SQL/Cypherを表示しない。
-- 状態バーのReadyやmodel名は実設定・確認結果に基づく。Qwen等は未選定。
+```sh
+docker build --target development -t linescope-frontend-check frontend
+docker run --rm linescope-frontend-check npm run check
+```
 
-後続UI設計では画面レイアウト・Object選択状態・API/Toolの対応・ロール別表示・アクセシビリティ・UI受入基準を具体化する。
-Explorerに必要な一覧/検索やGraph描画に必要な取得範囲も、その時点のBackend契約と照合する。今回の案を理由に未定義APIを追加しない。
+通常検証はlint・型チェック・format・buildです。自動テストは必要最小限とし、既存の`npm test`は任意実行です。主要操作は実ブラウザで確認します。使い捨て実API環境の確認には`python3 scripts/verify_frontend_flow.py`を使用できます。
 
-## 外部レビュー
-
-POからChatGPT / Claude / Geminiの支援を受けられる。最初のレイアウト案がまとまった段階で、視覚的な優先順位・情報密度・操作性と、業務フロー・権限・承認境界のレビュー依頼を検討する。
-必要なときはCodexから案と具体的なレビュー観点を提示して依頼する。外部AIの提案をそのまま仕様・実装へ採用せず、正本文書との整合を確認する。
+[画面設計](../docs/design/frontend-console.md)、[roadmap](../docs/roadmap.md)、[開発・PR運用](../CONTRIBUTING.md)を参照してください。正式な業務仕様の入口は[deliverables](../docs/deliverables.md)です。
