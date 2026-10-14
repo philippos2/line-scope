@@ -49,8 +49,17 @@ try {
     page.getByRole("heading", { name: "サーバが返したEvidence", exact: true }),
   ).toBeVisible();
   await expect(
-    page.locator("main").getByText(/graph_generation/),
+    page.locator("main").getByText("Graph世代", { exact: true }),
   ).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "計算の根拠", exact: true }),
+  ).toBeVisible();
+  await expect(
+    page.getByText("デモ入力です。正式な業務情報ではありません。", {
+      exact: true,
+    }),
+  ).toBeVisible();
+  await page.screenshot({ path: "/tmp/frontend-1440.png", fullPage: true });
   await page.setViewportSize({ width: 390, height: 844 });
   await page.screenshot({ path: "/tmp/frontend-390.png", fullPage: true });
   if (

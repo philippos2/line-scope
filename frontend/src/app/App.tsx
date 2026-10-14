@@ -1,6 +1,7 @@
 import { useRef, useState, type FormEvent } from "react";
 import { ApiError, object, request, type Envelope } from "../api/client";
 import { DecisionComparison } from "../features/decision/DecisionComparison";
+import { EvidencePanel } from "../features/evidence/EvidencePanel";
 import { GraphCanvas } from "../features/graph/GraphCanvas";
 import {
   detail,
@@ -275,21 +276,13 @@ export function App() {
                   この応答に下流Graph結果はありません。回答とEvidenceを確認してください。
                 </p>
               )
+            ) : tab === "evidence" ? (
+              <EvidencePanel result={result} />
             ) : (
               <section>
-                <h2>
-                  {tab === "evidence"
-                    ? "サーバが返したEvidence"
-                    : "公開Tool Trace"}
-                </h2>
+                <h2>公開Tool Trace</h2>
                 <pre>
-                  {JSON.stringify(
-                    tab === "evidence"
-                      ? result.evidence
-                      : (result.data.tool_trace ?? []),
-                    null,
-                    2,
-                  )}
+                  {JSON.stringify(result.data.tool_trace ?? [], null, 2)}
                 </pre>
               </section>
             )}
