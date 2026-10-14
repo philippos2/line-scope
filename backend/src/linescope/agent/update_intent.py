@@ -11,7 +11,7 @@ from dataclasses import dataclass
 from ..domain.canonical import canonical_hash
 from .agent_input import AgentInput
 
-RULE_VERSION = "explicit-update-command:v2"
+RULE_VERSION = "explicit-update-command:v3"
 IDENTIFIER = r"[A-Za-z0-9][A-Za-z0-9_-]*"
 COMMAND = r"(?:してください|して下さい|して|せよ)"
 STATE = r"(?:RUNNING|STOPPED|UNDER_MAINTENANCE|UNKNOWN|稼働中|停止|保全中|不明)"
@@ -23,8 +23,20 @@ EQUIPMENT_STATE_PATTERN = (
     rf"(?:設備)?(?P<equipment_code>{IDENTIFIER})の(?:現在)?状態を"
     rf"(?P<state>{STATE})に(?:更新|変更)(?:{COMMAND}|する準備を(?:作って|作成{COMMAND}))"
 )
+MAINTENANCE_PLAN_CREATE_PATTERN = (
+    rf"(?:設備)?(?P<equipment_code>{IDENTIFIER})の保全予定(?P<code>{IDENTIFIER})を"
+    rf"開始(?P<start>{TIMESTAMP})、終了(?P<end>{TIMESTAMP})、状態(?P<status>{STATUS})で"
+    rf"(?:登録|作成){COMMAND}"
+)
+MAINTENANCE_RECORD_CREATE_PATTERN = (
+    rf"(?:設備)?(?P<equipment_code>{IDENTIFIER})の保全実績(?P<code>{IDENTIFIER})を"
+    rf"実施(?P<performed_at>{TIMESTAMP})、結果「(?P<result>[^「」\r\n]+)」"
+    rf"(?:、保全予定(?P<plan_code>{IDENTIFIER})に紐づけて|で)(?:登録|作成){COMMAND}"
+)
 PATTERNS = [
     ("EQUIPMENT_STATE", EQUIPMENT_STATE_PATTERN),
+    ("MAINTENANCE", MAINTENANCE_PLAN_CREATE_PATTERN),
+    ("MAINTENANCE", MAINTENANCE_RECORD_CREATE_PATTERN),
     ("MAINTENANCE", rf"(?:設備)?{IDENTIFIER}の(?:保全予定|保全実績)を(?:登録|作成){COMMAND}"),
     (
         "MAINTENANCE",
@@ -98,6 +110,55 @@ class MaintenancePlanCommand:
     intent: UpdateIntent
     plan_code: str
     patch: dict
+
+
+@dataclass(frozen=True)
+class MaintenanceCreateCommand:
+    intent: UpdateIntent
+    equipment_code: str
+    tool: str
+    values: dict
+    plan_code: str | None = None
+
+
+def maintenance_create_command(request):
+    """All CREATE values originate in the full explicit original request.
+
+    This bounded grammar is an admission mechanism, not a new business rule or
+    general Japanese understanding. Tool/Prepare still validate all invariants.
+    """
+    intent = assess_update_intent(request)
+    if not intent.confirmed or intent.category != "MAINTENANCE":
+        return None
+    message = request.message[intent.evidence_start : intent.evidence_end]
+    plan = re.fullmatch(MAINTENANCE_PLAN_CREATE_PATTERN, message)
+    if plan:
+        statuses = {"計画済み": "PLANNED", "取消済み": "CANCELLED"}
+        return MaintenanceCreateCommand(
+            intent,
+            plan["equipment_code"],
+            "prepare_maintenance_plan_create",
+            {
+                "plan_code": plan["code"],
+                "planned_start": plan["start"],
+                "planned_end": plan["end"],
+                "plan_status": statuses.get(plan["status"], plan["status"]),
+            },
+        )
+    record = re.fullmatch(MAINTENANCE_RECORD_CREATE_PATTERN, message)
+    if record:
+        return MaintenanceCreateCommand(
+            intent,
+            record["equipment_code"],
+            "prepare_maintenance_record_create",
+            {
+                "record_code": record["code"],
+                "performed_at": record["performed_at"],
+                "result": record["result"],
+            },
+            record["plan_code"],
+        )
+    return None
 
 
 def maintenance_plan_command(request):

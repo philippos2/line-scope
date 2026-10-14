@@ -6,6 +6,7 @@ from ..agent.agent_input import AgentInput
 from ..agent.read_agent import ReadAgentResult
 from ..agent.update_intent import (
     equipment_state_command,
+    maintenance_create_command,
     maintenance_plan_command,
     production_schedule_command,
 )
@@ -45,6 +46,7 @@ class AgentApplication:
         self.commands = (
             (equipment_state_command, equipment),
             (maintenance_plan_command, maintenance),
+            (maintenance_create_command, maintenance),
             (production_schedule_command, production),
         )
         self.read_agent = read_agent
