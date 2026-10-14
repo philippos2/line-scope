@@ -73,7 +73,7 @@ docker compose up -d --no-deps --force-recreate api
 
 ## APIを直接呼ぶ
 
-以下は後述のセットアップ後、ホストから実行します。`.env`の`LINESCOPE_USERS`にあるtokenを設定してください。tokenをGitや共有ログへ保存しないでください。
+以下は上記のセットアップ後、ホストから実行します。`.env`の`LINESCOPE_USERS`にあるtokenを設定してください。tokenをGitや共有ログへ保存しないでください。
 
 ```sh
 BASE_URL='http://127.0.0.1:8000'
@@ -85,7 +85,7 @@ curl -sS "$BASE_URL/health" \
 curl -sS "$BASE_URL/health/ready" \
   -H "Authorization: Bearer $LINESCOPE_TOKEN"
 
-# 自然言語調査には後述のOllama設定が必要
+# 自然言語調査には上記のOllama設定が必要
 curl -sS "$BASE_URL/agent" \
   -H "Authorization: Bearer $LINESCOPE_TOKEN" \
   -H 'Content-Type: application/json' \
@@ -162,3 +162,15 @@ python3 scripts/verify_demo_acceptance.py \
 - 一般Read Agentの説明品質、全Business Scenario、正式な費用・能力・安全入力の受入は別途必要です。
 - 過去時刻は現在登録情報の期間評価であり、完全なpoint-in-time復元ではありません。
 - 現在の制限と残作業は[ロードマップ](roadmap.md)、仕様は[文書入口](deliverables.md)を参照してください。
+
+## Read Agentの実モデル評価
+
+```sh
+python3 scripts/verify_read_agent_quality.py \
+  --model qwen3:30b-a3b-instruct-2507-q4_K_M \
+  --report /tmp/linescope-read-quality.json
+```
+
+必要な環境では`--docker-group docker`を付けます。専用環境で状態と原因不明、下流到達、存在しない設備の3質問を実行し、回答・Tool結果・Evidenceを0600の新規reportへ保存します。構造化結果成功でも`STRUCTURED_PASS_REVIEW_REQUIRED`であり、文章は別レビューが必要です。モデル名は記録しますがdigestを固定していないため、同名モデルの更新差は保証しません。
+
+単一の下流回答はサーバ側で件数・完全性・未評価事項を要約します。上流・代替・SPOF・複数分析や通常Readの自由説明は別の品質評価対象です。
