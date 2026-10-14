@@ -12,7 +12,8 @@ FROM base AS runtime
 COPY --from=builder /install /usr/local
 COPY --from=builder /wheels /wheels
 RUN pip install --no-deps --no-cache-dir /wheels/*.whl && rm -rf /wheels \
-    && groupadd --gid 10001 linescope && useradd --uid 10001 --gid 10001 --no-create-home linescope
+    && groupadd --gid 10001 linescope && useradd --uid 10001 --gid 10001 --no-create-home linescope \
+    && mkdir /workspace/knowledge && chown 10001:10001 /workspace/knowledge
 COPY scripts/container_health.py /workspace/container_health.py
 USER 10001:10001
 EXPOSE 8000

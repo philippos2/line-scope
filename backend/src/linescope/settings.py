@@ -21,6 +21,7 @@ class Settings:
     llm_context_tokens: int = 16384
     read_dsn: str | None = field(default=None, repr=False)
     demo_decision_mock: bool = False
+    knowledge_mock_root: str = field(default="", repr=False)
 
     neo4j_uri: str | None = field(default=None, repr=False)
     neo4j_user: str = field(default="", repr=False)
@@ -32,6 +33,10 @@ class Settings:
     graph_timeout_ms: int = 5000
 
     def __post_init__(self):
+        if type(self.knowledge_mock_root) is not str or (
+            self.knowledge_mock_root and not self.knowledge_mock_root.startswith("/")
+        ):
+            raise ValueError("Knowledge mock root must be an absolute server-owned path")
         if type(self.demo_decision_mock) is not bool:
             raise ValueError("Demo decision mode must be a server boolean")
         if type(self.llm_base_url) is not str or type(self.llm_model) is not str:
@@ -134,6 +139,7 @@ class Settings:
                     else raw
                     if name
                     in {
+                        "knowledge_mock_root",
                         "dsn",
                         "read_dsn",
                         "log_level",

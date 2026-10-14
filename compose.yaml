@@ -18,6 +18,7 @@ x-backend: &backend
     LINESCOPE_LLM_BASE_URL: ${LINESCOPE_LLM_BASE_URL:-http://host.docker.internal:11434}
     LINESCOPE_LLM_MODEL: ${LINESCOPE_LLM_MODEL:-}
     LINESCOPE_LLM_CONTEXT_TOKENS: ${LINESCOPE_LLM_CONTEXT_TOKENS:-16384}
+    LINESCOPE_KNOWLEDGE_MOCK_ROOT: ${LINESCOPE_KNOWLEDGE_MOCK_ROOT:-}
     LINESCOPE_DEMO_DECISION_MOCK: ${LINESCOPE_DEMO_DECISION_MOCK:-false}
   init: true
   logging: *logging
@@ -72,6 +73,8 @@ services:
       LINESCOPE_NEO4J_USER: neo4j
       LINESCOPE_NEO4J_PASSWORD: ${LINESCOPE_NEO4J_PASSWORD:?Generate or upgrade private .env}
       LINESCOPE_READ_DSN: postgresql://linescope_query:${LINESCOPE_QUERY_PASSWORD:?Generate or upgrade private .env}@postgres:5432/linescope
+    volumes:
+      - knowledge-data:/workspace/knowledge:ro
     extra_hosts:
       - host.docker.internal:host-gateway
     ports:
@@ -86,6 +89,19 @@ services:
       interval: 5s
       timeout: 5s
       retries: 12
+
+  knowledge-admin:
+    <<: *backend
+    profiles: [tools]
+    command: [linescope, --help]
+    environment:
+      LINESCOPE_DSN: postgresql://linescope:${LINESCOPE_POSTGRES_PASSWORD:?Generate private .env}@postgres:5432/linescope
+      LINESCOPE_KNOWLEDGE_MOCK_ROOT: /workspace/knowledge
+    volumes:
+      - knowledge-data:/workspace/knowledge
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
 
   graph-admin:
     <<: *backend
@@ -121,3 +137,4 @@ services:
 volumes:
   neo4j-data:
   postgres-data:
+  knowledge-data:

@@ -17,6 +17,14 @@ from .settings import Settings
 def main():
     parser = argparse.ArgumentParser(prog="linescope")
     commands = parser.add_subparsers(dest="command", required=True)
+    ingest = commands.add_parser(
+        "ingest-knowledge", help="Admin-only UTF-8 ingestion into explicit mock index"
+    )
+    ingest.add_argument("--code", required=True)
+    ingest.add_argument("--version", type=int, required=True)
+    ingest.add_argument("--title", required=True)
+    ingest.add_argument("--file", required=True)
+    ingest.add_argument("--equipment-id")
     commands.add_parser("migrate")
     commands.add_parser(
         "migrate-and-provision", help="Admin-only migration and fixed DB role grants"
@@ -43,7 +51,37 @@ def main():
     serve.add_argument("--port", type=int, default=8000)
     args = parser.parse_args()
     settings = Settings.env()
-    if args.command in {"migrate", "migrate-and-provision"}:
+    if args.command == "ingest-knowledge":
+        from pathlib import Path
+
+        from .application.knowledge_flow import KnowledgeIngestion
+        from .integrations.knowledge_files import ManagedKnowledgeFiles
+        from .integrations.mock_knowledge_index import MockKnowledgeIndex
+
+        if not settings.knowledge_mock_root:
+            parser.exit(1, "Explicit LINESCOPE_KNOWLEDGE_MOCK_ROOT is required.\n")
+        root = Path(settings.knowledge_mock_root)
+        try:
+            with Path(args.file).open("rb") as source:
+                body = source.read(1_000_001)
+            result = KnowledgeIngestion(
+                Database(settings),
+                ManagedKnowledgeFiles(root / "sources", max_bytes=1_000_000),
+                MockKnowledgeIndex(root / "mock-index"),
+            ).ingest(
+                code=args.code,
+                version=args.version,
+                title=args.title,
+                body=body,
+                equipment_id=args.equipment_id,
+            )
+            print(json.dumps(result))
+        except (OSError, ValueError, psycopg.Error):
+            parser.exit(
+                1,
+                "Knowledge ingestion did not return success; inspect active metadata before retrying.\n",
+            )
+    elif args.command in {"migrate", "migrate-and-provision"}:
         database = Database(settings)
         if args.command == "migrate-and-provision":
             try:
