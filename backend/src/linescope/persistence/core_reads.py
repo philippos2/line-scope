@@ -180,6 +180,15 @@ def get_graph_equipment_states(connection, identifiers):
     return connection.execute(str(compiled), compiled.params).fetchone()
 
 
+def get_operation_by_code(connection, operation_code):
+    """Private command resolution by the authoritative unique business key."""
+    statement = select(_operation.c.production_operation_id).where(
+        _operation.c.operation_code == operation_code
+    )
+    compiled = statement.compile(dialect=dialect())
+    return connection.execute(str(compiled), compiled.params).fetchone()
+
+
 def get_graph_availability_states(connection, equipment_ids, operation_ids):
     """Observe both authoritative state sets at one PostgreSQL statement time."""
     equipment_states = (
