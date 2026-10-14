@@ -569,3 +569,12 @@ Dockerで追加36テスト成功、ruff check / format、git diff --check成功�
 [KnowledgeDocument metadataスキーマ](2026-10-14-knowledge-document-schema.md)に、正本metadataとDB制約、13ケースの選定、本文管理・有効化・再認可・Qdrant接続の残工程を記録した。
 
 [KnowledgeDocument metadataの内部再確認](2026-10-14-knowledge-metadata-revalidation.md)に、単一正本観測・active/version/hash照合・query roleの最小権限・16ケースの選定と後続の本文／Index境界を記録した。
+
+## Frontendの到達点と環境記録
+
+- [初回分析画面](2026-10-14-frontend-analysis-checkpoint.md)
+- [Frontend変更時のCIと最小検証](2026-10-14-ci-frontend-scope.md)
+- [比較画面](2026-10-14-frontend-comparison-checkpoint.md)
+- [継続ブラウザデモの起動](2026-10-14-browser-demo-running.md)：当時の環境記録。資格情報はGit管理外。
+- [Evidence表示と次工程](2026-10-15-evidence-ui-checkpoint.md)
+- [Frontend到達点前の計画](2026-10-15-roadmap-before-frontend-checkpoint.md)

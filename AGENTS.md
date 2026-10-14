@@ -45,9 +45,11 @@
 | router / service / repository / adapterの責務、依存方向、新component、構造変更、refactoring | [backend-architecture](.agents/skills/backend-architecture/SKILL.md) |
 | 認証・認可、Trusted Execution Context、Tool入力、SQL/Cypher、LLM/RAG、secret、DB role、外部エラー | [backend-secure-coding](.agents/skills/backend-secure-coding/SKILL.md) |
 | UpdateRequest / Approval / Execute、Snapshot / version、retry / lock、Outbox / Projection / Rebuild / Restore | [backend-transaction-review](.agents/skills/backend-transaction-review/SKILL.md) |
+| React component、表示モデル、HTTP client、Graph / Evidence / Actionの境界 | [frontend-architecture](.agents/skills/frontend-architecture/SKILL.md) |
+| Frontendの必要最小限の検証、実ブラウザ、CI引渡し | [frontend-verification](.agents/skills/frontend-verification/SKILL.md) |
 | 変更の検証、pytest / ruff / migration、checkpoint commit、PR / CI引渡し | [backend-verification](.agents/skills/backend-verification/SKILL.md) |
 
-領域固有のSkill名は対象領域の接頭辞で区別する。現在は`backend-`を使い、Frontend着手時に必要な`frontend-architecture`、`ui-component-design`、`frontend-data-access`、`accessibility-review`、`frontend-verification`等を追加する。領域共通のテスト設計手順は`test-design`を使う。未使用の空Skillは先に作らない。
+領域固有のSkill名は`backend-` / `frontend-`等の接頭辞で対象を区別する。領域共通のテスト設計は`test-design`を使う。未使用の空Skillは先に作らない。
 
 ## 作業と引渡し
 
