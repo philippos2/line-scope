@@ -42,12 +42,18 @@ export async function request(
   signal?: AbortSignal,
   retryKey?: string,
 ): Promise<Envelope> {
+  let authorization: Headers;
+  try {
+    authorization = new Headers({ Authorization: "Bearer " + token });
+  } catch {
+    throw new ApiError("INVALID_TOKEN_FORMAT");
+  }
   let response: Response;
   try {
     response = await fetch("/api" + path, {
       method: body ? "POST" : "GET",
       headers: {
-        Authorization: "Bearer " + token,
+        Authorization: authorization.get("Authorization")!,
         ...(retryKey ? { "Idempotency-Key": retryKey } : {}),
         ...(body ? { "Content-Type": "application/json" } : {}),
       },
