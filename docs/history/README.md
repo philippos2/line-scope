@@ -14,6 +14,16 @@
 
 [残項目・PR見積もり・完走ロードマップ](2026-10-14-backend-remaining-work.md)：業務UC/BSと通常API入口を照合した残件。26〜44 PRの暫定内訳、PO依存、固定fixtureで一本通すmilestone、工程順ガント表。過去の8割・9割という報告を撤回し、内部部品の完成と業務受入を区別する。
 
+## 再開チェックポイント（#221まで）
+
+現在の計画は[roadmap](../roadmap.md)を参照する。以下は記録時点の結果であり、古い未commit／merge待ち記述を現在の状態と扱わない。
+
+- [判断材料・制約の作業途中記録](2026-10-14-decision-package-checkpoint.md)：その後#218でcommit・CI確認・merge済み。
+- [実保全情報との接続](2026-10-14-maintenance-decision-checkpoint.md)：#219、登録から比較反映まで。
+- [過去時点分析](2026-10-14-agent-temporal-checkpoint.md)：#220、時刻固定・根拠・確認継続。
+- [複数業務シナリオ](2026-10-14-decision-scenarios-checkpoint.md)：#221、最新の再開記録。
+- [#214時点のroadmap](2026-10-14-roadmap-baseline.md)：旧見積もりと計画を保存。
+
 ## 2026-10-09
 
 | 順序 | 記録 | 内容 |
