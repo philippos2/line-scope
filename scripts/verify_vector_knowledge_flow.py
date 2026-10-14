@@ -128,6 +128,40 @@ def main():
                 "Second alias switch retains new ingestion",
             )
             stage("rebuild", active_version=3, publications=2, alias="knowledge_live")
+            fixture.docker("run", "--rm", "graph-admin", "linescope", "seed-demo-graph")
+            fixture.docker("run", "--rm", "graph-admin", "linescope", "rebuild-graph")
+            compared = fixture.request(
+                "/agent", data={"message": "M-204の修理と交換を比較して"}
+            )
+            comparison = compared["data"]["decision_package"]["comparison"]
+            require(
+                comparison["options"][0]["total_cost"] == 1900000,
+                "Calculated repair cost",
+            )
+            require(
+                comparison["options"][2]["shortage_units_per_hour"] == 30,
+                "Calculated capacity shortage",
+            )
+            require(
+                comparison["document_status"] == "VERIFIED_SOURCE",
+                "Real document references in package",
+            )
+            require(
+                compared["evidence"]["documents"]["citations"][0]["document_version"]
+                == 3,
+                "Current citation in package",
+            )
+            require(
+                compared["status"] == "partial"
+                and comparison["source"] == "MOCK_FIXTURE",
+                "Fixture inputs remain declared",
+            )
+            stage(
+                "decision-package",
+                repair_total=1900000,
+                shortage=30,
+                verified_document_version=3,
+            )
             fixture.docker("stop", "qdrant")
             unavailable = fixture.request(
                 "/agent", data={"message": "文書検索：M-204"}, expected=503
@@ -140,11 +174,11 @@ def main():
             {
                 "result": "PASS",
                 "real": ["Embedding", "Qdrant", "PostgreSQL", "source", "curl"],
-                "mock": [],
+                "mock": ["decision comparison inputs"],
                 "llm": "NOT_USED",
                 "model": args.model,
                 "model_digest": args.digest,
-                "scope": "Transport/authority smoke, not retrieval quality acceptance",
+                "scope": "Real retrieval and fixture-based calculations; not full business acceptance",
             },
             ensure_ascii=False,
         ),
