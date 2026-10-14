@@ -1,5 +1,6 @@
 import { useRef, useState, type FormEvent } from "react";
 import { ApiError, object, request, type Envelope } from "../api/client";
+import { DecisionComparison } from "../features/decision/DecisionComparison";
 import { GraphCanvas } from "../features/graph/GraphCanvas";
 import {
   detail,
@@ -18,7 +19,9 @@ export function App() {
   const [result, setResult] = useState<Envelope | null>(null);
   const [error, setError] = useState("");
   const [selected, setSelected] = useState<NodeRef | null>(null);
-  const [tab, setTab] = useState<"impact" | "evidence" | "trace">("impact");
+  const [tab, setTab] = useState<
+    "impact" | "comparison" | "evidence" | "trace"
+  >("impact");
   const [stale, setStale] = useState(false);
   const current = useRef(0);
   const abort = useRef<AbortController | null>(null);
@@ -217,19 +220,23 @@ export function App() {
               </div>
             )}
             <nav className="tabs" aria-label="結果表示">
-              {(["impact", "evidence", "trace"] as const).map((key) => (
-                <button
-                  key={key}
-                  aria-pressed={tab === key}
-                  onClick={() => setTab(key)}
-                >
-                  {key === "impact"
-                    ? "影響・経路"
-                    : key === "evidence"
-                      ? "Evidence"
-                      : "公開Tool Trace"}
-                </button>
-              ))}
+              {(["impact", "comparison", "evidence", "trace"] as const).map(
+                (key) => (
+                  <button
+                    key={key}
+                    aria-pressed={tab === key}
+                    onClick={() => setTab(key)}
+                  >
+                    {key === "impact"
+                      ? "影響・経路"
+                      : key === "comparison"
+                        ? "対応案の比較"
+                        : key === "evidence"
+                          ? "Evidence"
+                          : "公開Tool Trace"}
+                  </button>
+                ),
+              )}
             </nav>
             {!result ? (
               <div className="empty">
@@ -239,6 +246,14 @@ export function App() {
                   Graph / RAG / モデルの準備状態は未確認です。
                 </p>
               </div>
+            ) : tab === "comparison" ? (
+              pkg && object(pkg.comparison) ? (
+                <DecisionComparison comparison={pkg.comparison} />
+              ) : (
+                <p className="muted">
+                  この応答に比較結果はありません。比較デモを問い合わせると、取得した対応案を表示します。
+                </p>
+              )
             ) : tab === "impact" ? (
               view ? (
                 <>
