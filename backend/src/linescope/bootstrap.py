@@ -21,6 +21,7 @@ from .application.maintenance_command import MaintenanceCommandPrepare
 from .application.production_command import ProductionCommandPrepare
 from .application.proposals import ProposalStore
 from .application.reads import ReadTools
+from .application.structured_command import StructuredCommandPrepare
 from .application.tools import ToolDispatcher
 from .graph.analysis_budget import GraphAnalysisBudget
 from .graph.analysis_reader import GraphAnalysisReader
@@ -115,6 +116,7 @@ def build_api_services(
             else None
         )
         agent = AgentApplication(
+            structured=StructuredCommandPrepare(database, event_logger=events),
             proposals=proposals,
             knowledge=knowledge,
             conversations=conversations,

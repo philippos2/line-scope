@@ -11,6 +11,7 @@ from ..agent.update_intent import (
     maintenance_plan_command,
     production_assignment_command,
     production_schedule_command,
+    structured_prepare_command,
 )
 from ..domain.snapshot import CATEGORIES
 from ..execution import ExecutionContext
@@ -44,6 +45,7 @@ class AgentApplication:
         decision_flow=None,
         dependency=None,
         knowledge=None,
+        structured=None,
     ):
         self.proposals = proposals
         self.conversations = conversations
@@ -57,6 +59,8 @@ class AgentApplication:
         self.read_agent = read_agent
         if dependency is not None:
             self.commands += ((dependency_command, dependency),)
+        if structured is not None:
+            self.commands += ((structured_prepare_command, structured),)
         self.decision_flow = decision_flow
         self.knowledge = knowledge
 

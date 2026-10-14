@@ -11,7 +11,7 @@ from dataclasses import dataclass
 from ..domain.canonical import canonical_hash
 from .agent_input import AgentInput
 
-RULE_VERSION = "explicit-update-command:v6"
+RULE_VERSION = "explicit-update-command:v7"
 IDENTIFIER = r"[A-Za-z0-9][A-Za-z0-9_-]*"
 COMMAND = r"(?:してください|して下さい|して|せよ)"
 STATE = r"(?:RUNNING|STOPPED|UNDER_MAINTENANCE|UNKNOWN|稼働中|停止|保全中|不明)"
@@ -64,6 +64,30 @@ PATTERNS = [
     ("PRODUCTION_OPERATION", rf"生産作業{IDENTIFIER}の予定状態を{STATUS}に(?:更新|変更){COMMAND}"),
     ("DEPENDENCY", DEPENDENCY_DISABLE_PATTERN),
 ]
+BATCH_LABELS = {
+    "設備状態": "EQUIPMENT_STATE",
+    "保全": "MAINTENANCE",
+    "生産作業": "PRODUCTION_OPERATION",
+    "依存関係": "DEPENDENCY",
+}
+PATTERNS += [
+    (category, rf"{label}の変更準備を\{{[\s\S]*\}}で作成{COMMAND}")
+    for label, category in BATCH_LABELS.items()
+]
+
+
+def structured_prepare_command(request):
+    intent = assess_update_intent(request)
+    if not intent.confirmed:
+        return None
+    message = request.message[intent.evidence_start : intent.evidence_end]
+    for label, category in BATCH_LABELS.items():
+        match = re.fullmatch(
+            rf"{label}の変更準備を(?P<values>\{{[\s\S]*\}})で作成{COMMAND}", message
+        )
+        if match:
+            return category, match["values"]
+    return None
 
 
 @dataclass(frozen=True)
@@ -123,6 +147,8 @@ def equipment_state_command(request):
     match = re.fullmatch(
         EQUIPMENT_STATE_PATTERN, request.message[intent.evidence_start : intent.evidence_end]
     )
+    if match is None:
+        return None
     states = {
         "稼働中": "RUNNING",
         "停止": "STOPPED",

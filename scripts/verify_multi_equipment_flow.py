@@ -1,6 +1,7 @@
 """専用Composeで複数設備の要求置換・承認・一括実行・再送をcurl検証する。"""
 
 import argparse
+import json
 
 from verify_minimal_flow import disposable_fixture, require, stage, verify
 
@@ -14,10 +15,22 @@ def main():
         old = fixture.request(
             "/agent", data={"message": "設備[M-204,M-208]の状態を不明に変更して"}
         )["data"]
+        payload = {
+            "targets": [
+                {
+                    "prepare_tool": "prepare_equipment_state_update",
+                    "input": {
+                        "equipment_id": target["target_id"],
+                        "state_code": "STOPPED",
+                    },
+                }
+                for target in old["canonical_snapshot"]["targets"]
+            ]
+        }
         saved = fixture.request(
             "/agent",
             data={
-                "message": "設備[M-204,M-208]の状態を停止に変更して",
+                "message": "設備状態の変更準備を" + json.dumps(payload) + "で作成して",
                 "replace_update_request_id": old["update_request_id"],
             },
         )["data"]
