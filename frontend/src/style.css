@@ -544,3 +544,50 @@ aside > button {
     grid-template-columns: 1fr;
   }
 }
+
+.evidence-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+  margin: 20px 0;
+}
+.evidence-card {
+  padding: 18px;
+  border: 1px solid var(--line);
+  background: var(--panel);
+  border-radius: 6px;
+  min-width: 0;
+  margin-bottom: 12px;
+}
+.evidence-card h3 {
+  margin: 0 0 12px;
+}
+.evidence-card details {
+  margin-top: 12px;
+}
+.evidence-metadata {
+  margin: 0;
+}
+.evidence-metadata > div {
+  padding: 8px 0;
+  border-bottom: 1px solid var(--line);
+}
+.evidence-metadata dt {
+  color: var(--muted);
+}
+.evidence-metadata dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+.document-citation blockquote {
+  margin: 12px 0;
+  padding: 16px;
+  border-left: 3px solid var(--accent);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+@media (max-width: 800px) {
+  .evidence-grid {
+    grid-template-columns: 1fr;
+  }
+}
