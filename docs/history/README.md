@@ -14,7 +14,10 @@
 
 [残項目・PR見積もり・完走ロードマップ](2026-10-14-backend-remaining-work.md)：業務UC/BSと通常API入口を照合した残件。26〜44 PRの暫定内訳、PO依存、固定fixtureで一本通すmilestone、工程順ガント表。過去の8割・9割という報告を撤回し、内部部品の完成と業務受入を区別する。
 
-## 再開チェックポイント（#226まで）
+- [公開cloneからの最小デモ再現](2026-10-14-clean-clone-demo.md)：main adcd8ca、PASSと確認範囲。
+- [デモ一段落前のroadmap](2026-10-14-roadmap-before-demo-checkpoint.md)：旧計画の保存。
+
+## 再開チェックポイント（#229まで）
 
 現在の計画は[roadmap](../roadmap.md)を参照する。以下は記録時点の結果であり、古い未commit／merge待ち記述を現在の状態と扱わない。
 
@@ -25,6 +28,8 @@
 - [複数設備の承認付き変更](2026-10-14-multi-equipment-checkpoint.md)：#223、複数Target・置換・一括実行。
 - [構造化された明示更新](2026-10-14-structured-actions-checkpoint.md)：#224、4カテゴリの公開Prepare経路。
 - [日本語要約と実LLM](2026-10-14-decision-summary-checkpoint.md)：#225、表示順のみLLMへ委任し、数値・文章はサーバ生成。
+- [実Read Agent品質baseline](2026-10-14-read-quality-checkpoint.md)：#228、固定3質問と文章レビューの境界。
+- [下流調査の日本語要約](2026-10-14-downstream-summary-checkpoint.md)：#229、128字の件数・完全性・未評価表示。
 - [一括デモ受入](2026-10-14-demo-acceptance-checkpoint.md)：#226、4経路PASSと正式受入との境界。
 - [#214時点のroadmap](2026-10-14-roadmap-baseline.md)：旧見積もりと計画を保存。
 
