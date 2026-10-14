@@ -19,7 +19,7 @@ React / TypeScript / Viteで実APIへ接続するオペレーション画面で�
 docker compose -f compose.yaml -f compose.frontend.yaml --profile frontend up --build -d frontend
 ```
 
-`http://127.0.0.1:5173`を開き、サーバに登録されたtokenの値だけを貼り付けて接続します。tokenはメモリだけに保持し、再読み込み・接続解除で消去します。
+`http://127.0.0.1:5173`を開き、サーバに登録されたtokenの値だけを貼り付けて接続します。初回接続後はHttpOnlyのセッションcookieでF5後も接続を復元します。接続切替・解除は上部の「接続設定」から行えます。
 
 ## 開発と検証
 
