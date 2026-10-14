@@ -8,6 +8,7 @@ proposal, approval or execution is performed by this analysis service.
 from dataclasses import dataclass
 
 from ..domain.demo_comparison import compare, fixture
+from ..domain.demo_constraints import assess_options
 from ..execution import ExecutionContext
 from .reads import ToolError
 
@@ -86,6 +87,9 @@ class DemoDecisionFlow:
         profile.update(document_evidence=documents, document_status=document_status)
         if not documents:
             profile["unknowns"].append("No verified document evidence is available")
+        assess_options(
+            profile, current_state=state.data["state_code"], state_evidence=state.evidence
+        )
         package = {
             "equipment": {"equipment_code": "M-204", **state.data},
             "impact": impact.data,

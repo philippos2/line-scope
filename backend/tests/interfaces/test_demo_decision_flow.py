@@ -51,6 +51,10 @@ def test_comparison_to_approved_execution_and_current_confirmation(
         package = body["data"]["decision_package"]
         assert package["equipment"]["state_code"] == "STOPPED"
         assert package["comparison"]["source"] == "MOCK_FIXTURE"
+        assert package["comparison"]["excluded_options"] == ["CONTINUE"]
+        constraint = package["comparison"]["options"][3]["blocking_constraints"][0]
+        assert constraint["evidence"] == body["evidence"]["state"]
+        assert package["comparison"]["required_information"]
         assert package["comparison"]["options"][0]["total_cost"] == 1900000
         assert package["comparison"]["options"][2]["shortage_units_per_hour"] == 30
         assert body["evidence"]["state"] and body["evidence"]["impact"]

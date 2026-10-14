@@ -143,6 +143,14 @@ def main():
                 "Calculated capacity shortage",
             )
             require(
+                comparison["decision_completeness"] == "PARTIAL"
+                and bool(comparison["required_information"])
+                and comparison["options"][2]["blocking_constraints"][0]["scope"]
+                == "FULL_ABSORPTION"
+                and comparison["options"][2]["feasibility"] == "UNKNOWN",
+                "Missing information and partial substitution remain explicit",
+            )
+            require(
                 comparison["document_status"] == "VERIFIED_SOURCE",
                 "Real document references in package",
             )
