@@ -72,7 +72,7 @@ class DemoFixture:
             command = ["sg", self.docker_group, "-c", shlex.join(command)]
         subprocess.run(command, cwd=self.repository, env=self.child_env, check=True)
 
-    def request(self, path, *, token=None, data=None, expected=200):
+    def request(self, path, *, token=None, data=None, expected=200, timeout_seconds=15):
         command = [
             "curl",
             "--disable",
@@ -81,7 +81,7 @@ class DemoFixture:
             "--silent",
             "--show-error",
             "--max-time",
-            "15",
+            str(timeout_seconds),
             "--config",
             "-",
             "--write-out",

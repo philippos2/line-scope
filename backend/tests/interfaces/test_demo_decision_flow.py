@@ -10,7 +10,7 @@ from linescope.interfaces.api import create_app
 from linescope.settings import Settings
 
 
-def demo_client(db, driver, **settings):
+def demo_client(db, driver, *, llm=None, **settings):
     return TestClient(
         create_app(
             Settings(
@@ -24,6 +24,7 @@ def demo_client(db, driver, **settings):
             ),
             db,
             graph_driver=driver,
+            llm=llm,
         )
     )
 
@@ -164,3 +165,23 @@ def test_registered_maintenance_flows_into_comparison_after_approved_execution(
         assert "future_failure_probability" in maintenance["unknowns"]
         assert body["evidence"]["maintenance"]["records"] == maintenance["records"]["evidence"]
         assert counts(db) == committed
+
+
+def test_model_only_selects_presentation_order_in_real_decision_api(db, reader_world, adapters):
+    from agent.test_read_agent import ScriptedLLM
+
+    from linescope.integrations.llm import LLMReply
+
+    llm = ScriptedLLM(LLMReply('{"order":["REPAIR","SUBSTITUTE"]}', ()))
+    with demo_client(db, adapters[1].driver, llm=llm) as client:
+        response = client.post(
+            "/agent", json={"message": "M-204の修理と代替を比較して"}, headers=headers()
+        )
+    assert response.status_code == 200
+    body = response.json()
+    summary = body["data"]["decision_package"]["summary"]
+    assert summary["llm_status"] == "VALIDATED_ORDER"
+    assert summary["sections"][0]["id"] == "REPAIR"
+    assert body["evidence"]["summary"]["llm_scope"] == "PRESENTATION_ORDER_ONLY"
+    assert "1,900,000円" in body["answer"] and "継続案を除外" in body["answer"]
+    assert counts(db)["business_update_history"] == 0

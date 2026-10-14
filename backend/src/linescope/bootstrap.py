@@ -130,6 +130,7 @@ def build_api_services(
                 graph,
                 MockDecisionProvider(settings.demo_decision_scenario),
                 knowledge,
+                llm,
             )
             if settings.demo_decision_mock
             else None,
