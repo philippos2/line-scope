@@ -93,3 +93,24 @@ def test_untrusted_context_cannot_enter_application():
     with pytest.raises(ToolError) as error:
         service().run(None, incoming())
     assert error.value.code == "AUTHENTICATION_REQUIRED"
+
+
+def test_clarification_retains_request_time_and_explicit_change_takes_precedence():
+    from dataclasses import replace
+
+    identity = context()
+    conversations = ConversationStore()
+    seen = []
+
+    class Reader:
+        def run(self, context, request, *, previous_messages):
+            seen.append(request.explicit_as_of)
+            return ReadAgentResult("対象を確認", (), (), (), True)
+
+    application = service(conversations=conversations, read_agent=Reader())
+    old_time, new_time = "2026-10-08T00:00:00.000000Z", "2026-10-09T00:00:00.000000Z"
+    first = application.run(identity, replace(incoming(), explicit_as_of=old_time))
+    application.run(identity, incoming(first.context_id))
+    application.run(identity, replace(incoming(first.context_id), explicit_as_of=new_time))
+    assert seen == [old_time, old_time, new_time]
+    assert conversations.get(identity, first.context_id)["explicit_as_of"] == new_time
