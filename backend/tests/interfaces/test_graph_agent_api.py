@@ -76,7 +76,13 @@ def test_http_agent_returns_paths_and_authoritative_state_evidence(world, tool, 
         )
     assert response.status_code == 200
     body = response.json()
-    assert body["status"] == "ok" and body["answer"] == "経路を確認しました。"
+    assert body["status"] == "ok"
+    if downstream:
+        assert "2件の依存到達候補" in body["answer"]
+        assert "未評価" in body["answer"]
+        assert origin not in body["answer"]
+    else:
+        assert body["answer"] == "経路を確認しました。"
     result = body["data"]["tool_results"][0]["data"]
     evidence = body["evidence"]["tool_results"][0]
     assert result["complete"] and len(result["reached_nodes"]) == 2
@@ -131,5 +137,6 @@ def test_http_partial_and_rebuilding_follow_graph_error_contract(world, rebuildi
         assert body["evidence"]["tool_results"] == []
     else:
         assert response.status_code == 200 and body["status"] == "partial"
+        assert "探索は不完全" in body["answer"]
         assert body["data"]["tool_results"][0]["data"]["limit_reason"] == "PATH_COUNT"
         assert body["data"]["tool_results"][0]["data"]["analysis_mode"] == "CURRENT"
