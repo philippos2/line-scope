@@ -130,10 +130,39 @@ def main():
             stage("rebuild", active_version=3, publications=2, alias="knowledge_live")
             fixture.docker("run", "--rm", "graph-admin", "linescope", "seed-demo-graph")
             fixture.docker("run", "--rm", "graph-admin", "linescope", "rebuild-graph")
+            for message in (
+                (
+                    "設備M-204の保全予定DECISION-PLANを開始2026-11-01T00:00:00Z、"
+                    "終了2026-11-01T01:00:00Z、状態計画済みで登録して"
+                ),
+                (
+                    "設備M-204の保全実績DECISION-RECORDを実施2026-10-14T00:00:00Z、"
+                    "結果「軸を点検しました」、保全予定DECISION-PLANに紐づけて登録して"
+                ),
+            ):
+                prepared = fixture.request("/agent", data={"message": message})["data"]
+                fixture.request(
+                    "/approvals/" + prepared["approval_id"] + "/approve",
+                    token=fixture.approver,
+                    data={"snapshot_hash": prepared["snapshot_hash"]},
+                )
+                fixture.request(
+                    "/update-requests/" + prepared["update_request_id"] + "/execute"
+                )
             compared = fixture.request(
                 "/agent", data={"message": "M-204の修理と交換を比較して"}
             )
             comparison = compared["data"]["decision_package"]["comparison"]
+            maintenance = compared["data"]["decision_package"]["maintenance"]
+            require(
+                maintenance["plans"]["items"][0]["plan_code"] == "DECISION-PLAN"
+                and maintenance["records"]["items"][0]["record_code"]
+                == "DECISION-RECORD"
+                and maintenance["retrieval_complete"]
+                and not maintenance["assessment_complete"]
+                and maintenance["records"]["evidence"]["source"] == "POSTGRESQL",
+                "Approved maintenance facts reach the decision package",
+            )
             require(
                 comparison["options"][0]["total_cost"] == 1900000,
                 "Calculated repair cost",

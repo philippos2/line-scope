@@ -131,3 +131,36 @@ def test_degradation_comparison_does_not_override_current_stopped_state(db, read
     assert package["comparison"]["options"][3]["feasibility"] == "INFEASIBLE"
     assert package["comparison"]["economic_preference"] is None
     assert counts(db)["business_update_history"] == 0
+
+
+def test_registered_maintenance_flows_into_comparison_after_approved_execution(
+    db, reader_world, adapters
+):
+    with demo_client(db, adapters[1].driver) as client:
+        messages = [
+            "設備M-204の保全予定DECISION-PLANを開始2026-11-01T00:00:00Z、"
+            "終了2026-11-01T01:00:00Z、状態計画済みで登録して",
+            "設備M-204の保全実績DECISION-RECORDを実施2026-10-14T00:00:00Z、"
+            "結果「軸を点検しました」、保全予定DECISION-PLANに紐づけて登録して",
+        ]
+        saved_targets = []
+        for message in messages:
+            response = client.post("/agent", json={"message": message}, headers=headers())
+            assert response.status_code == 200
+            saved = response.json()["data"]
+            saved_targets.append(saved["canonical_snapshot"]["targets"][0]["after"])
+            approve_execute(client, saved)
+        committed = counts(db)
+        response = client.post(
+            "/agent", json={"message": "M-204はまた修理するべきか交換を比較して"}, headers=headers()
+        )
+        assert response.status_code == 200
+        body = response.json()
+        maintenance = body["data"]["decision_package"]["maintenance"]
+        assert maintenance["plans"]["items"] == [saved_targets[0]]
+        assert maintenance["records"]["items"] == [saved_targets[1]]
+        assert maintenance["retrieval_complete"] and not maintenance["assessment_complete"]
+        assert maintenance["consistency"] == "LATEST_PER_CALL"
+        assert "future_failure_probability" in maintenance["unknowns"]
+        assert body["evidence"]["maintenance"]["records"] == maintenance["records"]["evidence"]
+        assert counts(db) == committed
