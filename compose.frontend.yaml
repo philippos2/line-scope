@@ -1,0 +1,20 @@
+services:
+  frontend:
+    build:
+      context: frontend
+      dockerfile: Dockerfile
+      target: development
+    profiles: [frontend]
+    environment:
+      LINESCOPE_FRONTEND_API_TARGET: http://api:8000
+    ports:
+      - '127.0.0.1:${LINESCOPE_FRONTEND_PORT:-5173}:5173'
+    depends_on:
+      api:
+        condition: service_healthy
+    init: true
+    logging:
+      driver: local
+      options:
+        max-size: '10m'
+        max-file: '3'

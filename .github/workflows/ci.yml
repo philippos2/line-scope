@@ -63,16 +63,30 @@ jobs:
             rm -f .env
           fi
 
+  frontend:
+    name: Frontend tests and build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - name: Build Frontend container
+        run: docker build --target development -t linescope-frontend-check frontend
+      - name: Lint, typecheck, format, tests and build
+        run: docker run --rm linescope-frontend-check npm run check
+
   verification:
     name: Tests and migrations
-    needs: [tests, runtime]
+    needs: [tests, runtime, frontend]
     if: always()
     runs-on: ubuntu-24.04
     timeout-minutes: 2
     env:
       CI_TEST_RESULT: ${{ needs.tests.result }}
       CI_RUNTIME_RESULT: ${{ needs.runtime.result }}
+      CI_FRONTEND_RESULT: ${{ needs.frontend.result }}
     steps:
-      - name: Require both verification jobs to succeed
+      - name: Require all verification jobs to succeed
         run: |
-          test "$CI_TEST_RESULT" = success && test "$CI_RUNTIME_RESULT" = success
+          test "$CI_TEST_RESULT" = success && test "$CI_RUNTIME_RESULT" = success && test "$CI_FRONTEND_RESULT" = success
