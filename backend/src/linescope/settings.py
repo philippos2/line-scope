@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 from dataclasses import dataclass, field
 from urllib.parse import urlsplit
 
@@ -22,6 +23,13 @@ class Settings:
     read_dsn: str | None = field(default=None, repr=False)
     demo_decision_mock: bool = False
     knowledge_mock_root: str = field(default="", repr=False)
+    knowledge_root: str = field(default="", repr=False)
+    qdrant_url: str = field(default="", repr=False)
+    qdrant_api_key: str = field(default="", repr=False)
+    qdrant_collection: str = "knowledge_v1"
+    embedding_model: str = ""
+    embedding_digest: str = ""
+    embedding_dimensions: int = 768
 
     neo4j_uri: str | None = field(default=None, repr=False)
     neo4j_user: str = field(default="", repr=False)
@@ -33,6 +41,52 @@ class Settings:
     graph_timeout_ms: int = 5000
 
     def __post_init__(self):
+        if type(self.knowledge_root) is not str or (
+            self.knowledge_root and not self.knowledge_root.startswith("/")
+        ):
+            raise ValueError("Knowledge root must be an absolute server-owned path")
+        if self.knowledge_root and self.knowledge_mock_root:
+            raise ValueError("Real and mock knowledge modes are mutually exclusive")
+        if type(self.qdrant_url) is not str or type(self.qdrant_api_key) is not str:
+            raise ValueError("Invalid Qdrant configuration")
+        if (
+            type(self.qdrant_collection) is not str
+            or re.fullmatch(r"[A-Za-z0-9_-]{1,100}", self.qdrant_collection) is None
+        ):
+            raise ValueError("Invalid configured collection")
+        if type(self.embedding_dimensions) is not int or not 0 < self.embedding_dimensions <= 8192:
+            raise ValueError("Invalid embedding dimension")
+        if (
+            self.knowledge_root
+            or self.qdrant_url
+            or self.embedding_model
+            or self.embedding_digest
+            or self.qdrant_api_key
+        ):
+            if not (
+                self.knowledge_root
+                and self.qdrant_url
+                and self.qdrant_api_key
+                and type(self.embedding_model) is str
+                and self.embedding_model.strip() == self.embedding_model
+                and self.embedding_model
+                and type(self.embedding_digest) is str
+                and re.fullmatch(r"[0-9a-f]{64}", self.embedding_digest)
+            ):
+                raise ValueError("Complete real knowledge configuration is required")
+            vector_url = urlsplit(self.qdrant_url)
+            if (
+                vector_url.scheme not in {"http", "https"}
+                or not vector_url.hostname
+                or vector_url.username
+                or vector_url.password
+                or vector_url.query
+                or vector_url.fragment
+                or vector_url.path not in {"", "/"}
+            ):
+                raise ValueError("Invalid Qdrant URL")
+            _ = vector_url.port
+
         if type(self.knowledge_mock_root) is not str or (
             self.knowledge_mock_root and not self.knowledge_mock_root.startswith("/")
         ):
@@ -140,6 +194,12 @@ class Settings:
                     if name
                     in {
                         "knowledge_mock_root",
+                        "knowledge_root",
+                        "qdrant_url",
+                        "qdrant_api_key",
+                        "qdrant_collection",
+                        "embedding_model",
+                        "embedding_digest",
                         "dsn",
                         "read_dsn",
                         "log_level",

@@ -1,4 +1,4 @@
-"""Connected admin ingestion / authenticated retrieval with explicit mock search.
+"""Connected admin ingestion / authenticated retrieval with replaceable search.
 
 No LLM-generated interpretation or business mutation. Plain-text source and PG
 metadata are real; Embed/Qdrant and prose generation remain replaceable internals.
@@ -68,6 +68,7 @@ class KnowledgeIngestion:
                     "chunking_version": CHUNKING_VERSION,
                     "text": chunk.text,
                     "equipment_id": equipment,
+                    "section": chunk.section,
                 }
                 for chunk in chunks
             ],
@@ -127,7 +128,7 @@ class KnowledgeRetrieval:
             {
                 "items": items,
                 "search_source": self.index.source,
-                "demo_only": True,
+                "demo_only": self.index.demo_only,
                 "complete": False,
                 "observed_at": restored["observed_at"],
             },
@@ -142,11 +143,15 @@ class KnowledgeRetrieval:
         if incoming.explicit_as_of or incoming.replace_update_request_id:
             raise ToolError("INVALID_ARGUMENT", "Knowledge search covers active documents only")
         result = self.retrieve(context, {"query": incoming.message[5:]})
+        mode = (
+            "検索はモックです。" if result.data["demo_only"] else "Vector検索で候補を取得しました。"
+        )
         return KnowledgeAgentResult(
             result.data,
             result.evidence,
             f"正本で確認した文書抜粋を{len(result.data['items'])}件提示します。"
-            "検索はモックです。抜粋は参考資料であり、安全性や費用の確定判断ではありません。"
+            + mode
+            + "抜粋は参考資料であり、安全性や費用の確定判断ではありません。"
             if result.data["items"]
-            else "確認できる文書根拠がありません。モック検索のため、文書が存在しないとは断定できません。",
+            else "確認できる文書根拠がありません。候補検索のため、文書が存在しないとは断定できません。",
         )

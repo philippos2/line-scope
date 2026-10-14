@@ -29,6 +29,13 @@ services:
       interval: 5s
       timeout: 10s
       retries: 30
+  qdrant:
+    image: qdrant/qdrant:v1.19.2
+    environment:
+      QDRANT__SERVICE__API_KEY: disposable-vector-write-key
+      QDRANT__SERVICE__READ_ONLY_API_KEY: disposable-vector-read-key
+    tmpfs:
+      - /qdrant/storage
   tests:
     build:
       context: .
@@ -37,8 +44,11 @@ services:
     init: true
     environment:
       LINESCOPE_TEST_DSN: postgresql://linescope_test:disposable-test-password@postgres:5432/linescope_test
+      LINESCOPE_TEST_QDRANT_URL: http://qdrant:6333
       LINESCOPE_TEST_NEO4J_URI: bolt://neo4j:7687
     depends_on:
+      qdrant:
+        condition: service_started
       neo4j:
         condition: service_healthy
       postgres:
