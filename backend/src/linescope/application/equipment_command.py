@@ -1,4 +1,4 @@
-"""Server-bound, single-equipment Prepare. HTTP publication is separate.
+"""Server-bound equipment Prepare. HTTP publication is separate.
 
 No LLM-supplied IDs, values or versions are accepted. Unsupported language and
 continuation contexts require the future clarification orchestrator.
@@ -33,6 +33,11 @@ class EquipmentCommandPrepare:
             raise ToolError(
                 "AUTHORIZATION_DENIED", "Equipment state request permission is required"
             )
+        codes = command.equipment_codes
+        if len(codes) > 10:
+            raise ToolError("INVALID_ARGUMENT", "At most ten equipment codes are supported")
+        if len(set(codes)) != len(codes):
+            raise ToolError("BUSINESS_RULE_VIOLATION", "Duplicate equipment code")
         # Resolve retry identity before searching mutable current data. Replaying
         # must retain the saved before/after, not recompute a new proposal.
         try:
@@ -46,16 +51,27 @@ class EquipmentCommandPrepare:
         session = AgentToolSession(
             context, request, self.dispatcher, prepare_authorized=True, event_logger=self.events
         )
-        found = session.run(
-            "search_equipment",
-            {"filter": {"equipment_code": command.equipment_code}, "page_size": 2},
-        )
-        items = found.data["items"]
-        if not items:
-            raise ToolError("TARGET_NOT_FOUND", "Requested equipment code was not found")
-        if len(items) != 1 or found.data["next_cursor"] is not None:
-            raise ToolError("TARGET_AMBIGUOUS", "Requested equipment is not uniquely resolved")
+        targets = []
+        for code in codes:
+            found = session.run(
+                "search_equipment", {"filter": {"equipment_code": code}, "page_size": 2}
+            )
+            items = found.data["items"]
+            if not items:
+                raise ToolError("TARGET_NOT_FOUND", "Requested equipment code was not found")
+            if len(items) != 1 or found.data["next_cursor"] is not None:
+                raise ToolError("TARGET_AMBIGUOUS", "Requested equipment is not uniquely resolved")
+            targets.append(
+                {"equipment_id": items[0]["equipment_id"], "state_code": command.state_code}
+            )
         return session.run(
             "prepare_equipment_state_update",
-            {"equipment_id": items[0]["equipment_id"], "state_code": command.state_code},
+            targets[0]
+            if len(targets) == 1
+            else {
+                "targets": [
+                    {"prepare_tool": "prepare_equipment_state_update", "input": target}
+                    for target in targets
+                ]
+            },
         )
