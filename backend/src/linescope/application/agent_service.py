@@ -5,6 +5,7 @@ from dataclasses import dataclass
 from ..agent.agent_input import AgentInput
 from ..agent.read_agent import ReadAgentResult
 from ..agent.update_intent import (
+    dependency_command,
     equipment_state_command,
     maintenance_create_command,
     maintenance_plan_command,
@@ -41,6 +42,7 @@ class AgentApplication:
         production,
         read_agent,
         decision_flow=None,
+        dependency=None,
     ):
         self.proposals = proposals
         self.conversations = conversations
@@ -52,6 +54,8 @@ class AgentApplication:
             (production_assignment_command, production),
         )
         self.read_agent = read_agent
+        if dependency is not None:
+            self.commands += ((dependency_command, dependency),)
         self.decision_flow = decision_flow
 
     def run(self, context, incoming, *, retry_requested=False):

@@ -9,6 +9,7 @@ from .agent.read_agent import ReadAgent
 from .application.agent_service import AgentApplication
 from .application.approvals import HumanApproval
 from .application.demo_decision import DemoDecisionFlow, MockDecisionProvider
+from .application.dependency_command import DependencyCommandPrepare
 from .application.equipment_command import EquipmentCommandPrepare
 from .application.execute import HumanExecute
 from .application.graph_analysis import GraphAnalysis
@@ -105,6 +106,7 @@ def build_api_services(
             equipment=EquipmentCommandPrepare(database, event_logger=events),
             maintenance=MaintenanceCommandPrepare(database, event_logger=events),
             production=ProductionCommandPrepare(database, event_logger=events),
+            dependency=DependencyCommandPrepare(database, event_logger=events),
             read_agent=read_agent,
             decision_flow=DemoDecisionFlow(ReadTools(database), graph, MockDecisionProvider())
             if settings.demo_decision_mock

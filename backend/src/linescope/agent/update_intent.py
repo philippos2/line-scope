@@ -11,7 +11,7 @@ from dataclasses import dataclass
 from ..domain.canonical import canonical_hash
 from .agent_input import AgentInput
 
-RULE_VERSION = "explicit-update-command:v4"
+RULE_VERSION = "explicit-update-command:v5"
 IDENTIFIER = r"[A-Za-z0-9][A-Za-z0-9_-]*"
 COMMAND = r"(?:してください|して下さい|して|せよ)"
 STATE = r"(?:RUNNING|STOPPED|UNDER_MAINTENANCE|UNKNOWN|稼働中|停止|保全中|不明)"
@@ -38,11 +38,19 @@ PRODUCTION_ASSIGNMENT_PATTERN = (
     rf"開始(?P<start>{TIMESTAMP})、終了(?P<end>{TIMESTAMP}|無期限)、"
     rf"設備\[(?P<equipment>(?:{IDENTIFIER}(?:,{IDENTIFIER})*)?)\]に置換{COMMAND}"
 )
+DEPENDENCY_CREATE_PATTERN = rf"依存関係を(?P<values>\{{[\s\S]*\}})で(?:登録|作成){COMMAND}"
+DEPENDENCY_UPDATE_PATTERN = (
+    rf"依存関係(?P<identifier>{IDENTIFIER})をパッチ(?P<values>\{{[\s\S]*\}})で"
+    rf"(?:更新|変更){COMMAND}"
+)
+DEPENDENCY_DISABLE_PATTERN = rf"依存関係(?P<identifier>{IDENTIFIER})を無効化{COMMAND}"
 PATTERNS = [
     ("EQUIPMENT_STATE", EQUIPMENT_STATE_PATTERN),
     ("MAINTENANCE", MAINTENANCE_PLAN_CREATE_PATTERN),
     ("MAINTENANCE", MAINTENANCE_RECORD_CREATE_PATTERN),
     ("PRODUCTION_OPERATION", PRODUCTION_ASSIGNMENT_PATTERN),
+    ("DEPENDENCY", DEPENDENCY_CREATE_PATTERN),
+    ("DEPENDENCY", DEPENDENCY_UPDATE_PATTERN),
     ("MAINTENANCE", rf"(?:設備)?{IDENTIFIER}の(?:保全予定|保全実績)を(?:登録|作成){COMMAND}"),
     (
         "MAINTENANCE",
@@ -54,7 +62,7 @@ PATTERNS = [
         rf"生産作業{IDENTIFIER}の(?:予定開始時刻|予定終了時刻)を{TIMESTAMP}に(?:更新|変更){COMMAND}",
     ),
     ("PRODUCTION_OPERATION", rf"生産作業{IDENTIFIER}の予定状態を{STATUS}に(?:更新|変更){COMMAND}"),
-    ("DEPENDENCY", rf"依存関係{IDENTIFIER}を無効化{COMMAND}"),
+    ("DEPENDENCY", DEPENDENCY_DISABLE_PATTERN),
 ]
 
 
@@ -66,6 +74,34 @@ class UpdateIntent:
     source_message_hash: str
     evidence_start: int | None
     evidence_end: int | None
+
+
+@dataclass(frozen=True)
+class DependencyCommand:
+    intent: UpdateIntent
+    operation: str
+    identifier: str | None
+    values_json: str | None
+
+
+def dependency_command(request):
+    """Recognize explicit original input; application validates the JSON values."""
+    intent = assess_update_intent(request)
+    if not intent.confirmed or intent.category != "DEPENDENCY":
+        return None
+    message = request.message[intent.evidence_start : intent.evidence_end]
+    for operation, pattern in (
+        ("CREATE", DEPENDENCY_CREATE_PATTERN),
+        ("UPDATE", DEPENDENCY_UPDATE_PATTERN),
+        ("DISABLE", DEPENDENCY_DISABLE_PATTERN),
+    ):
+        match = re.fullmatch(pattern, message)
+        if match:
+            values = match.groupdict()
+            return DependencyCommand(
+                intent, operation, values.get("identifier"), values.get("values")
+            )
+    return None
 
 
 @dataclass(frozen=True)
