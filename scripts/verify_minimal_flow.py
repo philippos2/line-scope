@@ -8,6 +8,7 @@ Docker groupが必要な環境: --docker-group docker
 import argparse
 import json
 import os
+import re
 import secrets
 import shlex
 import shutil
@@ -20,7 +21,10 @@ from pathlib import Path
 
 
 class DemoFixture:
-    def __init__(self, directory, docker_group=None):
+    def __init__(self, directory, docker_group=None, decision_scenario="AUTO"):
+        if re.fullmatch(r"[A-Z_]{1,40}", decision_scenario) is None:
+            raise ValueError("Invalid server demo scenario setting")
+        self.decision_scenario = decision_scenario
         self.repository = Path(__file__).resolve().parents[1]
         self.project = "linescope-minimal-" + secrets.token_hex(8)
         self.docker_group = docker_group
@@ -45,6 +49,7 @@ class DemoFixture:
             output.write(
                 f"LINESCOPE_API_PORT={self.port}\nLINESCOPE_DEMO_DECISION_MOCK=true\n"
             )
+            output.write(f"LINESCOPE_DEMO_DECISION_SCENARIO={decision_scenario}\n")
         self.child_env = {
             key: value
             for key, value in os.environ.items()
@@ -108,9 +113,9 @@ class DemoFixture:
 
 
 @contextmanager
-def disposable_fixture(docker_group=None):
+def disposable_fixture(docker_group=None, *, decision_scenario="AUTO"):
     with tempfile.TemporaryDirectory(prefix="linescope-minimal-") as directory:
-        fixture = DemoFixture(directory, docker_group)
+        fixture = DemoFixture(directory, docker_group, decision_scenario)
         try:
             yield fixture
         finally:
@@ -150,12 +155,25 @@ def verify(fixture):
     )
     require(package["equipment"]["state_code"] == "STOPPED", "Unexpected initial state")
     require(package["comparison"]["source"] == "MOCK_FIXTURE", "Mock label missing")
+    if fixture.decision_scenario != "AUTO":
+        require(
+            package["comparison"]["demo_scenario"] == fixture.decision_scenario,
+            "Configured scenario was not applied",
+        )
+    if fixture.decision_scenario == "MISSING_LOSS":
+        require(
+            package["comparison"]["economics"]["known_subtotal_per_hour"] == 120000
+            and package["comparison"]["economics"]["loss_per_hour"] is None
+            and package["comparison"]["options"][0]["total_cost"] is None,
+            "Missing loss must remain unknown through the live API",
+        )
     stage(
         "analysis",
         http=200,
         graph=package["impact"]["graph_sync_state"],
         current_state=package["equipment"]["state_code"],
         comparison_source="MOCK_FIXTURE",
+        demo_scenario=package["comparison"]["demo_scenario"],
         mock_repair_total=package["comparison"]["options"][0]["total_cost"],
     )
     prepared = fixture.request(
@@ -222,6 +240,9 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--docker-group", help="必要な場合にsgで使うDocker group名")
     parser.add_argument(
+        "--decision-scenario", default="AUTO", help="サーバ設定で選ぶ固定デモシナリオ名"
+    )
+    parser.add_argument(
         "--report", type=Path, help="結果JSONの新規保存先（既存ファイルは上書きしない）"
     )
     args = parser.parse_args()
@@ -230,7 +251,9 @@ def main():
             parser.error(f"必要なコマンドがありません: {tool}")
     if args.report and args.report.exists():
         parser.error("reportの保存先に既存ファイルがあります")
-    with disposable_fixture(args.docker_group) as fixture:
+    with disposable_fixture(
+        args.docker_group, decision_scenario=args.decision_scenario
+    ) as fixture:
         result = verify(fixture)
     if args.report:
         with args.report.open("x", encoding="utf-8") as output:

@@ -6,6 +6,8 @@ import re
 from dataclasses import dataclass, field
 from urllib.parse import urlsplit
 
+from .domain.demo_scenarios import DEMO_SCENARIOS
+
 ROLES = {"floor", "maintenance", "production", "manager"}
 
 
@@ -22,6 +24,7 @@ class Settings:
     llm_context_tokens: int = 16384
     read_dsn: str | None = field(default=None, repr=False)
     demo_decision_mock: bool = False
+    demo_decision_scenario: str = "AUTO"
     knowledge_mock_root: str = field(default="", repr=False)
     knowledge_root: str = field(default="", repr=False)
     qdrant_url: str = field(default="", repr=False)
@@ -93,6 +96,12 @@ class Settings:
             raise ValueError("Knowledge mock root must be an absolute server-owned path")
         if type(self.demo_decision_mock) is not bool:
             raise ValueError("Demo decision mode must be a server boolean")
+        if (
+            type(self.demo_decision_scenario) is not str
+            or self.demo_decision_scenario not in {"AUTO", *DEMO_SCENARIOS}
+            or (not self.demo_decision_mock and self.demo_decision_scenario != "AUTO")
+        ):
+            raise ValueError("Named scenarios require explicit demo mode and a fixed scenario")
         if type(self.llm_base_url) is not str or type(self.llm_model) is not str:
             raise ValueError("Invalid LLM configuration")
         url = urlsplit(self.llm_base_url)
@@ -194,6 +203,7 @@ class Settings:
                     if name
                     in {
                         "knowledge_mock_root",
+                        "demo_decision_scenario",
                         "knowledge_root",
                         "qdrant_url",
                         "qdrant_api_key",
