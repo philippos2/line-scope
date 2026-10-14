@@ -1,4 +1,4 @@
-import { useRef, useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import { ApiError, object, request, type Envelope } from "../api/client";
 import { DecisionComparison } from "../features/decision/DecisionComparison";
 import { EvidencePanel } from "../features/evidence/EvidencePanel";
@@ -15,6 +15,28 @@ export function App() {
   const token = useRef("");
   const retry = useRef<{ body: string; key: string } | null>(null);
   const [connected, setConnected] = useState(false);
+  const [restoring, setRestoring] = useState(true);
+  const [showConnection, setShowConnection] = useState(false);
+  const [identity, setIdentity] = useState("");
+  useEffect(() => {
+    const controller = new AbortController();
+    request("", "/session", undefined, controller.signal)
+      .then((value) => {
+        if (!controller.signal.aborted) {
+          setConnected(true);
+          setIdentity(
+            typeof value.data.user_id === "string"
+              ? value.data.user_id
+              : "認証済み",
+          );
+        }
+      })
+      .catch(() => {})
+      .finally(() => {
+        if (!controller.signal.aborted) setRestoring(false);
+      });
+    return () => controller.abort();
+  }, []);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
   const [result, setResult] = useState<Envelope | null>(null);
@@ -26,13 +48,34 @@ export function App() {
   const [stale, setStale] = useState(false);
   const current = useRef(0);
   const abort = useRef<AbortController | null>(null);
-  function disconnect() {
+  async function disconnect() {
+    try {
+      await request(
+        "",
+        "/session/logout",
+        undefined,
+        undefined,
+        undefined,
+        "POST",
+      );
+    } catch (caught) {
+      if (!(
+        caught instanceof ApiError && caught.code === "AUTHENTICATION_REQUIRED"
+      )) {
+        setError(
+          "接続解除を確認できません。通信を確認して再度解除してください。",
+        );
+        return;
+      }
+    }
     current.current++;
     abort.current?.abort();
     token.current = "";
     retry.current = null;
     setDraftToken("");
     setConnected(false);
+    setIdentity("");
+    setShowConnection(false);
     setBusy(false);
     setResult(null);
     setSelected(null);
@@ -68,9 +111,26 @@ export function App() {
     const value = draftToken.trim();
     if (!value) return;
     await perform(
-      () => request(value, "/health/ready", undefined, abort.current?.signal),
-      () => {
-        token.current = value;
+      () =>
+        request(
+          value,
+          "/session/login",
+          undefined,
+          abort.current?.signal,
+          undefined,
+          "POST",
+        ),
+      (session) => {
+        token.current = "";
+        setIdentity(
+          typeof session.data.user_id === "string"
+            ? session.data.user_id
+            : "認証済み",
+        );
+        setResult(null);
+        setSelected(null);
+        retry.current = null;
+        setShowConnection(false);
         setDraftToken("");
         setConnected(true);
       },
@@ -115,13 +175,31 @@ export function App() {
           <strong>LineScope</strong>
           <span className="muted">製造オペレーション / 調査ワークスペース</span>
         </div>
-        <span className="badge">
-          {connected ? "PostgreSQL 確認済み" : "未接続"}
-        </span>
+        <div>
+          <span className="badge">
+            {connected ? `接続中：${identity}` : "未接続"}
+          </span>
+          <button onClick={() => setShowConnection(true)} disabled={restoring}>
+            接続設定
+          </button>
+        </div>
       </header>
-      {!connected ? (
+      {restoring ? (
+        <main className="connect" role="status">
+          接続状態を確認中…
+        </main>
+      ) : !connected || showConnection ? (
         <main className="connect">
           <h1>業務データへ接続</h1>
+          {connected && (
+            <p>
+              現在の接続：{identity}{" "}
+              <button onClick={() => setShowConnection(false)}>
+                調査画面へ戻る
+              </button>{" "}
+              <button onClick={disconnect}>接続解除</button>
+            </p>
+          )}
           <p className="muted">
             サーバに登録されたBearer
             tokenで認証します。権限はサーバが判定します。
@@ -141,7 +219,7 @@ export function App() {
             </button>
           </form>
           <p className="muted">
-            tokenはメモリだけに保持し、接続解除で消去します。
+            F5後もセッションを復元します。tokenはサーバ側に保持し、ブラウザにはHttpOnlyのセッションcookieを使用します。
           </p>
           <p role="alert">{error}</p>
         </main>

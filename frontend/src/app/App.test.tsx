@@ -14,22 +14,36 @@ const base: Envelope = {
   errors: [],
 };
 const reply = (data = base) => new Response(JSON.stringify(data));
+function stubFetch(fetcher: (url: string, init: RequestInit) => unknown) {
+  vi.stubGlobal("fetch", (url: string, init: RequestInit) => {
+    if (url === "/api/session")
+      return Promise.resolve(
+        new Response(
+          JSON.stringify({
+            ...base,
+            status: "error",
+            errors: [{ code: "AUTHENTICATION_REQUIRED" }],
+          }),
+          { status: 401 },
+        ),
+      );
+    if (url === "/api/session/logout") return Promise.resolve(reply());
+    return fetcher(url, init);
+  });
+}
 afterEach(() => {
   cleanup();
   vi.unstubAllGlobals();
 });
 async function connect() {
   const user = userEvent.setup();
-  await user.type(screen.getByLabelText("Bearer token"), "secret");
+  await user.type(await screen.findByLabelText("Bearer token"), "secret");
   await user.click(screen.getByRole("button", { name: "接続する" }));
   await screen.findByRole("button", { name: "接続解除" });
   return user;
 }
 it("connects and shows actual answer and server Evidence", async () => {
-  vi.stubGlobal(
-    "fetch",
-    vi.fn().mockImplementation(() => Promise.resolve(reply())),
-  );
+  stubFetch(vi.fn().mockImplementation(() => Promise.resolve(reply())));
   render(<App />);
   const user = await connect();
   await user.type(screen.getByLabelText("問い合わせ"), "設備を調べる");
@@ -42,8 +56,7 @@ it("connects and shows actual answer and server Evidence", async () => {
 });
 it("disconnects while a response is pending and never restores old results", async () => {
   let finish: (r: Response) => void = () => {};
-  vi.stubGlobal(
-    "fetch",
+  stubFetch(
     vi
       .fn()
       .mockResolvedValueOnce(reply())
@@ -66,8 +79,7 @@ it("disconnects while a response is pending and never restores old results", asy
   ).toBe("");
 });
 it("renders untrusted answer text without executing HTML", async () => {
-  vi.stubGlobal(
-    "fetch",
+  stubFetch(
     vi
       .fn()
       .mockResolvedValueOnce(reply())
@@ -90,7 +102,7 @@ it("passes server conversation context and clearly marks a partial result", asyn
       reply({ ...base, context_id: "c1", status: "partial" }),
     )
     .mockResolvedValueOnce(reply());
-  vi.stubGlobal("fetch", fetcher);
+  stubFetch(fetcher);
   render(<App />);
   const user = await connect();
   await user.type(screen.getByLabelText("問い合わせ"), "調査");
