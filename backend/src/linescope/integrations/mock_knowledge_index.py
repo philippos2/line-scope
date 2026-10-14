@@ -13,6 +13,7 @@ from uuid import UUID
 
 class MockKnowledgeIndex:
     source = "MOCK_LEXICAL_INDEX"
+    demo_only = True
 
     def __init__(self, root):
         self.root = Path(root)

@@ -18,7 +18,7 @@ def main():
     parser = argparse.ArgumentParser(prog="linescope")
     commands = parser.add_subparsers(dest="command", required=True)
     ingest = commands.add_parser(
-        "ingest-knowledge", help="Admin-only UTF-8 ingestion into explicit mock index"
+        "ingest-knowledge", help="Admin-only UTF-8 ingestion into configured knowledge index"
     )
     ingest.add_argument("--code", required=True)
     ingest.add_argument("--version", type=int, required=True)
@@ -55,19 +55,20 @@ def main():
         from pathlib import Path
 
         from .application.knowledge_flow import KnowledgeIngestion
-        from .integrations.knowledge_files import ManagedKnowledgeFiles
-        from .integrations.mock_knowledge_index import MockKnowledgeIndex
+        from .integrations.knowledge_factory import knowledge_adapters
+        from .integrations.knowledge_vector import KnowledgeDependencyError
 
-        if not settings.knowledge_mock_root:
-            parser.exit(1, "Explicit LINESCOPE_KNOWLEDGE_MOCK_ROOT is required.\n")
-        root = Path(settings.knowledge_mock_root)
+        adapters = knowledge_adapters(settings)
+        if adapters is None:
+            parser.exit(1, "Explicit knowledge configuration is required.\n")
+        files, index = adapters
         try:
             with Path(args.file).open("rb") as source:
                 body = source.read(1_000_001)
             result = KnowledgeIngestion(
                 Database(settings),
-                ManagedKnowledgeFiles(root / "sources", max_bytes=1_000_000),
-                MockKnowledgeIndex(root / "mock-index"),
+                files,
+                index,
             ).ingest(
                 code=args.code,
                 version=args.version,
@@ -76,7 +77,7 @@ def main():
                 equipment_id=args.equipment_id,
             )
             print(json.dumps(result))
-        except (OSError, ValueError, psycopg.Error):
+        except (OSError, ValueError, psycopg.Error, KnowledgeDependencyError):
             parser.exit(
                 1,
                 "Knowledge ingestion did not return success; inspect active metadata before retrying.\n",
