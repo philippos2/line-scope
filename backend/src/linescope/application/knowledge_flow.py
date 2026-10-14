@@ -14,7 +14,8 @@ from pydantic import Field, StrictInt, StrictStr, ValidationError
 
 from ..domain.knowledge_chunks import CHUNKING_VERSION, source_chunks
 from ..execution import ExecutionContext
-from ..persistence.core_knowledge import activate_document
+from ..integrations.knowledge_hints import manifest
+from ..persistence.core_knowledge import activate_document, knowledge_publication_lock
 from .reads import Arguments, ReadResult, ToolError
 
 
@@ -49,34 +50,39 @@ class KnowledgeIngestion:
         chunks = source_chunks(document_id, version, body)
         equipment = str(UUID(str(equipment_id))) if equipment_id is not None else None
         content_hash = sha256(body).hexdigest()
-        source_uri = document_id.hex + ".txt"
+        source_uri, provenance = manifest(document_id, version, content_hash, equipment)
         # Exclusive creation: existing managed content is never overwritten.
         self.files.root.mkdir(parents=True, exist_ok=True)
         with (self.files.root / source_uri).open("xb") as output:
             output.write(body)
             output.flush()
             os.fsync(output.fileno())
+        with (self.files.root / (source_uri + ".meta.json")).open("xb") as output:
+            output.write(provenance)
+            output.flush()
+            os.fsync(output.fileno())
         self.files.read(source_uri, content_hash)
-        self.index.upsert(
-            document_id,
-            [
-                {
-                    "document_id": str(document_id),
-                    "document_version": version,
-                    "content_hash": content_hash,
-                    "chunk_id": str(chunk.chunk_id),
-                    "chunking_version": CHUNKING_VERSION,
-                    "text": chunk.text,
-                    "equipment_id": equipment,
-                    "section": chunk.section,
-                }
-                for chunk in chunks
-            ],
-        )
-        # Failed activation can leave unreachable derived/filesystem artifacts;
-        # the previous active metadata remains authoritative and available.
         with self.database.connect() as connection:
             connection.isolation_level = psycopg.IsolationLevel.READ_COMMITTED
+            knowledge_publication_lock(connection, shared=True)
+            self.index.upsert(
+                document_id,
+                [
+                    {
+                        "document_id": str(document_id),
+                        "document_version": version,
+                        "content_hash": content_hash,
+                        "chunk_id": str(chunk.chunk_id),
+                        "chunking_version": CHUNKING_VERSION,
+                        "text": chunk.text,
+                        "equipment_id": equipment,
+                        "section": chunk.section,
+                    }
+                    for chunk in chunks
+                ],
+            )
+            # Activation stays short; session shared lock fences alias switches
+            # across upsert and commit. Closing the connection releases it.
             with connection.transaction():
                 activate_document(
                     connection,

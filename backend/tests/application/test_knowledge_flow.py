@@ -147,8 +147,8 @@ def test_stale_activation_cannot_replace_newer_document(world):
 
 def test_changed_source_fails_closed_on_connected_path(world):
     _, root, ingest, retrieval = world
-    saved = register(ingest)
-    (root / "sources" / (saved["document_id"].replace("-", "") + ".txt")).write_bytes(b"forged")
+    register(ingest)
+    next((root / "sources").glob("*.txt")).write_bytes(b"forged")
     with pytest.raises(ToolError) as caught:
         retrieval.retrieve(context(), {"query": "M-204"})
     assert caught.value.code == "DEPENDENCY_UNAVAILABLE"

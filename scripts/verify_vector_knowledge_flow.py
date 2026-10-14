@@ -80,6 +80,54 @@ def main():
                 and revised["data"]["items"][0]["citation"]["document_version"] == 2,
                 "Old version excluded",
             )
+            fixture.docker(
+                "run",
+                "--rm",
+                "--no-deps",
+                "knowledge-admin",
+                "linescope",
+                "rebuild-knowledge",
+                "--alias",
+                "knowledge_live",
+            )
+            with fixture.credentials_file.open("a") as output:
+                output.write("LINESCOPE_QDRANT_COLLECTION=knowledge_live\n")
+            fixture.docker("up", "-d", "--no-deps", "--force-recreate", "api")
+            for attempt in range(30):
+                try:
+                    rebuilt = fixture.request(
+                        "/agent", data={"message": "文書検索：M-204の保全手順"}
+                    )
+                    break
+                except Exception:
+                    if attempt == 29:
+                        raise
+                    time.sleep(1)
+            require(
+                len(rebuilt["data"]["items"]) == 1
+                and rebuilt["data"]["items"][0]["citation"]["document_version"] == 2,
+                "Rebuilt active source",
+            )
+            ingest(fixture, 3, "M-204 第3版保全手順。再構築後の取込み確認。")
+            fixture.docker(
+                "run",
+                "--rm",
+                "--no-deps",
+                "knowledge-admin",
+                "linescope",
+                "rebuild-knowledge",
+                "--alias",
+                "knowledge_live",
+            )
+            published = fixture.request(
+                "/agent", data={"message": "文書検索：M-204の保全手順"}
+            )
+            require(
+                len(published["data"]["items"]) == 1
+                and published["data"]["items"][0]["citation"]["document_version"] == 3,
+                "Second alias switch retains new ingestion",
+            )
+            stage("rebuild", active_version=3, publications=2, alias="knowledge_live")
             fixture.docker("stop", "qdrant")
             unavailable = fixture.request(
                 "/agent", data={"message": "文書検索：M-204"}, expected=503

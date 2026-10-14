@@ -246,3 +246,68 @@ class QdrantKnowledgeIndex:
         ):
             raise KnowledgeDependencyError()
         return [point["payload"] for point in points]
+
+    def create(self):
+        result = self.endpoint.request(
+            "PUT",
+            self.path,
+            {
+                "vectors": {
+                    self.vector_name: {"size": self.embedding.dimensions, "distance": "Cosine"},
+                }
+            },
+        )
+        if result.get("result") is not True:
+            raise KnowledgeDependencyError()
+        self._check()
+
+    def verify(self, expected):
+        self._check()
+        count = self.endpoint.request("POST", self.path + "/points/count", {"exact": True})
+        if count.get("result", {}).get("count") != len(expected):
+            raise KnowledgeDependencyError()
+        for start in range(0, len(expected), 32):
+            expected_payloads = {
+                hit["chunk_id"]: {
+                    **{key: value for key, value in hit.items() if key != "text"},
+                    "access_class": "FACTORY_INTERNAL",
+                    "embedding_version": self.embedding.version,
+                }
+                for hit in expected[start : start + 32]
+            }
+            result = self.endpoint.request(
+                "POST",
+                self.path + "/points",
+                {
+                    "ids": list(expected_payloads),
+                    "with_payload": True,
+                    "with_vector": False,
+                },
+            )
+            points = result.get("result")
+            if type(points) is not list or len(points) != len(expected_payloads):
+                raise KnowledgeDependencyError()
+            actual = {point["id"]: point["payload"] for point in points}
+            if actual != expected_payloads:
+                raise KnowledgeDependencyError()
+
+    def aliases(self):
+        result = self.endpoint.request("GET", "/aliases")
+        return {item["alias_name"]: item["collection_name"] for item in result["result"]["aliases"]}
+
+    def publish(self, alias):
+        # Administrative argument only; alias swap is a single atomic operation.
+        if re.fullmatch(r"[A-Za-z0-9_-]{1,60}", alias) is None:
+            raise ValueError("Invalid publication alias")
+        previous = self.aliases().get(alias)
+        actions = [{"delete_alias": {"alias_name": alias}}] if previous is not None else []
+        actions.append(
+            {"create_alias": {"collection_name": self.path.rsplit("/", 1)[1], "alias_name": alias}}
+        )
+        result = self.endpoint.request("POST", "/collections/aliases", {"actions": actions})
+        if (
+            result.get("result") is not True
+            or self.aliases().get(alias) != self.path.rsplit("/", 1)[1]
+        ):
+            raise KnowledgeDependencyError()
+        return previous
