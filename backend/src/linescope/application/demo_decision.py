@@ -12,6 +12,7 @@ from ..domain.demo_constraints import assess_options
 from ..domain.demo_scenarios import DEMO_SCENARIOS, scenario_inputs
 from ..execution import ExecutionContext
 from .decision_maintenance import maintenance_context
+from .decision_summary import decision_summary
 from .reads import ToolError
 
 
@@ -38,9 +39,10 @@ class DecisionAgentResult:
 
 
 class DemoDecisionFlow:
-    def __init__(self, reads, graph, provider, knowledge=None):
+    def __init__(self, reads, graph, provider, knowledge=None, llm=None):
         self.reads, self.graph, self.provider = reads, graph, provider
         self.knowledge = knowledge
+        self.llm = llm
 
     @staticmethod
     def matches(message):
@@ -111,6 +113,8 @@ class DemoDecisionFlow:
                 "requires_explicit_request": True,
             },
         }
+        summary = decision_summary(package, incoming.message, llm=self.llm)
+        package["summary"] = {key: value for key, value in summary.items() if key != "answer"}
         return DecisionAgentResult(
             {"demo_only": True, "decision_package": package},
             {
@@ -125,8 +129,12 @@ class DemoDecisionFlow:
                 "maintenance": {
                     name: maintenance[name]["evidence"] for name in ("plans", "records")
                 },
+                "summary": {
+                    "source": summary["source"],
+                    "llm_scope": summary["llm_scope"],
+                    "llm_status": summary["llm_status"],
+                    "facts_location": "data.decision_package",
+                },
             },
-            f"M-204の現在状態は{state.data['state_code']}です。登録された依存関係の影響候補を取得しました。"
-            "費用・能力の入力はモックで、数値は決定論的に計算しています。実際の安全性や最適案は未確定です。"
-            "変更する場合は、明示的な変更準備要求から承認・実行へ進んでください。",
+            summary["answer"],
         )
