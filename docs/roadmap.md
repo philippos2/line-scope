@@ -2,7 +2,7 @@
 
 この文書は現在地・残作業・見積もりを管理する計画であり、業務仕様の正本ではない。仕様の入口は[deliverables](deliverables.md)。過去の見積もりは[調査履歴](history/2026-10-14-backend-remaining-work.md)に残し、今後の計画は本書を更新する。
 
-調査基準はmain `88f3120`（#213までmerge済み）と、実Vector検索の[PR #214](https://github.com/philippos2/line-scope/pull/214) `f4bb990`。#214は実装・疎通確認済みの提出変更として区別し、mainへの反映状況はPRで確認する。
+調査基準はmain `428378c`（#214までmerge済み）。実Vector検索の[PR #214](https://github.com/philippos2/line-scope/pull/214) `f4bb990`についても、実装・CI・curl疎通確認済みの範囲を記録する。
 
 ## 現在地
 

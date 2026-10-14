@@ -1,0 +1,45 @@
+# Opt-in real-vector path. Read-only key is used by API; writer key by admin only.
+services:
+  qdrant:
+    image: qdrant/qdrant:v1.19.2
+    environment:
+      QDRANT__SERVICE__API_KEY: ${LINESCOPE_QDRANT_WRITE_KEY:?Generate a private write key}
+      QDRANT__SERVICE__READ_ONLY_API_KEY: ${LINESCOPE_QDRANT_READ_KEY:?Generate a separate private read key}
+    volumes:
+      - qdrant-data:/qdrant/storage
+    logging:
+      driver: local
+      options:
+        max-size: '10m'
+        max-file: '3'
+  api:
+    environment:
+      LINESCOPE_KNOWLEDGE_MOCK_ROOT: ''
+      LINESCOPE_KNOWLEDGE_ROOT: /workspace/knowledge
+      LINESCOPE_QDRANT_URL: http://qdrant:6333
+      LINESCOPE_QDRANT_API_KEY: ${LINESCOPE_QDRANT_READ_KEY:?Generate a private read key}
+      LINESCOPE_QDRANT_COLLECTION: ${LINESCOPE_QDRANT_COLLECTION:-knowledge_v1}
+      LINESCOPE_EMBEDDING_MODEL: ${LINESCOPE_EMBEDDING_MODEL:?Select a trial embedding model}
+      LINESCOPE_EMBEDDING_DIGEST: ${LINESCOPE_EMBEDDING_DIGEST:?Pin the installed model digest}
+      LINESCOPE_EMBEDDING_DIMENSIONS: ${LINESCOPE_EMBEDDING_DIMENSIONS:-768}
+    depends_on:
+      qdrant:
+        condition: service_started
+  knowledge-admin:
+    environment:
+      LINESCOPE_KNOWLEDGE_MOCK_ROOT: ''
+      LINESCOPE_KNOWLEDGE_ROOT: /workspace/knowledge
+      LINESCOPE_QDRANT_URL: http://qdrant:6333
+      LINESCOPE_QDRANT_API_KEY: ${LINESCOPE_QDRANT_WRITE_KEY:?Generate a private write key}
+      LINESCOPE_QDRANT_COLLECTION: ${LINESCOPE_QDRANT_COLLECTION:-knowledge_v1}
+      LINESCOPE_EMBEDDING_MODEL: ${LINESCOPE_EMBEDDING_MODEL:?Select a trial embedding model}
+      LINESCOPE_EMBEDDING_DIGEST: ${LINESCOPE_EMBEDDING_DIGEST:?Pin the installed model digest}
+      LINESCOPE_EMBEDDING_DIMENSIONS: ${LINESCOPE_EMBEDDING_DIMENSIONS:-768}
+      LINESCOPE_LLM_BASE_URL: ${LINESCOPE_LLM_BASE_URL:-http://host.docker.internal:11434}
+    extra_hosts:
+      - host.docker.internal:host-gateway
+    depends_on:
+      qdrant:
+        condition: service_started
+volumes:
+  qdrant-data:
