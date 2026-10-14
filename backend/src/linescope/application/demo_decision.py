@@ -7,18 +7,27 @@ proposal, approval or execution is performed by this analysis service.
 
 from dataclasses import dataclass
 
-from ..domain.demo_comparison import compare, fixture
+from ..domain.demo_comparison import compare
 from ..domain.demo_constraints import assess_options
+from ..domain.demo_scenarios import DEMO_SCENARIOS, scenario_inputs
 from ..execution import ExecutionContext
 from .decision_maintenance import maintenance_context
 from .reads import ToolError
 
 
 class MockDecisionProvider:
+    def __init__(self, configured_scenario="AUTO"):
+        if configured_scenario not in {"AUTO", *DEMO_SCENARIOS}:
+            raise ValueError("Unknown configured demo scenario")
+        self.configured_scenario = configured_scenario
+
     def read(self, equipment_code, *, scenario="STOPPED"):
         if equipment_code != "M-204":
             raise ToolError("TARGET_NOT_FOUND", "The demo fixture covers M-204 only")
-        return compare(fixture(scenario))
+        selected = scenario if self.configured_scenario == "AUTO" else self.configured_scenario
+        result = compare(scenario_inputs(selected))
+        result["demo_scenario"] = selected
+        return result
 
 
 @dataclass(frozen=True)
