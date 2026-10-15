@@ -56,7 +56,7 @@
 
 ## LogiScope参照条件の明文化
 
-同日、利用者がLogiScopeを一般化可能な実装パターンの参考として参照することを許可した。LineScopeの19文書を正とし、相違時はLineScopeを優先、そのままのコピー・継承は禁止、再利用対象と一般化の理由を適用前に説明する条件を[実装支援Agent規則 §10](../implementation-design/AGENTS.md)へ反映した。この変更で業務仕様を変更したり、実装を再開したりしていない。
+同日、利用者がLogiScopeを一般化可能な実装パターンの参考として参照することを許可した。LineScopeの19文書を正とし、相違時はLineScopeを優先、そのままのコピー・継承は禁止、再利用対象と一般化の理由を適用前に説明する条件を[実装支援Agent規則 §10（記録時の文書）](https://github.com/philippos2/line-scope/blob/7153efef6ce0979debae34c80c710560f1541f36/docs/implementation-design/AGENTS.md#10-logiscope)へ反映した。この変更で業務仕様を変更したり、実装を再開したりしていない。
 
 ## 後続UIの方向性
 
@@ -589,3 +589,4 @@ Dockerで追加36テスト成功、ruff check / format、git diff --check成功�
 - [正式業務入力への移行案（未承認）](2026-10-15-business-input-proposal.md)：PO-B01〜08の具体案。仕様・権限の確定ではない。
 - [代替・SPOFの説明品質](2026-10-15-fulfillment-answer-quality.md)：構造判定と未知・不完全性の保持、検証と次の再開地点。
 - [設備名から調査対象を選ぶ導線](2026-10-15-equipment-discovery.md)：候補選択・context分離、横棒の工程図、検証と残件。
+- [PR件名修正と作業方針の確認](2026-10-16-pr-title-correction.md)：今回限りの履歴修正許可・保護復元、文書責務と完成優先の指示。

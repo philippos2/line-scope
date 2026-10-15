@@ -36,7 +36,7 @@ PRタイトル・コミットメッセージ・merge方法の規則は[CONTRIBUT
 
 開発者の指示と既存変更を確認してmainをff-onlyで更新し、意味のあるbranchに小さいcheckpointを残す。無関係な未完成作業は破棄せず、必要時だけstashし、どこに残したか報告する。
 
-Conventional Commit titleと既存PRテンプレート（概要/検証/残課題・対象外）を使い、変更理由と実際の検証を記載する。GitHubへpush済みの既存履歴はmain・作業ブランチともrewrite / force-pushしない。2026-10-12の日本語化・PR復旧に対する例外許可は終了しており、今後の操作へ適用しない。GitHub設定・required checksの現状を推測で変更しない。開発者がmergeする運用を維持する。
+Conventional Commit titleと既存PRテンプレート（概要/検証/残課題・対象外）を使い、変更理由と実際の検証を記載する。GitHubへpush済みの既存履歴はmain・作業ブランチともrewrite / force-pushしない。GitHub設定・required checksの現状を推測で変更しない。開発者がmergeする運用を維持する。
 
 CI green後も、ログの実測件数/時間、required checks、結果の追記、test環境の片付け、作業ツリーを確認する。削除はこの試験が所有する使い捨て環境に限定し、通常のデモvolumeへdown --volumesを向けない。開発者が先にmergeしても残る確認を省略しない。
 

@@ -7,7 +7,7 @@ LineScopeはBackend / Frontendを一つのリポジトリで管理する。
 
 機能ごとに作業ブランチを作り、実装 → 対応テスト → checkpoint commitの順で進める。
 ブランチ名は`feat/<feature>`、`fix/<issue>`、`docs/<topic>`等、目的を示す。
-作業ブランチ内の複数commitを許容する。GitHubへpush済みの既存履歴はmain・作業ブランチともrewrite / force-pushしない。2026-10-12の日本語化・PR復旧に対する例外許可は終了しており、今後の操作へ適用しない。
+作業ブランチ内の複数commitを許容する。GitHubへpush済みの既存履歴はmain・作業ブランチともrewrite / force-pushしない。
 push・PR作成・mergeはそれぞれ別の操作として報告する。PR準備の指示だけでmergeしない。
 
 ## PRとmain
@@ -15,9 +15,14 @@ push・PR作成・mergeはそれぞれ別の操作として報告する。PR準�
 - PRの確認・mergeは開発者が行う。
 - 原則1 PR＝main上の1 Squash commit。
 - GitHubではSquash mergeだけを許可し、Merge commit / Rebase mergeは無効にする。
-- PRタイトルは既存運用に合わせ、scopeを付けず`feat:` / `fix:` / `docs:` / `test:` / `refactor:` / `chore:`のConventional Commit形式にする。backend / frontend等の実装領域をscopeに付けない。
-- PRタイトルとコミットメッセージは必ず日本語で作成する。接頭辞とAPI名等の正式表記は維持し、説明・本文は日本語にする。Squash commitにも適用する。
-- squash commitの既定タイトルはPRタイトル、本文はPR本文を使い、merge時にも内容を確認する。
+- PRタイトルの形式は`<type>: <日本語の説明>`とする。コロンの後に半角スペースを1つ置く。
+- `<type>`は`feat`、`fix`、`docs`、`test`、`refactor`、`chore`のいずれかとする。
+- 括弧付きscopeは禁止する。`feat(agent):`、`feat(frontend):`、`fix(backend):`等を使わない。
+- 正しい例：`feat: 設備名の候補から調査対象を選ぶ導線を追加する`。誤った例：`feat(frontend): 設備名の候補から調査対象を選ぶ導線を追加する`。
+- PRタイトルとコミットメッセージの説明・本文は日本語にする。接頭辞とAPI名等の正式表記は維持する。
+- Squash commitの件名も`<type>: <日本語の説明>`とし、GitHubが付加する末尾の` (#PR番号)`を許容する。括弧付きscopeは禁止する。
+- Squash commitの既定件名はPRタイトル、本文はPR本文を使う。merge前にPRタイトルとSquash commit件名の両方が上記形式であることを確認する。merge後のPRタイトル変更だけではSquash commitの件名は変わらない。
+- タイトル形式を変更する場合は実施前に開発者へ相談し、了承を得る。
 - mainはPR必須、linear history必須、force-push禁止。管理者も保護対象とする。
 - merge後はfeature branchを削除する。
 
@@ -32,20 +37,13 @@ Backend CIはDocker内でlint / format、実PostgreSQL / Neo4jによるテスト
 shardは全ケースの収集後、`backend/tests/ci_module_timings.json`の実測時間を重みとしてファイル単位で割り当てる。新規ファイルは既定の重みで自動的に含まれ、古い計測の項目は試験範囲を制限しない。各shardのログへ全収集数・選択数・全node ID集合のhashを出す。同じheadの全収集数/hash一致と選択数の合計を確認し、遅い30処理とjob時間を継続して確認する。
 ローカルの通常実行は全件のまま。分割を再現する場合は使い捨て環境で`pytest backend/tests --ci-shard 1/2`と`--ci-shard 2/2`を実行する。同じCompose環境での実行は順番に行う。計測値は性能受入閾値ではなく、負荷が偏った場合に再計測して更新する。
 全PRでCIと集約checkを実行し、workflow全体をpath filterで省略しない。
-変更が`frontend/`と`compose.frontend.yaml`だけの場合、Backendの2 shardとruntime検証を省略する。Backend・共通設定・CI定義・未知のpath・空差分・判定不能時はBackendも検証する。手動起動は全検証とする。
+変更が`frontend/`、`compose.frontend.yaml`、または文書・開発ガイダンスだけの場合、Backendの2 shardとruntime検証を省略する。文書・開発ガイダンスは、rootのREADME.md / CONTRIBUTING.md / AGENTS.md / SKILL.md、各階層のAGENTS.md / SKILL.md、docs/および.agents/skills/配下のMarkdown・HTML・SVG・画像・PDFとする。Skillの実行スクリプトやdocs配下の実行コードは省略対象に含めない。Backend・共通設定・CI定義・未知のpath・空差分・判定不能時はBackendも検証する。手動起動は全検証とする。
 集約checkは対象外と判定したBackend jobのskipだけを許容し、差分判定の失敗、予期しないskip、failure、cancelledを成功扱いしない。
 Runtime依存はbackend/requirements.lock、開発依存はbackend/requirements-dev.lockで固定し、共通packageのversionを揃えて更新・検証する。
 
 Frontendの`Frontend tests and build`はlint・型チェック・format・buildを実行し、既存required check `Tests and migrations`へ集約する。GitHub側に別のrequired checkは追加していない。
 Frontendの自動テストは必要最小限とし、通常CIでは実行しない。必要に応じて既存の`npm test`と実ブラウザの主要操作確認を行う。
 LogiScopeの同名checkや既存保護は、このリポジトリの設定作業では変更しない。
-
-## 初回PRの比較元
-
-初回のmainは、業務コードを含まないrepository初期化commitだけを持つ比較元とする。
-基盤は`feat/backend-foundation`からPRとしてレビューし、承認後にSquash mergeする。
-既存のローカルcheckpoint commitを保全するため、初回だけ空のmain初期化履歴を作業ブランチへ接続する。
-これはmainへのPR mergeではなく、mainに基盤コードを直接入れる操作でもない。
 
 ## merge後のローカル更新
 
