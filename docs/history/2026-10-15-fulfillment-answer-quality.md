@@ -28,3 +28,7 @@
 デモ判断支援を明示無効にした専用環境で再確認。89f8bfb（開始時clean）の実装を使い、既存verify_graph_agent.validate_fulfillment_resultで対象・候補・除外、CURRENT / 完全性 / 判定、未評価次元、8代表経路、状態versionとEvidenceを照合した。代替・SPOFともHTTP 200 / 構造化probe PASS。代替は除外後成立1件・代替利用可能1件、SPOFは指定組の非候補1件。両回答をレビューし、実停止・能力・安全・経済は未評価、SPOFは故障原因の確定でない説明を確認した。名前だけの対象解決や一般品質の受入ではない。
 
 再確認記録は/tmp/linescope-fulfillment-quality-read-only-report.json（0600）。両probeの専用Composeはvolumeまで削除済み。ローカル関連試験専用環境linescope-fulfillment-qualityも片付け済み。継続デモへはデプロイしていない。
+
+## ロードマップ表示の修正
+
+開発者から、ガントチャート上は残作業がないように見えるとの指摘があった。旧図が代表UI工程だけを描いていたことが原因であり、正式入力のモック置換・PO判断・全BS / Golden・LLM/検索品質・運用復旧受入を含む工程図へ変更した。0〜2 PRはUI修正予備だけで、製品全体の残工数ではない旨も明記。新しい業務規則の承認や機能の対象外化は行っていない。
