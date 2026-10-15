@@ -175,6 +175,15 @@ export async function verifySafety(page, token, approver) {
     .getByRole("button", { name: "問い合わせを送信", exact: true })
     .click();
   const agent = await (await response).json();
+  console.log(
+    JSON.stringify({
+      safety_stage: "agent-response",
+      status: agent.status,
+      errors: agent.errors?.map((item) => item.code),
+      tools: agent.data.tool_results?.map((item) => item.tool),
+      has_stop_summary: agent.answer?.includes("継続案を候補から除外"),
+    }),
+  );
   if (
     !agent.data.tool_results?.some(
       (item) => item.tool === "get_safety_input",

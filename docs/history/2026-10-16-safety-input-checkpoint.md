@@ -39,3 +39,11 @@ requirements §14.3のB04と安全情報B07は未決定。次を具体案とし�
 - 安全入力・実DB role・既存Toolの関連113件は全成功（12.89秒）。新規登録の同じシナリオでAgentが自由生成した安全許可をサーバの停止必須説明で置き換えること、Evidence version、停止宣言後のRUNNING事実登録を確認した。
 - Frontend既存27件成功（1.85秒）。Docker内lint・型・format・buildも成功。新規Frontend Unitは追加していない。
 - 新規pytestの展開数は20のまま。全体回帰と実モデル・実ブラウザを確認中。
+
+## 実ブラウザの途中結果
+
+- 1回目は設備選択・登録・自己承認拒否・別manager承認・元requester確定・停止必須表示まで通過し、Agent参照の確認で失敗。旧probeは応答のstatus / codeを記録せず、原因を確定できなかった。
+- 2回目に秘密や全文を出さないstatus・error code・使用Tool名・停止説明の有無だけの診断を追加。初期設備検索でAGENT_LIMIT_REACHEDとなり、登録工程へ到達しなかった。
+- モデル取得・自動fallback・Agentの60秒上限変更は行わない。ローカル全体回帰を終えてから通し確認を再実行する。同時実行の資源影響は未計測であり原因と断定しない。
+
+ローカル全体回帰は3882 passed / 1 skipped、345.49秒で成功。skipは既存opt-in LLM。既存Starlette/httpx警告と終了時logging output failedが残る。新規case追加後の全件収集は3883。今回所有のテスト環境を停止し、実ブラウザの再確認へ進む。
