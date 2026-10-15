@@ -2,6 +2,10 @@ import { useEffect, useRef, useState, type FormEvent } from "react";
 import { ApiError, object, request, type Envelope } from "../api/client";
 import { ActionPanel } from "../features/actions/ActionPanel";
 import { DecisionComparison } from "../features/decision/DecisionComparison";
+import {
+  EquipmentCandidates,
+  type EquipmentCandidate,
+} from "../features/equipment/EquipmentCandidates";
 import { EvidencePanel } from "../features/evidence/EvidencePanel";
 import { GraphCanvas } from "../features/graph/GraphCanvas";
 import {
@@ -14,6 +18,9 @@ import {
 export function App() {
   const [draftToken, setDraftToken] = useState("");
   const token = useRef("");
+  const freshContext = useRef(false);
+  const messageInput = useRef<HTMLTextAreaElement>(null);
+  const [equipment, setEquipment] = useState<EquipmentCandidate | null>(null);
   const retry = useRef<{ body: string; key: string } | null>(null);
   const [connected, setConnected] = useState(false);
   const [restoring, setRestoring] = useState(true);
@@ -74,6 +81,8 @@ export function App() {
     token.current = "";
     retry.current = null;
     setDraftToken("");
+    setEquipment(null);
+    freshContext.current = false;
     setConnected(false);
     setIdentity("");
     setShowConnection(false);
@@ -133,6 +142,8 @@ export function App() {
         retry.current = null;
         setShowConnection(false);
         setDraftToken("");
+        setEquipment(null);
+        freshContext.current = false;
         setConnected(true);
       },
     );
@@ -143,7 +154,9 @@ export function App() {
     setStale(true);
     const body = {
       message,
-      ...(result?.context_id ? { context_id: result.context_id } : {}),
+      ...(!freshContext.current && result?.context_id
+        ? { context_id: result.context_id }
+        : {}),
     };
     const serialized = JSON.stringify(body);
     if (retry.current?.body !== serialized)
@@ -158,10 +171,22 @@ export function App() {
           retry.current!.key,
         ),
       (value) => {
+        freshContext.current = false;
         setResult(value);
         setSelected(null);
         setStale(false);
       },
+    );
+  }
+  function draftInvestigation(text: string, focus = true) {
+    freshContext.current = true;
+    setMessage(text);
+    if (focus) messageInput.current?.focus();
+  }
+  function chooseEquipment(item: EquipmentCandidate) {
+    setEquipment(item);
+    draftInvestigation(
+      `Equipment ID ${item.equipment_id} の現在状態と下流の依存到達対象・経路を調べて。実停止・能力・安全性の未評価事項を示して。変更要求は作成しないでください。`,
     );
   }
   const view = result ? graphView(result) : null;
@@ -304,6 +329,13 @@ export function App() {
                 </div>
               </div>
             )}
+            {result && (
+              <EquipmentCandidates
+                result={result}
+                disabled={busy || stale}
+                onSelect={chooseEquipment}
+              />
+            )}
             <ActionPanel
               onExecution={() => setStale(true)}
               preparedId={
@@ -392,29 +424,47 @@ export function App() {
             <form onSubmit={investigate}>
               <label htmlFor="message">問い合わせ</label>
               <textarea
+                ref={messageInput}
                 id="message"
                 value={message}
                 onChange={(e) => setMessage(e.target.value)}
                 rows={5}
               />
+              {equipment && (
+                <p>
+                  選択した設備：{equipment.equipment_name}（
+                  {equipment.equipment_code}）
+                </p>
+              )}
               <div className="presets">
                 <button
                   type="button"
+                  disabled={busy}
                   onClick={() =>
-                    setMessage(
-                      "M-204が停止した場合の下流の影響対象と経路を調べて",
+                    draftInvestigation(
+                      "登録設備を検索して候補を表示して。検索条件は指定しません。変更要求は作成しないでください。",
                     )
                   }
                 >
-                  下流影響を調べる
+                  設備を探す
                 </button>
                 <button
                   type="button"
-                  onClick={() =>
-                    setMessage(
+                  disabled={busy || !equipment}
+                  onClick={() => equipment && chooseEquipment(equipment)}
+                >
+                  選んだ設備の下流影響を調べる
+                </button>
+                <button
+                  type="button"
+                  disabled={busy}
+                  onClick={() => {
+                    setEquipment(null);
+                    draftInvestigation(
                       "M-204の異常について影響・修理・交換・代替を比較して",
-                    )
-                  }
+                      false,
+                    );
+                  }}
                 >
                   比較デモ
                 </button>
@@ -424,7 +474,8 @@ export function App() {
               </button>
             </form>
             <p className="muted">
-              比較デモは仮置き条件を使用します。明示的な更新依頼は変更準備を作成し得ます。承認・実行は別の操作です。
+              設備名やコードの一部で検索するよう問い合わせることもできます。
+              比較デモはM-204の仮置き条件を使用します。明示的な更新依頼は変更準備を作成し得ます。承認・実行は別の操作です。
             </p>
             <p role="alert">{error}</p>
             {result && (

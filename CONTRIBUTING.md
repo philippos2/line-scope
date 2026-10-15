@@ -15,7 +15,7 @@ push・PR作成・mergeはそれぞれ別の操作として報告する。PR準�
 - PRの確認・mergeは開発者が行う。
 - 原則1 PR＝main上の1 Squash commit。
 - GitHubではSquash mergeだけを許可し、Merge commit / Rebase mergeは無効にする。
-- PRタイトルは`feat:` / `fix:` / `docs:` / `test:` / `refactor:` / `chore:`のConventional Commit形式。scopeは任意。
+- PRタイトルは既存運用に合わせ、scopeを付けず`feat:` / `fix:` / `docs:` / `test:` / `refactor:` / `chore:`のConventional Commit形式にする。backend / frontend等の実装領域をscopeに付けない。
 - PRタイトルとコミットメッセージは必ず日本語で作成する。接頭辞とAPI名等の正式表記は維持し、説明・本文は日本語にする。Squash commitにも適用する。
 - squash commitの既定タイトルはPRタイトル、本文はPR本文を使い、merge時にも内容を確認する。
 - mainはPR必須、linear history必須、force-push禁止。管理者も保護対象とする。

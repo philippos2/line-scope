@@ -115,3 +115,47 @@ it("passes server conversation context and clearly marks a partial result", asyn
     context_id: "c1",
   });
 });
+it("selects a named equipment without sending and starts a fresh investigation", async () => {
+  const fetcher = vi
+    .fn()
+    .mockResolvedValueOnce(reply())
+    .mockResolvedValueOnce(
+      reply({
+        ...base,
+        context_id: "old-search-context",
+        data: {
+          tool_results: [
+            {
+              tool: "search_equipment",
+              data: {
+                items: [
+                  {
+                    equipment_id: "20800000-0000-4000-8000-000000000001",
+                    equipment_code: "M-208",
+                    equipment_name: "予備加工機",
+                  },
+                ],
+                next_cursor: null,
+              },
+            },
+          ],
+        },
+      }),
+    )
+    .mockResolvedValueOnce(reply());
+  stubFetch(fetcher);
+  render(<App />);
+  const user = await connect();
+  await user.click(screen.getByRole("button", { name: "設備を探す" }));
+  expect(fetcher).toHaveBeenCalledTimes(1);
+  await user.click(screen.getByRole("button", { name: "問い合わせを送信" }));
+  await user.click(await screen.findByRole("button", { name: /予備加工機/ }));
+  expect(fetcher).toHaveBeenCalledTimes(2);
+  expect(document.activeElement).toBe(screen.getByLabelText("問い合わせ"));
+  expect(
+    (screen.getByLabelText("問い合わせ") as HTMLTextAreaElement).value,
+  ).toContain("20800000-0000-4000-8000-000000000001");
+  await user.click(screen.getByRole("button", { name: "問い合わせを送信" }));
+  await waitFor(() => expect(fetcher).toHaveBeenCalledTimes(3));
+  expect(JSON.parse(fetcher.mock.calls[2][1].body).context_id).toBeUndefined();
+});

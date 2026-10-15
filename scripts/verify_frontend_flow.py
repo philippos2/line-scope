@@ -18,6 +18,12 @@ class FrontendFixture(DemoFixture):
     def __init__(self, directory, docker_group=None, *, vector=False):
         super().__init__(directory, docker_group, requester_role="manager")
         self.vector = vector
+        self.live_llm = False
+
+    def request(self, path, **kwargs):
+        if self.live_llm and path == "/agent":
+            kwargs.setdefault("timeout_seconds", 90)
+        return super().request(path, **kwargs)
 
     def docker(self, *arguments):
         overlay = (
@@ -31,9 +37,15 @@ class FrontendFixture(DemoFixture):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--docker-group")
+    parser.add_argument("--llm-model", help="導入済みモデルで設備候補検索も確認する")
     parser.add_argument("--embedding-model")
     parser.add_argument("--embedding-digest")
     args = parser.parse_args()
+    if (
+        args.llm_model
+        and re.fullmatch(r"[A-Za-z0-9_.:/-]{1,200}", args.llm_model) is None
+    ):
+        parser.error("Invalid model name")
     vector = args.embedding_model is not None
     if bool(args.embedding_model) != bool(args.embedding_digest):
         parser.error("Specify both embedding model and digest")
@@ -56,11 +68,14 @@ def main():
     root = Path(__file__).resolve().parents[1]
     with tempfile.TemporaryDirectory(prefix="linescope-frontend-") as directory:
         fixture = FrontendFixture(directory, args.docker_group, vector=vector)
+        fixture.live_llm = bool(args.llm_model)
         with socket.socket() as probe:
             probe.bind(("127.0.0.1", 0))
             port = probe.getsockname()[1]
         with fixture.credentials_file.open("a") as output:
             output.write(f"LINESCOPE_FRONTEND_PORT={port}\n")
+            if args.llm_model:
+                output.write(f"LINESCOPE_LLM_MODEL={args.llm_model}\n")
             if vector:
                 output.write(f"LINESCOPE_QDRANT_WRITE_KEY={secrets.token_hex(32)}\n")
                 output.write(f"LINESCOPE_QDRANT_READ_KEY={secrets.token_hex(32)}\n")
@@ -79,6 +94,7 @@ def main():
                 f"LINESCOPE_BROWSER_APPROVER_TOKEN={fixture.approver}\n"
                 f"LINESCOPE_BROWSER_URL=http://127.0.0.1:{port}\n"
                 f"LINESCOPE_BROWSER_VECTOR={str(vector).lower()}\n"
+                f"LINESCOPE_BROWSER_DISCOVERY={str(bool(args.llm_model)).lower()}\n"
             )
         try:
             verify(fixture)
