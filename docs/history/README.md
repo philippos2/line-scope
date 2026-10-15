@@ -582,3 +582,5 @@ Dockerで追加36テスト成功、ruff check / format、git diff --check成功�
 - [F5後のセッション復元](2026-10-15-browser-session-refresh.md)：#238の認証契約、接続設定、検証結果。
 
 - [承認付きAction画面と引き継ぎ](2026-10-15-frontend-controlled-actions.md)：会話消失後の再開、PR粒度、Prepare / Approval / Executeの画面接続と検証・残件。
+
+- [Frontendの代表UI受入・仕上げ](2026-10-15-frontend-acceptance.md)：実引用、主要keyboard操作、4カテゴリと拒否、状態境界、再開地点。

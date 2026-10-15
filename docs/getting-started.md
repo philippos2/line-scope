@@ -55,6 +55,12 @@ docker compose up -d --no-deps api
 
 FrontendのproxyがAPIへ接続するため、ブラウザへDB資格情報を渡しません。Frontendはloopbackの5173番で、`LINESCOPE_FRONTEND_PORT`により変更できます。変更後は同じComposeファイルとprofileで再作成します。通常の停止でvolumeを削除しないでください。
 
+### キーボード操作と失敗時の確認
+
+Tabで「調査領域へ移動」へ進み、Enterで中央の調査領域へ移れます。Graph上の対象は「Graphノードの一覧」から選択できます。折りたたみ領域やボタンはEnter、Snapshot確認チェックはSpaceで操作できます。要求の取得後はSnapshot見出し、失敗時はエラーへフォーカスを移します。
+
+拒否・期限切れ・競合が生じた場合は変更要求IDから保存状態を読み直してください。画面の時刻だけで期限を判定せず、サーバの実効状態を表示します。Executeが確定して現在値取得だけが失敗した場合も、確定済み実行を未実行として扱いません。成否不明の書き込みを自動再送せず、要求IDがないPrepareは同じ指示のまま明示再送してください。接続解除・再読み込み後は画面内の再送キーを保持しないため、確認できた要求IDを控えておきます。
+
 ### ローカルLLM
 
 ホストのOllamaにTool calling可能なモデルを用意し、`.env`へ`LINESCOPE_LLM_MODEL=<用意したmodel名>`を設定してAPIを再作成します。
@@ -173,7 +179,7 @@ python3 scripts/verify_demo_acceptance.py \
 
 最小経路・複数設備更新・実Embedding/Qdrant文書検索・実LLMの表示順選択を、独立した専用環境で順次検証します。reportは既存ディレクトリ内の新規ファイルを指定し、0600で保存します。再実行時は別のファイル名にしてください。
 
-全4経路を確認した場合だけPASS（終了code 0）、失敗はFAIL（1）、モデル指定を省略した未実行経路がある場合はPARTIAL（2）です。報告にはrevision・作業ツリー変更有無・時刻・各結果と受入範囲を残します。モック入力、一般LLM grounding未受入、Web UI未実装は、全4経路PASSでも残ります。
+全4経路を確認した場合だけPASS（終了code 0）、失敗はFAIL（1）、モデル指定を省略した未実行経路がある場合はPARTIAL（2）です。報告にはrevision・作業ツリー変更有無・時刻・各結果と受入範囲を残します。モック入力、一般LLM grounding未受入、Web UI全体の正式受入未完了は、全4経路PASSでも残ります。
 
 実Vector経路は`compose.yaml`と`compose.rag.yaml`を重ね、API用read keyと管理用write keyを分離します。文書本文・metadataの正本は管理ファイルとPostgreSQL、Qdrantは再構築可能な索引です。一括検証ではこれらの設定・取込み・版更新・alias再構築も専用環境で行います。通常環境へ手動導入する場合は[運用設計](implementation-design/operations.md)と[追加Compose構成](../compose.rag.yaml)を確認してください。
 

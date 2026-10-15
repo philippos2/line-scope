@@ -83,7 +83,7 @@ frontend/src/
 
 React / TypeScript / Viteで実APIへ接続する分析・比較・Evidence画面を実装した。Graphは返却された代表経路をSVGで描画する。React Flow等は導入せず、必要性が明確になった場合に評価する。Bearer tokenはbrowser storageへ保存せず、Backend非CURRENTのGraphを表示しない。
 
-UI-01〜03の代表デモ経路とUI-06の主要境界を実ブラウザで確認した。完全なUI受入とは扱わない。文書引用のある実応答、UI-07の包括的keyboard確認は残る。UI-04〜05は後続のAction実装で現在状態変更の代表経路を実ブラウザ確認したが、全カテゴリ・期限失効・競合・現在値取得失敗の画面受入は未完了。通常Frontend CIは静的検証とbuild、自動テストは必要最小限とする。最新の残作業は[roadmap](../roadmap.md)、作業・検証方法は[Frontend README](../../frontend/README.md)を参照する。
+UI-01〜07の代表経路を段階的に確認している。#240で現在状態変更のPrepare / Approval / Executeを実ブラウザ確認。本仕上げでは実Embedding / Qdrantの引用応答、4業務カテゴリと拒否、主要キーボード操作・focus・1440 / 768 / 390pxの表示を確認する。期限切れ・version競合・現在値取得失敗は固定API応答によるUI Unitでサーバ判定を保持することを確認し、実DBの認可・transaction試験と区別する。全更新variant・端末・支援技術の包括的受入、全BS / Golden、一般LLM品質は未完了。実測結果と残件は[UI受入履歴](../history/2026-10-15-frontend-acceptance.md)、現在の残作業は[roadmap](../roadmap.md)、検証方法は[Frontend README](../../frontend/README.md)を参照する。
 
 ## 初期工程計画（#231時点）
 
