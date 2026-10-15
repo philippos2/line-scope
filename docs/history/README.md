@@ -588,3 +588,4 @@ Dockerで追加36テスト成功、ruff check / format、git diff --check成功�
 - [上流・共通依存の説明品質と次工程](2026-10-15-read-dependency-quality.md)：実モデル評価、専用要約、PO判断待ちと独立した進行。
 - [正式業務入力への移行案（未承認）](2026-10-15-business-input-proposal.md)：PO-B01〜08の具体案。仕様・権限の確定ではない。
 - [代替・SPOFの説明品質](2026-10-15-fulfillment-answer-quality.md)：構造判定と未知・不完全性の保持、検証と次の再開地点。
+- [設備名から調査対象を選ぶ導線](2026-10-15-equipment-discovery.md)：候補選択・context分離、横棒の工程図、検証と残件。

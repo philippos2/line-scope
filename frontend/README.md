@@ -5,6 +5,7 @@ React / TypeScript / Viteで実APIへ接続するオペレーション画面で�
 ## 使える機能
 
 - tokenで接続し、日本語の問い合わせとサーバの回答を表示する。
+- 「設備を探す」から候補の設備名・コードを確認し、選択した設備の調査文を作る。送信は明示操作。
 - 取得したObjectとCURRENTの下流Graph代表経路を選択・表示する。
 - 修理・交換・継続・代替の比較、制約・不足情報・計算根拠を確認する。
 - Evidenceの情報源・観測日時・Graph世代・入力version・原文を確認する。
@@ -46,3 +47,10 @@ python3 scripts/verify_frontend_flow.py --docker-group docker \
 ```
 
 指定なしの場合はEmbedding / 検索を明示的なモックにして、正本・本文検証・引用表示を確認します。指定ありの失敗をモックへ自動切替しません。いずれも専用の環境と試験文書を作成・削除し、継続デモへは反映しません。実LLMの回答品質、正式な費用・能力・安全入力、全BS / Goldenの受入とは区別します。
+
+実モデルで設備候補検索を含むブラウザ確認をする場合は、導入済みモデルを指定します（自動取得なし）。指定しない既存フローは候補検索を実施しません。
+
+```sh
+python3 scripts/verify_frontend_flow.py --docker-group docker \
+  --llm-model qwen3:30b-a3b-instruct-2507-q4_K_M
+```

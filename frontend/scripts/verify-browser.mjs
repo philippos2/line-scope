@@ -61,6 +61,41 @@ try {
     session.value === token
   )
     throw new Error("Invalid browser session cookie");
+  if (process.env.LINESCOPE_BROWSER_DISCOVERY === "true") {
+    phase = "equipment-discovery";
+    let agentRequests = 0;
+    page.on("request", (request) => {
+      if (new globalThis.URL(request.url()).pathname === "/api/agent")
+        agentRequests++;
+    });
+    await activate(
+      page.getByRole("button", { name: "設備を探す", exact: true }),
+    );
+    await expect(page.getByLabel("問い合わせ")).toBeFocused();
+    await expect(page.getByLabel("問い合わせ")).toHaveValue(/登録設備を検索/);
+    if (agentRequests !== 0)
+      throw new Error("Search preset submitted automatically");
+    await activate(
+      page.getByRole("button", { name: "問い合わせを送信", exact: true }),
+    );
+    const candidates = page.getByRole("region", { name: "設備検索の候補" });
+    await expect(
+      candidates.getByRole("button", { name: /Demo machine M-204/ }),
+    ).toBeVisible({ timeout: 90000 });
+    const spare = candidates.getByRole("button", {
+      name: /Demo machine M-208/,
+    });
+    await expect(spare).toBeVisible();
+    const beforeSelection = agentRequests;
+    await activate(spare);
+    await expect(page.getByLabel("問い合わせ")).toBeFocused();
+    await expect(page.getByLabel("問い合わせ")).toHaveValue(
+      /20800000-0000-4000-8000-000000000001/,
+    );
+    if (agentRequests !== beforeSelection)
+      throw new Error("Selection submitted automatically");
+  }
+  phase = "comparison";
   await activate(page.getByRole("button", { name: "比較デモ", exact: true }));
   await page.keyboard.press("Tab");
   await expect(
@@ -69,7 +104,9 @@ try {
   await page.keyboard.press("Enter");
   await expect(
     page.getByText("PARTIAL / 部分結果", { exact: true }),
-  ).toBeVisible({ timeout: 30000 });
+  ).toBeVisible({
+    timeout: process.env.LINESCOPE_BROWSER_DISCOVERY === "true" ? 90000 : 30000,
+  });
   await expect(page.getByRole("img")).toBeVisible();
   await expect(
     page.getByText(
@@ -306,8 +343,12 @@ try {
     JSON.stringify({
       result: "PASS",
       scope:
-        "Real browser + HTTP + PostgreSQL + Neo4j; Prepare/Approval/Execute across four categories and rejection with identity switches; keyboard and citation checks; decision inputs mocked; no LLM",
+        "Real browser + HTTP + PostgreSQL + Neo4j; Prepare/Approval/Execute across four categories and rejection with identity switches; keyboard and citation checks; decision inputs mocked",
       screenshots: ["1440", "390"],
+      discovery:
+        process.env.LINESCOPE_BROWSER_DISCOVERY === "true"
+          ? "REAL_LLM_SEARCH"
+          : "NOT_RUN",
       retrieval:
         process.env.LINESCOPE_BROWSER_VECTOR === "true"
           ? "REAL_EMBEDDING_QDRANT"
