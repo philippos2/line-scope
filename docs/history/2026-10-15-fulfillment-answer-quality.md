@@ -18,3 +18,13 @@
 ## 残件
 
 一般LLM品質閾値・モデルdigest固定・繰返し条件、複数Graph説明、通常Read/RAGの一般品質は未受入。正式業務入力とGolden受入はPO判断を含む別工程。紹介動画は保留を維持する。
+
+## 実モデル確認
+
+モデルqwen3:30b-a3b-instruct-2507-q4_K_M、既定context 16384 / temperature 0 / num_predict 700 / Agent予算60秒。各環境は初期seedとRebuildを実行した実PG / Neo4j専用Compose。明示のwarm/cold統制やdigest固定はしていない。
+
+初回はDemoFixtureのDEMO_DECISION_MOCK=trueを残したため、代替質問がデモ判断支援ルートへ入りHTTP 200 partial、Graph Tool結果なしとなった。SPOFはHTTP 503 AGENT_LIMIT_REACHED。前者は試験条件の不備、後者の原因は未特定であり、後続成功によって解消済みとはしない。初回記録は/tmp/linescope-fulfillment-quality-report.json（0600）に保持。
+
+デモ判断支援を明示無効にした専用環境で再確認。89f8bfb（開始時clean）の実装を使い、既存verify_graph_agent.validate_fulfillment_resultで対象・候補・除外、CURRENT / 完全性 / 判定、未評価次元、8代表経路、状態versionとEvidenceを照合した。代替・SPOFともHTTP 200 / 構造化probe PASS。代替は除外後成立1件・代替利用可能1件、SPOFは指定組の非候補1件。両回答をレビューし、実停止・能力・安全・経済は未評価、SPOFは故障原因の確定でない説明を確認した。名前だけの対象解決や一般品質の受入ではない。
+
+再確認記録は/tmp/linescope-fulfillment-quality-read-only-report.json（0600）。両probeの専用Composeはvolumeまで削除済み。ローカル関連試験専用環境linescope-fulfillment-qualityも片付け済み。継続デモへはデプロイしていない。
