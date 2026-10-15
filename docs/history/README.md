@@ -595,3 +595,5 @@ Dockerで追加36テスト成功、ruff check / format、git diff --check成功�
 - [正式経済入力の画面・Agent接続](2026-10-16-economic-workspace.md)：登録値の検索・編集・承認・計算表示、Read Toolと実モデル／実ブラウザ検証。
 
 - [能力・需要・納期の着手調査](2026-10-16-capacity-input-checkpoint.md)：#247 merge後の進捗、既存接続箇所、PO未決定事項と受入候補。
+
+- [業務経路単位への再集約前のロードマップ](2026-10-16-roadmap-before-workflow-regrouping.md)：粒度変更前の到達点と残工数。

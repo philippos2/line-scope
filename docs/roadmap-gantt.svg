@@ -1,60 +1,52 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="485" viewBox="0 0 1200 485" role="img" aria-labelledby="title desc">
-<title id="title">LineScope 本体完成までの想定PR進行図</title>
-<desc id="desc">横軸は16本を中心とする想定PR枠。経済入力の代表経路は接続済み、能力入力は実装中、他の正式入力はPO判断待ち。作業期間や実日程の見積もりではない。対象選択と説明品質を先行し、正式入力、品質回帰、運用復旧、全BSとGolden受入へ進む。</desc>
-<rect width="1200" height="485" fill="#fff"/>
-<g font-family="sans-serif" font-size="14" fill="#223247">
-<text x="20" y="27" font-size="20" font-weight="bold">本体完成までの想定PR進行図（中心16 PR／幅12〜20 PR）</text>
-<text x="20" y="52">横軸：#243後の累積PR枠。棒はPRの割当範囲。実日程・作業時間・並列人員は未見積もり。</text>
-<path d="M405 82V407" stroke="#dce3eb"/>
-<text x="423" y="78">1</text>
-<path d="M451 82V407" stroke="#dce3eb"/>
-<text x="469" y="78">2</text>
-<path d="M497 82V407" stroke="#dce3eb"/>
-<text x="515" y="78">3</text>
-<path d="M543 82V407" stroke="#dce3eb"/>
-<text x="561" y="78">4</text>
-<path d="M589 82V407" stroke="#dce3eb"/>
-<text x="607" y="78">5</text>
-<path d="M635 82V407" stroke="#dce3eb"/>
-<text x="653" y="78">6</text>
-<path d="M681 82V407" stroke="#dce3eb"/>
-<text x="699" y="78">7</text>
-<path d="M727 82V407" stroke="#dce3eb"/>
-<text x="745" y="78">8</text>
-<path d="M773 82V407" stroke="#dce3eb"/>
-<text x="791" y="78">9</text>
-<path d="M819 82V407" stroke="#dce3eb"/>
-<text x="837" y="78">10</text>
-<path d="M865 82V407" stroke="#dce3eb"/>
-<text x="883" y="78">11</text>
-<path d="M911 82V407" stroke="#dce3eb"/>
-<text x="929" y="78">12</text>
-<path d="M957 82V407" stroke="#dce3eb"/>
-<text x="975" y="78">13</text>
-<path d="M1003 82V407" stroke="#dce3eb"/>
-<text x="1021" y="78">14</text>
-<path d="M1049 82V407" stroke="#dce3eb"/>
-<text x="1067" y="78">15</text>
-<path d="M1095 82V407" stroke="#dce3eb"/>
-<text x="1113" y="78">16</text>
-<path d="M1141 82V407" stroke="#dce3eb"/>
-<text x="20" y="114">対象選択・Read/Graph・LLM検索品質</text><text x="330" y="114" fill="#315e88">進行中</text>
-<rect x="408" y="94" width="40" height="27" rx="4" fill="#4b83b5"/>
-<rect x="914" y="94" width="40" height="27" rx="4" fill="#4b83b5"/>
-<text x="20" y="152">経済・損失入力</text><text x="330" y="152" fill="#315e88">接続済み</text>
-<rect x="454" y="132" width="86" height="27" rx="4" fill="#4b83b5"/>
-<text x="20" y="190">能力・需要・納期</text><text x="330" y="190" fill="#315e88">実装中</text>
-<rect x="546" y="170" width="86" height="27" rx="4" fill="#d5a755"/>
-<text x="20" y="228">安全条件・リスク</text><text x="330" y="228" fill="#9b6011">PO待ち</text>
-<rect x="638" y="208" width="86" height="27" rx="4" fill="#d5a755"/>
-<text x="20" y="266">対応計画・故障履歴</text><text x="330" y="266" fill="#9b6011">PO待ち</text>
-<rect x="730" y="246" width="132" height="27" rx="4" fill="#d5a755"/>
-<text x="20" y="304">インフラ分析</text><text x="330" y="304" fill="#9b6011">PO待ち</text>
-<rect x="868" y="284" width="40" height="27" rx="4" fill="#d5a755"/>
-<text x="20" y="342">運用・復旧受入</text><text x="330" y="342" fill="#315e88">未完了</text>
-<rect x="960" y="322" width="86" height="27" rx="4" fill="#899cae"/>
-<text x="20" y="380">全BS / Golden・画面総合受入</text><text x="330" y="380" fill="#315e88">未完了</text>
-<rect x="1052" y="360" width="86" height="27" rx="4" fill="#899cae"/>
-<text x="20" y="435">着手条件：経済(B01/B02/B07) → 能力(B03/B07) → 安全(B04/B07) → 計画・履歴(B05/B06/B07)</text>
-<text x="20" y="458">インフラはB08確定後。正式入力・品質評価・運用受入 → 全BS / Golden。</text>
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="660" viewBox="0 0 1280 660" role="img" aria-labelledby="title desc">
+<title id="title">LineScope 残る業務機能と受入のガントチャート</title>
+<desc id="desc">今回の能力入力から安全、対応計画と履歴、総合受入、運用復旧へ進む。残り6から11PRの概算であり、実日程ではない。各PRは画面とAgentを含む業務単位。</desc>
+<rect width="1280" height="660" fill="white"/>
+<g font-family="sans-serif" fill="#24384b">
+<text x="24" y="34" font-size="23" font-weight="bold">残る業務機能と受入：全体約70% ／ 残り6〜11 PR（#248を含む）</text>
+<text x="24" y="63" font-size="15">横軸：想定PR工程枠。実日程・PO判断の待ち時間は未見積もり。業務経路単位でまとめる。</text>
+<path d="M480 112V558" stroke="#dae2e9"/>
+<text x="500" y="102" font-size="14">#248</text>
+<path d="M570 112V558" stroke="#dae2e9"/>
+<text x="590" y="102" font-size="14">次1</text>
+<path d="M660 112V558" stroke="#dae2e9"/>
+<text x="680" y="102" font-size="14">次2</text>
+<path d="M750 112V558" stroke="#dae2e9"/>
+<text x="770" y="102" font-size="14">次3</text>
+<path d="M840 112V558" stroke="#dae2e9"/>
+<text x="860" y="102" font-size="14">次4</text>
+<path d="M930 112V558" stroke="#dae2e9"/>
+<text x="950" y="102" font-size="14">次5</text>
+<path d="M1020 112V558" stroke="#dae2e9"/>
+<text x="1040" y="102" font-size="14">次6</text>
+<path d="M1110 112V558" stroke="#dae2e9"/>
+<text x="1130" y="102" font-size="14">次7</text>
+<path d="M1200 112V558" stroke="#dae2e9"/>
+<text x="24" y="145" font-size="17" font-weight="bold">能力・需要・条件付き復旧期限</text>
+<text x="24" y="169" font-size="13">画面・Agent・実ブラウザまで#248へ統合</text>
+<text x="390" y="145" font-size="14" fill="#347db5">実装中</text>
+<rect x="484" y="125" width="82" height="37" rx="4" fill="#347db5"/>
+<text x="24" y="213" font-size="17" font-weight="bold">安全条件・リスク</text>
+<text x="24" y="237" font-size="13">正式入力・除外条件・更新時制約・画面／Agent</text>
+<text x="390" y="213" font-size="14" fill="#c99640">PO待ち</text>
+<rect x="574" y="193" width="172" height="37" rx="4" fill="#c99640"/>
+<text x="24" y="281" font-size="17" font-weight="bold">対応計画・故障履歴</text>
+<text x="24" y="305" font-size="13">修理／交換案・lead time・故障事実と出典</text>
+<text x="390" y="281" font-size="14" fill="#c99640">PO待ち</text>
+<rect x="754" y="261" width="172" height="37" rx="4" fill="#c99640"/>
+<text x="24" y="349" font-size="17" font-weight="bold">インフラ分析の不足</text>
+<text x="24" y="373" font-size="13">上流提示／被影響の意味確定後に必要分だけ</text>
+<text x="390" y="349" font-size="14" fill="#c99640">要否判断</text>
+<rect x="934" y="329" width="82" height="37" rx="4" fill="#c99640"/>
+<text x="24" y="417" font-size="17" font-weight="bold">回答品質・全BS／Golden受入</text>
+<text x="24" y="441" font-size="13">正式入力の統合・未知・拒否・画面経路を検証</text>
+<text x="390" y="417" font-size="14" fill="#8295a5">未完了</text>
+<rect x="934" y="397" width="172" height="37" rx="4" fill="#8295a5"/>
+<text x="24" y="485" font-size="17" font-weight="bold">運用・復旧受入</text>
+<text x="24" y="509" font-size="13">完成schemaで復元・派生再構築・障害復旧</text>
+<text x="390" y="485" font-size="14" fill="#8295a5">未完了</text>
+<rect x="1114" y="465" width="82" height="37" rx="4" fill="#8295a5"/>
+<text x="24" y="586" font-size="15">着手条件：能力B03/B07確定済み → 安全B04/B07 → 計画・履歴B05/B06/B07。インフラはB08。</text>
+<text x="24" y="613" font-size="15">総合受入：正式入力を統合したDecision Package・全BS/Golden・一般LLM/検索・対象UI経路。</text>
+<text x="24" y="640" font-size="15">完了条件：対象機能と必要な受入・復旧検証を完了。PR消化率やテスト件数を完成度へ換算しない。</text>
 </g></svg>
