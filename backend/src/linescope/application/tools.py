@@ -9,12 +9,13 @@ from copy import deepcopy
 from ..domain.graph_traversal import IMPACT_FORWARD, IMPACT_REVERSE
 from ..execution import ExecutionContext
 from .dependency_prepare import DependencyPrepare
+from .economics import EconomicInputs
 from .graph_request import ENTITY_TYPES, LIMIT_NAMES
 from .graph_request import TOOLS as GRAPH_TOOLS
 from .prepare import EquipmentStatePrepare, MaintenancePrepare
 from .production_prepare import ProductionPrepare
 from .proposals import ProposalError
-from .reads import ReadTools, ToolError
+from .reads import ReadResult, ReadTools, ToolError, json_value
 
 PREPARE_CATEGORIES = {
     "prepare_equipment_state_update": "EQUIPMENT_STATE",
@@ -243,6 +244,7 @@ def _graph_schemas():
 
 class ToolDispatcher:
     def __init__(self, database, *, graph=None, knowledge=None):
+        self.economics = EconomicInputs(database)
         self.graph = graph
         self.knowledge = knowledge
         self.reads = ReadTools(database)
@@ -256,6 +258,28 @@ class ToolDispatcher:
     def schemas(self):
         """Advertise implemented Tools only; unknown fields are forbidden."""
         schemas = self.reads.schemas()
+        schemas["search_economic_inputs"] = {
+            **_object(
+                {
+                    "filter": _object(
+                        {
+                            "equipment_id": UUID_SCHEMA,
+                            "input_code": {"type": "string", "minLength": 1, "maxLength": 100},
+                            "equipment_query": {"type": "string", "minLength": 1, "maxLength": 100},
+                        },
+                        [],
+                    ),
+                    "page_size": {"type": "integer", "minimum": 1, "maximum": 100},
+                    "cursor": {"type": ["string", "null"]},
+                },
+                [],
+            ),
+            "description": "Search registered economic input candidates by equipment name/code substring, exact equipment ID or input code. No mock fallback. Multiple candidates require explicit selection; costs/periods must not be merged.",
+        }
+        schemas["get_economic_input"] = {
+            **_object({"economic_input_id": UUID_SCHEMA}),
+            "description": "Read a selected registered economic input with server-calculated exact JPY subtotals, unknown totals, sources, period and version. Not operational feasibility, safety, a cheapest-option recommendation or historical state reconstruction.",
+        }
         if self.knowledge is not None:
             schemas["retrieve_knowledge"] = _object(
                 {
@@ -310,6 +334,30 @@ class ToolDispatcher:
             raise ToolError("AUTHENTICATION_REQUIRED", "Trusted execution context is required")
         if type(tool) is not str:
             raise ToolError("INVALID_ARGUMENT", "Tool name must be text")
+        if tool in {"search_economic_inputs", "get_economic_input"}:
+            try:
+                if tool == "search_economic_inputs":
+                    data = self.economics.search(context, arguments)
+                else:
+                    if type(arguments) is not dict or set(arguments) != {"economic_input_id"}:
+                        raise ProposalError("INVALID_ARGUMENT", "An economic input ID is required")
+                    data = self.economics.get(context, arguments["economic_input_id"])
+            except ProposalError as error:
+                raise ToolError(error.code, error.message) from error
+            data = json_value(data)
+            return ReadResult(
+                data,
+                {
+                    "source": "POSTGRESQL",
+                    "tool": tool,
+                    "observed_at": data["observed_at"],
+                    "consistency": "LATEST_PER_CALL",
+                    "version": data["input"]["version"] if "input" in data else None,
+                    "economic_input_id": data["input"]["economic_input_id"]
+                    if "input" in data
+                    else None,
+                },
+            )
         if tool == "retrieve_knowledge" and self.knowledge is not None:
             return self.knowledge.retrieve(context, arguments)
         if tool in GRAPH_TOOLS and self.graph is not None:

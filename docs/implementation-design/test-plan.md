@@ -261,3 +261,7 @@ Dockerで`pytest -p no:cacheprovider backend/tests/interfaces/test_controlled_ac
 `domain/test_economics.py`は展開後8件で、190万円の修理見積、端数を含む十進積、共通期間／順序の正規化、未知率・未知時間・非独立損失、float拒否・期間不整合・重複scopeを確認する。`interfaces/test_economic_inputs_api.py`は展開後12件で実PostgreSQL上のHTTP登録・訂正・別manager承認・確定・Snapshot v2・権限・競合失効・監査失敗rollback・再送・拒否を確認する。全直積を生成せず、役割ごとの入口と重大な状態遷移を選ぶ。共通Approval / Execute / Snapshotの既存試験を回帰し、`persistence/test_db_roles.py`の既存runtime経路にも経済入力を通してquery/runtime/projectionの実権限を確認する。
 
 この段階は正式入力HTTP経路の検証。Agent Tool、画面、実LLM、全BS / Goldenの受入を代替しない。
+
+### 経済入力の画面・Agent接続
+
+追加は展開後Backend 12件（検索・権限・cursor・SQL/LIKE文字・Read Tool / Evidence・Agent要約・モック経路除外10、候補のみ／複数入力の非合算要約2）、Frontend 5件（未知と0・出典text、明示Prepareとretry key、接続解除後の遅延応答、編集リセット、不正payload拒否）。既存の共通更新・Agent / Tool試験を回帰する。実ブラウザでは設備候補選択→フォーム登録→自己承認拒否→別manager承認→元requester確定→登録値検索・表示→訂正フォーム読込→実モデルによるReadを一つの業務経路で確認する。紹介動画や全BS / Goldenの受入へ拡張しない。

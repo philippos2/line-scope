@@ -70,3 +70,38 @@ def write(connection, target):
         .values(payload=after["payload"], version=after["version"])
     )
     return run(connection, statement).rowcount
+
+
+def search(connection, filters, limit, after):
+    from sqlalchemy import func
+
+    master = table(
+        "equipment",
+        column("equipment_id", UUID()),
+        column("equipment_code", Text()),
+        column("equipment_name", Text()),
+    )
+    query = select(
+        INPUT.c.economic_input_id,
+        INPUT.c.input_code,
+        INPUT.c.equipment_id,
+        INPUT.c.version,
+        master.c.equipment_code,
+        master.c.equipment_name,
+        func.statement_timestamp().label("_observed_at"),
+    ).select_from(INPUT.join(master, INPUT.c.equipment_id == master.c.equipment_id))
+    for key, value in filters.items():
+        if key == "equipment_id":
+            query = query.where(INPUT.c.equipment_id == value)
+        elif key == "input_code":
+            query = query.where(INPUT.c.input_code == value)
+        elif key == "equipment_query":
+            query = query.where(
+                or_(
+                    master.c.equipment_code.contains(value, autoescape=True),
+                    master.c.equipment_name.contains(value, autoescape=True),
+                )
+            )
+    if after is not None:
+        query = query.where(INPUT.c.economic_input_id > after)
+    return run(connection, query.order_by(INPUT.c.economic_input_id).limit(limit + 1)).fetchall()

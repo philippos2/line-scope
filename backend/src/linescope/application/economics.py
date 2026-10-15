@@ -6,6 +6,7 @@ from ..domain.canonical import canonical_hash, normalize_uuid
 from ..domain.economics import calculate, economic_target, normalize_input, normalize_record
 from ..domain.snapshot import build_economic_input_snapshot
 from ..execution import ExecutionContext
+from ..pagination import CursorCodec
 from ..persistence import core_economics as queries
 from ..persistence.database import Database
 from .execute import _UpdateExecute
@@ -21,6 +22,7 @@ def require(context, *, write=False):
 
 class EconomicInputs:
     def __init__(self, database):
+        self.cursors = CursorCodec()
         self.store = ProposalStore(database)
         self.read_store = ProposalStore(
             database.for_reads() if isinstance(database, Database) else database
@@ -80,6 +82,58 @@ class EconomicInputs:
             context, snapshot, retry_key, prepare_input_hash=input_hash, agent_input_hash=input_hash
         )
         return self.store.get(context, str(saved.update_request_id))
+
+    def search(self, context, arguments):
+        require(context)
+        try:
+            if type(arguments) is not dict or not set(arguments) <= {
+                "filter",
+                "page_size",
+                "cursor",
+            }:
+                raise ValueError("Invalid search fields")
+            filters = arguments.get("filter", {})
+            if type(filters) is not dict or not set(filters) <= {
+                "equipment_id",
+                "input_code",
+                "equipment_query",
+            }:
+                raise ValueError("Invalid search filter")
+            normalized = {}
+            for key, value in filters.items():
+                if key == "equipment_id":
+                    normalized[key] = normalize_uuid(value)
+                elif type(value) is str and 1 <= len(value.strip()) <= 100:
+                    normalized[key] = value
+                else:
+                    raise ValueError("Invalid search text")
+            size = arguments.get("page_size", 20)
+            if type(size) is not int or not 1 <= size <= 100:
+                raise ValueError("Invalid page size")
+            binding = self.cursors.binding(context, "search_economic_inputs", normalized)
+            cursor = arguments.get("cursor")
+            after = self.cursors.decode(cursor, binding) if cursor is not None else None
+        except (ValueError, TypeError) as error:
+            raise ProposalError("INVALID_ARGUMENT", "Invalid economic input search") from error
+        with self.read_store._transaction(read_only=True) as connection:
+            rows = queries.search(connection, normalized, size, after)
+            observed_at = (
+                rows[0]["_observed_at"]
+                if rows
+                else connection.execute("SELECT statement_timestamp() AS at").fetchone()["at"]
+            )
+        items = [
+            {key: value for key, value in row.items() if key != "_observed_at"}
+            for row in rows[:size]
+        ]
+        return {
+            "items": items,
+            "next_cursor": self.cursors.encode(binding, items[-1]["economic_input_id"])
+            if len(rows) > size
+            else None,
+            "observed_at": observed_at,
+            "source": "REGISTERED_INPUT",
+        }
 
     def get(self, context, identifier):
         require(context)
