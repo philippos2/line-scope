@@ -27,3 +27,11 @@ lintでブラウザスクリプトのURL global参照、型チェックでTestin
 実ブラウザ再確認で検索ToolはHTTP 200まで成功したが、候補表示で失敗。設備名の返却fieldはequipment_nameであり、UIとUnit fixtureでnameと取り違えていたため修正した。不正形の候補として表示を拒否しており、別対象の誤選択はしていない。Unit fixtureも実DTOに合わせ再検証した。固定値だけのUnit成功を実API接続の成功と扱わない。比較デモの既存Tab操作を保つfocusの調整も行った。
 
 工程SVGはChromiumで描画して確認。横棒・ラベル・PO条件に文字切れがないことを確認した。
+
+## 最終ローカル結果
+
+- 修正後のFrontend lint・型・format・build成功、Unitは22 passed（追加4件、1.53秒）。補助Pythonのruff check / format成功。
+- `python3 scripts/verify_frontend_flow.py --docker-group docker --llm-model qwen3:30b-a3b-instruct-2507-q4_K_M`がPASS。実Chromium / HTTP / PG / Neo4jでM-204・M-208の名称候補を取得し、M-208の選択によるID付き下書き・focus・自動送信なしを確認。選択後の送信bodyとcontext分離はUnitで検証し、実モデルのM-208下流回答品質の受入とはしない。
+- 既存の比較・Graph・引用・4カテゴリのPrepare/Approval/Execute・拒否・identity切替・keyboard・幅別確認もPASS。検索はREAL_LLM_SEARCH、引用はMOCK_EMBEDDING_QDRANT、比較条件はMOCK_FIXTURE。実Embeddingや一般LLM品質の評価成功とは混同しない。
+- 成功ログは/tmp/linescope-equipment-browser-final.log。失敗した初回と再確認も別ログに保持。試験専用Composeのvolumeと一時browser image・container・資格情報を片付け済み。継続デモにはデプロイしていない。
+- PR #244を作成。最新headのCI件数・hash・required checksと片付けを確認してPR本文へ追記する。
