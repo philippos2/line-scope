@@ -22,10 +22,11 @@
 
 ## 検証と保証範囲
 
-- ケース選定: 既存実ブラウザ1フローを本人Prepare→別承認者Approval→本人Executeまで拡張。追加Unitは通信失敗後の再確認、unmount後の遅延Prepare応答の2件。直積生成なし。
-- DockerでFrontend lint / typecheck / format / build成功。Unit 13件PASS（既存11＋追加2）。
+- ケース選定: 既存実ブラウザ1フローを本人Prepare→別承認者Approval→本人Executeまで拡張。追加Unitは通信失敗後の再確認、unmount後の遅延Prepare応答、不確定なPrepare失敗後の旧要求IDクリアと同一キー再送の3件。直積生成なし。
+- DockerでFrontend lint / typecheck / format / build成功。Unit 14件PASS（既存11＋追加3）。
 - 専用Composeの実Chromium / HTTP / PostgreSQL / Neo4jで、比較・Graph・Evidence・F5接続復元・Prepare・承認者切替・Approval・requester切替・Execute・確定結果表示・接続解除を確認。費用等の入力はMOCK_FIXTURE、LLM未使用。
-- 最終変更後もFrontend静的検証・build・Unit13件、専用実ブラウザフローがPASS。390pxのAction画面も目視確認。専用container / volume / network / 一時credentialを片付け済み。
+- 専用実ブラウザフローは2回PASS。旧要求IDクリアの追加修正後はFrontend静的検証・build・Unit14件で再確認。390pxのAction画面も目視確認。専用container / volume / network / 一時credentialを片付け済み。
+- 不確定な新規Prepareでは入力欄の旧要求IDを消去する。要求IDが不明な場合は同じ指示・同じキーでの明示再送を案内する。
 - 変更したPython検証scriptのruff check / formatをDocker内で確認。Backend実装は無変更。CI結果はPRへ記録し、CI成功前にmerge可能とは報告しない。
 
 ## 残件と次工程

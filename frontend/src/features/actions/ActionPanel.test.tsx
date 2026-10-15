@@ -102,3 +102,35 @@ it("aborts pending work when the connection view unmounts and ignores a late Pre
   await Promise.resolve();
   expect(fetcher).toHaveBeenCalledTimes(1);
 });
+
+it("clears a previous request ID on uncertain Prepare and reuses the same retry key", async () => {
+  const fetcher = vi
+    .fn()
+    .mockResolvedValueOnce(new Response(JSON.stringify(saved)))
+    .mockRejectedValueOnce(new TypeError("network failure"))
+    .mockResolvedValueOnce(new Response(JSON.stringify(saved)))
+    .mockResolvedValueOnce(new Response(JSON.stringify(saved)));
+  vi.stubGlobal("fetch", fetcher);
+  render(<ActionPanel />);
+  const user = userEvent.setup();
+  await user.click(screen.getByText("変更準備・承認・実行"));
+  await user.type(screen.getByLabelText("変更要求ID"), requestId);
+  await user.click(screen.getByRole("button", { name: "保存状態を再取得" }));
+  await screen.findByRole("heading", { name: "保存済みSnapshot" });
+  await user.type(
+    screen.getByLabelText("明示的な変更指示"),
+    "M-204の状態をRUNNINGに変更して",
+  );
+  await user.click(screen.getByRole("button", { name: "変更準備を作成" }));
+  await screen.findByRole("alert");
+  expect((screen.getByLabelText("変更要求ID") as HTMLInputElement).value).toBe(
+    "",
+  );
+  expect(fetcher).toHaveBeenCalledTimes(2);
+  await user.click(screen.getByRole("button", { name: "変更準備を作成" }));
+  await screen.findByRole("heading", { name: "保存済みSnapshot" });
+  expect(fetcher).toHaveBeenCalledTimes(4);
+  const original = fetcher.mock.calls[1][1].headers["Idempotency-Key"];
+  expect(original).toBeTruthy();
+  expect(fetcher.mock.calls[2][1].headers["Idempotency-Key"]).toBe(original);
+});

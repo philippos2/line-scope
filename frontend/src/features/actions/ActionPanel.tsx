@@ -37,7 +37,7 @@ export function ActionPanel({
       if (!active.signal.aborted) {
         setSaved(null);
         setError(
-          `${caught instanceof ApiError ? caught.code + (caught.requestId ? " / " + caught.requestId : "") : "REQUEST_FAILED"}。保存状態を再取得してください。書き込みは自動再送しません。`,
+          `${caught instanceof ApiError ? caught.code + (caught.requestId ? " / " + caught.requestId : "") : "REQUEST_FAILED"}。要求IDが分かる場合は保存状態を再取得してください。Prepare応答が不明な場合は同じ指示のまま再送できます。書き込みは自動再送しません。`,
         );
       }
     } finally {
@@ -67,6 +67,7 @@ export function ActionPanel({
     if (!command) return;
     if (retry.current?.message !== command)
       retry.current = { message: command, key: crypto.randomUUID() };
+    setId("");
     setSaved(null);
     setExecution(null);
     void run(async (signal) => {
