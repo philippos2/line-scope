@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { ApiError, object, request, type Envelope } from "../api/client";
 import { ActionPanel } from "../features/actions/ActionPanel";
+import { SafetyPanel } from "../features/safety/SafetyPanel";
+import { SafetyResult } from "../features/safety/SafetyResult";
 import { CapacityPanel } from "../features/capacity/CapacityPanel";
 import { CapacityResult } from "../features/capacity/CapacityResult";
 import { EconomicPanel } from "../features/economics/EconomicPanel";
@@ -347,6 +349,12 @@ export function App() {
                 onSelect={chooseEquipment}
               />
             )}
+            <SafetyPanel
+              equipment={equipment}
+              onPrepared={setEconomicPrepared}
+              onInvestigate={draftInvestigation}
+              executionEpoch={executionEpoch}
+            />
             <CapacityPanel
               equipment={equipment}
               onPrepared={setEconomicPrepared}
@@ -394,6 +402,19 @@ export function App() {
                 )
                 .map((row, index) => (
                   <CapacityResult
+                    key={index}
+                    data={row.data as Record<string, unknown>}
+                    stale={stale}
+                  />
+                ))}
+            {Array.isArray(result?.data.tool_results) &&
+              result.data.tool_results
+                .filter(object)
+                .filter(
+                  (row) => row.tool === "get_safety_input" && object(row.data),
+                )
+                .map((row, index) => (
+                  <SafetyResult
                     key={index}
                     data={row.data as Record<string, unknown>}
                     stale={stale}

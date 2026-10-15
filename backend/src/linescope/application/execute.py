@@ -117,6 +117,7 @@ class _UpdateExecute:
             if CATEGORIES[saved.snapshot.data["targets"][0]["target_type"]] in {
                 "ECONOMIC_INPUT",
                 "CAPACITY_INPUT",
+                "SAFETY_INPUT",
             } and context.role not in {"maintenance", "production", "manager"}:
                 raise ProposalError(
                     "AUTHORIZATION_DENIED", "Restricted result visibility is required"
@@ -841,6 +842,10 @@ class HumanExecute(_UpdateExecute):
 
     @staticmethod
     def _handler(targets):
+        from .safety import SafetyExecute
+
+        if targets and all(t["target_type"] == "SafetyInput" for t in targets):
+            return SafetyExecute
         from .capacity import CapacityExecute
 
         if targets and all(t["target_type"] == "CapacityInput" for t in targets):

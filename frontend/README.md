@@ -65,3 +65,9 @@ python3 scripts/verify_frontend_flow.py --docker-group docker --llm-model qwen3:
 ```
 
 専用環境はfinallyで削除する。継続デモへの反映や全業務受入とは区別する。
+
+安全入力の登録・訂正・承認・Agent参照の実ブラウザ確認：
+
+```sh
+python3 scripts/verify_frontend_flow.py --docker-group docker --llm-model qwen3:30b-a3b-instruct-2507-q4_K_M --safety-only
+```

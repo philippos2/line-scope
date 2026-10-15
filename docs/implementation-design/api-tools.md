@@ -400,3 +400,31 @@ calculationは`available_rate=normal_rate-used_rate-reserved_rate`、`shortage_r
 `POST /capacity-inputs/products/search`は厳密JSONの任意`query`（設備の名前検索と同様のliteral部分一致、最大100文字）、`cursor`を受け付け、製品ID・名前・codeの候補を20件ずつ返す。queryは製品名またはcodeへ適用し、ID順keyset・主体／role／queryに拘束したprocess-local cursorを使う。能力情報の閲覧roleを要求し、製品をcodeの暗記やUUID手入力なしに選ぶ。
 
 `search_capacity_inputs`はHTTP検索と同じ引数、`get_capacity_input`はcapacity_input_idだけを受けるAgent Read Tool。同じservice認可と登録値計算を使い、EvidenceへPOSTGRESQL・observed_at・LATEST_PER_CALL・取得version／IDを保持する。GETには表示用設備・製品名とcodeをlabelsとして付加する。別入力の率・期間を合算しない。サーバ結果から要約し、LLMの自由説明で不足量・UNKNOWN・条件付き期限・安全未評価を上書きしない。能力Prepare / Approval / ExecuteをAgentへ公開しない。正式能力入力の問い合わせをデモ比較へ振り分けない。
+
+## 正式安全入力
+
+### HTTPとRead Tool
+
+- `POST /safety-inputs/prepare`：厳密rootはretry_key、safety_input_id（新規null）、input、supersedes_update_request_id（通常null）。inputはinput_code、equipment_id、payload。保存Snapshotを共通Human Approval / Executeへ渡す。
+- `POST /safety-inputs/search`：filterはequipment_id / input_code / equipment_query、page_sizeは1〜100（既定20）、cursor。AND条件、literal部分一致、UUID順keyset、主体・role・filterに拘束したprocess-local cursor。候補にpayloadを含めない。検索文字列は入力全体100文字以内。
+- `GET /safety-inputs/{id}`：正規化した登録input、サーバcalculation、source=REGISTERED_INPUT、observed_atを返す。判定時刻はサーバの観測時刻。過去状態の完全復元ではない。
+- Agentには同じ認可のsearch_safety_inputs / get_safety_input（IDのみ）を公開する。EvidenceはPOSTGRESQL、observed_at、LATEST_PER_CALL、取得version / ID。Prepare / Approval / Executeは公開しない。
+
+### payload
+
+| Field | 契約 |
+|---|---|
+| period_start / period_end | timezone必須、正規化UTC、start<end |
+| observation / criterion / conditions / risk_notes | 非空1000文字以内またはnull。空文字を既知情報としない |
+| source | 非空1000文字以内。登録された判断の出典 |
+| decision | STOP_REQUIRED / CONDITIONAL / UNKNOWN |
+| certainty | ESTIMATED / CONFIRMED |
+
+### 判定
+
+- 適用期間はstart<=evaluated_at<end。期間外はUNKNOWN。
+- 期間内のSTOP_REQUIREDは継続候補EXCLUDED。経済値によって上書きしない。
+- CONDITIONALは観測・安全基準・継続条件が既知、certainty=CONFIRMED、期間内の場合だけ維持する。他はUNKNOWN / UNASSESSED。
+- UNKNOWNを継続可能と認定しない。missing_informationに不足・期限外を示す。
+- assessment_scope=SELECTED_INPUT_ONLY、operational_permission=false、residual_risk=UNKNOWNを保持する。単一記録の評価であり、設備全体の安全を認定しない。
+- 基準・観測・出典・条件は構造化結果に保持。LLMの自由説明で停止必須やUNKNOWNを上書きしない。複数入力を勝手に統合しない。

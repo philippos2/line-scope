@@ -17,6 +17,7 @@ from .prepare import EquipmentStatePrepare, MaintenancePrepare
 from .production_prepare import ProductionPrepare
 from .proposals import ProposalError
 from .reads import ReadResult, ReadTools, ToolError, json_value
+from .safety import SafetyInputs
 
 PREPARE_CATEGORIES = {
     "prepare_equipment_state_update": "EQUIPMENT_STATE",
@@ -246,6 +247,7 @@ def _graph_schemas():
 class ToolDispatcher:
     def __init__(self, database, *, graph=None, knowledge=None):
         self.economics = EconomicInputs(database)
+        self.safety = SafetyInputs(database)
         self.capacity = CapacityInputs(database)
         self.graph = graph
         self.knowledge = knowledge
@@ -303,6 +305,28 @@ class ToolDispatcher:
         schemas["get_capacity_input"] = {
             **_object({"capacity_input_id": UUID_SCHEMA}),
             "description": "Read a selected registered capacity input with server-calculated product-specific capacity shortage and conditional buffer deadline, sources, period and version. Not operational feasibility, safety, a cheapest-option recommendation or historical state reconstruction.",
+        }
+        schemas["search_safety_inputs"] = {
+            **_object(
+                {
+                    "filter": _object(
+                        {
+                            "equipment_id": UUID_SCHEMA,
+                            "input_code": {"type": "string", "minLength": 1, "maxLength": 100},
+                            "equipment_query": {"type": "string", "minLength": 1, "maxLength": 100},
+                        },
+                        [],
+                    ),
+                    "page_size": {"type": "integer", "minimum": 1, "maximum": 100},
+                    "cursor": {"type": ["string", "null"]},
+                },
+                [],
+            ),
+            "description": "Search registered safety input candidates by equipment name/code substring, exact equipment ID or input code. No mock fallback. Multiple candidates require explicit selection; assessments/periods must not be merged.",
+        }
+        schemas["get_safety_input"] = {
+            **_object({"safety_input_id": UUID_SCHEMA}),
+            "description": "Read a selected registered safety input with server-calculated declared safety constraint, validity and unknowns, sources, period and version. Not operational feasibility, safety, a cheapest-option recommendation or historical state reconstruction.",
         }
         if self.knowledge is not None:
             schemas["retrieve_knowledge"] = _object(
@@ -402,6 +426,30 @@ class ToolDispatcher:
                     "consistency": "LATEST_PER_CALL",
                     "version": data["input"]["version"] if "input" in data else None,
                     "capacity_input_id": data["input"]["capacity_input_id"]
+                    if "input" in data
+                    else None,
+                },
+            )
+        if tool in {"search_safety_inputs", "get_safety_input"}:
+            try:
+                if tool == "search_safety_inputs":
+                    data = self.safety.search(context, arguments)
+                else:
+                    if type(arguments) is not dict or set(arguments) != {"safety_input_id"}:
+                        raise ProposalError("INVALID_ARGUMENT", "An safety input ID is required")
+                    data = self.safety.get(context, arguments["safety_input_id"])
+            except ProposalError as error:
+                raise ToolError(error.code, error.message) from error
+            data = json_value(data)
+            return ReadResult(
+                data,
+                {
+                    "source": "POSTGRESQL",
+                    "tool": tool,
+                    "observed_at": data["observed_at"],
+                    "consistency": "LATEST_PER_CALL",
+                    "version": data["input"]["version"] if "input" in data else None,
+                    "safety_input_id": data["input"]["safety_input_id"]
                     if "input" in data
                     else None,
                 },

@@ -269,3 +269,11 @@ Dockerで`pytest -p no:cacheprovider backend/tests/interfaces/test_controlled_ac
 ## 正式能力入力の検証
 
 新規予定はdomain 8件（充足・不足・ゼロ、欠落、期間不正、非互換、条件付き期限、前提未確認）と実PG / HTTP 12件（登録・retry、訂正競合、更新拒否3role、閲覧3role、自己承認とrole喪失、監査失敗rollback、並行再送とcode競合、厳密HTTP / Snapshot / hash / 拒否）の20件。直積ではなく重大相互作用と代表境界を選ぶ。経済入力・共通Snapshot / 承認 / Executeの既存試験も回帰する。登録の同じ実PGケースで製品候補・Agent Read・Evidence・サーバ要約まで確認する。画面は新規Unitケースを増やさず既存Frontend試験とlint・型・build、実ブラウザの登録／訂正・別承認者・確定・Agent・未知・解除を確認する。一般納期計画・全BSは別受入。
+
+## 正式安全入力の検証
+
+- 新規展開はdomain 8件＋実PG / HTTP 12件＝20件。直積を作らず代表状態・期限境界・重大相互作用を選ぶ。
+- domainは停止必須／条件付き／不明、期限終了・未開始、条件不足・推定根拠、期間不正。
+- 実PGは登録・訂正・role・自己承認・現在role喪失・競合・retry・並行再送・監査rollback・Snapshot / hash・拒否。登録シナリオでAgent / Evidenceと稼働状態の事実登録の維持も確認する。
+- 既存DB role試験を安全入力へ拡張し、共通更新・migration・既存入力も回帰する。
+- Frontendの新規Unitを増やさず、既存試験・lint・型・buildと実ブラウザで登録／訂正・別承認者・Agent・UNKNOWN・解除を確認する。

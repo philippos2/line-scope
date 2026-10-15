@@ -268,6 +268,52 @@ def create_app(
             return response(request, code=error.code, status_code=error_status(error.code))
         return response(request, json_value(data))
 
+    @app.post("/safety-inputs/search")
+    async def search_safety_inputs(request: Request):
+        try:
+            if (
+                request.headers.get("content-type", "").split(";")[0].strip().lower()
+                != "application/json"
+            ):
+                raise ValueError("JSON required")
+            body = strict_json(await request.body())
+        except (ValueError, TypeError):
+            return response(request, code="INVALID_ARGUMENT", status_code=400)
+        try:
+            data = await run_in_threadpool(
+                services.safety.search, request.state.execution_context, body
+            )
+        except ProposalError as error:
+            return response(request, code=error.code, status_code=error_status(error.code))
+        return response(request, json_value(data))
+
+    @app.post("/safety-inputs/prepare")
+    async def prepare_safety_input(request: Request):
+        try:
+            if (
+                request.headers.get("content-type", "").split(";")[0].strip().lower()
+                != "application/json"
+            ):
+                raise ValueError("JSON required")
+            body = strict_json(await request.body())
+        except (ValueError, TypeError):
+            return response(request, code="INVALID_ARGUMENT", status_code=400)
+        try:
+            data = await run_in_threadpool(
+                services.safety.prepare, request.state.execution_context, body
+            )
+        except ProposalError as error:
+            return response(request, code=error.code, status_code=error_status(error.code))
+        return response(request, json_value(data))
+
+    @app.get("/safety-inputs/{safety_input_id}")
+    def safety_input(request: Request, safety_input_id: str):
+        try:
+            data = services.safety.get(request.state.execution_context, safety_input_id)
+        except ProposalError as error:
+            return response(request, code=error.code, status_code=error_status(error.code))
+        return response(request, json_value(data))
+
     @app.post("/capacity-inputs/products/search")
     async def search_capacity_products(request: Request):
         try:

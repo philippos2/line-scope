@@ -24,7 +24,7 @@
 <path d="M1200 112V490" stroke="#dae2e9"/>
 <text x="24" y="145" font-size="17" font-weight="bold">安全条件・リスク</text>
 <text x="24" y="169" font-size="13">安全基準・観測・継続条件の登録／承認・判定</text>
-<text x="390" y="145" font-size="14" fill="#c99640">PO待ち</text>
+<text x="390" y="145" font-size="14" fill="#c99640">実装中</text>
 <rect x="484" y="125" width="172" height="37" rx="4" fill="#c99640"/>
 <text x="570" y="149" text-anchor="middle" font-size="14" fill="white" font-weight="bold">1〜2 PR</text>
 <text x="24" y="213" font-size="17" font-weight="bold">対応計画・故障履歴</text>
@@ -47,7 +47,7 @@
 <text x="390" y="417" font-size="14" fill="#8295a5">未完了</text>
 <rect x="1114" y="397" width="82" height="37" rx="4" fill="#8295a5"/>
 <text x="1155" y="421" text-anchor="middle" font-size="14" fill="white" font-weight="bold">1〜2 PR</text>
-<text x="24" y="518" font-size="15">着手条件：安全B04/B07 → 計画・履歴B05/B06/B07。インフラはB08確定後の必要分。</text>
+<text x="24" y="518" font-size="15">安全B04/B07確定済み。次の着手条件： 計画・履歴B05/B06/B07。インフラはB08確定後の必要分。</text>
 <text x="24" y="545" font-size="15">総合受入：正式入力のDecision Package・全BS/Golden・一般LLM/検索・対象UI経路。</text>
 <text x="24" y="572" font-size="15">各PRは画面・Agent・業務経路検証までまとめる。必要な機能・検証を削ってPR数を合わせない。</text>
 </g></svg>

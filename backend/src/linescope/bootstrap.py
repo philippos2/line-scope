@@ -23,6 +23,7 @@ from .application.maintenance_command import MaintenanceCommandPrepare
 from .application.production_command import ProductionCommandPrepare
 from .application.proposals import ProposalStore
 from .application.reads import ReadTools
+from .application.safety import SafetyInputs
 from .application.structured_command import StructuredCommandPrepare
 from .application.tools import ToolDispatcher
 from .graph.analysis_budget import GraphAnalysisBudget
@@ -46,6 +47,7 @@ class ApiServices:
     approval: HumanApproval
     execute: HumanExecute
     capacity: CapacityInputs
+    safety: SafetyInputs
     economics: EconomicInputs
     agent: AgentApplication
     owned_graph_driver: object | None = None
@@ -149,6 +151,7 @@ def build_api_services(
             approval=HumanApproval(database, event_logger=events),
             execute=HumanExecute(database, settings, event_logger=events),
             economics=EconomicInputs(database),
+            safety=SafetyInputs(database),
             capacity=CapacityInputs(database),
             agent=agent,
             owned_graph_driver=owned_driver,
