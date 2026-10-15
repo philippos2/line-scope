@@ -83,7 +83,7 @@ frontend/src/
 
 React / TypeScript / Viteで実APIへ接続する分析・比較・Evidence画面を実装した。Graphは返却された代表経路をSVGで描画する。React Flow等は導入せず、必要性が明確になった場合に評価する。Bearer tokenはbrowser storageへ保存せず、Backend非CURRENTのGraphを表示しない。
 
-UI-01〜03の代表デモ経路とUI-06の主要境界を実ブラウザで確認した。完全なUI受入とは扱わない。文書引用のある実応答、UI-04〜05のAction、UI-07の包括的keyboard確認は残る。通常Frontend CIは静的検証とbuild、自動テストは必要最小限とする。最新の残作業は[roadmap](../roadmap.md)、作業・検証方法は[Frontend README](../../frontend/README.md)を参照する。
+UI-01〜03の代表デモ経路とUI-06の主要境界を実ブラウザで確認した。完全なUI受入とは扱わない。文書引用のある実応答、UI-07の包括的keyboard確認は残る。UI-04〜05は後続のAction実装で現在状態変更の代表経路を実ブラウザ確認したが、全カテゴリ・期限失効・競合・現在値取得失敗の画面受入は未完了。通常Frontend CIは静的検証とbuild、自動テストは必要最小限とする。最新の残作業は[roadmap](../roadmap.md)、作業・検証方法は[Frontend README](../../frontend/README.md)を参照する。
 
 ## 初期工程計画（#231時点）
 

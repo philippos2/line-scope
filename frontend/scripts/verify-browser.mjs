@@ -1,7 +1,8 @@
 import { chromium, expect } from "@playwright/test";
 const base = process.env.LINESCOPE_BROWSER_URL;
 const token = process.env.LINESCOPE_BROWSER_TOKEN;
-if (!base || !token)
+const approver = process.env.LINESCOPE_BROWSER_APPROVER_TOKEN;
+if (!base || !token || !approver)
   throw new Error("Explicit browser fixture configuration required");
 const browser = await chromium.launch({ headless: true });
 try {
@@ -79,6 +80,60 @@ try {
     }),
   ).toBeVisible();
   await page.screenshot({ path: "/tmp/frontend-1440.png", fullPage: true });
+  await page.getByText("変更準備・承認・実行", { exact: true }).click();
+  await page
+    .getByLabel("明示的な変更指示")
+    .fill("M-204の現在状態をRUNNINGに変更する準備を作って");
+  await page
+    .getByRole("button", { name: "変更準備を作成", exact: true })
+    .click();
+  await expect(
+    page.getByRole("heading", { name: "保存済みSnapshot", exact: true }),
+  ).toBeVisible();
+  await expect(page.getByText(/状態：WAITING_APPROVAL/)).toBeVisible();
+  const requestId = await page
+    .getByLabel("変更要求ID", { exact: true })
+    .inputValue();
+  async function switchUser(secret) {
+    await page.getByRole("button", { name: "接続解除", exact: true }).click();
+    await page.getByLabel("Bearer token").fill(secret);
+    await page.getByRole("button", { name: "接続する", exact: true }).click();
+    await page.getByText("変更準備・承認・実行", { exact: true }).click();
+    await page.getByLabel("変更要求ID", { exact: true }).fill(requestId);
+    await page
+      .getByRole("button", { name: "保存状態を再取得", exact: true })
+      .click();
+    await expect(
+      page.getByRole("heading", { name: "保存済みSnapshot", exact: true }),
+    ).toBeVisible();
+  }
+  await switchUser(approver);
+  await page.getByLabel("保存Snapshotと操作内容を確認しました").check();
+  await page
+    .getByRole("button", { name: "Snapshotを承認", exact: true })
+    .click();
+  await expect(page.getByText(/状態：APPROVED/)).toBeVisible();
+  await switchUser(token);
+  await page.getByLabel("保存Snapshotと操作内容を確認しました").check();
+  await page
+    .getByRole("button", { name: "承認済み変更を実行", exact: true })
+    .click();
+  await expect(page.getByText(/状態：COMPLETED/)).toBeVisible();
+  await expect(
+    page.getByRole("heading", {
+      name: "保存された確定結果（after）",
+      exact: true,
+    }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("heading", {
+      name: "実行応答・実行後の現在値",
+      exact: true,
+    }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "承認済み変更を実行", exact: true }),
+  ).toBeDisabled();
   await page.setViewportSize({ width: 390, height: 844 });
   await page.screenshot({ path: "/tmp/frontend-390.png", fullPage: true });
   if (
@@ -96,7 +151,7 @@ try {
     JSON.stringify({
       result: "PASS",
       scope:
-        "Real browser + HTTP + PostgreSQL + Neo4j; decision inputs mocked; no LLM",
+        "Real browser + HTTP + PostgreSQL + Neo4j; Prepare/Approval/Execute with identity switches; decision inputs mocked; no LLM",
       screenshots: ["1440", "390"],
     }),
   );

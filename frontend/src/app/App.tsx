@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { ApiError, object, request, type Envelope } from "../api/client";
+import { ActionPanel } from "../features/actions/ActionPanel";
 import { DecisionComparison } from "../features/decision/DecisionComparison";
 import { EvidencePanel } from "../features/evidence/EvidencePanel";
 import { GraphCanvas } from "../features/graph/GraphCanvas";
@@ -269,7 +270,7 @@ export function App() {
             )}
             {stale && result && (
               <p className="notice">
-                前回の結果です。新しい調査の完了は未確認です。
+                前回の結果です。現在の業務状態とは異なる可能性があります。再調査してください。
               </p>
             )}
             {view && (
@@ -298,6 +299,14 @@ export function App() {
                 </div>
               </div>
             )}
+            <ActionPanel
+              onExecution={() => setStale(true)}
+              preparedId={
+                typeof result?.data.update_request_id === "string"
+                  ? result.data.update_request_id
+                  : undefined
+              }
+            />
             <nav className="tabs" aria-label="結果表示">
               {(["impact", "comparison", "evidence", "trace"] as const).map(
                 (key) => (

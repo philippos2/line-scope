@@ -46,7 +46,9 @@ def main():
         descriptor = os.open(secret, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o600)
         with os.fdopen(descriptor, "w") as output:
             output.write(
-                f"LINESCOPE_BROWSER_TOKEN={fixture.owner}\nLINESCOPE_BROWSER_URL=http://127.0.0.1:{port}\n"
+                f"LINESCOPE_BROWSER_TOKEN={fixture.owner}\n"
+                f"LINESCOPE_BROWSER_APPROVER_TOKEN={fixture.approver}\n"
+                f"LINESCOPE_BROWSER_URL=http://127.0.0.1:{port}\n"
             )
         try:
             verify(fixture)

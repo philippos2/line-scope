@@ -42,7 +42,10 @@ export async function request(
     | "/agent"
     | "/session"
     | "/session/login"
-    | "/session/logout",
+    | "/session/logout"
+    | `/update-requests/${string}`
+    | `/approvals/${string}/approve`
+    | `/approvals/${string}/reject`,
   body?: JsonObject,
   signal?: AbortSignal,
   retryKey?: string,
