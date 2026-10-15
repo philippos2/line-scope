@@ -57,3 +57,11 @@ python3 scripts/verify_frontend_flow.py --docker-group docker \
 ```
 
 実モデルを使う経済入力のブラウザ受入は`python3 scripts/verify_frontend_flow.py --docker-group docker --llm-model qwen3:30b-a3b-instruct-2507-q4_K_M --economic-only`で確認します。導入済みモデルを使用し、自動取得しません。設備検索、経済登録・別管理者承認・確定・正式入力取得・Agent Readを実APIで確認し、Embedding / 引用検索のmockとは区別します。
+
+正式能力入力の登録・訂正・別承認者・確定・検索・実モデルによる参照だけを確認する場合は、導入済みモデルを指定して次を実行する。
+
+```sh
+python3 scripts/verify_frontend_flow.py --docker-group docker --llm-model qwen3:30b-a3b-instruct-2507-q4_K_M --capacity-only
+```
+
+専用環境はfinallyで削除する。継続デモへの反映や全業務受入とは区別する。

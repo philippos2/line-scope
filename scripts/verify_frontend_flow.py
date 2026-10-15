@@ -43,6 +43,11 @@ def main():
         action="store_true",
         help="正式経済入力の業務経路だけをブラウザ確認する（実LLM必須）",
     )
+    parser.add_argument(
+        "--capacity-only",
+        action="store_true",
+        help="正式能力入力の登録・訂正・参照を実ブラウザ確認する（実LLM必須）",
+    )
     parser.add_argument("--embedding-model")
     parser.add_argument("--embedding-digest")
     args = parser.parse_args()
@@ -51,6 +56,10 @@ def main():
         and re.fullmatch(r"[A-Za-z0-9_.:/-]{1,200}", args.llm_model) is None
     ):
         parser.error("Invalid model name")
+    if args.economic_only and args.capacity_only:
+        parser.error("Choose one focused workflow")
+    if args.capacity_only and not args.llm_model:
+        parser.error("--capacity-only requires an installed --llm-model")
     if args.economic_only and not args.llm_model:
         parser.error("--economic-only requires an installed --llm-model")
     vector = args.embedding_model is not None
@@ -104,7 +113,7 @@ def main():
                 f"LINESCOPE_BROWSER_DISCOVERY={str(bool(args.llm_model)).lower()}\n"
             )
         try:
-            if args.economic_only:
+            if args.economic_only or args.capacity_only:
                 fixture.docker(
                     "up", "--build", "-d", "--wait", "--wait-timeout", "120", "api"
                 )
@@ -146,7 +155,9 @@ def main():
                         str(secret),
                         image,
                         "node",
-                        "scripts/verify-economic-browser.mjs"
+                        "scripts/verify-capacity-browser.mjs"
+                        if args.capacity_only
+                        else "scripts/verify-economic-browser.mjs"
                         if args.economic_only
                         else "scripts/verify-browser.mjs",
                     ]
@@ -169,7 +180,9 @@ def main():
                 json.dumps(
                     {
                         "result": "PASS",
-                        "scope": "Registered economics only"
+                        "scope": "Registered capacity workflow"
+                        if args.capacity_only
+                        else "Registered economics only"
                         if args.economic_only
                         else "Fixed frontend demo, not full UI acceptance",
                     }

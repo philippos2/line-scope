@@ -49,7 +49,16 @@ class DemoDecisionFlow:
         return (
             not any(
                 word in message
-                for word in ("経済入力", "登録済み費用", "EconomicInput", "economic_input")
+                for word in (
+                    "経済入力",
+                    "登録済み費用",
+                    "EconomicInput",
+                    "economic_input",
+                    "能力入力",
+                    "登録済み能力",
+                    "CapacityInput",
+                    "capacity_input",
+                )
             )
             and "M-204" in message
             and any(

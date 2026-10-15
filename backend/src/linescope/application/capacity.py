@@ -85,6 +85,31 @@ class CapacityInputs:
         )
         return self.store.get(context, str(saved.update_request_id))
 
+    def products(self, context, arguments):
+        require(context)
+        try:
+            if type(arguments) is not dict or not set(arguments) <= {"query", "cursor"}:
+                raise ValueError("Invalid product search fields")
+            query = arguments.get("query", "")
+            if type(query) is not str or len(query) > 100:
+                raise ValueError("Invalid product search text")
+            binding = self.cursors.binding(context, "capacity_products", {"query": query})
+            cursor = arguments.get("cursor")
+            after = self.cursors.decode(cursor, binding) if cursor is not None else None
+        except (ValueError, TypeError) as error:
+            raise ProposalError("INVALID_ARGUMENT", "Invalid product search") from error
+        with self.read_store._transaction(read_only=True) as connection:
+            rows = queries.search_products(connection, query, 20, after)
+        items = [
+            {key: value for key, value in row.items() if key != "_observed_at"} for row in rows[:20]
+        ]
+        return {
+            "items": items,
+            "next_cursor": self.cursors.encode(binding, items[-1]["product_id"])
+            if len(rows) > 20
+            else None,
+        }
+
     def search(self, context, arguments):
         require(context)
         try:
@@ -147,12 +172,14 @@ class CapacityInputs:
             row = queries.read(connection, identifier)
             if row is None:
                 raise ProposalError("TARGET_NOT_FOUND", "Capacity input was not found")
+            labels = queries.labels(connection, row["equipment_id"], row["product_id"])
             observed_at = connection.execute("SELECT transaction_timestamp() AS at").fetchone()[
                 "at"
             ]
         record = normalize_record(dict(row))
         return {
             "input": record,
+            "labels": labels,
             "calculation": calculate(record["payload"]),
             "source": "REGISTERED_INPUT",
             "observed_at": observed_at,

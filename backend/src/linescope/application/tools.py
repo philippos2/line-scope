@@ -8,6 +8,7 @@ from copy import deepcopy
 
 from ..domain.graph_traversal import IMPACT_FORWARD, IMPACT_REVERSE
 from ..execution import ExecutionContext
+from .capacity import CapacityInputs
 from .dependency_prepare import DependencyPrepare
 from .economics import EconomicInputs
 from .graph_request import ENTITY_TYPES, LIMIT_NAMES
@@ -245,6 +246,7 @@ def _graph_schemas():
 class ToolDispatcher:
     def __init__(self, database, *, graph=None, knowledge=None):
         self.economics = EconomicInputs(database)
+        self.capacity = CapacityInputs(database)
         self.graph = graph
         self.knowledge = knowledge
         self.reads = ReadTools(database)
@@ -279,6 +281,28 @@ class ToolDispatcher:
         schemas["get_economic_input"] = {
             **_object({"economic_input_id": UUID_SCHEMA}),
             "description": "Read a selected registered economic input with server-calculated exact JPY subtotals, unknown totals, sources, period and version. Not operational feasibility, safety, a cheapest-option recommendation or historical state reconstruction.",
+        }
+        schemas["search_capacity_inputs"] = {
+            **_object(
+                {
+                    "filter": _object(
+                        {
+                            "equipment_id": UUID_SCHEMA,
+                            "input_code": {"type": "string", "minLength": 1, "maxLength": 100},
+                            "equipment_query": {"type": "string", "minLength": 1, "maxLength": 100},
+                        },
+                        [],
+                    ),
+                    "page_size": {"type": "integer", "minimum": 1, "maximum": 100},
+                    "cursor": {"type": ["string", "null"]},
+                },
+                [],
+            ),
+            "description": "Search registered capacity input candidates by equipment name/code substring, exact equipment ID or input code. No mock fallback. Multiple candidates require explicit selection; rates/periods must not be merged.",
+        }
+        schemas["get_capacity_input"] = {
+            **_object({"capacity_input_id": UUID_SCHEMA}),
+            "description": "Read a selected registered capacity input with server-calculated product-specific capacity shortage and conditional buffer deadline, sources, period and version. Not operational feasibility, safety, a cheapest-option recommendation or historical state reconstruction.",
         }
         if self.knowledge is not None:
             schemas["retrieve_knowledge"] = _object(
@@ -354,6 +378,30 @@ class ToolDispatcher:
                     "consistency": "LATEST_PER_CALL",
                     "version": data["input"]["version"] if "input" in data else None,
                     "economic_input_id": data["input"]["economic_input_id"]
+                    if "input" in data
+                    else None,
+                },
+            )
+        if tool in {"search_capacity_inputs", "get_capacity_input"}:
+            try:
+                if tool == "search_capacity_inputs":
+                    data = self.capacity.search(context, arguments)
+                else:
+                    if type(arguments) is not dict or set(arguments) != {"capacity_input_id"}:
+                        raise ProposalError("INVALID_ARGUMENT", "An capacity input ID is required")
+                    data = self.capacity.get(context, arguments["capacity_input_id"])
+            except ProposalError as error:
+                raise ToolError(error.code, error.message) from error
+            data = json_value(data)
+            return ReadResult(
+                data,
+                {
+                    "source": "POSTGRESQL",
+                    "tool": tool,
+                    "observed_at": data["observed_at"],
+                    "consistency": "LATEST_PER_CALL",
+                    "version": data["input"]["version"] if "input" in data else None,
+                    "capacity_input_id": data["input"]["capacity_input_id"]
                     if "input" in data
                     else None,
                 },

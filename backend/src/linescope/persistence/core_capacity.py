@@ -118,3 +118,51 @@ def search(connection, filters, limit, after):
     if after is not None:
         query = query.where(INPUT.c.capacity_input_id > after)
     return run(connection, query.order_by(INPUT.c.capacity_input_id).limit(limit + 1)).fetchall()
+
+
+def search_products(connection, query, limit, after):
+    from sqlalchemy import func
+
+    product = table(
+        "product",
+        column("product_id", UUID()),
+        column("product_code", Text()),
+        column("product_name", Text()),
+    )
+    statement = select(product, func.statement_timestamp().label("_observed_at"))
+    if query:
+        statement = statement.where(
+            or_(
+                product.c.product_code.contains(query, autoescape=True),
+                product.c.product_name.contains(query, autoescape=True),
+            )
+        )
+    if after is not None:
+        statement = statement.where(product.c.product_id > after)
+    return run(connection, statement.order_by(product.c.product_id).limit(limit + 1)).fetchall()
+
+
+def labels(connection, equipment_id, product_id):
+    equipment = table(
+        "equipment",
+        column("equipment_id", UUID()),
+        column("equipment_code", Text()),
+        column("equipment_name", Text()),
+    )
+    product = table(
+        "product",
+        column("product_id", UUID()),
+        column("product_code", Text()),
+        column("product_name", Text()),
+    )
+    statement = (
+        select(
+            equipment.c.equipment_code,
+            equipment.c.equipment_name,
+            product.c.product_code,
+            product.c.product_name,
+        )
+        .select_from(equipment.join(product, product.c.product_id == product_id))
+        .where(equipment.c.equipment_id == equipment_id)
+    )
+    return dict(run(connection, statement).fetchone())
