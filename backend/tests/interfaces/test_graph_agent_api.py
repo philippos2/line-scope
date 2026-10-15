@@ -82,7 +82,11 @@ def test_http_agent_returns_paths_and_authoritative_state_evidence(world, tool, 
         assert "未評価" in body["answer"]
         assert origin not in body["answer"]
     else:
-        assert body["answer"] == "経路を確認しました。"
+        assert "上流に2件の依存到達要素" in body["answer"]
+        assert "1段上流1件、2段以上の上流1件" in body["answer"]
+        assert "未評価" in body["answer"]
+        assert "下流" not in body["answer"]
+        assert product not in body["answer"]
     result = body["data"]["tool_results"][0]["data"]
     evidence = body["evidence"]["tool_results"][0]
     assert result["complete"] and len(result["reached_nodes"]) == 2

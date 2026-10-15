@@ -13,13 +13,20 @@ from uuid import UUID, uuid5
 
 from verify_minimal_flow import DemoFixture, stage
 
+EQUIPMENT_ID = "20400000-0000-4000-8000-000000000001"
+NAMESPACE = UUID("3e31b1d7-e229-4b4e-84ea-3c01cbd54cdd")
+
 QUESTIONS = {
     "state_and_cause": "M-204の現在状態と故障原因を調べて。登録情報でわからないことは明示して。",
     "downstream": "M-204が停止した場合の下流の影響対象と経路を調べて。実際の停止や能力、安全性の未評価事項も示して。",
     "missing_equipment": "設備M-999999の現在状態を調べて。見つからなければ明示して。",
+    "upstream": "M-204の上流依存を調べて。停止影響や能力、安全性の評価とは区別して。",
+    "common": (
+        f"製品P-100（Product ID: {uuid5(NAMESPACE, 'P-100')}）と"
+        f"製品P-200（Product ID: {uuid5(NAMESPACE, 'P-200')}）の共通する上流依存候補を調べて。"
+        "故障原因やSPOFと断定せず、不完全性と未評価事項も示して。"
+    ),
 }
-EQUIPMENT_ID = "20400000-0000-4000-8000-000000000001"
-NAMESPACE = UUID("3e31b1d7-e229-4b4e-84ea-3c01cbd54cdd")
 
 
 def validate_observations(scenario, payload):
@@ -47,11 +54,12 @@ def validate_observations(scenario, payload):
         return
     if payload.get("status") != "ok" or payload.get("errors"):
         raise ValueError("AGENT_ERRORS")
-    tool = (
-        "get_equipment_state"
-        if scenario == "state_and_cause"
-        else "trace_downstream_impact"
-    )
+    tool = {
+        "state_and_cause": "get_equipment_state",
+        "downstream": "trace_downstream_impact",
+        "upstream": "trace_upstream_dependencies",
+        "common": "find_common_dependencies",
+    }[scenario]
     selected = [row for row in rows if row.get("tool") == tool]
     if not selected:
         raise ValueError("EXPECTED_TOOL_MISSING")
@@ -70,7 +78,7 @@ def validate_observations(scenario, payload):
                 or data.get("state_code") != "STOPPED"
             ):
                 raise ValueError("STATE_FIXTURE_MISMATCH")
-        else:
+        elif scenario == "downstream":
             expected = {
                 (kind, str(uuid5(NAMESPACE, code)))
                 for kind, codes in (
@@ -94,6 +102,47 @@ def validate_observations(scenario, payload):
                 != ["OPERATIONAL_IMPACT", "CAPACITY", "SAFETY", "ECONOMICS"]
             ):
                 raise ValueError("GRAPH_FIXTURE_MISMATCH")
+        else:
+            expected = {("InfrastructureResource", str(uuid5(NAMESPACE, "R-02")))}
+            if scenario == "common":
+                expected |= {
+                    (kind, str(uuid5(NAMESPACE, code)))
+                    for kind, codes in (
+                        ("Process", ("P-10", "P-20")),
+                        ("ProductionOperation", ("OP-30", "OP-40")),
+                    )
+                    for code in codes
+                }
+                expected.add(("Equipment", EQUIPMENT_ID))
+                targets = {
+                    (node["entity_type"], node["entity_id"])
+                    for node in data.get("targets", [])
+                }
+                if targets != {
+                    ("Product", str(uuid5(NAMESPACE, code)))
+                    for code in ("P-100", "P-200")
+                }:
+                    raise ValueError("COMMON_TARGET_MISMATCH")
+            elif data.get("target") != {
+                "entity_type": "Equipment",
+                "entity_id": EQUIPMENT_ID,
+            }:
+                raise ValueError("UPSTREAM_TARGET_MISMATCH")
+            actual = {
+                (node["entity_type"], node["entity_id"])
+                for node in data.get(
+                    "common_candidates" if scenario == "common" else "reached_nodes", []
+                )
+            }
+            if (
+                actual != expected
+                or data.get("complete") is not True
+                or data.get("graph_sync_state") != "CURRENT"
+                or data.get("analysis_scope") != "DEPENDENCY_REACHABILITY"
+                or data.get("not_evaluated")
+                != ["OPERATIONAL_IMPACT", "CAPACITY", "SAFETY", "ECONOMICS"]
+            ):
+                raise ValueError("DEPENDENCY_FIXTURE_MISMATCH")
 
 
 def main():
@@ -108,7 +157,7 @@ def main():
         parser.error("reportは既存ディレクトリ内の新規ファイルを指定してください")
     report = {
         "report_version": 1,
-        "dataset_version": "read-demo-v1",
+        "dataset_version": "read-demo-v2",
         "model": args.model,
         "revision": subprocess.check_output(
             ["git", "rev-parse", "HEAD"], text=True
@@ -156,7 +205,10 @@ def main():
                         case = {"scenario": scenario, "question": question}
                         try:
                             payload = fixture.request(
-                                "/agent", data={"message": question}, timeout_seconds=90
+                                "/agent",
+                                data={"message": question},
+                                timeout_seconds=90,
+                                expected=None,
                             )
                             case["response"] = {
                                 key: payload.get(key)
@@ -169,6 +221,9 @@ def main():
                                     "warnings",
                                 )
                             }
+                            case["http_status"] = payload.pop("_probe_http_status")
+                            if case["http_status"] != 200:
+                                raise ValueError("HTTP_ERROR")
                             validate_observations(scenario, payload)
                         except (
                             ValueError,
@@ -176,8 +231,18 @@ def main():
                             TypeError,
                             RuntimeError,
                             subprocess.CalledProcessError,
-                        ):
+                        ) as error:
                             case["structured_result"] = "FAIL"
+                            reason = (
+                                str(error)
+                                if isinstance(error, ValueError)
+                                else "PROBE_REQUEST_FAILED"
+                            )
+                            case["failure_code"] = (
+                                reason
+                                if re.fullmatch(r"[A-Z_]{1,80}", reason)
+                                else "OBSERVATION_VALIDATION_FAILED"
+                            )
                         else:
                             case["structured_result"] = "PASS"
                         report["cases"].append(case)

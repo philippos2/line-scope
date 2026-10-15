@@ -53,3 +53,9 @@ business-scenariosの構造化結果を決定論的受入の基準にし、Evals
 `scripts/verify_graph_agent.py --scenario alternative / spof`を使い、初期Graph fixture、既知typed IDを含む日本語質問、サーバ側の構造化Tool結果を確認する。必要Tool選択、対象・除外／候補、完全性・判定・未評価次元・状態version・Evidenceを検証する。Tool引数拒否で補足確認へ戻った結果は、HTTP 200でも合格にしない。
 
 説明品質は回答の完全一致ではなく、構造上の成立／SPOFと実際の停止・能力・安全性を区別するかを別途レビューする。一回の成功で一般品質閾値を確定しない。初回結果と未解決事項は[2026-10-13実LLM baseline](../history/2026-10-13-fulfillment-agent-baseline.md)を参照する。
+
+## 9. Read baseline v2
+
+verify_read_agent_quality.pyのdataset read-demo-v2は、既存3質問（状態／原因、下流、対象不存在）に上流依存・共通依存の2質問を加える。上流はM-204からR-02への到達、共通依存は既知typed IDを明示したP-100 / P-200の6候補を実PG / Neo4jと照合する。後者は名前だけの対象解決の受入ではない。complete / CURRENT / scope / not_evaluated / Evidenceも確認する。
+
+STRUCTURED_PASS_REVIEW_REQUIREDは構造化結果の成功であり、文章や一般品質の合格ではない。実停止・能力・安全・経済の未評価と、上流／共通依存の意味、原因／SPOFとの区別を別途レビューする。モデルdigest未固定・単一実行という制限は維持する。

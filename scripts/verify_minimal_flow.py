@@ -115,8 +115,12 @@ class DemoFixture:
                 command, input=config, text=True, capture_output=True, check=True
             )
         body, status = result.stdout.rsplit("\n", 1)
-        require(int(status) == expected, f"HTTP {status}: expected {expected}")
-        return json.loads(body)
+        if expected is not None:
+            require(int(status) == expected, f"HTTP {status}: expected {expected}")
+        parsed = json.loads(body)
+        if expected is None:
+            parsed["_probe_http_status"] = int(status)
+        return parsed
 
 
 @contextmanager
