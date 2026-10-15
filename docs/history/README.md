@@ -580,3 +580,5 @@ Dockerで追加36テスト成功、ruff check / format、git diff --check成功�
 - [Frontend到達点前の計画](2026-10-15-roadmap-before-frontend-checkpoint.md)
 
 - [F5後のセッション復元](2026-10-15-browser-session-refresh.md)：#238の認証契約、接続設定、検証結果。
+
+- [承認付きAction画面と引き継ぎ](2026-10-15-frontend-controlled-actions.md)：会話消失後の再開、PR粒度、Prepare / Approval / Executeの画面接続と検証・残件。

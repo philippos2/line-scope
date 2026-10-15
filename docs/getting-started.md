@@ -51,7 +51,7 @@ docker compose -f compose.yaml -f compose.frontend.yaml --profile frontend up --
 docker compose up -d --no-deps api
 ```
 
-「比較デモ」→「問い合わせを送信」でGraph・対応案・Evidenceを確認できます。費用・能力・安全入力は仮置きで、実設備の安全判断には使えません。比較の定型説明はLLMがなくても表示します。通常の自然言語調査には下記のローカルLLM設定が必要です。現在の画面にはApproval／Execute操作はありません。
+「比較デモ」→「問い合わせを送信」でGraph・対応案・Evidenceを確認できます。費用・能力・安全入力は仮置きで、実設備の安全判断には使えません。比較の定型説明はLLMがなくても表示します。通常の自然言語調査には下記のローカルLLM設定が必要です。画面の「変更準備・承認・実行」から明示Prepareと保存Snapshotの確認ができます。要求IDを控え、接続を解除して承認者で再接続し、IDから要求を読み直して承認します。その後、元requesterで再接続して要求を読み直し、実行と更新後の結果を確認します。
 
 FrontendのproxyがAPIへ接続するため、ブラウザへDB資格情報を渡しません。Frontendはloopbackの5173番で、`LINESCOPE_FRONTEND_PORT`により変更できます。変更後は同じComposeファイルとprofileで再作成します。通常の停止でvolumeを削除しないでください。
 

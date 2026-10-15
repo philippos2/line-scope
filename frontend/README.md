@@ -8,8 +8,9 @@ React / TypeScript / Viteで実APIへ接続するオペレーション画面で�
 - 取得したObjectとCURRENTの下流Graph代表経路を選択・表示する。
 - 修理・交換・継続・代替の比較、制約・不足情報・計算根拠を確認する。
 - Evidenceの情報源・観測日時・Graph世代・入力version・原文を確認する。
+- 明示Prepare、保存Snapshotの確認、承認・拒否、元requesterによるExecuteと結果確認。
 
-左ペインは今回取得したObjectの一覧です。全設備の検索画面ではありません。GraphはAPIの代表経路の描画で、React Flowは導入していません。比較の費用・能力・安全条件はMOCK_FIXTUREです。変更Prepare・Approval・Executeの画面は後続です。
+左ペインは今回取得したObjectの一覧です。全設備の検索画面ではありません。GraphはAPIの代表経路の描画で、React Flowは導入していません。比較の費用・能力・安全条件はMOCK_FIXTUREです。「変更準備・承認・実行」を開き、変更指示または変更要求IDから操作できます。承認者には要求IDを渡し、接続解除・再接続後に保存Snapshotを読み直します。Execute後は確定afterと現在観測を分けて表示します。通信失敗時は書き込みを自動再送せず、保存状態を再取得してください。
 
 ## 起動
 
