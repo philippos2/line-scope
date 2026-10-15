@@ -221,7 +221,7 @@ def test_idempotency_key_is_globally_unique(store):
         {"requester_id": " "},
         {"operation_type": "DELETE"},
         {"status": "PENDING"},
-        {"snapshot_schema_version": 3},
+        {"snapshot_schema_version": 4},
         {"snapshot_hash": "g" * 64},
         {"prepare_input_hash": "A" * 64},
         {"agent_input_hash": "short"},

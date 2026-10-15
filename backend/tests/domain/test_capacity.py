@@ -28,14 +28,21 @@ def payload():
 
 
 @pytest.mark.parametrize(
-    "required,status,shortage",
-    [("60", "SUFFICIENT", "0"), ("90", "INSUFFICIENT", "30"), ("0", "SUFFICIENT", "0")],
+    "required,normal,available,status,shortage",
+    [
+        ("60", "120", "80", "SUFFICIENT", "0"),
+        ("90", "100", "60", "INSUFFICIENT", "30"),
+        ("0", "40", "0", "SUFFICIENT", "0"),
+    ],
 )
-def test_same_product_rate_comparison_preserves_zero_and_shortage(required, status, shortage):
+def test_same_product_rate_comparison_preserves_zero_and_shortage(
+    required, normal, available, status, shortage
+):
     values = payload()
     values["required_rate"] = required
+    values["normal_rate"] = normal
     result = calculate(values)
-    assert result["available_rate"] == "60"
+    assert result["available_rate"] == available
     assert result["capacity_status"] == status and result["shortage_rate"] == shortage
     assert result["feasibility"] == "UNKNOWN"
 

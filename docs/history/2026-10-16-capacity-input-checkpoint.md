@@ -52,3 +52,11 @@ import名修正後の関連実行は28成功・12失敗。HTTP handlerの依存�
 lockはRequest→Approval→設備KEY SHARE→製品KEY SHARE→入力UPDATEで、FKとversionの再検証を承認時／確定時に実施する。経済カテゴリの現在閲覧roleによる保存要求・COMPLETED再送の制御を能力にも明示適用し、floorへ過去要求の内容が露出しない。計算・HTTP・Application・Coreの責務を分離し、SQL値はbindする。Capabilityの追加をAgentの承認・確定権限へ転用しない。
 
 Docker内ruff checkは成功。全体回帰・CIは確認中。今回の変更で通常デモ環境・Ollama・Qdrantデータには変更を加えていない。能力入力の画面・Agent接続、Graphと安全を含む全BS受入は後続。
+
+## 全体回帰の結果と対応
+
+ローカル全体回帰は3859 passed / 3 failed / 1 skipped、354.12秒。失敗はGraph migration upgradeとfoundationのmigration一覧への009追記漏れ、および未対応schema_versionを3としていたDB拒否試験。今回v3を実装したため未対応versionを4へ更新し、拒否検証自体は維持した。対象2一覧を更新し、関連試験を再実行する。skipは既存opt-in LLM。既存Starlette/httpx警告と終了時logging output failedが残る。
+
+BS-05の必要60・利用可能80、BS-06の90・60、不足30、ゼロ必要量・ゼロ空き能力を3つの既存新規ケースへ明示した。ケース数は追加せず、固定fixtureとの対応を改善した。20件の新規追加という当初範囲を維持する。
+
+修正後の能力・DB role・migration・Snapshotを含む対象177件は全成功（16.73秒）。Docker内ruff check / format checkも成功。最終全件はPR #248の最新headに対するCIで確認する。
