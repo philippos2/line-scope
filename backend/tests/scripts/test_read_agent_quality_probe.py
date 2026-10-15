@@ -115,3 +115,26 @@ def test_dependency_probe_requires_fixture_facts_and_complete_search(monkeypatch
     data["complete"] = False
     with pytest.raises(ValueError, match="DEPENDENCY_FIXTURE_MISMATCH"):
         probe["validate_observations"](scenario, payload)
+
+
+def test_probe_transport_retains_error_body_without_relaxing_default_http_check(monkeypatch):
+    import json
+    import subprocess
+    from types import SimpleNamespace
+
+    scripts = Path(__file__).resolve().parents[3] / "scripts"
+    monkeypatch.syspath_prepend(str(scripts))
+    probe = runpy.run_path(str(scripts / "verify_read_agent_quality.py"))
+    fixture = probe["DemoFixture"].__new__(probe["DemoFixture"])
+    fixture.port, fixture.owner = 8000, "synthetic-token"
+    response = {"status": "error", "errors": [{"code": "AGENT_LIMIT_REACHED"}]}
+    monkeypatch.setattr(
+        subprocess,
+        "run",
+        lambda *args, **kwargs: SimpleNamespace(stdout=json.dumps(response) + "\n503"),
+    )
+    observed = fixture.request("/agent", expected=None)
+    assert observed["_probe_http_status"] == 503
+    assert observed["errors"] == response["errors"]
+    with pytest.raises(RuntimeError, match="HTTP 503: expected 200"):
+        fixture.request("/agent")

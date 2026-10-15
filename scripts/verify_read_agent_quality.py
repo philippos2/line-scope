@@ -221,6 +221,9 @@ def main():
                                     "warnings",
                                 )
                             }
+                            case["http_status"] = payload.pop("_probe_http_status")
+                            if case["http_status"] != 200:
+                                raise ValueError("HTTP_ERROR")
                             validate_observations(scenario, payload)
                         except (
                             ValueError,
