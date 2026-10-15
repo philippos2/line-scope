@@ -371,4 +371,12 @@ representative_pathsのpurpose / root / nodes / edges / hops、MANDATORY_DEPENDE
 
 `GET /economic-inputs/{id}`はmaintenance / production / manager専用。保存済みinput（version含む）、calculation、source=REGISTERED_INPUT、observed_atを返す。calculationは共通期間・JPY・明示稼働時間と案別items（kind / amount_jpy / source / certainty / included_in_subtotal）、known_subtotal_jpy、total_jpy、complete、unknown_or_nonindependent_keysを返す。既知かつ独立な項目だけ小計へ加算する。complete=false、未知項目、非独立項目のいずれかがあればtotal_jpy=null。未登録は404でモックへfallbackしない。feasibility=UNKNOWN、recommendation=nullであり、最安案・安全・完全代替・実停止の認定を返さない。
 
-この段階ではAgent Tool公開・画面・費用入力検索は未接続。既存デモ比較APIのMOCK_FIXTUREと正式入力を混在させない。
+正式入力の画面・Agent Read・検索は下記の専用経路へ接続する。既存デモ比較APIのMOCK_FIXTUREと正式入力を混在させない。
+
+### 正式経済入力の検索とAgent Read
+
+`POST /economic-inputs/search`はmaintenance / production / manager専用。JSONは任意の`filter`、`page_size`（整数1〜100、既定20）、`cursor`（nullまたは続きtoken）だけ。filterは`equipment_id`（UUID）、`input_code`（完全一致）、`equipment_query`（設備名またはコードの部分一致、LIKE記号を文字として扱う）。文字filterは非空100文字以内。複数条件はANDで絞り込む。候補はeconomic_input_idの昇順で、ID / input_code / equipment_id / equipment_code / equipment_name / versionを返し、payloadは含めない。空検索はitems=[]。next_cursorは同一主体・role・filter・サービスinstanceに拘束する。別のHTTP/Tool境界やprocess再起動後にtokenを流用せず、条件から再検索する。
+
+Agent Read Tool `search_economic_inputs`は同じ検索引数、`get_economic_input`はeconomic_input_idだけを受け付ける。同じ認可をserviceで検証し、入力元のidentity / role / hash等を受け付けない。取得は登録済みの正本値とサーバ計算だけを返し、EvidenceにPOSTGRESQL、観測日時、LATEST_PER_CALL、取得時のversion / IDを保持する。現在登録された見積であり、過去状態の復元や実停止の証拠ではない。候補が複数なら期間や記録を勝手に一つへ決めたり合算しない。Agentには経済Prepare / Approval / Executeを公開しない。
+
+正式な「経済入力」「登録済み費用」を指定した問い合わせは、M-204を含む場合もデモ比較へ流さない。単一入力の要約はサーバ計算の総額／既知小計・不明を維持し、複数入力は合算しない。検索候補だけでは計算を実施済みと説明しない。

@@ -46,9 +46,25 @@ class DemoDecisionFlow:
 
     @staticmethod
     def matches(message):
-        return "M-204" in message and any(
-            word in message
-            for word in ("比較", "判断材料", "修理", "交換", "次回更新", "次の更新", "損失", "代替")
+        return (
+            not any(
+                word in message
+                for word in ("経済入力", "登録済み費用", "EconomicInput", "economic_input")
+            )
+            and "M-204" in message
+            and any(
+                word in message
+                for word in (
+                    "比較",
+                    "判断材料",
+                    "修理",
+                    "交換",
+                    "次回更新",
+                    "次の更新",
+                    "損失",
+                    "代替",
+                )
+            )
         )
 
     def run(self, context, incoming):

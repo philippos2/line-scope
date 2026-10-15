@@ -592,3 +592,4 @@ Dockerで追加36テスト成功、ruff check / format、git diff --check成功�
 - [PR件名修正と作業方針の確認](2026-10-16-pr-title-correction.md)：今回限りの履歴修正許可・保護復元、文書責務と完成優先の指示。
 
 - [経済・損失入力の正式化](2026-10-16-economic-inputs.md)：PO判断の確定範囲、登録・承認・計算APIと検証・後続工程。
+- [正式経済入力の画面・Agent接続](2026-10-16-economic-workspace.md)：登録値の検索・編集・承認・計算表示、Read Toolと実モデル／実ブラウザ検証。

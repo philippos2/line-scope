@@ -38,6 +38,11 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--docker-group")
     parser.add_argument("--llm-model", help="導入済みモデルで設備候補検索も確認する")
+    parser.add_argument(
+        "--economic-only",
+        action="store_true",
+        help="正式経済入力の業務経路だけをブラウザ確認する（実LLM必須）",
+    )
     parser.add_argument("--embedding-model")
     parser.add_argument("--embedding-digest")
     args = parser.parse_args()
@@ -46,6 +51,8 @@ def main():
         and re.fullmatch(r"[A-Za-z0-9_.:/-]{1,200}", args.llm_model) is None
     ):
         parser.error("Invalid model name")
+    if args.economic_only and not args.llm_model:
+        parser.error("--economic-only requires an installed --llm-model")
     vector = args.embedding_model is not None
     if bool(args.embedding_model) != bool(args.embedding_digest):
         parser.error("Specify both embedding model and digest")
@@ -97,12 +104,20 @@ def main():
                 f"LINESCOPE_BROWSER_DISCOVERY={str(bool(args.llm_model)).lower()}\n"
             )
         try:
-            verify(fixture)
-            ingest(
-                fixture,
-                1,
-                'M-204 保全手順。停止後に点検する。<img src="/never-fetch" onerror="window.documentCommandExecuted=true">',
-            )
+            if args.economic_only:
+                fixture.docker(
+                    "up", "--build", "-d", "--wait", "--wait-timeout", "120", "api"
+                )
+                fixture.docker(
+                    "run", "--rm", "graph-admin", "linescope", "seed-demo-graph"
+                )
+            else:
+                verify(fixture)
+                ingest(
+                    fixture,
+                    1,
+                    'M-204 保全手順。停止後に点検する。<img src="/never-fetch" onerror="window.documentCommandExecuted=true">',
+                )
             fixture.docker("--profile", "frontend", "up", "--build", "-d", "frontend")
             subprocess.run(
                 command(
@@ -131,7 +146,9 @@ def main():
                         str(secret),
                         image,
                         "node",
-                        "scripts/verify-browser.mjs",
+                        "scripts/verify-economic-browser.mjs"
+                        if args.economic_only
+                        else "scripts/verify-browser.mjs",
                     ]
                 ),
                 check=True,
@@ -152,7 +169,9 @@ def main():
                 json.dumps(
                     {
                         "result": "PASS",
-                        "scope": "Fixed frontend demo, not full UI acceptance",
+                        "scope": "Registered economics only"
+                        if args.economic_only
+                        else "Fixed frontend demo, not full UI acceptance",
                     }
                 )
             )

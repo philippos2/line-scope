@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { ApiError, object, request, type Envelope } from "../api/client";
 import { ActionPanel } from "../features/actions/ActionPanel";
+import { EconomicPanel } from "../features/economics/EconomicPanel";
+import { EconomicResult } from "../features/economics/EconomicResult";
 import { DecisionComparison } from "../features/decision/DecisionComparison";
 import {
   EquipmentCandidates,
@@ -16,6 +18,10 @@ import {
   type NodeRef,
 } from "../features/graph/model";
 export function App() {
+  const [economicPrepared, setEconomicPrepared] = useState<
+    string | undefined
+  >();
+  const [executionEpoch, setExecutionEpoch] = useState(0);
   const [draftToken, setDraftToken] = useState("");
   const token = useRef("");
   const freshContext = useRef(false);
@@ -82,6 +88,7 @@ export function App() {
     retry.current = null;
     setDraftToken("");
     setEquipment(null);
+    setEconomicPrepared(undefined);
     freshContext.current = false;
     setConnected(false);
     setIdentity("");
@@ -143,6 +150,7 @@ export function App() {
         setShowConnection(false);
         setDraftToken("");
         setEquipment(null);
+        setEconomicPrepared(undefined);
         freshContext.current = false;
         setConnected(true);
       },
@@ -173,6 +181,7 @@ export function App() {
       (value) => {
         freshContext.current = false;
         setResult(value);
+        setEconomicPrepared(undefined);
         setSelected(null);
         setStale(false);
       },
@@ -336,14 +345,38 @@ export function App() {
                 onSelect={chooseEquipment}
               />
             )}
+            <EconomicPanel
+              equipment={equipment}
+              onPrepared={setEconomicPrepared}
+              onInvestigate={draftInvestigation}
+              executionEpoch={executionEpoch}
+            />
             <ActionPanel
-              onExecution={() => setStale(true)}
+              onExecution={() => {
+                setStale(true);
+                setExecutionEpoch((value) => value + 1);
+              }}
               preparedId={
-                typeof result?.data.update_request_id === "string"
+                economicPrepared ??
+                (typeof result?.data.update_request_id === "string"
                   ? result.data.update_request_id
-                  : undefined
+                  : undefined)
               }
             />
+            {Array.isArray(result?.data.tool_results) &&
+              result.data.tool_results
+                .filter(object)
+                .filter(
+                  (row) =>
+                    row.tool === "get_economic_input" && object(row.data),
+                )
+                .map((row, index) => (
+                  <EconomicResult
+                    key={index}
+                    data={row.data as Record<string, unknown>}
+                    stale={stale}
+                  />
+                ))}
             <nav className="tabs" aria-label="結果表示">
               {(["impact", "comparison", "evidence", "trace"] as const).map(
                 (key) => (

@@ -9,9 +9,10 @@ React / TypeScript / Viteで実APIへ接続するオペレーション画面で�
 - 取得したObjectとCURRENTの下流Graph代表経路を選択・表示する。
 - 修理・交換・継続・代替の比較、制約・不足情報・計算根拠を確認する。
 - Evidenceの情報源・観測日時・Graph世代・入力version・原文を確認する。
+- 正式経済入力を設備名・コードから検索し、出典付き見積・総額不明を確認する。設備候補を選択して登録、登録値から訂正を準備できる。
 - 明示Prepare、保存Snapshotの確認、承認・拒否、元requesterによるExecuteと結果確認。
 
-左ペインは今回取得したObjectの一覧です。全設備の検索画面ではありません。GraphはAPIの代表経路の描画で、React Flowは導入していません。比較の費用・能力・安全条件はMOCK_FIXTUREです。「変更準備・承認・実行」を開き、変更指示または変更要求IDから操作できます。承認者には要求IDを渡し、接続解除・再接続後に保存Snapshotを読み直します。Execute後は確定afterと現在観測を分けて表示します。通信失敗時は書き込みを自動再送せず、保存状態を再取得してください。
+左ペインは今回取得したObjectの一覧です。全設備の検索画面ではありません。GraphはAPIの代表経路の描画で、React Flowは導入していません。「比較デモ」の費用・能力・安全条件はMOCK_FIXTUREです。「正式な経済・損失入力」は別経路で登録済み正本を使い、画面のフォーム→別管理者の承認→要求者の確定を通します。「変更準備・承認・実行」を開き、変更指示または変更要求IDから操作できます。承認者には要求IDを渡し、接続解除・再接続後に保存Snapshotを読み直します。Execute後は確定afterと現在観測を分けて表示します。通信失敗時は書き込みを自動再送せず、保存状態を再取得してください。
 
 ## 起動
 
@@ -54,3 +55,5 @@ python3 scripts/verify_frontend_flow.py --docker-group docker \
 python3 scripts/verify_frontend_flow.py --docker-group docker \
   --llm-model qwen3:30b-a3b-instruct-2507-q4_K_M
 ```
+
+実モデルを使う経済入力のブラウザ受入は`python3 scripts/verify_frontend_flow.py --docker-group docker --llm-model qwen3:30b-a3b-instruct-2507-q4_K_M --economic-only`で確認します。導入済みモデルを使用し、自動取得しません。設備検索、経済登録・別管理者承認・確定・正式入力取得・Agent Readを実APIで確認し、Embedding / 引用検索のmockとは区別します。
