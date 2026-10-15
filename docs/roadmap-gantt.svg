@@ -23,29 +23,35 @@
 <text x="1130" y="102" font-size="14">次7</text>
 <path d="M1200 112V558" stroke="#dae2e9"/>
 <text x="24" y="145" font-size="17" font-weight="bold">能力・需要・条件付き復旧期限</text>
-<text x="24" y="169" font-size="13">画面・Agent・実ブラウザまで#248へ統合</text>
-<text x="390" y="145" font-size="14" fill="#347db5">実装中</text>
+<text x="24" y="169" font-size="13">登録・訂正・画面・Agent・通し確認済み</text>
+<text x="390" y="145" font-size="14" fill="#347db5">CI確認</text>
 <rect x="484" y="125" width="82" height="37" rx="4" fill="#347db5"/>
+<text x="525" y="149" text-anchor="middle" font-size="11" fill="white" font-weight="bold">1 PR（#248）</text>
 <text x="24" y="213" font-size="17" font-weight="bold">安全条件・リスク</text>
 <text x="24" y="237" font-size="13">正式入力・除外条件・更新時制約・画面／Agent</text>
 <text x="390" y="213" font-size="14" fill="#c99640">PO待ち</text>
 <rect x="574" y="193" width="172" height="37" rx="4" fill="#c99640"/>
+<text x="660" y="217" text-anchor="middle" font-size="14" fill="white" font-weight="bold">1〜2 PR</text>
 <text x="24" y="281" font-size="17" font-weight="bold">対応計画・故障履歴</text>
 <text x="24" y="305" font-size="13">修理／交換案・lead time・故障事実と出典</text>
 <text x="390" y="281" font-size="14" fill="#c99640">PO待ち</text>
 <rect x="754" y="261" width="172" height="37" rx="4" fill="#c99640"/>
+<text x="840" y="285" text-anchor="middle" font-size="14" fill="white" font-weight="bold">1〜2 PR</text>
 <text x="24" y="349" font-size="17" font-weight="bold">インフラ分析の不足</text>
 <text x="24" y="373" font-size="13">上流提示／被影響の意味確定後に必要分だけ</text>
 <text x="390" y="349" font-size="14" fill="#c99640">要否判断</text>
 <rect x="934" y="329" width="82" height="37" rx="4" fill="#c99640"/>
+<text x="975" y="353" text-anchor="middle" font-size="14" fill="white" font-weight="bold">0〜1 PR</text>
 <text x="24" y="417" font-size="17" font-weight="bold">回答品質・全BS／Golden受入</text>
 <text x="24" y="441" font-size="13">正式入力の統合・未知・拒否・画面経路を検証</text>
 <text x="390" y="417" font-size="14" fill="#8295a5">未完了</text>
 <rect x="934" y="397" width="172" height="37" rx="4" fill="#8295a5"/>
+<text x="1020" y="421" text-anchor="middle" font-size="14" fill="white" font-weight="bold">2〜3 PR</text>
 <text x="24" y="485" font-size="17" font-weight="bold">運用・復旧受入</text>
 <text x="24" y="509" font-size="13">完成schemaで復元・派生再構築・障害復旧</text>
 <text x="390" y="485" font-size="14" fill="#8295a5">未完了</text>
 <rect x="1114" y="465" width="82" height="37" rx="4" fill="#8295a5"/>
+<text x="1155" y="489" text-anchor="middle" font-size="14" fill="white" font-weight="bold">1〜2 PR</text>
 <text x="24" y="586" font-size="15">着手条件：能力B03/B07確定済み → 安全B04/B07 → 計画・履歴B05/B06/B07。インフラはB08。</text>
 <text x="24" y="613" font-size="15">総合受入：正式入力を統合したDecision Package・全BS/Golden・一般LLM/検索・対象UI経路。</text>
 <text x="24" y="640" font-size="15">完了条件：対象機能と必要な受入・復旧検証を完了。PR消化率やテスト件数を完成度へ換算しない。</text>
