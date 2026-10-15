@@ -198,6 +198,6 @@ python3 scripts/verify_read_agent_quality.py \
   --report /tmp/linescope-read-quality.json
 ```
 
-必要な環境では`--docker-group docker`を付けます。専用環境で状態と原因不明、下流到達、存在しない設備の3質問を実行し、回答・Tool結果・Evidenceを0600の新規reportへ保存します。構造化結果成功でも`STRUCTURED_PASS_REVIEW_REQUIRED`であり、文章は別レビューが必要です。モデル名は記録しますがdigestを固定していないため、同名モデルの更新差は保証しません。
+必要な環境では`--docker-group docker`を付けます。専用環境で状態と原因不明、下流到達、存在しない設備、上流依存、共通依存の5質問を実行し、回答・Tool結果・Evidenceを0600の新規reportへ保存します。構造化結果成功でも`STRUCTURED_PASS_REVIEW_REQUIRED`であり、文章は別レビューが必要です。モデル名は記録しますがdigestを固定していないため、同名モデルの更新差は保証しません。
 
-単一の下流回答はサーバ側で件数・完全性・未評価事項を要約します。上流・代替・SPOF・複数分析や通常Readの自由説明は別の品質評価対象です。
+単一の下流・上流・共通依存回答は、それぞれの分析種別に沿ってサーバ側で件数・完全性・未評価事項を要約します。共通依存の質問には既知typed IDを含み、名前だけの対象解決は未受入です。代替・SPOF・複数分析や通常Readの自由説明は別の品質評価対象です。

@@ -7,7 +7,7 @@ from ..application.reads import ReadResult, ToolError
 from ..domain.canonical import canonical_json
 from ..integrations.llm import LLMError, LLMReply
 from .agent_tools import AgentToolSession
-from .graph_answer import downstream_answer
+from .graph_answer import dependency_answer, downstream_answer
 from .graph_model_view import GRAPH_TOOLS, graph_model_view
 
 SYSTEM_PROMPT = """あなたはLineScopeの参照専用アシスタントです。
@@ -26,7 +26,7 @@ purpose=SUBSTITUTIONは一段置換の経路であり、通常の上流・影響
 analysis_scope=DEPENDENCY_REACHABILITYは依存関係の到達探索だけです。not_evaluatedの項目は未評価です。
 complete=trueでも停止・能力・安全性・経済影響の評価は完了していません。「不明事項なし」や「問題なし」と総括せず、未評価事項を明示してください。
 complete=falseは探索不完全です。非CURRENTやTool失敗を「影響なし」と説明しないでください。
-RAG・計算は未接続です。設備の稼働状態を安全性や能力の保証としないでください。
+RAG・計算は対応する公開Toolで実際に取得した結果だけ説明し、未接続・未取得の処理を実施済みとしないでください。設備の稼働状態を安全性や能力の保証としないでください。
 Evidenceと詳細経路はサーバが構造化結果として返します。証拠や未実施の操作を作らないでください。
 最終回答は100〜200字程度の簡潔な日本語の要約にしてください。必要なら数項目の箇条書きを使ってください。
 分析種別に沿って対象、結果、探索の完全性、不明事項を優先してください。下流影響探索では直接・間接の影響候補を説明し、上流依存探索やSPOF・代替の構造評価を直接・間接影響と呼ばないでください。構造評価では重要対象、除外対象または候補、判定、一段代替と未評価次元を説明してください。
@@ -125,7 +125,11 @@ class ReadAgent:
                     )
                 if not reply.content.strip():
                     raise ToolError("INTERNAL_ERROR", "LLM did not provide an explanation")
-                answer = downstream_answer(observations, has_errors=bool(errors)) or reply.content
+                answer = (
+                    downstream_answer(observations, has_errors=bool(errors))
+                    or dependency_answer(observations, has_errors=bool(errors))
+                    or reply.content
+                )
                 if request.explicit_as_of:
                     answer = (
                         "指定時刻について現在登録情報を評価しています。"

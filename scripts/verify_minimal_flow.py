@@ -115,7 +115,8 @@ class DemoFixture:
                 command, input=config, text=True, capture_output=True, check=True
             )
         body, status = result.stdout.rsplit("\n", 1)
-        require(int(status) == expected, f"HTTP {status}: expected {expected}")
+        if expected is not None:
+            require(int(status) == expected, f"HTTP {status}: expected {expected}")
         return json.loads(body)
 
 
