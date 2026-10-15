@@ -7,7 +7,7 @@ from ..application.reads import ReadResult, ToolError
 from ..domain.canonical import canonical_json
 from ..integrations.llm import LLMError, LLMReply
 from .agent_tools import AgentToolSession
-from .graph_answer import dependency_answer, downstream_answer
+from .graph_answer import dependency_answer, downstream_answer, fulfillment_answer
 from .graph_model_view import GRAPH_TOOLS, graph_model_view
 
 SYSTEM_PROMPT = """あなたはLineScopeの参照専用アシスタントです。
@@ -128,6 +128,7 @@ class ReadAgent:
                 answer = (
                     downstream_answer(observations, has_errors=bool(errors))
                     or dependency_answer(observations, has_errors=bool(errors))
+                    or fulfillment_answer(observations, has_errors=bool(errors))
                     or reply.content
                 )
                 if request.explicit_as_of:
