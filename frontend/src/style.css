@@ -24,8 +24,7 @@ button {
   color: inherit;
   cursor: pointer;
 }
-button:focus-visible,
-a:focus-visible {
+:focus-visible {
   outline: 3px solid var(--accent);
   outline-offset: 3px;
 }
@@ -612,4 +611,18 @@ aside > button {
 }
 .action-panel pre {
   max-height: 320px;
+}
+
+.skip-link {
+  position: fixed;
+  left: 12px;
+  top: 12px;
+  clip-path: inset(50%);
+  z-index: 10;
+  background: var(--panel);
+  color: var(--text);
+  padding: 12px;
+}
+.skip-link:focus {
+  clip-path: none;
 }

@@ -21,6 +21,12 @@ export function ActionPanel({
   const controller = useRef<AbortController | null>(null);
   const retry = useRef<{ message: string; key: string } | null>(null);
   const pending = useRef(false);
+  const snapshotHeading = useRef<HTMLHeadingElement>(null);
+  const errorMessage = useRef<HTMLParagraphElement>(null);
+  useEffect(() => {
+    if (saved) snapshotHeading.current?.focus();
+    else if (error) errorMessage.current?.focus();
+  }, [saved, error]);
   useEffect(() => () => controller.current?.abort(), []);
 
   async function run(action: (signal: AbortSignal) => Promise<void>) {
@@ -101,6 +107,8 @@ export function ActionPanel({
   const requestId = data ? text(data.update_request_id) : "";
   const approvalId = data ? text(data.approval_id) : "";
   const valid =
+    snapshot !== null &&
+    targets.length > 0 &&
     uuid.test(requestId) &&
     uuid.test(approvalId) &&
     typeof data?.snapshot_hash === "string" &&
@@ -191,10 +199,16 @@ export function ActionPanel({
         承認者には変更要求IDを渡してください。上部の接続設定で接続解除し、別の承認者で接続してIDから読み直します。実行時は元requesterで接続し直してください。
       </p>
       {busy && <p role="status">サーバへ確認中…</p>}
-      {error && <p role="alert">{error}</p>}
+      {error && (
+        <p role="alert" ref={errorMessage} tabIndex={-1}>
+          {error}
+        </p>
+      )}
       {data && (
         <section>
-          <h2>保存済みSnapshot</h2>
+          <h2 ref={snapshotHeading} tabIndex={-1}>
+            保存済みSnapshot
+          </h2>
           <p>変更要求ID：{requestId}</p>
           <p>
             状態：{text(data.status)} / 実効状態：{text(data.effective_status)}{" "}

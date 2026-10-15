@@ -21,7 +21,14 @@ from pathlib import Path
 
 
 class DemoFixture:
-    def __init__(self, directory, docker_group=None, decision_scenario="AUTO"):
+    def __init__(
+        self,
+        directory,
+        docker_group=None,
+        decision_scenario="AUTO",
+        *,
+        requester_role="maintenance",
+    ):
         if re.fullmatch(r"[A-Z_]{1,40}", decision_scenario) is None:
             raise ValueError("Invalid server demo scenario setting")
         self.decision_scenario = decision_scenario
@@ -33,7 +40,7 @@ class DemoFixture:
             probe.bind(("127.0.0.1", 0))
             self.port = probe.getsockname()[1]
         users = {
-            self.owner: {"user_id": "demo_requester", "role": "maintenance"},
+            self.owner: {"user_id": "demo_requester", "role": requester_role},
             self.approver: {"user_id": "demo_approver", "role": "manager"},
         }
         self.credentials_file = Path(directory) / "private.env"

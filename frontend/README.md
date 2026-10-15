@@ -31,6 +31,18 @@ docker build --target development -t linescope-frontend-check frontend
 docker run --rm linescope-frontend-check npm run check
 ```
 
+Tabで「調査領域へ移動」、EnterでボタンとGraphの一覧を操作できます。Snapshot取得後は見出し、エラー時はメッセージへフォーカスが移ります。
+
 通常検証はlint・型チェック・format・buildです。自動テストは必要最小限とし、既存の`npm test`は任意実行です。主要操作は実ブラウザで確認します。使い捨て実API環境の確認には`python3 scripts/verify_frontend_flow.py`を使用できます。
 
 [画面設計](../docs/design/frontend-console.md)、[roadmap](../docs/roadmap.md)、[開発・PR運用](../CONTRIBUTING.md)を参照してください。正式な業務仕様の入口は[deliverables](../docs/deliverables.md)です。
+
+実Embedding / Qdrantを含む引用表示の確認は、ホストOllamaに導入済みのモデルと正確なdigestを指定します。モデルの自動取得は行いません。
+
+```sh
+python3 scripts/verify_frontend_flow.py --docker-group docker \
+  --embedding-model embeddinggemma:latest \
+  --embedding-digest '<導入済みモデルの64桁digest>'
+```
+
+指定なしの場合はEmbedding / 検索を明示的なモックにして、正本・本文検証・引用表示を確認します。指定ありの失敗をモックへ自動切替しません。いずれも専用の環境と試験文書を作成・削除し、継続デモへは反映しません。実LLMの回答品質、正式な費用・能力・安全入力、全BS / Goldenの受入とは区別します。

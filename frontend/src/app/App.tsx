@@ -171,6 +171,11 @@ export function App() {
       : null;
   return (
     <>
+      {connected && !showConnection && (
+        <a className="skip-link" href="#workspace">
+          調査領域へ移動
+        </a>
+      )}
       <header>
         <div>
           <strong>LineScope</strong>
@@ -250,7 +255,7 @@ export function App() {
               </section>
             )}
           </aside>
-          <main className="workspace">
+          <main id="workspace" className="workspace" tabIndex={-1}>
             <div className="title">
               <h1>影響と根拠を調べる</h1>
               {result && (
