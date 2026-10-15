@@ -37,7 +37,7 @@ Backend CIはDocker内でlint / format、実PostgreSQL / Neo4jによるテスト
 shardは全ケースの収集後、`backend/tests/ci_module_timings.json`の実測時間を重みとしてファイル単位で割り当てる。新規ファイルは既定の重みで自動的に含まれ、古い計測の項目は試験範囲を制限しない。各shardのログへ全収集数・選択数・全node ID集合のhashを出す。同じheadの全収集数/hash一致と選択数の合計を確認し、遅い30処理とjob時間を継続して確認する。
 ローカルの通常実行は全件のまま。分割を再現する場合は使い捨て環境で`pytest backend/tests --ci-shard 1/2`と`--ci-shard 2/2`を実行する。同じCompose環境での実行は順番に行う。計測値は性能受入閾値ではなく、負荷が偏った場合に再計測して更新する。
 全PRでCIと集約checkを実行し、workflow全体をpath filterで省略しない。
-変更が`frontend/`と`compose.frontend.yaml`だけの場合、Backendの2 shardとruntime検証を省略する。Backend・共通設定・CI定義・未知のpath・空差分・判定不能時はBackendも検証する。手動起動は全検証とする。
+変更が`frontend/`、`compose.frontend.yaml`、または文書・開発ガイダンスだけの場合、Backendの2 shardとruntime検証を省略する。文書・開発ガイダンスは、rootのREADME.md / CONTRIBUTING.md / AGENTS.md / SKILL.md、各階層のAGENTS.md / SKILL.md、docs/および.agents/skills/配下のMarkdown・HTML・SVG・画像・PDFとする。Skillの実行スクリプトやdocs配下の実行コードは省略対象に含めない。Backend・共通設定・CI定義・未知のpath・空差分・判定不能時はBackendも検証する。手動起動は全検証とする。
 集約checkは対象外と判定したBackend jobのskipだけを許容し、差分判定の失敗、予期しないskip、failure、cancelledを成功扱いしない。
 Runtime依存はbackend/requirements.lock、開発依存はbackend/requirements-dev.lockで固定し、共通packageのversionを揃えて更新・検証する。
 

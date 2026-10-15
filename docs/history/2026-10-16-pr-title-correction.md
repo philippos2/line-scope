@@ -61,3 +61,15 @@ root AGENTSとbackend-verification Skillにも「2026-10-12の日本語化・PR�
 | 業務仕様・Graph/RAG/DB/API等の契約 | deliverablesが示す各正本 |
 
 手順は既存SKILLに既に存在するため重複転記を増やさず、backend-architectureの開発原則への参照をrootへ変更した。業務仕様・権限・Test条件の変更はない。削除文書への現行参照を更新し、deliverablesの文書数を19へ修正。過去履歴の参照表記は当時の記録として保持する。
+
+## 文書変更時のCI対象判定
+
+開発者の依頼でCIを調査し、#233の差分判定はfrontend/とcompose.frontend.yamlだけをBackend対象外にしており、文書・AGENTS・SKILLの除外が未実装であることを確認した。同じPRで文書のみの変更時にBackend検証を起動しないよう修正する指示を受けた。
+
+明示した文書・ガイダンスのパスと形式を除外し、コード・共通設定・CI定義・未知path・空差分・判定失敗・手動実行ではBackend検証を維持。集約checkは継続して実行し、意図したskipだけを許可する。Frontend検証の実行条件は変更していない。追加はsubTest展開を含め16ケース、全直積を作らずパスの同値クラスと混在・判定失敗を選定。
+
+CI判定の追加試験はunittest 26メソッド（既存を含む）で成功し、subTest展開を含む追加ケースは16。Docker内ruff check / formatも成功した。実際の差分パスを使い、文書整理だけの差分でBackend不要、CI判定コードを含む差分でBackend必要となることを照合した。
+
+開発者からPR内のcommitをまとめる指示があり、push済み作業ブランチの履歴を書き換える操作について、PR #245の作業ブランチだけに限る今回のforce-with-lease許可を得た。mainと保護設定は変更せず、変更内容を保ち、意味上の変更単位ごとにcommitを整理する。今回の許可を以後のforce-pushへ転用しない。
+
+当初全変更を1 commitへまとめたのは「適宜squash」の解釈誤りであり、開発者の指摘に従い文書責務の整理とCI対象判定の2 commitへ分離した。

@@ -5,12 +5,36 @@ from __future__ import annotations
 import os
 import subprocess
 import sys
-from pathlib import Path
+from pathlib import Path, PurePosixPath
+
+
+def documentation_path(path: str) -> bool:
+    if path in {"README.md", "CONTRIBUTING.md", "AGENTS.md", "SKILL.md"}:
+        return True
+    if path.endswith(("/AGENTS.md", "/SKILL.md")):
+        return True
+    return path.startswith(("docs/", ".agents/skills/")) and PurePosixPath(
+        path
+    ).suffix.lower() in {
+        ".md",
+        ".html",
+        ".svg",
+        ".png",
+        ".jpg",
+        ".jpeg",
+        ".gif",
+        ".webp",
+        ".pdf",
+    }
 
 
 def backend_required(paths: list[str]) -> bool:
     return not paths or any(
-        not (path.startswith("frontend/") or path == "compose.frontend.yaml")
+        not (
+            path.startswith("frontend/")
+            or path == "compose.frontend.yaml"
+            or documentation_path(path)
+        )
         for path in paths
     )
 
