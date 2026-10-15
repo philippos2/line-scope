@@ -13,8 +13,6 @@ push・PR作成・mergeはそれぞれ別の操作として報告する。PR準�
 ## PRとmain
 
 - PRの確認・mergeは開発者が行う。
-- 作業中・必要な検証未完了などmerge可能と判断できないPRはDraftにし、タイトル末尾に`【WIP】`を付ける。形式は`<type>: <日本語の説明>【WIP】`とする。
-- 必要な検証・CI結果確認・結果追記・片付けが完了し、merge可能になった時点でDraftを解除し、タイトルから`【WIP】`を外す。
 - 原則1 PR＝main上の1 Squash commit。
 - GitHubではSquash mergeだけを許可し、Merge commit / Rebase mergeは無効にする。
 - PRタイトルの形式は`<type>: <日本語の説明>`とする。コロンの後に半角スペースを1つ置く。

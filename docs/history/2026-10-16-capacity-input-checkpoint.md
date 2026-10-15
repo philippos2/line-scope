@@ -78,3 +78,7 @@ Frontendは候補選択・編集・表示を分け、数量計算を持たない
 開発者の指示に従い、最新差分のCI確認前の#248をDraftとし、タイトル末尾に【WIP】を付ける。継続運用の規則だけをCONTRIBUTINGへ追記する。CONTRIBUTING全体の文章・構成整理は後続PRの適切な機会に行う依頼としてここへ記録し、今回の機能実装へ無関係な全面整理を加えない。
 
 確認コマンドは `python3 scripts/verify_frontend_flow.py --docker-group docker --llm-model qwen3:30b-a3b-instruct-2507-q4_K_M --capacity-only`。モデルは導入済みqwen3:30b-a3b-instruct-2507-q4_K_Mを使用し、新規取得・自動fallback・Agent上限変更なし。画像はローカル/tmp/linescope-frontend-1440.pngおよび390.pngで確認する。一般LLM品質の保証ではなく、登録・訂正・参照の一代表経路の結果である。
+
+## 開発ガイダンス変更の実施時期の訂正
+
+CONTRIBUTINGへのWIP規則追記も全体整理も後続PRで行うという指示を、追記だけ今回実施と誤解した。開発者の訂正に従い、#248からCONTRIBUTINGの変更を外す。後続PRでWIP規則の追記と文章・構成整理をまとめる依頼として保持する。#248のDraft・タイトル末尾【WIP】はCIと引渡し確認が終わるまで維持する。GitHubへpush済みの履歴は書き換えず、追加commitで取り消す。
