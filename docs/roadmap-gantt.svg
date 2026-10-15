@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1200" height="485" viewBox="0 0 1200 485" role="img" aria-labelledby="title desc">
 <title id="title">LineScope 本体完成までの想定PR進行図</title>
-<desc id="desc">横軸は16本を中心とする想定PR枠。経済入力は進行中、他の正式入力はPO判断待ち。作業期間や実日程の見積もりではない。対象選択と説明品質を先行し、正式入力、品質回帰、運用復旧、全BSとGolden受入へ進む。</desc>
+<desc id="desc">横軸は16本を中心とする想定PR枠。経済入力の代表経路は接続済み、他の正式入力はPO判断待ち。作業期間や実日程の見積もりではない。対象選択と説明品質を先行し、正式入力、品質回帰、運用復旧、全BSとGolden受入へ進む。</desc>
 <rect width="1200" height="485" fill="#fff"/>
 <g font-family="sans-serif" font-size="14" fill="#223247">
 <text x="20" y="27" font-size="20" font-weight="bold">本体完成までの想定PR進行図（中心16 PR／幅12〜20 PR）</text>
@@ -41,7 +41,7 @@
 <text x="20" y="114">対象選択・Read/Graph・LLM検索品質</text><text x="330" y="114" fill="#315e88">進行中</text>
 <rect x="408" y="94" width="40" height="27" rx="4" fill="#4b83b5"/>
 <rect x="914" y="94" width="40" height="27" rx="4" fill="#4b83b5"/>
-<text x="20" y="152">経済・損失入力</text><text x="330" y="152" fill="#315e88">レビュー</text>
+<text x="20" y="152">経済・損失入力</text><text x="330" y="152" fill="#315e88">接続済み</text>
 <rect x="454" y="132" width="86" height="27" rx="4" fill="#4b83b5"/>
 <text x="20" y="190">能力・需要・納期</text><text x="330" y="190" fill="#9b6011">PO待ち</text>
 <rect x="546" y="170" width="86" height="27" rx="4" fill="#d5a755"/>
