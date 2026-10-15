@@ -35,3 +35,5 @@ lintでブラウザスクリプトのURL global参照、型チェックでTestin
 - 既存の比較・Graph・引用・4カテゴリのPrepare/Approval/Execute・拒否・identity切替・keyboard・幅別確認もPASS。検索はREAL_LLM_SEARCH、引用はMOCK_EMBEDDING_QDRANT、比較条件はMOCK_FIXTURE。実Embeddingや一般LLM品質の評価成功とは混同しない。
 - 成功ログは/tmp/linescope-equipment-browser-final.log。失敗した初回と再確認も別ログに保持。試験専用Composeのvolumeと一時browser image・container・資格情報を片付け済み。継続デモにはデプロイしていない。
 - PR #244を作成。最新headのCI件数・hash・required checksと片付けを確認してPR本文へ追記する。
+
+開発者の指摘を受け、直近#227〜242のPRタイトルがscopeなしの運用であることを確認した。#244を`feat: 設備名の候補から調査対象を選ぶ導線を追加する`へ修正し、CONTRIBUTINGにscopeを付けない運用を記録。push済みcommitは書き換えず、以後のPRタイトルへ適用する。
