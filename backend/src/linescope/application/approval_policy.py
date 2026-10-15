@@ -13,6 +13,7 @@ from ..execution import ExecutionContext
 from .proposals import ProposalError, SavedProposal
 
 APPROVAL_ROLES = {
+    "ECONOMIC_INPUT": {"manager"},
     "EQUIPMENT_STATE": {"maintenance", "manager"},
     "MAINTENANCE": {"maintenance", "manager"},
     "PRODUCTION_OPERATION": {"production", "manager"},
@@ -42,7 +43,7 @@ def _validate_pending_human_action(context, proposal):
     if context.role not in APPROVAL_ROLES[category]:
         raise ProposalError("AUTHORIZATION_DENIED", "Approval permission is required")
     if context.authenticated_user_id == payload["requester_id"] and (
-        category == "DEPENDENCY" or context.role != "manager"
+        category in {"DEPENDENCY", "ECONOMIC_INPUT"} or context.role != "manager"
     ):
         raise ProposalError("AUTHORIZATION_DENIED", "Self approval is not permitted")
     if (proposal.status, proposal.approval_status) != ("WAITING_APPROVAL", "PENDING"):

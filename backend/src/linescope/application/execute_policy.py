@@ -54,7 +54,7 @@ def validate_new_execute(context, proposal, approval, *, now):
     ):
         raise ProposalError("APPROVAL_INVALIDATED", "Required current permission has been lost")
     if approval.approver_id == payload["requester_id"] and (
-        category == "DEPENDENCY" or approval.current_approver_role != "manager"
+        category in {"DEPENDENCY", "ECONOMIC_INPUT"} or approval.current_approver_role != "manager"
     ):
         raise ProposalError("APPROVAL_INVALIDATED", "Self approval is no longer permitted")
     if type(approval.approver_id) is not str or not approval.approver_id.strip():

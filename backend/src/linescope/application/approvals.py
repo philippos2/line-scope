@@ -535,6 +535,10 @@ class HumanApproval(_HumanApproval):
 
     @staticmethod
     def _handler(targets):
+        from .economics import EconomicApproval
+
+        if targets and all(t["target_type"] == "EconomicInput" for t in targets):
+            return EconomicApproval
         if targets and all(t["target_type"] == "DependencyRelation" for t in targets):
             return DependencyApproval
         if any("equipment_assignments" in (t["after"] or {}) for t in targets):

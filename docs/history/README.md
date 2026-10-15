@@ -590,3 +590,5 @@ Dockerで追加36テスト成功、ruff check / format、git diff --check成功�
 - [代替・SPOFの説明品質](2026-10-15-fulfillment-answer-quality.md)：構造判定と未知・不完全性の保持、検証と次の再開地点。
 - [設備名から調査対象を選ぶ導線](2026-10-15-equipment-discovery.md)：候補選択・context分離、横棒の工程図、検証と残件。
 - [PR件名修正と作業方針の確認](2026-10-16-pr-title-correction.md)：今回限りの履歴修正許可・保護復元、文書責務と完成優先の指示。
+
+- [経済・損失入力の正式化](2026-10-16-economic-inputs.md)：PO判断の確定範囲、登録・承認・計算APIと検証・後続工程。

@@ -255,3 +255,9 @@ Dockerで`pytest -p no:cacheprovider backend/tests/interfaces/test_graph_busines
 後続状態を直接SQLで書き換えて正当な更新を模擬せず、Prepare→別の認証主体のApproval→requesterのExecuteを二回行う。要求GETの保存結果とExecute再送の現在観測を同一response契約と仮定しない。初期fixtureの作成と業務操作を区別する。BS-14は通常の変更命令と元の明示的Prepare例文をともに試験し、実LLM未検証範囲はbusiness-scenarios §7に残す。
 
 Dockerで`pytest -p no:cacheprovider backend/tests/interfaces/test_controlled_action_scenarios.py -q`を実行する。既存Approval / Executeの認可、rollback、競合、期限、再送試験を維持する。
+
+## 正式経済入力の検証
+
+`domain/test_economics.py`は展開後8件で、190万円の修理見積、端数を含む十進積、共通期間／順序の正規化、未知率・未知時間・非独立損失、float拒否・期間不整合・重複scopeを確認する。`interfaces/test_economic_inputs_api.py`は展開後12件で実PostgreSQL上のHTTP登録・訂正・別manager承認・確定・Snapshot v2・権限・競合失効・監査失敗rollback・再送・拒否を確認する。全直積を生成せず、役割ごとの入口と重大な状態遷移を選ぶ。共通Approval / Execute / Snapshotの既存試験を回帰し、`persistence/test_db_roles.py`の既存runtime経路にも経済入力を通してquery/runtime/projectionの実権限を確認する。
+
+この段階は正式入力HTTP経路の検証。Agent Tool、画面、実LLM、全BS / Goldenの受入を代替しない。

@@ -29,6 +29,7 @@ from ..persistence.core_proposals import (
 from .audit import prepare_saved, proposal_replaced
 
 REQUEST_ROLES = {
+    "ECONOMIC_INPUT": {"manager"},
     "EQUIPMENT_STATE": {"floor", "maintenance", "manager"},
     "MAINTENANCE": {"maintenance", "manager"},
     "PRODUCTION_OPERATION": {"production", "manager"},
@@ -175,8 +176,8 @@ class ProposalStore:
             # Do not expose any stored content before authorizing the reader.
             allowed = {
                 "floor": set(),
-                "maintenance": {"EQUIPMENT_STATE", "MAINTENANCE"},
-                "production": {"PRODUCTION_OPERATION"},
+                "maintenance": {"EQUIPMENT_STATE", "MAINTENANCE", "ECONOMIC_INPUT"},
+                "production": {"PRODUCTION_OPERATION", "ECONOMIC_INPUT"},
                 "manager": set(REQUEST_ROLES),
             }[context.role]
             try:
@@ -186,6 +187,12 @@ class ProposalStore:
                 category = next(iter(categories))
             except (KeyError, TypeError, ValueError) as error:
                 raise ProposalError("INTERNAL_ERROR", "Stored categories are invalid") from error
+            if category == "ECONOMIC_INPUT" and context.role not in {
+                "maintenance",
+                "production",
+                "manager",
+            }:
+                raise ProposalError("AUTHORIZATION_DENIED", "Economic input visibility is required")
             if row["requester_id"] != context.authenticated_user_id and category not in allowed:
                 raise ProposalError("AUTHORIZATION_DENIED", "Update request visibility is required")
             saved = _saved(row, None, None, replayed=False)
