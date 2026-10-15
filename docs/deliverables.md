@@ -2,7 +2,7 @@
 
 ## 1. 目的
 
-本書はLineScopeの設計・実装に使用する20文書の体系と責務を定義する。
+本書はLineScopeの設計・実装に使用する19文書の体系と責務を定義する。
 
 文書群は `requirements`（要件定義）、`design`（設計）、`implementation-design`（実装設計）の3群に分ける。
 
@@ -31,11 +31,9 @@
 15. `implementation-design/evals.md` — AI品質評価
 16. `implementation-design/test-plan.md` — 決定論的テスト
 17. `implementation-design/operations.md` — 運用・監視・復旧
-18. `implementation-design/AGENTS.md` — Codex等の実装支援Agent向け規則
+18. `implementation-design/business-scenarios.md` — BS-01〜19、BS-G01、固定fixture期待値・UC ↔ BS ↔ AC対応
 
-19. `implementation-design/business-scenarios.md` — BS-01〜19、BS-G01、固定fixture期待値・UC ↔ BS ↔ AC対応
-
-本書自身を含めて合計20文書とする。従来19文書を保持し、Use Caseと業務受入試験を分離するため本書改訂で1文書を追加した。
+本書自身を含めて合計19文書とする。開発者向けの共通原則・作業手順は、この業務仕様・設計文書の体系と分けて管理する。
 
 ## 5. 責務の正本
 
@@ -59,7 +57,10 @@
 | 決定論的テスト・試験階層 | `test-plan.md` |
 | Business Scenario・fixture期待値・UC ↔ BS ↔ AC | `business-scenarios.md` |
 | 運用・構造化ログ契約・保存／閲覧方針 | `operations.md` |
-| 実装支援Agent作業規則 | `AGENTS.md` |
+| 開発者向け共通原則・Skillの入口 | Repository直下の`AGENTS.md` |
+| 分野ごとの作業・レビュー・検証手順 | `.agents/skills/<name>/SKILL.md` |
+| 開発・PR運用 | Repository直下の`CONTRIBUTING.md` |
+| 個別作業・判断・検証の履歴 | `docs/history/` |
 
 同じ事項を複数文書が説明する場合、上表の正本文書に従う。下位文書が上位要件を暗黙変更してはならない。
 

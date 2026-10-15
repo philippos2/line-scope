@@ -7,7 +7,7 @@ description: LineScopeバックエンドのrouter、application service、reposi
 
 一般的なPattern名を先に当てはめない。
 
-[文書入口](../../../docs/deliverables.md)、[AGENTS](../../../docs/implementation-design/AGENTS.md)、[architecture](../../../docs/design/architecture.md)から変更対象の正本を選ぶ。API/Toolならapi-tools、業務意味ならrequirements/domain-model、原子性ならtransaction-designを読む。
+[文書入口](../../../docs/deliverables.md)、[開発原則](../../../AGENTS.md)、[architecture](../../../docs/design/architecture.md)から変更対象の正本を選ぶ。API/Toolならapi-tools、業務意味ならrequirements/domain-model、原子性ならtransaction-designを読む。
 
 ## 実施方法
 
