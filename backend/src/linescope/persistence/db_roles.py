@@ -23,6 +23,7 @@ PROJECTION_UPDATE_COLUMNS = (
     "last_error",
 )
 READ_TABLES = (
+    "economic_input",
     "equipment",
     "equipment_current_state",
     "maintenance_plan",
@@ -35,6 +36,7 @@ READ_TABLES = (
     "dependency_relation",
 )
 INSERT_TABLES = (
+    "economic_input",
     "maintenance_plan",
     "maintenance_record",
     "production_operation_equipment_assignment",
@@ -48,6 +50,7 @@ INSERT_TABLES = (
     "graph_outbox",
 )
 UPDATE_TABLES = (
+    "economic_input",
     "equipment_current_state",
     "maintenance_plan",
     "production_operation",

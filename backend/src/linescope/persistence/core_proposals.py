@@ -81,7 +81,7 @@ def insert_pending_request(
             prepare_input_hash=prepare_input_hash,
             agent_input_hash=agent_input_hash,
             canonical_snapshot=snapshot.canonical_text,
-            snapshot_schema_version=1,
+            snapshot_schema_version=snapshot.data["schema_version"],
             snapshot_hash=snapshot.snapshot_hash,
         )
         .on_conflict_do_nothing(

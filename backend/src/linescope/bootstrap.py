@@ -10,6 +10,7 @@ from .application.agent_service import AgentApplication
 from .application.approvals import HumanApproval
 from .application.demo_decision import DemoDecisionFlow, MockDecisionProvider
 from .application.dependency_command import DependencyCommandPrepare
+from .application.economics import EconomicInputs
 from .application.equipment_command import EquipmentCommandPrepare
 from .application.execute import HumanExecute
 from .application.graph_analysis import GraphAnalysis
@@ -43,6 +44,7 @@ class ApiServices:
     proposals: ProposalStore
     approval: HumanApproval
     execute: HumanExecute
+    economics: EconomicInputs
     agent: AgentApplication
     owned_graph_driver: object | None = None
 
@@ -144,6 +146,7 @@ def build_api_services(
             proposals=proposals,
             approval=HumanApproval(database, event_logger=events),
             execute=HumanExecute(database, settings, event_logger=events),
+            economics=EconomicInputs(database),
             agent=agent,
             owned_graph_driver=owned_driver,
         )

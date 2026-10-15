@@ -158,6 +158,29 @@ def test_runtime_prepare_approve_execute_and_replay_work_without_admin_authority
             == 1
         )
 
+    # The new economic workflow must work with the provisioned runtime/query
+    # identities as well as the administrative test connection.
+    from interfaces.test_economic_inputs_api import approve as approve_economic
+    from interfaces.test_economic_inputs_api import body as economic_body
+    from interfaces.test_economic_inputs_api import client_for as economic_client
+    from interfaces.test_economic_inputs_api import execute as execute_economic
+    from interfaces.test_economic_inputs_api import prepare as prepare_economic
+
+    values = economic_body("ROLE-ECONOMIC")
+    values["input"]["equipment_id"] = str(UUID(int=10))
+    with economic_client(runtime) as client:
+        economic = prepare_economic(client, values)
+        assert approve_economic(client, economic).status_code == 200
+        assert execute_economic(client, economic).status_code == 200
+    with stores[READ_ROLE].transaction() as connection:
+        assert connection.execute("SELECT count(*) AS n FROM economic_input").fetchone()["n"] == 1
+    with pytest.raises(psycopg.errors.InsufficientPrivilege):
+        with stores[READ_ROLE].transaction() as connection:
+            connection.execute("UPDATE economic_input SET version=version+1")
+    with pytest.raises(psycopg.errors.InsufficientPrivilege):
+        with stores[PROJECTION_ROLE].transaction() as connection:
+            connection.execute("SELECT * FROM economic_input")
+
 
 def test_future_objects_are_denied_until_explicit_grants(roles):
     admin, stores, _ = roles
