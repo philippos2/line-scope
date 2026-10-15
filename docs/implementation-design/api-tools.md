@@ -330,3 +330,45 @@ findingsは対象と候補の組ごとにimportant_target / candidate / determin
 representative_pathsのpurpose / root / nodes / edges / hops、MANDATORY_DEPENDENCY / SUBSTITUTION方向と関係・状態Evidenceは§21と同じ規則を使う。max_pathsは全分析のrepresentative_paths集合へ共有適用し、findings.pathsはその集合の対象・候補に関する参照用抜粋とする。代替候補自身の必須経路も全体の集合・Evidenceへ保持する。経路根拠が上限で欠けた場合はcomplete=false、全findingsをINDETERMINATE / reasons=[INCOMPLETE_SEARCH]、代替availabilityをUNKNOWNとする。既存探索上限をPATH_COUNTより優先する。
 
 一つでもfindingが未確定、探索不完全、または除外前の重要対象が構造成立しない場合、全体determination=INDETERMINATE。探索完全な空指定はfindings=[]を返すが、循環や未知を「SPOFなし」の証明にしない。現在状態の観測を過去時点の利用可能性へ読み替えない。
+
+## 正式経済入力HTTP契約
+
+`POST /economic-inputs/prepare`はmanager専用の明示入力で、LLMを経由せず要求だけを保存する。JSON rootは`retry_key`（UUID）、`economic_input_id`（CREATEはnull、UPDATEは既存UUID）、`input`、`supersedes_update_request_id`（nullまたは置換要求UUID）の4項目だけ。identity / role / version / hashを呼出元から受け取らない。retryは主体と正規化入力に拘束し、同一key・異なる入力はDUPLICATE_REQUEST。返却はGET update-requestと同じ保存済みSnapshot/hash/approval_id。以降は既存のapprove / reject / execute HTTP APIを使用する。
+
+`input`は`input_code`（非空100文字以内）、`equipment_id`（既存設備UUID）、`payload`だけ。訂正はpayload全体を置換し、code・設備・IDを変更しない。payloadは次の形とする。
+
+```json
+{
+  "period_start": "2026-10-01T00:00:00Z",
+  "period_end": "2026-10-02T00:00:00Z",
+  "operating_hours": "16",
+  "currency": "JPY",
+  "options": [
+    {"option": "REPAIR", "complete": false, "items": [
+      {"key": "repair-fee", "kind": "DIRECT", "amount": "300000", "hours": null,
+       "independent": true, "source": "保全見積書", "certainty": "ESTIMATED",
+       "valid_from": "2026-10-01T00:00:00Z", "valid_to": "2026-10-02T00:00:00Z"}
+    ]},
+    {"option": "REPLACE", "complete": false, "items": [
+      {"key": "replacement-fee", "kind": "DIRECT", "amount": null, "hours": null,
+       "independent": true, "source": "交換費は未調査", "certainty": "ESTIMATED",
+       "valid_from": "2026-10-01T00:00:00Z", "valid_to": "2026-10-02T00:00:00Z"}
+    ]},
+    {"option": "CONTINUE", "complete": false, "items": [
+      {"key": "product-P100", "kind": "DEGRADATION", "amount": "1000", "hours": "16",
+       "independent": true, "source": "生産損失見積", "certainty": "ESTIMATED",
+       "valid_from": "2026-10-01T00:00:00Z", "valid_to": "2026-10-02T00:00:00Z"}
+    ]}
+  ]
+}
+```
+
+- 期間はtimezone必須の半開区間[start,end)。UTC microsecondsへ正規化しstart < end。稼働時間は共通期間の経過時間以下。calendarやhours/dayを補完しない。
+- 金額・時間は非負の十進**文字列**（整数部最大15桁、小数部最大6桁、指数表記なし）。末尾小数0を正規化する。未知のamount / hoursはnull、明示0と区別する。binary float、負値、暗黙の円丸め・時間丸めは使わない。積と合計はDecimal precision 64で正確に計算し文字列で返す。
+- optionsはREPAIR / REPLACE / CONTINUE各1件。各itemsは1〜30件、keyは非空100文字以内で案内一意、sourceは非空1000文字以内。項目順と案順はkey / optionで正規化する。completeは、その期間の当該案に必要な費用項目を網羅したという要求者の明示申告で、承認対象に含む。
+- kind=DIRECTのamountは共通期間に帰属する直接費JPY、hoursはnull。STOPPAGE / DEGRADATIONのamountはJPY/hour、hoursはその期間内に見積もった実停止／劣化稼働時間（共通operating_hours以下）とし、調達lead timeから生成しない。各項目の適用期間は共通期間全体を包含する必要がある。部分期間・期間外費用の按分や将来費用を自動補完せず、入力の見直しを要求する。
+- independentは他項目と重複しないことの確認。keyは業務上の費用／損失範囲であり到達経路IDではない。同一範囲の停止損失へ品質損失を重ねない。異なるkeyなら重複しないとサーバが自動認定する意味ではなく、出典と独立性の申告を別managerが確認する。certaintyはESTIMATED / CONFIRMED。
+
+`GET /economic-inputs/{id}`はmaintenance / production / manager専用。保存済みinput（version含む）、calculation、source=REGISTERED_INPUT、observed_atを返す。calculationは共通期間・JPY・明示稼働時間と案別items（kind / amount_jpy / source / certainty / included_in_subtotal）、known_subtotal_jpy、total_jpy、complete、unknown_or_nonindependent_keysを返す。既知かつ独立な項目だけ小計へ加算する。complete=false、未知項目、非独立項目のいずれかがあればtotal_jpy=null。未登録は404でモックへfallbackしない。feasibility=UNKNOWN、recommendation=nullであり、最安案・安全・完全代替・実停止の認定を返さない。
+
+この段階ではAgent Tool公開・画面・費用入力検索は未接続。既存デモ比較APIのMOCK_FIXTUREと正式入力を混在させない。

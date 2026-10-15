@@ -437,3 +437,7 @@ maintenance_plan_idのNULLは計画との関連なしを表す。計画を指定
 ## 15. ログと業務監査の責務
 
 運用JSONログの契約はoperations §13。update_audit_event / business_update_history / Outbox / controlをstdoutで代替しない。監査detailsは関連Target・Outbox ID・試行番号・固定理由code等に限定し、Snapshot全文・credential・本文を重複保存しない。変更前後は保存Snapshot・成功履歴へ関連付ける。既存監査表の構造・Transaction境界は§9を維持し、今回の設計追記でmigration実装済みとは扱わない。
+
+## 経済入力の正本
+
+`economic_input(economic_input_id UUID PK, input_code TEXT UNIQUE NOT NULL, equipment_id UUID FK equipment, payload JSONB NOT NULL, version BIGINT NOT NULL CHECK(version>0))`をPostgreSQL正本とする。payloadはAPI契約の共通期間・稼働時間・通貨・案別費用項目。CREATEと全payload置換UPDATEだけを許可し、ID・code・設備は不変。監査・business_update_history・承認消費・要求完了と同一transactionで確定する。Graphのnode/edgeではなく、Outbox / Neo4j / Qdrantへ費用を投影しない。query roleはSELECT、runtime roleはSELECT/INSERT/UPDATEのみ、projection roleには権限を付与しない。

@@ -264,3 +264,7 @@ UC-B14の将来停止はrequirements PO-B05確定まで既存EquipmentState UPDA
 operations §13に従い、proposal.saved / replaced、approval.completed、execute.completedのsuccessはcommit成功後に出す。commit前rollback、確定結果不明、COMPLETED再送を区別する。stdout失敗を監査INSERT失敗と混同せず、確定済み結果を書き換えない。
 
 成功監査は状態遷移・業務変更と同一Transactionで失敗なら全rollback。失敗試行の監査はrollback後の別Transactionとし、保存不能は秘匿済みaudit.persist_failed運用ログへfallbackする。UpdateRequest未作成時は架空FKの監査を作らない。既存lock取得順、状態遷移、Outbox原子性は維持する。
+
+## 経済入力の更新
+
+EconomicInputはECONOMIC_INPUTカテゴリ専用Snapshot schema_version=2。v1は既存カテゴリだけを受け付け、保存済みv1のcanonical text/hashを変更しない。v2も共通root/target構造、正規化、hash検証を維持し、EconomicInput以外や混在を拒否する。CREATEは固定UUID・code一意性、UPDATEはbefore全体とexpected_versionを承認時／実行時に検証する。lock順はRequest→Approval→設備FK（ID順KEY SHARE）→EconomicInput（ID順UPDATE）。CREATEはcode順に挿入し一意制約を最終防御とする。経済情報の変更はGraph mutationではないためGraph lock/Outboxを追加しない。更新失敗は全業務行・履歴・監査・承認消費をrollbackし、既存の競合失効・期限・再送契約に従う。
