@@ -626,3 +626,35 @@ aside > button {
 .skip-link:focus {
   clip-path: none;
 }
+
+.economic-panel {
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 16px;
+  margin: 20px 0;
+  overflow-wrap: anywhere;
+}
+.economic-panel summary {
+  cursor: pointer;
+  font-weight: 600;
+}
+.economic-panel fieldset {
+  min-width: 0;
+  border: 1px solid var(--line);
+  margin: 16px 0;
+  padding: 12px;
+}
+.economic-panel input[type="checkbox"] {
+  width: auto;
+  margin: 12px 8px 12px 0;
+}
+.economic-panel select {
+  width: 100%;
+  padding: 10px;
+  color: var(--text);
+  background: var(--panel);
+  border: 1px solid var(--line);
+}
+.economic-panel pre {
+  max-height: 320px;
+}

@@ -41,7 +41,7 @@
 <text x="20" y="114">対象選択・Read/Graph・LLM検索品質</text><text x="330" y="114" fill="#315e88">進行中</text>
 <rect x="408" y="94" width="40" height="27" rx="4" fill="#4b83b5"/>
 <rect x="914" y="94" width="40" height="27" rx="4" fill="#4b83b5"/>
-<text x="20" y="152">経済・損失入力</text><text x="330" y="152" fill="#315e88">進行中</text>
+<text x="20" y="152">経済・損失入力</text><text x="330" y="152" fill="#315e88">レビュー</text>
 <rect x="454" y="132" width="86" height="27" rx="4" fill="#4b83b5"/>
 <text x="20" y="190">能力・需要・納期</text><text x="330" y="190" fill="#9b6011">PO待ち</text>
 <rect x="546" y="170" width="86" height="27" rx="4" fill="#d5a755"/>

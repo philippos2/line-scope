@@ -1,4 +1,5 @@
 import { chromium, expect } from "@playwright/test";
+import { verifyEconomics } from "./verify-economics.mjs";
 const base = process.env.LINESCOPE_BROWSER_URL;
 const token = process.env.LINESCOPE_BROWSER_TOKEN;
 const approver = process.env.LINESCOPE_BROWSER_APPROVER_TOKEN;
@@ -314,6 +315,10 @@ try {
   if (await page.evaluate(() => globalThis.documentCommandExecuted === true))
     throw new Error("Document command executed");
   await page.screenshot({ path: "/tmp/frontend-1440.png", fullPage: true });
+  if (process.env.LINESCOPE_BROWSER_DISCOVERY === "true") {
+    phase = "registered-economics";
+    await verifyEconomics(page, token, approver);
+  }
   phase = "viewport";
   for (const width of [1440, 768, 390]) {
     await page.setViewportSize({ width, height: 900 });
@@ -355,9 +360,15 @@ try {
           : "MOCK_EMBEDDING_QDRANT",
     }),
   );
-} catch {
+} catch (error) {
   console.error(
-    JSON.stringify({ result: "FAIL", code: "FRONTEND_PROBE_FAILED", phase }),
+    JSON.stringify({
+      result: "FAIL",
+      code: "FRONTEND_PROBE_FAILED",
+      phase,
+      operation:
+        error instanceof Error ? error.message.split("\n")[0] : "UNKNOWN",
+    }),
   );
   process.exitCode = 1;
 } finally {
