@@ -59,3 +59,5 @@ business-scenariosの構造化結果を決定論的受入の基準にし、Evals
 verify_read_agent_quality.pyのdataset read-demo-v2は、既存3質問（状態／原因、下流、対象不存在）に上流依存・共通依存の2質問を加える。上流はM-204からR-02への到達、共通依存は既知typed IDを明示したP-100 / P-200の6候補を実PG / Neo4jと照合する。後者は名前だけの対象解決の受入ではない。complete / CURRENT / scope / not_evaluated / Evidenceも確認する。
 
 STRUCTURED_PASS_REVIEW_REQUIREDは構造化結果の成功であり、文章や一般品質の合格ではない。実停止・能力・安全・経済の未評価と、上流／共通依存の意味、原因／SPOFとの区別を別途レビューする。モデルdigest未固定・単一実行という制限は維持する。
+
+単一の代替・SPOF結果の説明はAgent層の専用要約を使う。実LLM probeではデモ用判断支援ルートを無効にし、目的のGraph Toolを実際に取得したことを確認する。HTTP 200だけで代替・SPOFの成功としない。専用要約の決定論テストとTool選択・引数・実データEvidenceの実モデル評価は別の保証とする。

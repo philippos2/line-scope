@@ -127,3 +127,82 @@ def dependency_answer(observations, *, has_errors=False):
     if has_errors:
         answer += "一部の参照は失敗しています。エラー情報をご確認ください。"
     return answer
+
+
+def fulfillment_answer(observations, *, has_errors=False):
+    """Describe server structural verdicts; never derive a new business verdict."""
+    graphs = [item for item in observations if item.tool in GRAPH_TOOLS]
+    if len(graphs) != 1 or graphs[0].tool not in {
+        "find_alternative_paths",
+        "find_single_point_failure_candidates",
+    }:
+        return None
+    item = graphs[0]
+    data = item.result.data
+    if (
+        data.get("analysis_scope") != "DEPENDENCY_FULFILLMENT"
+        or data.get("graph_sync_state") != "CURRENT"
+        or type(data.get("complete")) is not bool
+        or data.get("determination") not in {"DETERMINATE", "INDETERMINATE"}
+        or data.get("analysis_mode") not in {"CURRENT", "EXPLICIT_HISTORICAL"}
+        or data.get("not_evaluated") != ["OPERATIONAL_IMPACT", "CAPACITY", "SAFETY", "ECONOMICS"]
+    ):
+        return None
+
+    def counts(rows, key, labels):
+        if not isinstance(rows, list) or any(
+            not isinstance(row, dict) or row.get(key) not in labels for row in rows
+        ):
+            return None
+        values = Counter(row[key] for row in rows)
+        return "、".join(f"{label}{values[value]}件" for value, label in labels.items())
+
+    if item.tool == "find_alternative_paths":
+        targets = data.get("target_results")
+        if (
+            not isinstance(targets, list)
+            or not targets
+            or any(
+                not isinstance(row, dict) or not isinstance(row.get("after"), dict)
+                for row in targets
+            )
+        ):
+            return None
+        verdicts = counts(
+            [row["after"] for row in targets],
+            "determination",
+            {"ESTABLISHED": "成立", "NOT_ESTABLISHED": "不成立", "INDETERMINATE": "判定不明"},
+        )
+        replacements = counts(
+            data.get("alternatives"),
+            "availability",
+            {"AVAILABLE": "利用可能", "UNAVAILABLE": "利用不可", "UNKNOWN": "不明"},
+        )
+        if verdicts is None or replacements is None:
+            return None
+        answer = f"指定対象の仮想除外後の構造判定は{verdicts}。一段代替の構造上の利用可能性は{replacements}。"
+    else:
+        verdicts = counts(
+            data.get("findings"),
+            "determination",
+            {"CANDIDATE": "候補", "NOT_CANDIDATE": "非候補", "INDETERMINATE": "判定不明"},
+        )
+        if verdicts is None:
+            return None
+        answer = f"対象と候補の組ごとに、一要素ずつ仮想除外した構造上のSPOF判定は{verdicts}。"
+        answer += "この対象・候補範囲だけの判定で、故障原因の確定ではありません。"
+        if not data["findings"]:
+            answer += "評価した組はなく、SPOFなしとは判断できません。"
+    answer += (
+        "探索は完全です。"
+        if data["complete"]
+        else "探索は不完全で、未取得の対象・経路があり得ます。"
+    )
+    if data["determination"] == "INDETERMINATE":
+        answer += "全体判定は未確定です。"
+    if data["analysis_mode"] == "EXPLICIT_HISTORICAL":
+        answer += "現在の登録関係を指定時点で評価した結果で、当時の状態の復元ではありません。"
+    answer += "実際の停止影響・能力・安全性・経済影響は未評価です。対象別の判定と根拠は構造化結果をご確認ください。"
+    if has_errors:
+        answer += "一部の参照は失敗しています。エラー情報をご確認ください。"
+    return answer
