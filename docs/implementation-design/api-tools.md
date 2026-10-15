@@ -59,6 +59,22 @@ LLM経由ではなく専用APIで開始する。
 
 COMPLETED済みの再送では既存結果を返し、二重更新しない。
 
+## ブラウザ接続セッション
+
+既存Bearer認証は維持する。ブラウザは次の認証済みAPIを使用する。
+
+| API | 入力・出力 |
+|---|---|
+| POST /session/login | Bearer tokenで認証。空Body、Origin一致とX-LineScope-Browser: 1を要求。dataはサーバ設定のuser_id / role。HttpOnly・SameSite=Strictのopaque cookieを発行する |
+| GET /session | Bearerまたはcookie認証。サーバが確認したuser_id / roleを返す。401は再接続が必要 |
+| POST /session/logout | 空Body。同一originのブラウザ要求を確認し、server sessionを失効・cookieを削除する |
+
+cookieは元Bearer tokenを含まず、browser storageやURLへtokenを保存しない。HTTPSではSecure属性を付け、ローカルHTTPデモはloopbackのみで使用する。セッションはprocess内で上限256件・作成から固定8時間。API再起動で失効する。期限はApprovalの30分とは別であり、F5で延長しない。
+
+cookie認証の変更HTTP操作はOriginが要求のscheme / host / portと一致し、X-LineScope-Browser: 1がある場合だけ許可する。CORSを広げない。明示Bearerが不正な場合はcookieへfallbackしない。各要求で既存のサーバ設定からidentity / roleを再確認し、セッションmetadataやLLMに権限を決めさせない。権限・Approval / Execute条件は変更しない。
+
+セッション容量超過は503 RESOURCE_BUSY、認証失敗は401、ブラウザ要求条件の不一致は403 AUTHORIZATION_DENIED。認証情報・cookie・内部例外はresponse / logへ出さない。session APIの成功応答はCache-Control: no-store。複数worker共有・IdP / SSOは対象外。
+
 ## 7. Trusted Execution Context
 
 - authenticated_user_id

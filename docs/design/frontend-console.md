@@ -34,11 +34,11 @@ Object Explorerは「今回取得したObject」を表示する。全設備一�
 | 実行 | POST /update-requests/{id}/execute | 元requesterの明示操作。確定afterとcurrent_snapshotを分ける |
 | 接続確認 | GET /health /health/ready | readinessはPGの確認。Graph・RAG・モデル全体のReadyにしない |
 
-UIにToolsを個別HTTP公開するためのAPIを追加しない。Graph・モデル・RAGの未観測状態は未確認と表示する。役割を自己申告して権限を決めない。認証済みidentityを取得するAPIは現時点でないため、初回はBearer token入力だけで接続し、role / user_idを画面で推測しない。操作可否の最終判定はサーバの認可に従う。
+UIにToolsを個別HTTP公開するためのAPIを追加しない。Graph・モデル・RAGの未観測状態は未確認と表示する。役割を自己申告して権限を決めない。初回はBearer token入力で/session/loginへ接続し、再読み込み時は/sessionでセッションとidentityを確認する。role / user_idを画面で推測しない。操作可否の最終判定はサーバの認可に従う。
 
 ## 更新操作とセキュリティ
 
-Bearer tokenは画面のメモリだけに保持し、localStorage、sessionStorage、URL、ログへ保存しない。接続解除でtokenと取得済み結果・context・変更要求を消去する。開発用Frontend proxyから同一originのAPIへ接続し、BackendのCORSを広げない。
+Bearer tokenは初回接続時だけ送信し、サーバ側のセッションに保持する。ブラウザではHttpOnlyのopaque cookieで接続を復元し、localStorage、sessionStorage、URL、ログへtokenを保存しない。上部の接続設定で接続切替・解除を行い、解除はサーバセッションと取得済み結果・context・変更要求を消去する。F5で認証状態を復元するが、分析結果の永続復元は行わない。開発用Frontend proxyから同一originのAPIへ接続し、BackendのCORSを広げない。
 
 分析・Prepare・Approval・Executeを別操作にする。分析でデータを変更せず、Agent応答から自動approve / executeしない。承認対象はサーバSnapshotであり、LLM回答ではない。承認者へ切り替えるときは接続解除して別tokenで対象要求を読み直す。requesterへ戻すときもサーバ状態を読み直す。
 
@@ -81,7 +81,7 @@ frontend/src/
 
 ## 実装到達点（#236後）
 
-React / TypeScript / Viteで実APIへ接続する分析・比較・Evidence画面を実装した。Graphは返却された代表経路をSVGで描画する。React Flow等は導入せず、必要性が明確になった場合に評価する。tokenはメモリのみ、Backend非CURRENTのGraphを表示しない。
+React / TypeScript / Viteで実APIへ接続する分析・比較・Evidence画面を実装した。Graphは返却された代表経路をSVGで描画する。React Flow等は導入せず、必要性が明確になった場合に評価する。Bearer tokenはbrowser storageへ保存せず、Backend非CURRENTのGraphを表示しない。
 
 UI-01〜03の代表デモ経路とUI-06の主要境界を実ブラウザで確認した。完全なUI受入とは扱わない。文書引用のある実応答、UI-04〜05のAction、UI-07の包括的keyboard確認は残る。通常Frontend CIは静的検証とbuild、自動テストは必要最小限とする。最新の残作業は[roadmap](../roadmap.md)、作業・検証方法は[Frontend README](../../frontend/README.md)を参照する。
 

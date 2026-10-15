@@ -43,7 +43,7 @@ PostgreSQLのmigration / role付与とNeo4jのhealth確認後にAPI・Projection
 docker compose -f compose.yaml -f compose.frontend.yaml --profile frontend up --build -d frontend
 ```
 
-`http://127.0.0.1:5173`を開きます。接続欄には私有`.env`の`LINESCOPE_USERS`に登録されたtokenの値だけを貼り付けます。管理・生産・保全ロールでGraph分析を利用できます。tokenを共有、Git登録、スクリーンショット掲載しないでください。tokenは画面のメモリだけに保持し、再読み込み・接続解除で消去します。
+`http://127.0.0.1:5173`を開きます。接続欄には私有`.env`の`LINESCOPE_USERS`に登録されたtokenの値だけを貼り付けます。管理・生産・保全ロールでGraph分析を利用できます。tokenを共有、Git登録、スクリーンショット掲載しないでください。初回接続後はHttpOnlyのセッションcookieでF5後も接続を復元します。接続切替・解除は上部の「接続設定」から行えます。セッションは固定8時間で、API再起動・期限切れ後は再接続が必要です。
 
 比較デモを使う場合は私有`.env`で`LINESCOPE_DEMO_DECISION_MOCK=true`を明示設定し、APIを再作成します。既存の値がある場合は重複追記せず編集します。
 

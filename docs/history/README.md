@@ -578,3 +578,5 @@ Dockerで追加36テスト成功、ruff check / format、git diff --check成功�
 - [継続ブラウザデモの起動](2026-10-14-browser-demo-running.md)：当時の環境記録。資格情報はGit管理外。
 - [Evidence表示と次工程](2026-10-15-evidence-ui-checkpoint.md)
 - [Frontend到達点前の計画](2026-10-15-roadmap-before-frontend-checkpoint.md)
+
+- [F5後のセッション復元](2026-10-15-browser-session-refresh.md)：#238の認証契約、接続設定、検証結果。
