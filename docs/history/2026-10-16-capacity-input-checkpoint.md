@@ -36,3 +36,19 @@ requirements §14.3 PO-B03および能力情報のPO-B07は未決定。business-
 ## 現在の状態
 
 ロードマップへ#247 mergeと70%／残10〜17 PRを反映。ガントの#243後baselineは維持し、経済入力の表示を接続済みに更新した。実装コード・DB・権限・業務規則は変更していない。次の依存作業はPO-B03と能力情報のPO-B07の意味確定であり、未回答を時間経過や一般の作業継続指示だけで採用扱いしない。
+
+## PO回答と実装開始
+
+開発者から「その案で進めろ」と回答を受け、提示済みPO-B03・能力情報のPO-B07を採用。requirements / domain-model / access-controlへ反映した。過去の未回答記述は回答前の経緯であり、現在の判断待ちを示さない。安全・計画・故障・インフラ等は本回答で確定しない。
+
+最初のPRは正式能力入力の登録・訂正・別manager承認・元requester確定、検索・取得、単一製品の能力差・条件付き期限のサーバ計算。画面・Agent接続を後続とする。承認済み経済Snapshot v2や既存v1を変更せず、CapacityInput専用v3を追加する。製品FKを追加し、同一製品・単位・期間を一入力へ閉じる。数量値の厳密な十進文字列・text helperだけをinput_valuesへ分離し、経済の業務計算は維持する。
+
+追加試験はdomain 8・実PG/HTTP 12の20件を予定。認可・version競合・並行再送・CREATE競合・監査失敗rollbackを明示し、無条件直積を作らない。初回実行は新規import名capacitysの誤りにより収集段階で停止し、capacityへ修正して再実行する。
+
+## 関連検証とレビュー
+
+import名修正後の関連実行は28成功・12失敗。HTTP handlerの依存名services.capacitysがcomposition rootのcapacityと不一致だったため、全能力HTTPが500となった。capacityへ修正後、能力20件＋既存経済20件の計40件が成功（5.64秒）。新規試験を削除せず配線を修正した。以後、同じ登録シナリオで検索候補・自由文字列のbind・payload非公開を確認し、既存DB role試験へ実runtime/query経路とprojection拒否を拡張した。新規展開ケース数は20件のまま。
+
+lockはRequest→Approval→設備KEY SHARE→製品KEY SHARE→入力UPDATEで、FKとversionの再検証を承認時／確定時に実施する。経済カテゴリの現在閲覧roleによる保存要求・COMPLETED再送の制御を能力にも明示適用し、floorへ過去要求の内容が露出しない。計算・HTTP・Application・Coreの責務を分離し、SQL値はbindする。Capabilityの追加をAgentの承認・確定権限へ転用しない。
+
+Docker内ruff checkは成功。全体回帰・CIは確認中。今回の変更で通常デモ環境・Ollama・Qdrantデータには変更を加えていない。能力入力の画面・Agent接続、Graphと安全を含む全BS受入は後続。

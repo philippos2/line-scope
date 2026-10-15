@@ -136,6 +136,7 @@ def test_upgrade_preserves_business_rows_and_packaged_migration(db):
         "006_graph_projection_storage.sql",
         "007_knowledge_document.sql",
         "008_economic_input.sql",
+        "009_capacity_input.sql",
     ]
     assert db.migrate() == []
     with db.transaction() as connection:

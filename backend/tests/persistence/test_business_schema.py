@@ -57,6 +57,7 @@ def test_schema_boundary_and_upgrade_from_foundation(db):
         "006_graph_projection_storage.sql",
         "007_knowledge_document.sql",
         "008_economic_input.sql",
+        "009_capacity_input.sql",
     ]
     assert db.migrate() == []
     with db.transaction() as c:
@@ -67,6 +68,7 @@ def test_schema_boundary_and_upgrade_from_foundation(db):
             "schema_migration",
             "knowledge_document",
             "economic_input",
+            "capacity_input",
             "update_request",
             "update_target",
             "approval",

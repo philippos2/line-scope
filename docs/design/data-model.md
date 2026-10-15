@@ -426,11 +426,11 @@ erDiagram
 
 maintenance_plan_idのNULLは計画との関連なしを表す。計画を指定した実績のequipment_id一致、active期間重複などの業務制約は、単独のFKとは別に更新Transactionで検証する。
 
-## 14. 業務判断支援で必要なデータ拡張（未確定）
+## 14. 業務判断支援で必要なデータ拡張（確定範囲と未確定事項）
 
 現在の主要テーブルは能力・経済・安全・故障分析の全入力を保持しない。requirements §14.2のA / B / C分類を正とする。追加要件を対象外にはしないが、未決定のテーブル・列・DEFAULT・値域を既存ER図へ実装済みとして追加しない。
 
-拡張の設計入力は、製品・期間別の能力／負荷／必要量、通貨・適用期間付き損失率、稼働calendar、修理／交換案の費用・時間・lead time、計画種別、劣化観測、適用安全基準と判定根拠、故障／修理／過去停止影響、buffer・納期である。意味・登録主体・権限はPO-B01〜07で確定する。
+拡張の設計入力は、製品・期間別の能力／負荷／必要量、通貨・適用期間付き損失率、稼働calendar、修理／交換案の費用・時間・lead time、計画種別、劣化観測、適用安全基準と判定根拠、故障／修理／過去停止影響、buffer・納期である。経済・能力入力の確定範囲は後掲の正本定義を参照し、残る意味・登録主体・権限はPO-B04〜07で確定する。
 
 計算入力にはsource object / record、version、観測時刻、適用期間、単位、推定／確定の区別を追跡可能にする。欠損値を0やFALSEで初期化しない。MaintenanceRecord.resultや文書citationは説明根拠として使えても、定義済み数値列・安全判定ルールを自動代替しない。新数量のscale・丸め・保存型は意味確定後に定義する。既存canonical Snapshot v1のdecimal / float拒否は維持し、必要なら明示した新schemaを設計する。
 
@@ -441,3 +441,7 @@ maintenance_plan_idのNULLは計画との関連なしを表す。計画を指定
 ## 経済入力の正本
 
 `economic_input(economic_input_id UUID PK, input_code TEXT UNIQUE NOT NULL, equipment_id UUID FK equipment, payload JSONB NOT NULL, version BIGINT NOT NULL CHECK(version>0))`をPostgreSQL正本とする。payloadはAPI契約の共通期間・稼働時間・通貨・案別費用項目。CREATEと全payload置換UPDATEだけを許可し、ID・code・設備は不変。監査・business_update_history・承認消費・要求完了と同一transactionで確定する。Graphのnode/edgeではなく、Outbox / Neo4j / Qdrantへ費用を投影しない。query roleはSELECT、runtime roleはSELECT/INSERT/UPDATEのみ、projection roleには権限を付与しない。
+
+## 正式能力入力の正本
+
+`capacity_input(capacity_input_id UUID PK, input_code TEXT UNIQUE NOT NULL, equipment_id UUID FK equipment, product_id UUID FK product, payload JSONB NOT NULL, version BIGINT NOT NULL CHECK(version>0))`。CREATEと全payload置換UPDATEだけを許可し、ID・code・設備・製品は不変。数量単位・共通期間・出典を含むpayloadを保存する。query roleはSELECT、runtime roleはSELECT/INSERT/UPDATE、projection roleへの権限なし。Snapshot schema_version=3はCapacityInput専用。既存v1/v2契約とmigration checksumは維持する。Graph node/edgeではないため能力更新のOutboxは発行しない。

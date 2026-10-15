@@ -1,11 +1,11 @@
 """Explicit economic estimates; no fixture, inferred downtime or feasibility claim."""
 
-import re
 from datetime import datetime
 from decimal import Decimal, localcontext
 from uuid import uuid4
 
 from .canonical import normalize_timestamp, normalize_uuid
+from .input_values import exact, quantity, text
 
 INPUT_FIELDS = {"input_code", "equipment_id", "payload"}
 PAYLOAD_FIELDS = {"period_start", "period_end", "operating_hours", "currency", "options"}
@@ -21,28 +21,6 @@ ITEM_FIELDS = {
     "valid_to",
 }
 RECORD_FIELDS = INPUT_FIELDS | {"economic_input_id", "version"}
-
-
-def exact(value, fields):
-    if type(value) is not dict or set(value) != fields:
-        raise ValueError("Invalid economic fields")
-
-
-def text(value, limit=1000):
-    if type(value) is not str or not value.strip() or len(value) > limit:
-        raise ValueError("Nonempty bounded text is required")
-    return value
-
-
-def quantity(value, *, nullable=False):
-    """Exact nonnegative decimal strings, at most 15 integral and 6 fractional digits."""
-    if value is None and nullable:
-        return None
-    if type(value) is not str or not re.fullmatch(
-        r"(?:0|[1-9][0-9]{0,14})(?:\.[0-9]{1,6})?", value
-    ):
-        raise ValueError("A nonnegative bounded decimal string is required")
-    return format(Decimal(value), "f").rstrip("0").rstrip(".") if "." in value else value
 
 
 def normalize_payload(value):

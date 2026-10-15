@@ -24,6 +24,7 @@ PROJECTION_UPDATE_COLUMNS = (
 )
 READ_TABLES = (
     "economic_input",
+    "capacity_input",
     "equipment",
     "equipment_current_state",
     "maintenance_plan",
@@ -37,6 +38,7 @@ READ_TABLES = (
 )
 INSERT_TABLES = (
     "economic_input",
+    "capacity_input",
     "maintenance_plan",
     "maintenance_record",
     "production_operation_equipment_assignment",
@@ -51,6 +53,7 @@ INSERT_TABLES = (
 )
 UPDATE_TABLES = (
     "economic_input",
+    "capacity_input",
     "equipment_current_state",
     "maintenance_plan",
     "production_operation",

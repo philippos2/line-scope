@@ -408,3 +408,7 @@ LogiScopeの動画シナリオ等は「業務の問いから調査・根拠・�
 | BS-19、UC-B14・17、AC-B10・11、AC-06〜10・12・15 | `test_controlled_action_scenarios.py::test_bs19_confirmed_after_is_preserved_after_later_authorized_update_and_replay` | 二回ともPrepare→別承認者のApproval→requesterのExecuteを経由。最初の確定after v11と現在RUNNING v12・version差を分離し、再送でも履歴・Outboxが増えない | 要求GETは保存結果、Execute再送は保存結果と現在観測を返す。LLMを承認・実行主体にしない |
 
 上記のAPI構造化結果は対象試験でPASS。実LLM品質は未検証であり、自然言語E2Eを含むBusiness Scenario全体の合格とは区別する。表にないケースは、このチェックポイントでは未評価。PO-B01〜08の不足仕様・BLOCKED状態を解消したと扱わない。
+
+## 正式能力入力の接続範囲
+
+PO-B03と能力情報のPO-B07は確定済み。CapacityInputに同一製品・単位・期間の率と負荷、互換性、出典を登録し、サーバ計算からBS-05 / 06の能力評価とBS-13の条件付き期限を検証する。API接続の試験をシナリオ全体のPASSとは扱わない。Agent / 画面、Graph・状態・安全条件との統合とBS-G01は引き続き未受入。安全規則のPO-B04等は未確定。

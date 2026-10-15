@@ -535,6 +535,10 @@ class HumanApproval(_HumanApproval):
 
     @staticmethod
     def _handler(targets):
+        from .capacity import CapacityApproval
+
+        if targets and all(t["target_type"] == "CapacityInput" for t in targets):
+            return CapacityApproval
         from .economics import EconomicApproval
 
         if targets and all(t["target_type"] == "EconomicInput" for t in targets):

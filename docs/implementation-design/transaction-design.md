@@ -268,3 +268,7 @@ operations §13に従い、proposal.saved / replaced、approval.completed、exec
 ## 経済入力の更新
 
 EconomicInputはECONOMIC_INPUTカテゴリ専用Snapshot schema_version=2。v1は既存カテゴリだけを受け付け、保存済みv1のcanonical text/hashを変更しない。v2も共通root/target構造、正規化、hash検証を維持し、EconomicInput以外や混在を拒否する。CREATEは固定UUID・code一意性、UPDATEはbefore全体とexpected_versionを承認時／実行時に検証する。lock順はRequest→Approval→設備FK（ID順KEY SHARE）→EconomicInput（ID順UPDATE）。CREATEはcode順に挿入し一意制約を最終防御とする。経済情報の変更はGraph mutationではないためGraph lock/Outboxを追加しない。更新失敗は全業務行・履歴・監査・承認消費をrollbackし、既存の競合失効・期限・再送契約に従う。
+
+## 能力入力の更新
+
+CAPACITY_INPUTはCapacityInput専用のSnapshot schema_version=3。既存v1/v2とはカテゴリを混在させない。CREATE UUID固定・code一意性、UPDATE before全体一致・expected_versionを承認時／確定時に再検証する。lock順はRequest→Approval→設備FK（ID順KEY SHARE）→製品FK（ID順KEY SHARE）→CapacityInput（ID順UPDATE）。CREATEはcode順に書き、一意制約で競合を防ぐ。正本更新・business_update_history・Audit・承認消費・要求完了・結果保存は共通transactionで原子的に確定する。Graph lock/Outboxは追加しない。自己承認禁止・現在role・30分期限・rollback・競合失効・再送は共通制御を維持する。

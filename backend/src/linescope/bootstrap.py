@@ -8,6 +8,7 @@ from .agent.agent_input import ConversationStore
 from .agent.read_agent import ReadAgent
 from .application.agent_service import AgentApplication
 from .application.approvals import HumanApproval
+from .application.capacity import CapacityInputs
 from .application.demo_decision import DemoDecisionFlow, MockDecisionProvider
 from .application.dependency_command import DependencyCommandPrepare
 from .application.economics import EconomicInputs
@@ -44,6 +45,7 @@ class ApiServices:
     proposals: ProposalStore
     approval: HumanApproval
     execute: HumanExecute
+    capacity: CapacityInputs
     economics: EconomicInputs
     agent: AgentApplication
     owned_graph_driver: object | None = None
@@ -147,6 +149,7 @@ def build_api_services(
             approval=HumanApproval(database, event_logger=events),
             execute=HumanExecute(database, settings, event_logger=events),
             economics=EconomicInputs(database),
+            capacity=CapacityInputs(database),
             agent=agent,
             owned_graph_driver=owned_driver,
         )

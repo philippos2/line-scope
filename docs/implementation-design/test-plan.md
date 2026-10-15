@@ -265,3 +265,7 @@ Dockerで`pytest -p no:cacheprovider backend/tests/interfaces/test_controlled_ac
 ### 経済入力の画面・Agent接続
 
 追加は展開後Backend 13件（検索・権限・cursor・SQL/LIKE文字・空白を含む文字数上限・Read Tool / Evidence・Agent要約・モック経路除外11、候補のみ／複数入力の非合算要約2）、Frontend 5件（未知と0・出典text、明示Prepareとretry key、接続解除後の遅延応答、編集リセット、不正payload拒否）。既存の共通更新・Agent / Tool試験を回帰する。実ブラウザでは設備候補選択→フォーム登録→自己承認拒否→別manager承認→元requester確定→登録値検索・表示→訂正フォーム読込→実モデルによるReadを一つの業務経路で確認する。紹介動画や全BS / Goldenの受入へ拡張しない。
+
+## 正式能力入力の検証
+
+新規予定はdomain 8件（充足・不足・ゼロ、欠落、期間不正、非互換、条件付き期限、前提未確認）と実PG / HTTP 12件（登録・retry、訂正競合、更新拒否3role、閲覧3role、自己承認とrole喪失、監査失敗rollback、並行再送とcode競合、厳密HTTP / Snapshot / hash / 拒否）の20件。直積ではなく重大相互作用と代表境界を選ぶ。経済入力・共通Snapshot / 承認 / Executeの既存試験も回帰する。画面・Agent・一般納期計画・全BSは別受入。

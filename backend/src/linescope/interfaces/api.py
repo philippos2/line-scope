@@ -268,6 +268,52 @@ def create_app(
             return response(request, code=error.code, status_code=error_status(error.code))
         return response(request, json_value(data))
 
+    @app.post("/capacity-inputs/search")
+    async def search_capacity_inputs(request: Request):
+        try:
+            if (
+                request.headers.get("content-type", "").split(";")[0].strip().lower()
+                != "application/json"
+            ):
+                raise ValueError("JSON required")
+            body = strict_json(await request.body())
+        except (ValueError, TypeError):
+            return response(request, code="INVALID_ARGUMENT", status_code=400)
+        try:
+            data = await run_in_threadpool(
+                services.capacity.search, request.state.execution_context, body
+            )
+        except ProposalError as error:
+            return response(request, code=error.code, status_code=error_status(error.code))
+        return response(request, json_value(data))
+
+    @app.post("/capacity-inputs/prepare")
+    async def prepare_capacity_input(request: Request):
+        try:
+            if (
+                request.headers.get("content-type", "").split(";")[0].strip().lower()
+                != "application/json"
+            ):
+                raise ValueError("JSON required")
+            body = strict_json(await request.body())
+        except (ValueError, TypeError):
+            return response(request, code="INVALID_ARGUMENT", status_code=400)
+        try:
+            data = await run_in_threadpool(
+                services.capacity.prepare, request.state.execution_context, body
+            )
+        except ProposalError as error:
+            return response(request, code=error.code, status_code=error_status(error.code))
+        return response(request, json_value(data))
+
+    @app.get("/capacity-inputs/{capacity_input_id}")
+    def capacity_input(request: Request, capacity_input_id: str):
+        try:
+            data = services.capacity.get(request.state.execution_context, capacity_input_id)
+        except ProposalError as error:
+            return response(request, code=error.code, status_code=error_status(error.code))
+        return response(request, json_value(data))
+
     @app.post("/agent")
     async def agent(request: Request):
         received_at = datetime.now(timezone.utc)
