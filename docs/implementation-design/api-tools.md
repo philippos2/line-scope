@@ -380,3 +380,23 @@ representative_pathsのpurpose / root / nodes / edges / hops、MANDATORY_DEPENDE
 Agent Read Tool `search_economic_inputs`は同じ検索引数、`get_economic_input`はeconomic_input_idだけを受け付ける。同じ認可をserviceで検証し、入力元のidentity / role / hash等を受け付けない。取得は登録済みの正本値とサーバ計算だけを返し、EvidenceにPOSTGRESQL、観測日時、LATEST_PER_CALL、取得時のversion / IDを保持する。現在登録された見積であり、過去状態の復元や実停止の証拠ではない。候補が複数なら期間や記録を勝手に一つへ決めたり合算しない。Agentには経済Prepare / Approval / Executeを公開しない。
 
 正式な「経済入力」「登録済み費用」を指定した問い合わせは、M-204を含む場合もデモ比較へ流さない。単一入力の要約はサーバ計算の総額／既知小計・不明を維持し、複数入力は合算しない。検索候補だけでは計算を実施済みと説明しない。
+
+## 正式能力入力HTTP API
+
+PrepareはAgentへ公開しない明示HTTP入力。検索・取得は後掲のRead Toolでも利用する。認証と能力情報の認可を適用し、外部envelope・error mappingは共通契約。
+
+- `POST /capacity-inputs/prepare`: JSONの厳密なrootは`retry_key`, `capacity_input_id`（新規null）, `input`, `supersedes_update_request_id`（通常null）。inputは`input_code`, `equipment_id`, `product_id`, `payload`。保存済みSnapshotと要求ID・承認IDを返す。承認・確定には既存Human APIを使う。
+- `POST /capacity-inputs/search`: `filter`（equipment_id / input_code / equipment_query）、`page_size`（1〜100、既定20）、`cursor`。filterはAND、設備名・コードのcase-sensitive部分一致はLIKEメタ文字をliteral扱い。textは非空・入力全体100文字以内。候補はID・code・設備・製品・version・設備表示名。UUID順keyset、cursorは主体・role・filterに拘束されprocess-local。payloadを候補へ含めない。
+- `GET /capacity-inputs/{id}`: 正規化した登録input、サーバcalculation、`source=REGISTERED_INPUT`、observed_atを返す。計算結果は現在登録値の期間評価であり過去Snapshot復元ではない。
+
+payloadの必須fieldは`period_start`, `period_end`（timezone必須、start<end）, `quantity_unit`（非空40文字以内）, `required_rate`, `normal_rate`, `used_rate`, `reserved_rate`, `loads_independent`, `loads_complete`, `compatible`, `source`（非空1000文字以内）, `certainty`（ESTIMATED / CONFIRMED）, `recovery`。全rateは同一製品・単位/hour・共通期間の値。非負十進文字列（整数部15桁、小数6桁まで）またはnull。float・指数表記を拒否し0とnullを区別する。loadの二つの確認は明示bool、compatibleはboolまたはnull。出典はpayload全体と評価期間に適用する。
+
+`recovery`はnullまたは`buffer`（同数量単位、rateと同じ十進制約またはnull）, `stopped_at`（評価期間内）, `constant_flow`, `no_other_allocations`, `recovery_meets_demand`（全て明示bool）。
+
+calculationは`available_rate=normal_rate-used_rate-reserved_rate`、`shortage_rate=max(0,required_rate-available_rate)`。率欠落・負荷の重複なし／網羅性未確認・負の差はUNKNOWN。compatibleがnullならcapacity_status UNKNOWN、falseならINCOMPATIBLE、それ以外は不足正ならINSUFFICIENT、ゼロならSUFFICIENT。feasibilityは常にUNKNOWNとし、安全・品質・構造成立を保証しない。条件付き期限はcompatible=true、不足正、buffer既知、recoveryの全前提trueの場合だけ計算する。`permissible_downtime_hours`はbuffer/shortageを小数6桁へ切捨て、`recovery_deadline`はstopped_at+同時間をmicrosecondへ切捨て。期間外なら期限を返さない。`recovery_status=CONDITIONAL`と全入力前提を返し納期一般を保証しない。欠落時は期限null、recovery_status UNKNOWN。
+
+### 能力入力の製品候補とAgent参照
+
+`POST /capacity-inputs/products/search`は厳密JSONの任意`query`（設備の名前検索と同様のliteral部分一致、最大100文字）、`cursor`を受け付け、製品ID・名前・codeの候補を20件ずつ返す。queryは製品名またはcodeへ適用し、ID順keyset・主体／role／queryに拘束したprocess-local cursorを使う。能力情報の閲覧roleを要求し、製品をcodeの暗記やUUID手入力なしに選ぶ。
+
+`search_capacity_inputs`はHTTP検索と同じ引数、`get_capacity_input`はcapacity_input_idだけを受けるAgent Read Tool。同じservice認可と登録値計算を使い、EvidenceへPOSTGRESQL・observed_at・LATEST_PER_CALL・取得version／IDを保持する。GETには表示用設備・製品名とcodeをlabelsとして付加する。別入力の率・期間を合算しない。サーバ結果から要約し、LLMの自由説明で不足量・UNKNOWN・条件付き期限・安全未評価を上書きしない。能力Prepare / Approval / ExecuteをAgentへ公開しない。正式能力入力の問い合わせをデモ比較へ振り分けない。

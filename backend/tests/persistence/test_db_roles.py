@@ -181,6 +181,39 @@ def test_runtime_prepare_approve_execute_and_replay_work_without_admin_authority
         with stores[PROJECTION_ROLE].transaction() as connection:
             connection.execute("SELECT * FROM economic_input")
 
+    from interfaces.test_capacity_inputs_api import approve as approve_capacity
+    from interfaces.test_capacity_inputs_api import body as capacity_body
+    from interfaces.test_capacity_inputs_api import client_for as capacity_client
+    from interfaces.test_capacity_inputs_api import execute as execute_capacity
+    from interfaces.test_capacity_inputs_api import prepare as prepare_capacity
+
+    values = capacity_body("ROLE-CAPACITY")
+    values["input"]["equipment_id"] = str(UUID(int=10))
+    with admin.transaction() as connection:
+        connection.execute(
+            "INSERT INTO product(product_id,product_code,product_name,active) VALUES (%s,'ROLE-P','Product',true)",
+            (values["input"]["product_id"],),
+        )
+    with capacity_client(runtime) as client:
+        capacity = prepare_capacity(client, values)
+        assert approve_capacity(client, capacity).status_code == 200
+        assert execute_capacity(client, capacity).status_code == 200
+        assert (
+            client.get(
+                f"/capacity-inputs/{capacity['canonical_snapshot']['targets'][0]['target_id']}",
+                headers={"Authorization": "Bearer production"},
+            ).status_code
+            == 200
+        )
+    with stores[READ_ROLE].transaction() as connection:
+        assert connection.execute("SELECT count(*) AS n FROM capacity_input").fetchone()["n"] == 1
+    with pytest.raises(psycopg.errors.InsufficientPrivilege):
+        with stores[READ_ROLE].transaction() as connection:
+            connection.execute("UPDATE capacity_input SET version=version+1")
+    with pytest.raises(psycopg.errors.InsufficientPrivilege):
+        with stores[PROJECTION_ROLE].transaction() as connection:
+            connection.execute("SELECT * FROM capacity_input")
+
 
 def test_future_objects_are_denied_until_explicit_grants(roles):
     admin, stores, _ = roles

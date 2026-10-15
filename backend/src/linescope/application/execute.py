@@ -114,11 +114,12 @@ class _UpdateExecute:
             if row["requester_id"] != context.authenticated_user_id:
                 raise ProposalError("AUTHORIZATION_DENIED", "Only requester may execute")
             self._require_scope(saved)
-            if CATEGORIES[
-                saved.snapshot.data["targets"][0]["target_type"]
-            ] == "ECONOMIC_INPUT" and context.role not in {"maintenance", "production", "manager"}:
+            if CATEGORIES[saved.snapshot.data["targets"][0]["target_type"]] in {
+                "ECONOMIC_INPUT",
+                "CAPACITY_INPUT",
+            } and context.role not in {"maintenance", "production", "manager"}:
                 raise ProposalError(
-                    "AUTHORIZATION_DENIED", "Economic result visibility is required"
+                    "AUTHORIZATION_DENIED", "Restricted result visibility is required"
                 )
             if saved.status == "COMPLETED":
                 attempt["replayed"] = True
@@ -840,6 +841,10 @@ class HumanExecute(_UpdateExecute):
 
     @staticmethod
     def _handler(targets):
+        from .capacity import CapacityExecute
+
+        if targets and all(t["target_type"] == "CapacityInput" for t in targets):
+            return CapacityExecute
         from .economics import EconomicExecute
 
         if targets and all(t["target_type"] == "EconomicInput" for t in targets):

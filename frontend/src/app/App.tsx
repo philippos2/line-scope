@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { ApiError, object, request, type Envelope } from "../api/client";
 import { ActionPanel } from "../features/actions/ActionPanel";
+import { CapacityPanel } from "../features/capacity/CapacityPanel";
+import { CapacityResult } from "../features/capacity/CapacityResult";
 import { EconomicPanel } from "../features/economics/EconomicPanel";
 import { EconomicResult } from "../features/economics/EconomicResult";
 import { DecisionComparison } from "../features/decision/DecisionComparison";
@@ -345,6 +347,12 @@ export function App() {
                 onSelect={chooseEquipment}
               />
             )}
+            <CapacityPanel
+              equipment={equipment}
+              onPrepared={setEconomicPrepared}
+              onInvestigate={draftInvestigation}
+              executionEpoch={executionEpoch}
+            />
             <EconomicPanel
               equipment={equipment}
               onPrepared={setEconomicPrepared}
@@ -372,6 +380,20 @@ export function App() {
                 )
                 .map((row, index) => (
                   <EconomicResult
+                    key={index}
+                    data={row.data as Record<string, unknown>}
+                    stale={stale}
+                  />
+                ))}
+            {Array.isArray(result?.data.tool_results) &&
+              result.data.tool_results
+                .filter(object)
+                .filter(
+                  (row) =>
+                    row.tool === "get_capacity_input" && object(row.data),
+                )
+                .map((row, index) => (
+                  <CapacityResult
                     key={index}
                     data={row.data as Record<string, unknown>}
                     stale={stale}
