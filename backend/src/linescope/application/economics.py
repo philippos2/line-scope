@@ -103,7 +103,7 @@ class EconomicInputs:
             for key, value in filters.items():
                 if key == "equipment_id":
                     normalized[key] = normalize_uuid(value)
-                elif type(value) is str and 1 <= len(value.strip()) <= 100:
+                elif type(value) is str and value.strip() and len(value) <= 100:
                     normalized[key] = value
                 else:
                     raise ValueError("Invalid search text")

@@ -161,3 +161,19 @@ def test_formal_m204_request_does_not_enter_fixture_comparison(world):
 
     assert not DemoDecisionFlow.matches("M-204の経済入力と修理費用を比較して")
     assert DemoDecisionFlow.matches("M-204の修理・交換を比較して")
+
+
+def test_search_text_limit_counts_leading_and_trailing_whitespace():
+    from linescope.application.economics import EconomicInputs
+    from linescope.application.proposals import ProposalError
+
+    class NoDatabase:
+        def transaction(self):
+            raise AssertionError("Invalid search must not access storage")
+
+    with pytest.raises(ProposalError) as caught:
+        EconomicInputs(NoDatabase()).search(
+            ExecutionContext("reader", "production", uuid4()),
+            {"filter": {"input_code": " " * 100 + "A"}},
+        )
+    assert caught.value.code == "INVALID_ARGUMENT"
