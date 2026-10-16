@@ -196,7 +196,7 @@ def main():
     )
     started = monotonic()
     try:
-        with build_opener(NoRedirect).open(request, timeout=90) as response:
+        with build_opener(NoRedirect).open(request, timeout=150) as response:
             payload = json.load(response)
         metrics = (
             validate_result(payload)

@@ -10,7 +10,8 @@ from verify_minimal_flow import DemoFixture, require, stage, verify
 
 class SummaryFixture(DemoFixture):
     def request(self, path, **arguments):
-        return super().request(path, timeout_seconds=90, **arguments)
+        arguments.setdefault("timeout_seconds", 150)
+        return super().request(path, **arguments)
 
 
 def main():

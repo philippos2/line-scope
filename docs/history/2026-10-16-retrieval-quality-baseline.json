@@ -1,0 +1,941 @@
+{
+  "dataset_version": "retrieval-demo-v1",
+  "observed_at": "2026-10-16T13:54:09.574105+00:00",
+  "revision": "865ae2050701a466afae3a9e88e6be68780bd006",
+  "working_tree_dirty": true,
+  "model": "embeddinggemma:latest",
+  "digest": "85462619ee721b466c5927d109d4cb765861907d5417b9109caebc4e614679f1",
+  "dimensions": 768,
+  "scope": "SYNTHETIC_SIX_DOCUMENT_BASELINE_NOT_GENERAL_ACCEPTANCE",
+  "llm": "NOT_USED",
+  "corpus": {
+    "BEARING": [
+      "軸受過熱",
+      "M-204の軸受過熱。軸受温度が上昇した場合は設備を停止し、潤滑油の不足と軸受損傷を点検する。運転再開には別途安全条件の確認が必要。"
+    ],
+    "VIBRATION": [
+      "振動異常",
+      "M-204の振動異常。振動が増えた場合は据付ボルトの緩み、軸の芯ずれ、回転部の偏心を停止後に点検する。"
+    ],
+    "COOLING": [
+      "冷却系統",
+      "冷却水の流量低下や水温上昇では、冷却水ポンプ、ストレーナの詰まり、配管漏れを点検する。"
+    ],
+    "ELECTRIC": [
+      "電気系統",
+      "モーターが起動しない場合は電源遮断と無電圧確認を行い、過負荷リレー、配線の断線、電源電圧を点検する。"
+    ],
+    "LOCKOUT": [
+      "隔離手順",
+      "保全作業前は電源を遮断し、ロックアウトとタグアウトを行う。残留圧力と蓄積エネルギーを解放し、ゼロエネルギーを確認する。"
+    ],
+    "DELIVERY": [
+      "交換部品の調達",
+      "M-204の交換部品の調達lead timeは14日。調達待ちと交換作業時間と生産停止時間は別であり、納期だけで停止期間を決定しない。"
+    ]
+  },
+  "cases": [
+    {
+      "query": "軸受の温度が高くなったときに何を点検するか",
+      "expected": "BEARING",
+      "rank": 1,
+      "titles": [
+        "軸受過熱",
+        "冷却系統",
+        "振動異常",
+        "電気系統",
+        "隔離手順"
+      ],
+      "citation_grounded": true,
+      "duration_ms": 1800,
+      "response": {
+        "request_id": "4ae4a760-0bf7-4372-89dd-1da036d9d614",
+        "context_id": null,
+        "status": "partial",
+        "answer": "正本で確認した文書抜粋を5件提示します。Vector検索で候補を取得しました。抜粋は参考資料であり、安全性や費用の確定判断ではありません。",
+        "data": {
+          "items": [
+            {
+              "text": "M-204の軸受過熱。軸受温度が上昇した場合は設備を停止し、潤滑油の不足と軸受損傷を点検する。運転再開には別途安全条件の確認が必要。",
+              "citation": {
+                "document_id": "7f6d4380-627d-4943-b055-26ed1606b7f7",
+                "document_version": 1,
+                "content_hash": "69ebb7490e7e746821928801ea457508bd6b0794990a065a18014b71432991a3",
+                "title": "軸受過熱",
+                "source_uri": "7f6d4380627d4943b05526ed1606b7f7_cecdec15dba95c4a63af4c70168d7f9d1ffb949d03e21e32fef2eb44825e5fa2.txt",
+                "chunk_id": "544c9f8a-ba4e-5aac-a3f9-b68d81d7e095",
+                "section": "characters:0-66",
+                "chunking_version": "utf8-fixed-1000:v1"
+              }
+            },
+            {
+              "text": "冷却水の流量低下や水温上昇では、冷却水ポンプ、ストレーナの詰まり、配管漏れを点検する。",
+              "citation": {
+                "document_id": "93f78195-8195-4336-b16b-9d5550bc972c",
+                "document_version": 1,
+                "content_hash": "8eec271c823cb3d5a912f93d88450dec17b51130b5496e98e133230526afc180",
+                "title": "冷却系統",
+                "source_uri": "93f7819581954336b16b9d5550bc972c_8b56491f4f38432d8e58e2d3b5007849ee56954f9df102bb535a440e2cd1e226.txt",
+                "chunk_id": "75466c84-ad19-5f05-b6df-87c05e42f5a7",
+                "section": "characters:0-43",
+                "chunking_version": "utf8-fixed-1000:v1"
+              }
+            },
+            {
+              "text": "M-204の振動異常。振動が増えた場合は据付ボルトの緩み、軸の芯ずれ、回転部の偏心を停止後に点検する。",
+              "citation": {
+                "document_id": "b238feda-ec25-41f7-bd83-f4726161f63b",
+                "document_version": 1,
+                "content_hash": "858a38ed47887432feb626511f0c97fced734644f1d35c1b5138b5ed0746d835",
+                "title": "振動異常",
+                "source_uri": "b238fedaec2541f7bd83f4726161f63b_96d10a1ef49fcdeaff20a3296a27774e7b2ba1520b97cce7b5d57918d950f9d1.txt",
+                "chunk_id": "620e3861-57a0-55b5-9df5-f7f4623639f4",
+                "section": "characters:0-51",
+                "chunking_version": "utf8-fixed-1000:v1"
+              }
+            },
+            {
+              "text": "モーターが起動しない場合は電源遮断と無電圧確認を行い、過負荷リレー、配線の断線、電源電圧を点検する。",
+              "citation": {
+                "document_id": "623a20c4-c016-4fc2-bef9-cb0c22f8a189",
+                "document_version": 1,
+                "content_hash": "5fea55a032a61f35267f95b31727aa5591a57d6e14a587306dc578b9179620e4",
+                "title": "電気系統",
+                "source_uri": "623a20c4c0164fc2bef9cb0c22f8a189_a4f99c45d0301c2b87ccbf5448842bae1448b5e6075554a737bf6b77a6fb49ad.txt",
+                "chunk_id": "4e4970d0-e091-539e-bc0a-bcc18c49d90f",
+                "section": "characters:0-50",
+                "chunking_version": "utf8-fixed-1000:v1"
+              }
+            },
+            {
+              "text": "保全作業前は電源を遮断し、ロックアウトとタグアウトを行う。残留圧力と蓄積エネルギーを解放し、ゼロエネルギーを確認する。",
+              "citation": {
+                "document_id": "badf9f70-33cf-427a-b782-519b8adc0a6f",
+                "document_version": 1,
+                "content_hash": "832baa223caeae375927f98cc41fbdbce780be6cc9d8041eaf2bb92749b61600",
+                "title": "隔離手順",
+                "source_uri": "badf9f7033cf427ab782519b8adc0a6f_c0653f326efd09a0d74542892d9c389de61c140d0eebe433aa6ed917149c6266.txt",
+                "chunk_id": "074c236b-c302-5fcc-8868-058b3a16ef27",
+                "section": "characters:0-59",
+                "chunking_version": "utf8-fixed-1000:v1"
+              }
+            }
+          ],
+          "search_source": "QDRANT",
+          "demo_only": false,
+          "complete": false,
+          "observed_at": "2026-10-16T13:54:32.255335+00:00"
+        },
+        "evidence": {
+          "citations": [
+            {
+              "document_id": "7f6d4380-627d-4943-b055-26ed1606b7f7",
+              "document_version": 1,
+              "content_hash": "69ebb7490e7e746821928801ea457508bd6b0794990a065a18014b71432991a3",
+              "title": "軸受過熱",
+              "source_uri": "7f6d4380627d4943b05526ed1606b7f7_cecdec15dba95c4a63af4c70168d7f9d1ffb949d03e21e32fef2eb44825e5fa2.txt",
+              "chunk_id": "544c9f8a-ba4e-5aac-a3f9-b68d81d7e095",
+              "section": "characters:0-66",
+              "chunking_version": "utf8-fixed-1000:v1"
+            },
+            {
+              "document_id": "93f78195-8195-4336-b16b-9d5550bc972c",
+              "document_version": 1,
+              "content_hash": "8eec271c823cb3d5a912f93d88450dec17b51130b5496e98e133230526afc180",
+              "title": "冷却系統",
+              "source_uri": "93f7819581954336b16b9d5550bc972c_8b56491f4f38432d8e58e2d3b5007849ee56954f9df102bb535a440e2cd1e226.txt",
+              "chunk_id": "75466c84-ad19-5f05-b6df-87c05e42f5a7",
+              "section": "characters:0-43",
+              "chunking_version": "utf8-fixed-1000:v1"
+            },
+            {
+              "document_id": "b238feda-ec25-41f7-bd83-f4726161f63b",
+              "document_version": 1,
+              "content_hash": "858a38ed47887432feb626511f0c97fced734644f1d35c1b5138b5ed0746d835",
+              "title": "振動異常",
+              "source_uri": "b238fedaec2541f7bd83f4726161f63b_96d10a1ef49fcdeaff20a3296a27774e7b2ba1520b97cce7b5d57918d950f9d1.txt",
+              "chunk_id": "620e3861-57a0-55b5-9df5-f7f4623639f4",
+              "section": "characters:0-51",
+              "chunking_version": "utf8-fixed-1000:v1"
+            },
+            {
+              "document_id": "623a20c4-c016-4fc2-bef9-cb0c22f8a189",
+              "document_version": 1,
+              "content_hash": "5fea55a032a61f35267f95b31727aa5591a57d6e14a587306dc578b9179620e4",
+              "title": "電気系統",
+              "source_uri": "623a20c4c0164fc2bef9cb0c22f8a189_a4f99c45d0301c2b87ccbf5448842bae1448b5e6075554a737bf6b77a6fb49ad.txt",
+              "chunk_id": "4e4970d0-e091-539e-bc0a-bcc18c49d90f",
+              "section": "characters:0-50",
+              "chunking_version": "utf8-fixed-1000:v1"
+            },
+            {
+              "document_id": "badf9f70-33cf-427a-b782-519b8adc0a6f",
+              "document_version": 1,
+              "content_hash": "832baa223caeae375927f98cc41fbdbce780be6cc9d8041eaf2bb92749b61600",
+              "title": "隔離手順",
+              "source_uri": "badf9f7033cf427ab782519b8adc0a6f_c0653f326efd09a0d74542892d9c389de61c140d0eebe433aa6ed917149c6266.txt",
+              "chunk_id": "074c236b-c302-5fcc-8868-058b3a16ef27",
+              "section": "characters:0-59",
+              "chunking_version": "utf8-fixed-1000:v1"
+            }
+          ]
+        },
+        "warnings": [],
+        "errors": []
+      }
+    },
+    {
+      "query": "機械の振動が大きくなった場合の確認項目",
+      "expected": "VIBRATION",
+      "rank": 1,
+      "titles": [
+        "振動異常",
+        "軸受過熱",
+        "電気系統",
+        "冷却系統",
+        "隔離手順"
+      ],
+      "citation_grounded": true,
+      "duration_ms": 90,
+      "response": {
+        "request_id": "0a9594b1-1424-48cd-a049-e8a88a645d3e",
+        "context_id": null,
+        "status": "partial",
+        "answer": "正本で確認した文書抜粋を5件提示します。Vector検索で候補を取得しました。抜粋は参考資料であり、安全性や費用の確定判断ではありません。",
+        "data": {
+          "items": [
+            {
+              "text": "M-204の振動異常。振動が増えた場合は据付ボルトの緩み、軸の芯ずれ、回転部の偏心を停止後に点検する。",
+              "citation": {
+                "document_id": "b238feda-ec25-41f7-bd83-f4726161f63b",
+                "document_version": 1,
+                "content_hash": "858a38ed47887432feb626511f0c97fced734644f1d35c1b5138b5ed0746d835",
+                "title": "振動異常",
+                "source_uri": "b238fedaec2541f7bd83f4726161f63b_96d10a1ef49fcdeaff20a3296a27774e7b2ba1520b97cce7b5d57918d950f9d1.txt",
+                "chunk_id": "620e3861-57a0-55b5-9df5-f7f4623639f4",
+                "section": "characters:0-51",
+                "chunking_version": "utf8-fixed-1000:v1"
+              }
+            },
+            {
+              "text": "M-204の軸受過熱。軸受温度が上昇した場合は設備を停止し、潤滑油の不足と軸受損傷を点検する。運転再開には別途安全条件の確認が必要。",
+              "citation": {
+                "document_id": "7f6d4380-627d-4943-b055-26ed1606b7f7",
+                "document_version": 1,
+                "content_hash": "69ebb7490e7e746821928801ea457508bd6b0794990a065a18014b71432991a3",
+                "title": "軸受過熱",
+                "source_uri": "7f6d4380627d4943b05526ed1606b7f7_cecdec15dba95c4a63af4c70168d7f9d1ffb949d03e21e32fef2eb44825e5fa2.txt",
+                "chunk_id": "544c9f8a-ba4e-5aac-a3f9-b68d81d7e095",
+                "section": "characters:0-66",
+                "chunking_version": "utf8-fixed-1000:v1"
+              }
+            },
+            {
+              "text": "モーターが起動しない場合は電源遮断と無電圧確認を行い、過負荷リレー、配線の断線、電源電圧を点検する。",
+              "citation": {
+                "document_id": "623a20c4-c016-4fc2-bef9-cb0c22f8a189",
+                "document_version": 1,
+                "content_hash": "5fea55a032a61f35267f95b31727aa5591a57d6e14a587306dc578b9179620e4",
+                "title": "電気系統",
+                "source_uri": "623a20c4c0164fc2bef9cb0c22f8a189_a4f99c45d0301c2b87ccbf5448842bae1448b5e6075554a737bf6b77a6fb49ad.txt",
+                "chunk_id": "4e4970d0-e091-539e-bc0a-bcc18c49d90f",
+                "section": "characters:0-50",
+                "chunking_version": "utf8-fixed-1000:v1"
+              }
+            },
+            {
+              "text": "冷却水の流量低下や水温上昇では、冷却水ポンプ、ストレーナの詰まり、配管漏れを点検する。",
+              "citation": {
+                "document_id": "93f78195-8195-4336-b16b-9d5550bc972c",
+                "document_version": 1,
+                "content_hash": "8eec271c823cb3d5a912f93d88450dec17b51130b5496e98e133230526afc180",
+                "title": "冷却系統",
+                "source_uri": "93f7819581954336b16b9d5550bc972c_8b56491f4f38432d8e58e2d3b5007849ee56954f9df102bb535a440e2cd1e226.txt",
+                "chunk_id": "75466c84-ad19-5f05-b6df-87c05e42f5a7",
+                "section": "characters:0-43",
+                "chunking_version": "utf8-fixed-1000:v1"
+              }
+            },
+            {
+              "text": "保全作業前は電源を遮断し、ロックアウトとタグアウトを行う。残留圧力と蓄積エネルギーを解放し、ゼロエネルギーを確認する。",
+              "citation": {
+                "document_id": "badf9f70-33cf-427a-b782-519b8adc0a6f",
+                "document_version": 1,
+                "content_hash": "832baa223caeae375927f98cc41fbdbce780be6cc9d8041eaf2bb92749b61600",
+                "title": "隔離手順",
+                "source_uri": "badf9f7033cf427ab782519b8adc0a6f_c0653f326efd09a0d74542892d9c389de61c140d0eebe433aa6ed917149c6266.txt",
+                "chunk_id": "074c236b-c302-5fcc-8868-058b3a16ef27",
+                "section": "characters:0-59",
+                "chunking_version": "utf8-fixed-1000:v1"
+              }
+            }
+          ],
+          "search_source": "QDRANT",
+          "demo_only": false,
+          "complete": false,
+          "observed_at": "2026-10-16T13:54:32.341898+00:00"
+        },
+        "evidence": {
+          "citations": [
+            {
+              "document_id": "b238feda-ec25-41f7-bd83-f4726161f63b",
+              "document_version": 1,
+              "content_hash": "858a38ed47887432feb626511f0c97fced734644f1d35c1b5138b5ed0746d835",
+              "title": "振動異常",
+              "source_uri": "b238fedaec2541f7bd83f4726161f63b_96d10a1ef49fcdeaff20a3296a27774e7b2ba1520b97cce7b5d57918d950f9d1.txt",
+              "chunk_id": "620e3861-57a0-55b5-9df5-f7f4623639f4",
+              "section": "characters:0-51",
+              "chunking_version": "utf8-fixed-1000:v1"
+            },
+            {
+              "document_id": "7f6d4380-627d-4943-b055-26ed1606b7f7",
+              "document_version": 1,
+              "content_hash": "69ebb7490e7e746821928801ea457508bd6b0794990a065a18014b71432991a3",
+              "title": "軸受過熱",
+              "source_uri": "7f6d4380627d4943b05526ed1606b7f7_cecdec15dba95c4a63af4c70168d7f9d1ffb949d03e21e32fef2eb44825e5fa2.txt",
+              "chunk_id": "544c9f8a-ba4e-5aac-a3f9-b68d81d7e095",
+              "section": "characters:0-66",
+              "chunking_version": "utf8-fixed-1000:v1"
+            },
+            {
+              "document_id": "623a20c4-c016-4fc2-bef9-cb0c22f8a189",
+              "document_version": 1,
+              "content_hash": "5fea55a032a61f35267f95b31727aa5591a57d6e14a587306dc578b9179620e4",
+              "title": "電気系統",
+              "source_uri": "623a20c4c0164fc2bef9cb0c22f8a189_a4f99c45d0301c2b87ccbf5448842bae1448b5e6075554a737bf6b77a6fb49ad.txt",
+              "chunk_id": "4e4970d0-e091-539e-bc0a-bcc18c49d90f",
+              "section": "characters:0-50",
+              "chunking_version": "utf8-fixed-1000:v1"
+            },
+            {
+              "document_id": "93f78195-8195-4336-b16b-9d5550bc972c",
+              "document_version": 1,
+              "content_hash": "8eec271c823cb3d5a912f93d88450dec17b51130b5496e98e133230526afc180",
+              "title": "冷却系統",
+              "source_uri": "93f7819581954336b16b9d5550bc972c_8b56491f4f38432d8e58e2d3b5007849ee56954f9df102bb535a440e2cd1e226.txt",
+              "chunk_id": "75466c84-ad19-5f05-b6df-87c05e42f5a7",
+              "section": "characters:0-43",
+              "chunking_version": "utf8-fixed-1000:v1"
+            },
+            {
+              "document_id": "badf9f70-33cf-427a-b782-519b8adc0a6f",
+              "document_version": 1,
+              "content_hash": "832baa223caeae375927f98cc41fbdbce780be6cc9d8041eaf2bb92749b61600",
+              "title": "隔離手順",
+              "source_uri": "badf9f7033cf427ab782519b8adc0a6f_c0653f326efd09a0d74542892d9c389de61c140d0eebe433aa6ed917149c6266.txt",
+              "chunk_id": "074c236b-c302-5fcc-8868-058b3a16ef27",
+              "section": "characters:0-59",
+              "chunking_version": "utf8-fixed-1000:v1"
+            }
+          ]
+        },
+        "warnings": [],
+        "errors": []
+      }
+    },
+    {
+      "query": "冷却水の流れが弱くなったときの調査",
+      "expected": "COOLING",
+      "rank": 1,
+      "titles": [
+        "冷却系統",
+        "電気系統",
+        "振動異常",
+        "軸受過熱",
+        "隔離手順"
+      ],
+      "citation_grounded": true,
+      "duration_ms": 75,
+      "response": {
+        "request_id": "1c432184-f057-485f-8add-0b2d45d9b843",
+        "context_id": null,
+        "status": "partial",
+        "answer": "正本で確認した文書抜粋を5件提示します。Vector検索で候補を取得しました。抜粋は参考資料であり、安全性や費用の確定判断ではありません。",
+        "data": {
+          "items": [
+            {
+              "text": "冷却水の流量低下や水温上昇では、冷却水ポンプ、ストレーナの詰まり、配管漏れを点検する。",
+              "citation": {
+                "document_id": "93f78195-8195-4336-b16b-9d5550bc972c",
+                "document_version": 1,
+                "content_hash": "8eec271c823cb3d5a912f93d88450dec17b51130b5496e98e133230526afc180",
+                "title": "冷却系統",
+                "source_uri": "93f7819581954336b16b9d5550bc972c_8b56491f4f38432d8e58e2d3b5007849ee56954f9df102bb535a440e2cd1e226.txt",
+                "chunk_id": "75466c84-ad19-5f05-b6df-87c05e42f5a7",
+                "section": "characters:0-43",
+                "chunking_version": "utf8-fixed-1000:v1"
+              }
+            },
+            {
+              "text": "モーターが起動しない場合は電源遮断と無電圧確認を行い、過負荷リレー、配線の断線、電源電圧を点検する。",
+              "citation": {
+                "document_id": "623a20c4-c016-4fc2-bef9-cb0c22f8a189",
+                "document_version": 1,
+                "content_hash": "5fea55a032a61f35267f95b31727aa5591a57d6e14a587306dc578b9179620e4",
+                "title": "電気系統",
+                "source_uri": "623a20c4c0164fc2bef9cb0c22f8a189_a4f99c45d0301c2b87ccbf5448842bae1448b5e6075554a737bf6b77a6fb49ad.txt",
+                "chunk_id": "4e4970d0-e091-539e-bc0a-bcc18c49d90f",
+                "section": "characters:0-50",
+                "chunking_version": "utf8-fixed-1000:v1"
+              }
+            },
+            {
+              "text": "M-204の振動異常。振動が増えた場合は据付ボルトの緩み、軸の芯ずれ、回転部の偏心を停止後に点検する。",
+              "citation": {
+                "document_id": "b238feda-ec25-41f7-bd83-f4726161f63b",
+                "document_version": 1,
+                "content_hash": "858a38ed47887432feb626511f0c97fced734644f1d35c1b5138b5ed0746d835",
+                "title": "振動異常",
+                "source_uri": "b238fedaec2541f7bd83f4726161f63b_96d10a1ef49fcdeaff20a3296a27774e7b2ba1520b97cce7b5d57918d950f9d1.txt",
+                "chunk_id": "620e3861-57a0-55b5-9df5-f7f4623639f4",
+                "section": "characters:0-51",
+                "chunking_version": "utf8-fixed-1000:v1"
+              }
+            },
+            {
+              "text": "M-204の軸受過熱。軸受温度が上昇した場合は設備を停止し、潤滑油の不足と軸受損傷を点検する。運転再開には別途安全条件の確認が必要。",
+              "citation": {
+                "document_id": "7f6d4380-627d-4943-b055-26ed1606b7f7",
+                "document_version": 1,
+                "content_hash": "69ebb7490e7e746821928801ea457508bd6b0794990a065a18014b71432991a3",
+                "title": "軸受過熱",
+                "source_uri": "7f6d4380627d4943b05526ed1606b7f7_cecdec15dba95c4a63af4c70168d7f9d1ffb949d03e21e32fef2eb44825e5fa2.txt",
+                "chunk_id": "544c9f8a-ba4e-5aac-a3f9-b68d81d7e095",
+                "section": "characters:0-66",
+                "chunking_version": "utf8-fixed-1000:v1"
+              }
+            },
+            {
+              "text": "保全作業前は電源を遮断し、ロックアウトとタグアウトを行う。残留圧力と蓄積エネルギーを解放し、ゼロエネルギーを確認する。",
+              "citation": {
+                "document_id": "badf9f70-33cf-427a-b782-519b8adc0a6f",
+                "document_version": 1,
+                "content_hash": "832baa223caeae375927f98cc41fbdbce780be6cc9d8041eaf2bb92749b61600",
+                "title": "隔離手順",
+                "source_uri": "badf9f7033cf427ab782519b8adc0a6f_c0653f326efd09a0d74542892d9c389de61c140d0eebe433aa6ed917149c6266.txt",
+                "chunk_id": "074c236b-c302-5fcc-8868-058b3a16ef27",
+                "section": "characters:0-59",
+                "chunking_version": "utf8-fixed-1000:v1"
+              }
+            }
+          ],
+          "search_source": "QDRANT",
+          "demo_only": false,
+          "complete": false,
+          "observed_at": "2026-10-16T13:54:32.421310+00:00"
+        },
+        "evidence": {
+          "citations": [
+            {
+              "document_id": "93f78195-8195-4336-b16b-9d5550bc972c",
+              "document_version": 1,
+              "content_hash": "8eec271c823cb3d5a912f93d88450dec17b51130b5496e98e133230526afc180",
+              "title": "冷却系統",
+              "source_uri": "93f7819581954336b16b9d5550bc972c_8b56491f4f38432d8e58e2d3b5007849ee56954f9df102bb535a440e2cd1e226.txt",
+              "chunk_id": "75466c84-ad19-5f05-b6df-87c05e42f5a7",
+              "section": "characters:0-43",
+              "chunking_version": "utf8-fixed-1000:v1"
+            },
+            {
+              "document_id": "623a20c4-c016-4fc2-bef9-cb0c22f8a189",
+              "document_version": 1,
+              "content_hash": "5fea55a032a61f35267f95b31727aa5591a57d6e14a587306dc578b9179620e4",
+              "title": "電気系統",
+              "source_uri": "623a20c4c0164fc2bef9cb0c22f8a189_a4f99c45d0301c2b87ccbf5448842bae1448b5e6075554a737bf6b77a6fb49ad.txt",
+              "chunk_id": "4e4970d0-e091-539e-bc0a-bcc18c49d90f",
+              "section": "characters:0-50",
+              "chunking_version": "utf8-fixed-1000:v1"
+            },
+            {
+              "document_id": "b238feda-ec25-41f7-bd83-f4726161f63b",
+              "document_version": 1,
+              "content_hash": "858a38ed47887432feb626511f0c97fced734644f1d35c1b5138b5ed0746d835",
+              "title": "振動異常",
+              "source_uri": "b238fedaec2541f7bd83f4726161f63b_96d10a1ef49fcdeaff20a3296a27774e7b2ba1520b97cce7b5d57918d950f9d1.txt",
+              "chunk_id": "620e3861-57a0-55b5-9df5-f7f4623639f4",
+              "section": "characters:0-51",
+              "chunking_version": "utf8-fixed-1000:v1"
+            },
+            {
+              "document_id": "7f6d4380-627d-4943-b055-26ed1606b7f7",
+              "document_version": 1,
+              "content_hash": "69ebb7490e7e746821928801ea457508bd6b0794990a065a18014b71432991a3",
+              "title": "軸受過熱",
+              "source_uri": "7f6d4380627d4943b05526ed1606b7f7_cecdec15dba95c4a63af4c70168d7f9d1ffb949d03e21e32fef2eb44825e5fa2.txt",
+              "chunk_id": "544c9f8a-ba4e-5aac-a3f9-b68d81d7e095",
+              "section": "characters:0-66",
+              "chunking_version": "utf8-fixed-1000:v1"
+            },
+            {
+              "document_id": "badf9f70-33cf-427a-b782-519b8adc0a6f",
+              "document_version": 1,
+              "content_hash": "832baa223caeae375927f98cc41fbdbce780be6cc9d8041eaf2bb92749b61600",
+              "title": "隔離手順",
+              "source_uri": "badf9f7033cf427ab782519b8adc0a6f_c0653f326efd09a0d74542892d9c389de61c140d0eebe433aa6ed917149c6266.txt",
+              "chunk_id": "074c236b-c302-5fcc-8868-058b3a16ef27",
+              "section": "characters:0-59",
+              "chunking_version": "utf8-fixed-1000:v1"
+            }
+          ]
+        },
+        "warnings": [],
+        "errors": []
+      }
+    },
+    {
+      "query": "モーターが動かないときに点検する電気部品",
+      "expected": "ELECTRIC",
+      "rank": 1,
+      "titles": [
+        "電気系統",
+        "冷却系統",
+        "振動異常",
+        "軸受過熱",
+        "隔離手順"
+      ],
+      "citation_grounded": true,
+      "duration_ms": 74,
+      "response": {
+        "request_id": "5e909a5c-61a5-4389-b511-4efa4d8538d4",
+        "context_id": null,
+        "status": "partial",
+        "answer": "正本で確認した文書抜粋を5件提示します。Vector検索で候補を取得しました。抜粋は参考資料であり、安全性や費用の確定判断ではありません。",
+        "data": {
+          "items": [
+            {
+              "text": "モーターが起動しない場合は電源遮断と無電圧確認を行い、過負荷リレー、配線の断線、電源電圧を点検する。",
+              "citation": {
+                "document_id": "623a20c4-c016-4fc2-bef9-cb0c22f8a189",
+                "document_version": 1,
+                "content_hash": "5fea55a032a61f35267f95b31727aa5591a57d6e14a587306dc578b9179620e4",
+                "title": "電気系統",
+                "source_uri": "623a20c4c0164fc2bef9cb0c22f8a189_a4f99c45d0301c2b87ccbf5448842bae1448b5e6075554a737bf6b77a6fb49ad.txt",
+                "chunk_id": "4e4970d0-e091-539e-bc0a-bcc18c49d90f",
+                "section": "characters:0-50",
+                "chunking_version": "utf8-fixed-1000:v1"
+              }
+            },
+            {
+              "text": "冷却水の流量低下や水温上昇では、冷却水ポンプ、ストレーナの詰まり、配管漏れを点検する。",
+              "citation": {
+                "document_id": "93f78195-8195-4336-b16b-9d5550bc972c",
+                "document_version": 1,
+                "content_hash": "8eec271c823cb3d5a912f93d88450dec17b51130b5496e98e133230526afc180",
+                "title": "冷却系統",
+                "source_uri": "93f7819581954336b16b9d5550bc972c_8b56491f4f38432d8e58e2d3b5007849ee56954f9df102bb535a440e2cd1e226.txt",
+                "chunk_id": "75466c84-ad19-5f05-b6df-87c05e42f5a7",
+                "section": "characters:0-43",
+                "chunking_version": "utf8-fixed-1000:v1"
+              }
+            },
+            {
+              "text": "M-204の振動異常。振動が増えた場合は据付ボルトの緩み、軸の芯ずれ、回転部の偏心を停止後に点検する。",
+              "citation": {
+                "document_id": "b238feda-ec25-41f7-bd83-f4726161f63b",
+                "document_version": 1,
+                "content_hash": "858a38ed47887432feb626511f0c97fced734644f1d35c1b5138b5ed0746d835",
+                "title": "振動異常",
+                "source_uri": "b238fedaec2541f7bd83f4726161f63b_96d10a1ef49fcdeaff20a3296a27774e7b2ba1520b97cce7b5d57918d950f9d1.txt",
+                "chunk_id": "620e3861-57a0-55b5-9df5-f7f4623639f4",
+                "section": "characters:0-51",
+                "chunking_version": "utf8-fixed-1000:v1"
+              }
+            },
+            {
+              "text": "M-204の軸受過熱。軸受温度が上昇した場合は設備を停止し、潤滑油の不足と軸受損傷を点検する。運転再開には別途安全条件の確認が必要。",
+              "citation": {
+                "document_id": "7f6d4380-627d-4943-b055-26ed1606b7f7",
+                "document_version": 1,
+                "content_hash": "69ebb7490e7e746821928801ea457508bd6b0794990a065a18014b71432991a3",
+                "title": "軸受過熱",
+                "source_uri": "7f6d4380627d4943b05526ed1606b7f7_cecdec15dba95c4a63af4c70168d7f9d1ffb949d03e21e32fef2eb44825e5fa2.txt",
+                "chunk_id": "544c9f8a-ba4e-5aac-a3f9-b68d81d7e095",
+                "section": "characters:0-66",
+                "chunking_version": "utf8-fixed-1000:v1"
+              }
+            },
+            {
+              "text": "保全作業前は電源を遮断し、ロックアウトとタグアウトを行う。残留圧力と蓄積エネルギーを解放し、ゼロエネルギーを確認する。",
+              "citation": {
+                "document_id": "badf9f70-33cf-427a-b782-519b8adc0a6f",
+                "document_version": 1,
+                "content_hash": "832baa223caeae375927f98cc41fbdbce780be6cc9d8041eaf2bb92749b61600",
+                "title": "隔離手順",
+                "source_uri": "badf9f7033cf427ab782519b8adc0a6f_c0653f326efd09a0d74542892d9c389de61c140d0eebe433aa6ed917149c6266.txt",
+                "chunk_id": "074c236b-c302-5fcc-8868-058b3a16ef27",
+                "section": "characters:0-59",
+                "chunking_version": "utf8-fixed-1000:v1"
+              }
+            }
+          ],
+          "search_source": "QDRANT",
+          "demo_only": false,
+          "complete": false,
+          "observed_at": "2026-10-16T13:54:32.495721+00:00"
+        },
+        "evidence": {
+          "citations": [
+            {
+              "document_id": "623a20c4-c016-4fc2-bef9-cb0c22f8a189",
+              "document_version": 1,
+              "content_hash": "5fea55a032a61f35267f95b31727aa5591a57d6e14a587306dc578b9179620e4",
+              "title": "電気系統",
+              "source_uri": "623a20c4c0164fc2bef9cb0c22f8a189_a4f99c45d0301c2b87ccbf5448842bae1448b5e6075554a737bf6b77a6fb49ad.txt",
+              "chunk_id": "4e4970d0-e091-539e-bc0a-bcc18c49d90f",
+              "section": "characters:0-50",
+              "chunking_version": "utf8-fixed-1000:v1"
+            },
+            {
+              "document_id": "93f78195-8195-4336-b16b-9d5550bc972c",
+              "document_version": 1,
+              "content_hash": "8eec271c823cb3d5a912f93d88450dec17b51130b5496e98e133230526afc180",
+              "title": "冷却系統",
+              "source_uri": "93f7819581954336b16b9d5550bc972c_8b56491f4f38432d8e58e2d3b5007849ee56954f9df102bb535a440e2cd1e226.txt",
+              "chunk_id": "75466c84-ad19-5f05-b6df-87c05e42f5a7",
+              "section": "characters:0-43",
+              "chunking_version": "utf8-fixed-1000:v1"
+            },
+            {
+              "document_id": "b238feda-ec25-41f7-bd83-f4726161f63b",
+              "document_version": 1,
+              "content_hash": "858a38ed47887432feb626511f0c97fced734644f1d35c1b5138b5ed0746d835",
+              "title": "振動異常",
+              "source_uri": "b238fedaec2541f7bd83f4726161f63b_96d10a1ef49fcdeaff20a3296a27774e7b2ba1520b97cce7b5d57918d950f9d1.txt",
+              "chunk_id": "620e3861-57a0-55b5-9df5-f7f4623639f4",
+              "section": "characters:0-51",
+              "chunking_version": "utf8-fixed-1000:v1"
+            },
+            {
+              "document_id": "7f6d4380-627d-4943-b055-26ed1606b7f7",
+              "document_version": 1,
+              "content_hash": "69ebb7490e7e746821928801ea457508bd6b0794990a065a18014b71432991a3",
+              "title": "軸受過熱",
+              "source_uri": "7f6d4380627d4943b05526ed1606b7f7_cecdec15dba95c4a63af4c70168d7f9d1ffb949d03e21e32fef2eb44825e5fa2.txt",
+              "chunk_id": "544c9f8a-ba4e-5aac-a3f9-b68d81d7e095",
+              "section": "characters:0-66",
+              "chunking_version": "utf8-fixed-1000:v1"
+            },
+            {
+              "document_id": "badf9f70-33cf-427a-b782-519b8adc0a6f",
+              "document_version": 1,
+              "content_hash": "832baa223caeae375927f98cc41fbdbce780be6cc9d8041eaf2bb92749b61600",
+              "title": "隔離手順",
+              "source_uri": "badf9f7033cf427ab782519b8adc0a6f_c0653f326efd09a0d74542892d9c389de61c140d0eebe433aa6ed917149c6266.txt",
+              "chunk_id": "074c236b-c302-5fcc-8868-058b3a16ef27",
+              "section": "characters:0-59",
+              "chunking_version": "utf8-fixed-1000:v1"
+            }
+          ]
+        },
+        "warnings": [],
+        "errors": []
+      }
+    },
+    {
+      "query": "保全作業前にエネルギーを隔離する手順",
+      "expected": "LOCKOUT",
+      "rank": 1,
+      "titles": [
+        "隔離手順",
+        "電気系統",
+        "軸受過熱",
+        "振動異常",
+        "冷却系統"
+      ],
+      "citation_grounded": true,
+      "duration_ms": 56,
+      "response": {
+        "request_id": "d301a0ba-fcf5-4226-bf36-f939625cf4b7",
+        "context_id": null,
+        "status": "partial",
+        "answer": "正本で確認した文書抜粋を5件提示します。Vector検索で候補を取得しました。抜粋は参考資料であり、安全性や費用の確定判断ではありません。",
+        "data": {
+          "items": [
+            {
+              "text": "保全作業前は電源を遮断し、ロックアウトとタグアウトを行う。残留圧力と蓄積エネルギーを解放し、ゼロエネルギーを確認する。",
+              "citation": {
+                "document_id": "badf9f70-33cf-427a-b782-519b8adc0a6f",
+                "document_version": 1,
+                "content_hash": "832baa223caeae375927f98cc41fbdbce780be6cc9d8041eaf2bb92749b61600",
+                "title": "隔離手順",
+                "source_uri": "badf9f7033cf427ab782519b8adc0a6f_c0653f326efd09a0d74542892d9c389de61c140d0eebe433aa6ed917149c6266.txt",
+                "chunk_id": "074c236b-c302-5fcc-8868-058b3a16ef27",
+                "section": "characters:0-59",
+                "chunking_version": "utf8-fixed-1000:v1"
+              }
+            },
+            {
+              "text": "モーターが起動しない場合は電源遮断と無電圧確認を行い、過負荷リレー、配線の断線、電源電圧を点検する。",
+              "citation": {
+                "document_id": "623a20c4-c016-4fc2-bef9-cb0c22f8a189",
+                "document_version": 1,
+                "content_hash": "5fea55a032a61f35267f95b31727aa5591a57d6e14a587306dc578b9179620e4",
+                "title": "電気系統",
+                "source_uri": "623a20c4c0164fc2bef9cb0c22f8a189_a4f99c45d0301c2b87ccbf5448842bae1448b5e6075554a737bf6b77a6fb49ad.txt",
+                "chunk_id": "4e4970d0-e091-539e-bc0a-bcc18c49d90f",
+                "section": "characters:0-50",
+                "chunking_version": "utf8-fixed-1000:v1"
+              }
+            },
+            {
+              "text": "M-204の軸受過熱。軸受温度が上昇した場合は設備を停止し、潤滑油の不足と軸受損傷を点検する。運転再開には別途安全条件の確認が必要。",
+              "citation": {
+                "document_id": "7f6d4380-627d-4943-b055-26ed1606b7f7",
+                "document_version": 1,
+                "content_hash": "69ebb7490e7e746821928801ea457508bd6b0794990a065a18014b71432991a3",
+                "title": "軸受過熱",
+                "source_uri": "7f6d4380627d4943b05526ed1606b7f7_cecdec15dba95c4a63af4c70168d7f9d1ffb949d03e21e32fef2eb44825e5fa2.txt",
+                "chunk_id": "544c9f8a-ba4e-5aac-a3f9-b68d81d7e095",
+                "section": "characters:0-66",
+                "chunking_version": "utf8-fixed-1000:v1"
+              }
+            },
+            {
+              "text": "M-204の振動異常。振動が増えた場合は据付ボルトの緩み、軸の芯ずれ、回転部の偏心を停止後に点検する。",
+              "citation": {
+                "document_id": "b238feda-ec25-41f7-bd83-f4726161f63b",
+                "document_version": 1,
+                "content_hash": "858a38ed47887432feb626511f0c97fced734644f1d35c1b5138b5ed0746d835",
+                "title": "振動異常",
+                "source_uri": "b238fedaec2541f7bd83f4726161f63b_96d10a1ef49fcdeaff20a3296a27774e7b2ba1520b97cce7b5d57918d950f9d1.txt",
+                "chunk_id": "620e3861-57a0-55b5-9df5-f7f4623639f4",
+                "section": "characters:0-51",
+                "chunking_version": "utf8-fixed-1000:v1"
+              }
+            },
+            {
+              "text": "冷却水の流量低下や水温上昇では、冷却水ポンプ、ストレーナの詰まり、配管漏れを点検する。",
+              "citation": {
+                "document_id": "93f78195-8195-4336-b16b-9d5550bc972c",
+                "document_version": 1,
+                "content_hash": "8eec271c823cb3d5a912f93d88450dec17b51130b5496e98e133230526afc180",
+                "title": "冷却系統",
+                "source_uri": "93f7819581954336b16b9d5550bc972c_8b56491f4f38432d8e58e2d3b5007849ee56954f9df102bb535a440e2cd1e226.txt",
+                "chunk_id": "75466c84-ad19-5f05-b6df-87c05e42f5a7",
+                "section": "characters:0-43",
+                "chunking_version": "utf8-fixed-1000:v1"
+              }
+            }
+          ],
+          "search_source": "QDRANT",
+          "demo_only": false,
+          "complete": false,
+          "observed_at": "2026-10-16T13:54:32.552199+00:00"
+        },
+        "evidence": {
+          "citations": [
+            {
+              "document_id": "badf9f70-33cf-427a-b782-519b8adc0a6f",
+              "document_version": 1,
+              "content_hash": "832baa223caeae375927f98cc41fbdbce780be6cc9d8041eaf2bb92749b61600",
+              "title": "隔離手順",
+              "source_uri": "badf9f7033cf427ab782519b8adc0a6f_c0653f326efd09a0d74542892d9c389de61c140d0eebe433aa6ed917149c6266.txt",
+              "chunk_id": "074c236b-c302-5fcc-8868-058b3a16ef27",
+              "section": "characters:0-59",
+              "chunking_version": "utf8-fixed-1000:v1"
+            },
+            {
+              "document_id": "623a20c4-c016-4fc2-bef9-cb0c22f8a189",
+              "document_version": 1,
+              "content_hash": "5fea55a032a61f35267f95b31727aa5591a57d6e14a587306dc578b9179620e4",
+              "title": "電気系統",
+              "source_uri": "623a20c4c0164fc2bef9cb0c22f8a189_a4f99c45d0301c2b87ccbf5448842bae1448b5e6075554a737bf6b77a6fb49ad.txt",
+              "chunk_id": "4e4970d0-e091-539e-bc0a-bcc18c49d90f",
+              "section": "characters:0-50",
+              "chunking_version": "utf8-fixed-1000:v1"
+            },
+            {
+              "document_id": "7f6d4380-627d-4943-b055-26ed1606b7f7",
+              "document_version": 1,
+              "content_hash": "69ebb7490e7e746821928801ea457508bd6b0794990a065a18014b71432991a3",
+              "title": "軸受過熱",
+              "source_uri": "7f6d4380627d4943b05526ed1606b7f7_cecdec15dba95c4a63af4c70168d7f9d1ffb949d03e21e32fef2eb44825e5fa2.txt",
+              "chunk_id": "544c9f8a-ba4e-5aac-a3f9-b68d81d7e095",
+              "section": "characters:0-66",
+              "chunking_version": "utf8-fixed-1000:v1"
+            },
+            {
+              "document_id": "b238feda-ec25-41f7-bd83-f4726161f63b",
+              "document_version": 1,
+              "content_hash": "858a38ed47887432feb626511f0c97fced734644f1d35c1b5138b5ed0746d835",
+              "title": "振動異常",
+              "source_uri": "b238fedaec2541f7bd83f4726161f63b_96d10a1ef49fcdeaff20a3296a27774e7b2ba1520b97cce7b5d57918d950f9d1.txt",
+              "chunk_id": "620e3861-57a0-55b5-9df5-f7f4623639f4",
+              "section": "characters:0-51",
+              "chunking_version": "utf8-fixed-1000:v1"
+            },
+            {
+              "document_id": "93f78195-8195-4336-b16b-9d5550bc972c",
+              "document_version": 1,
+              "content_hash": "8eec271c823cb3d5a912f93d88450dec17b51130b5496e98e133230526afc180",
+              "title": "冷却系統",
+              "source_uri": "93f7819581954336b16b9d5550bc972c_8b56491f4f38432d8e58e2d3b5007849ee56954f9df102bb535a440e2cd1e226.txt",
+              "chunk_id": "75466c84-ad19-5f05-b6df-87c05e42f5a7",
+              "section": "characters:0-43",
+              "chunking_version": "utf8-fixed-1000:v1"
+            }
+          ]
+        },
+        "warnings": [],
+        "errors": []
+      }
+    },
+    {
+      "query": "交換部品が届くまでの日数と停止時間の関係",
+      "expected": "DELIVERY",
+      "rank": 1,
+      "titles": [
+        "交換部品の調達",
+        "軸受過熱",
+        "冷却系統",
+        "振動異常",
+        "隔離手順"
+      ],
+      "citation_grounded": true,
+      "duration_ms": 62,
+      "response": {
+        "request_id": "3c678722-9e29-47eb-b9a5-976848df61bb",
+        "context_id": null,
+        "status": "partial",
+        "answer": "正本で確認した文書抜粋を5件提示します。Vector検索で候補を取得しました。抜粋は参考資料であり、安全性や費用の確定判断ではありません。",
+        "data": {
+          "items": [
+            {
+              "text": "M-204の交換部品の調達lead timeは14日。調達待ちと交換作業時間と生産停止時間は別であり、納期だけで停止期間を決定しない。",
+              "citation": {
+                "document_id": "09546bbf-cf64-4c83-9a29-8203220f9f43",
+                "document_version": 1,
+                "content_hash": "7bc3064462c89826fbffdb99888932ebdab3981ad78d26ee65dd2a024768d324",
+                "title": "交換部品の調達",
+                "source_uri": "09546bbfcf644c839a298203220f9f43_8e75152ff4375eb6dd9708b29e085e9a9ced9ee83a357e8767ee99b74663ec10.txt",
+                "chunk_id": "e6b0907e-2290-58f1-a842-b18882a20576",
+                "section": "characters:0-67",
+                "chunking_version": "utf8-fixed-1000:v1"
+              }
+            },
+            {
+              "text": "M-204の軸受過熱。軸受温度が上昇した場合は設備を停止し、潤滑油の不足と軸受損傷を点検する。運転再開には別途安全条件の確認が必要。",
+              "citation": {
+                "document_id": "7f6d4380-627d-4943-b055-26ed1606b7f7",
+                "document_version": 1,
+                "content_hash": "69ebb7490e7e746821928801ea457508bd6b0794990a065a18014b71432991a3",
+                "title": "軸受過熱",
+                "source_uri": "7f6d4380627d4943b05526ed1606b7f7_cecdec15dba95c4a63af4c70168d7f9d1ffb949d03e21e32fef2eb44825e5fa2.txt",
+                "chunk_id": "544c9f8a-ba4e-5aac-a3f9-b68d81d7e095",
+                "section": "characters:0-66",
+                "chunking_version": "utf8-fixed-1000:v1"
+              }
+            },
+            {
+              "text": "冷却水の流量低下や水温上昇では、冷却水ポンプ、ストレーナの詰まり、配管漏れを点検する。",
+              "citation": {
+                "document_id": "93f78195-8195-4336-b16b-9d5550bc972c",
+                "document_version": 1,
+                "content_hash": "8eec271c823cb3d5a912f93d88450dec17b51130b5496e98e133230526afc180",
+                "title": "冷却系統",
+                "source_uri": "93f7819581954336b16b9d5550bc972c_8b56491f4f38432d8e58e2d3b5007849ee56954f9df102bb535a440e2cd1e226.txt",
+                "chunk_id": "75466c84-ad19-5f05-b6df-87c05e42f5a7",
+                "section": "characters:0-43",
+                "chunking_version": "utf8-fixed-1000:v1"
+              }
+            },
+            {
+              "text": "M-204の振動異常。振動が増えた場合は据付ボルトの緩み、軸の芯ずれ、回転部の偏心を停止後に点検する。",
+              "citation": {
+                "document_id": "b238feda-ec25-41f7-bd83-f4726161f63b",
+                "document_version": 1,
+                "content_hash": "858a38ed47887432feb626511f0c97fced734644f1d35c1b5138b5ed0746d835",
+                "title": "振動異常",
+                "source_uri": "b238fedaec2541f7bd83f4726161f63b_96d10a1ef49fcdeaff20a3296a27774e7b2ba1520b97cce7b5d57918d950f9d1.txt",
+                "chunk_id": "620e3861-57a0-55b5-9df5-f7f4623639f4",
+                "section": "characters:0-51",
+                "chunking_version": "utf8-fixed-1000:v1"
+              }
+            },
+            {
+              "text": "保全作業前は電源を遮断し、ロックアウトとタグアウトを行う。残留圧力と蓄積エネルギーを解放し、ゼロエネルギーを確認する。",
+              "citation": {
+                "document_id": "badf9f70-33cf-427a-b782-519b8adc0a6f",
+                "document_version": 1,
+                "content_hash": "832baa223caeae375927f98cc41fbdbce780be6cc9d8041eaf2bb92749b61600",
+                "title": "隔離手順",
+                "source_uri": "badf9f7033cf427ab782519b8adc0a6f_c0653f326efd09a0d74542892d9c389de61c140d0eebe433aa6ed917149c6266.txt",
+                "chunk_id": "074c236b-c302-5fcc-8868-058b3a16ef27",
+                "section": "characters:0-59",
+                "chunking_version": "utf8-fixed-1000:v1"
+              }
+            }
+          ],
+          "search_source": "QDRANT",
+          "demo_only": false,
+          "complete": false,
+          "observed_at": "2026-10-16T13:54:32.615039+00:00"
+        },
+        "evidence": {
+          "citations": [
+            {
+              "document_id": "09546bbf-cf64-4c83-9a29-8203220f9f43",
+              "document_version": 1,
+              "content_hash": "7bc3064462c89826fbffdb99888932ebdab3981ad78d26ee65dd2a024768d324",
+              "title": "交換部品の調達",
+              "source_uri": "09546bbfcf644c839a298203220f9f43_8e75152ff4375eb6dd9708b29e085e9a9ced9ee83a357e8767ee99b74663ec10.txt",
+              "chunk_id": "e6b0907e-2290-58f1-a842-b18882a20576",
+              "section": "characters:0-67",
+              "chunking_version": "utf8-fixed-1000:v1"
+            },
+            {
+              "document_id": "7f6d4380-627d-4943-b055-26ed1606b7f7",
+              "document_version": 1,
+              "content_hash": "69ebb7490e7e746821928801ea457508bd6b0794990a065a18014b71432991a3",
+              "title": "軸受過熱",
+              "source_uri": "7f6d4380627d4943b05526ed1606b7f7_cecdec15dba95c4a63af4c70168d7f9d1ffb949d03e21e32fef2eb44825e5fa2.txt",
+              "chunk_id": "544c9f8a-ba4e-5aac-a3f9-b68d81d7e095",
+              "section": "characters:0-66",
+              "chunking_version": "utf8-fixed-1000:v1"
+            },
+            {
+              "document_id": "93f78195-8195-4336-b16b-9d5550bc972c",
+              "document_version": 1,
+              "content_hash": "8eec271c823cb3d5a912f93d88450dec17b51130b5496e98e133230526afc180",
+              "title": "冷却系統",
+              "source_uri": "93f7819581954336b16b9d5550bc972c_8b56491f4f38432d8e58e2d3b5007849ee56954f9df102bb535a440e2cd1e226.txt",
+              "chunk_id": "75466c84-ad19-5f05-b6df-87c05e42f5a7",
+              "section": "characters:0-43",
+              "chunking_version": "utf8-fixed-1000:v1"
+            },
+            {
+              "document_id": "b238feda-ec25-41f7-bd83-f4726161f63b",
+              "document_version": 1,
+              "content_hash": "858a38ed47887432feb626511f0c97fced734644f1d35c1b5138b5ed0746d835",
+              "title": "振動異常",
+              "source_uri": "b238fedaec2541f7bd83f4726161f63b_96d10a1ef49fcdeaff20a3296a27774e7b2ba1520b97cce7b5d57918d950f9d1.txt",
+              "chunk_id": "620e3861-57a0-55b5-9df5-f7f4623639f4",
+              "section": "characters:0-51",
+              "chunking_version": "utf8-fixed-1000:v1"
+            },
+            {
+              "document_id": "badf9f70-33cf-427a-b782-519b8adc0a6f",
+              "document_version": 1,
+              "content_hash": "832baa223caeae375927f98cc41fbdbce780be6cc9d8041eaf2bb92749b61600",
+              "title": "隔離手順",
+              "source_uri": "badf9f7033cf427ab782519b8adc0a6f_c0653f326efd09a0d74542892d9c389de61c140d0eebe433aa6ed917149c6266.txt",
+              "chunk_id": "074c236b-c302-5fcc-8868-058b3a16ef27",
+              "section": "characters:0-59",
+              "chunking_version": "utf8-fixed-1000:v1"
+            }
+          ]
+        },
+        "warnings": [],
+        "errors": []
+      }
+    }
+  ],
+  "threshold_approval": "PENDING",
+  "metrics": {
+    "hit_at_1": 1.0,
+    "recall_at_3": 1.0,
+    "mrr": 1.0,
+    "citation_grounded": true
+  },
+  "result": "MEASURED_REVIEW_REQUIRED"
+}
