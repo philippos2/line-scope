@@ -1,4 +1,4 @@
-"""Canonical Snapshot v1 for existing categories, v2 economics, v3 capacity and v4 safety.
+"""Canonical Snapshot v1 for existing categories, v2 economics, v3 capacity, v4 safety and v5 maintenance inputs.
 
 This pure construction/validation layer does not authorize, persist or execute
 updates. Prepare must supply current PostgreSQL state and check permissions.
@@ -20,6 +20,7 @@ from .assignments import (
 from .canonical import canonical_json, normalize_timestamp, normalize_uuid, strict_json
 from .capacity import validate_target as validate_capacity_target
 from .economics import validate_target as validate_economic_target
+from .maintenance_inputs import validate_target as validate_maintenance_input_target
 from .relations import validate_relation_target
 from .safety import validate_target as validate_safety_target
 
@@ -39,6 +40,7 @@ CATEGORIES = {
     "EconomicInput": "ECONOMIC_INPUT",
     "CapacityInput": "CAPACITY_INPUT",
     "SafetyInput": "SAFETY_INPUT",
+    "MaintenanceInput": "MAINTENANCE_INPUT",
     "EquipmentState": "EQUIPMENT_STATE",
     "MaintenancePlan": "MAINTENANCE",
     "MaintenanceRecord": "MAINTENANCE",
@@ -535,6 +537,8 @@ def _target(value):
         return _operation_target(value)
     if value["target_type"] == "ProductionOperationEquipmentAssignment":
         return validate_assignment_target(value)
+    if value["target_type"] == "MaintenanceInput":
+        return validate_maintenance_input_target(value)
     if value["target_type"] == "SafetyInput":
         return validate_safety_target(value)
     if value["target_type"] == "CapacityInput":
@@ -548,7 +552,7 @@ def _target(value):
 
 def _snapshot(value):
     _exact(value, ROOT_FIELDS)
-    if type(value["schema_version"]) is not int or value["schema_version"] not in {1, 2, 3, 4}:
+    if type(value["schema_version"]) is not int or value["schema_version"] not in {1, 2, 3, 4, 5}:
         raise ValueError("Unsupported Snapshot schema version")
     if type(value["requester_id"]) is not str or not value["requester_id"].strip():
         raise ValueError("Snapshot requester is required")
@@ -557,7 +561,7 @@ def _snapshot(value):
     targets = [_target(target) for target in value["targets"]]
     if len({CATEGORIES[target["target_type"]] for target in targets}) != 1:
         raise ValueError("Snapshot must contain one business category")
-    version = {"EconomicInput": 2, "CapacityInput": 3, "SafetyInput": 4}.get(
+    version = {"EconomicInput": 2, "CapacityInput": 3, "SafetyInput": 4, "MaintenanceInput": 5}.get(
         targets[0]["target_type"], 1
     )
     if value["schema_version"] != version:
@@ -608,6 +612,10 @@ class CanonicalSnapshot:
         return strict_json(self.canonical_text)
 
 
+def build_maintenance_input_snapshot(context, targets, supersedes_update_request_id=None):
+    return _build_snapshot(context, targets, supersedes_update_request_id, {"MaintenanceInput"})
+
+
 def build_safety_input_snapshot(context, targets, supersedes_update_request_id=None):
     return _build_snapshot(context, targets, supersedes_update_request_id, {"SafetyInput"})
 
@@ -652,7 +660,9 @@ def _build_snapshot(context, targets, supersedes_update_request_id, target_types
         raise ValueError("Trusted execution context is required")
     value = _snapshot(
         {
-            "schema_version": 4
+            "schema_version": 5
+            if target_types == {"MaintenanceInput"}
+            else 4
             if target_types == {"SafetyInput"}
             else 3
             if target_types == {"CapacityInput"}

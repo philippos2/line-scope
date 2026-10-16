@@ -110,3 +110,15 @@ CAPACITY_INPUTの入力・出典・計算結果・Snapshot・保存要求・履�
 - managerが要求し、別managerが承認・拒否、元requesterかつ現在managerが確定する。承認者の現在manager権限も検証する。
 - floorには元requesterでも公開しない。COMPLETED再送は元requesterかつ現在の安全情報閲覧権限で許可する。
 - 稼働状態の記録は運転許可ではない。安全判定を理由に既存の状態登録を拒否しない。故障情報への権限付与は本契約に含めない。
+
+## 対応計画・故障履歴の権限
+
+| 操作・情報 | 許可 |
+|---|---|
+| MaintenanceInput検索・取得・計算・出典・Snapshot・履歴 | maintenance / production / manager |
+| 登録・訂正Prepare | manager |
+| Approval | 要求者と異なるmanager。実行時にも現在roleを再検証 |
+| Execute | 元の要求者であり現在もmanager |
+| floor | 上記情報・操作すべて拒否 |
+
+既存MaintenancePlan / MaintenanceRecordの権限を変更しない。分類・損失など新情報を既存の広い読取経路へ混入させない。Agentは新情報の検索・取得のみ行う。

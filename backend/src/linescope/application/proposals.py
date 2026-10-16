@@ -32,6 +32,7 @@ REQUEST_ROLES = {
     "ECONOMIC_INPUT": {"manager"},
     "CAPACITY_INPUT": {"manager"},
     "SAFETY_INPUT": {"manager"},
+    "MAINTENANCE_INPUT": {"manager"},
     "EQUIPMENT_STATE": {"floor", "maintenance", "manager"},
     "MAINTENANCE": {"maintenance", "manager"},
     "PRODUCTION_OPERATION": {"production", "manager"},
@@ -184,12 +185,14 @@ class ProposalStore:
                     "ECONOMIC_INPUT",
                     "CAPACITY_INPUT",
                     "SAFETY_INPUT",
+                    "MAINTENANCE_INPUT",
                 },
                 "production": {
                     "PRODUCTION_OPERATION",
                     "ECONOMIC_INPUT",
                     "CAPACITY_INPUT",
                     "SAFETY_INPUT",
+                    "MAINTENANCE_INPUT",
                 },
                 "manager": set(REQUEST_ROLES),
             }[context.role]
@@ -204,6 +207,7 @@ class ProposalStore:
                 "ECONOMIC_INPUT",
                 "CAPACITY_INPUT",
                 "SAFETY_INPUT",
+                "MAINTENANCE_INPUT",
             } and context.role not in {
                 "maintenance",
                 "production",

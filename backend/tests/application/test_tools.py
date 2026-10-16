@@ -269,7 +269,7 @@ def test_prepare_permission_and_error_code_preserved():
 def test_schemas_include_only_implemented_tools_and_no_trusted_metadata():
     dispatcher = ToolDispatcher(NoDatabase())
     schemas = dispatcher.schemas()
-    assert len(schemas) == 25
+    assert len(schemas) == 27
     assert set(PREPARE_CATEGORIES) <= schemas.keys()
     assert "execute" not in schemas and "trace_downstream_impact" not in schemas
     for tool in PREPARE_CATEGORIES:

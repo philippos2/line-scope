@@ -40,6 +40,7 @@ export async function request(
   path:
     | "/health/ready"
     | "/agent"
+    | `/maintenance-inputs/${string}`
     | `/safety-inputs/${string}`
     | `/capacity-inputs/${string}`
     | "/economic-inputs/search"

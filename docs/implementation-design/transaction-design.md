@@ -281,3 +281,9 @@ CAPACITY_INPUTはCapacityInput専用のSnapshot schema_version=3。既存v1/v2�
 - 正本・履歴・Audit・承認消費・要求完了・結果保存は共通transactionで原子的に確定する。
 - Graph lock / Outboxは追加しない。期限・現在role・自己承認禁止・競合失効・rollback・再送は共通契約を維持する。
 - 安全記録は実設備制御・運転許可ではなく、既存EquipmentStateの事実登録の制約を変更しない。
+
+## MaintenanceInputの承認・確定
+
+Snapshot v5はMaintenanceInputのみ。既存v1〜4の意味を変えない。category=MAINTENANCE_INPUT、操作CREATE / UPDATE、manager要求・別manager承認・元要求者確定とする。現在role、期限、owner、hash、retryの共通制御を維持する。
+
+lock順はUpdateRequest→Approval→Equipment（UUID順KEY SHARE）→関連MaintenancePlan（UUID順SHARE）→MaintenanceInput（UUID順UPDATE）。存在・同一設備の予定参照、CREATEのUUID / code一意性、UPDATEのbefore全体とversionを承認／確定の両方で検証する。関連予定のversion固定や未来の自動状態変更を意味しない。payload更新、version、共通業務履歴、Audit、承認消費、実行結果を一つのPG Transactionで確定する。Graph lock / Outboxは追加しない。監査失敗は全体rollback、同じ完了要求の再送は同じ確定結果を返す。

@@ -1,10 +1,10 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1280" height="590" viewBox="0 0 1280 590" role="img" aria-labelledby="title desc">
 <title id="title">LineScope 残る業務機能と必要PR数</title>
-<desc id="desc">経済と能力の代表経路はmerge済み。残りは安全1〜2、計画と履歴1〜2、インフラ0〜1、品質と全業務受入2〜3、運用復旧1〜2の計5〜10 PR。</desc>
+<desc id="desc">経済・能力・安全の代表経路はmerge済み。残りは安全0〜1、計画と履歴1〜2、インフラ0〜1、品質と全業務受入2〜3、運用復旧1〜2の計4〜9 PR。</desc>
 <rect width="1280" height="590" fill="white"/>
 <g font-family="sans-serif" fill="#24384b">
-<text x="24" y="34" font-size="23" font-weight="bold">残る業務機能と受入：全体約75% ／ 残り5〜10 PR（#248 merge後）</text>
-<text x="24" y="63" font-size="15">経済・能力の代表経路はmerge済み。横軸は想定PR工程枠。実日程・PO判断の待ち時間は未見積もり。</text>
+<text x="24" y="34" font-size="23" font-weight="bold">残る業務機能と受入：全体約80% ／ 残り4〜9 PR（#249 merge後）</text>
+<text x="24" y="63" font-size="15">経済・能力・安全の代表経路はmerge済み。横軸は想定PR工程枠。実日程・PO判断の待ち時間は未見積もり。</text>
 <path d="M480 112V490" stroke="#dae2e9"/>
 <text x="500" y="102" font-size="14">工程1</text>
 <path d="M570 112V490" stroke="#dae2e9"/>
@@ -23,13 +23,13 @@
 <text x="1130" y="102" font-size="14">工程8</text>
 <path d="M1200 112V490" stroke="#dae2e9"/>
 <text x="24" y="145" font-size="17" font-weight="bold">安全条件・リスク</text>
-<text x="24" y="169" font-size="13">安全基準・観測・継続条件の登録／承認・判定</text>
-<text x="390" y="145" font-size="14" fill="#c99640">実装中</text>
+<text x="24" y="169" font-size="13">登録・判定は完了。残る統合受入の不足対応</text>
+<text x="390" y="145" font-size="14" fill="#c99640">統合待ち</text>
 <rect x="484" y="125" width="172" height="37" rx="4" fill="#c99640"/>
-<text x="570" y="149" text-anchor="middle" font-size="14" fill="white" font-weight="bold">1〜2 PR</text>
+<text x="570" y="149" text-anchor="middle" font-size="14" fill="white" font-weight="bold">0〜1 PR</text>
 <text x="24" y="213" font-size="17" font-weight="bold">対応計画・故障履歴</text>
 <text x="24" y="237" font-size="13">修理／交換案・作業／調達時間・故障事実</text>
-<text x="390" y="213" font-size="14" fill="#c99640">PO待ち</text>
+<text x="390" y="213" font-size="14" fill="#c99640">検証中</text>
 <rect x="664" y="193" width="172" height="37" rx="4" fill="#c99640"/>
 <text x="750" y="217" text-anchor="middle" font-size="14" fill="white" font-weight="bold">1〜2 PR</text>
 <text x="24" y="281" font-size="17" font-weight="bold">インフラ分析の不足</text>
