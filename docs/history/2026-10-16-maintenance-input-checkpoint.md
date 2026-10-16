@@ -25,7 +25,11 @@
 - Dockerの書込userとhost権限が不一致のため最初のmount上ruff修正が失敗。host uid 1000のuserを指定して実行する。最新backend/scriptsをmountした結果だけを検証記録に採用する。
 - 関連121件成功（12.05秒）。FrontendのDocker内lint・型チェック・format・build成功。既存のStarlette/httpx警告と終了時logging出力失敗メッセージあり。
 - 全体回帰は3,901成功・1skip・1失敗（362.08秒）。失敗はmigration後のtable一覧の期待値にmaintenance_inputを追加し忘れたこと。期待集合へ新tableを追加し、該当schema suite 29件が成功（2.53秒）。
-- 実モデル・実ブラウザ、最新head CI、最終片付けは未完了。完了後に結果を追記する。
+- 実Qwen・実ブラウザの初回は設備検索でAGENT_LIMIT_REACHED、登録前に停止。2回目は実設備検索が成功したが検証scriptのselect指定が不一致で停止した。既存安全入力と同じcombobox指定へ修正した。
+- 3回目はPASS。交換案CREATE→自己承認拒否→別manager承認→要求者Execute→実モデルget_maintenance_input参照→UNKNOWN費用／停止時間へのUPDATE（version 2）→故障履歴への分類訂正（version 3・過去損失120,000 JPY）を確認した。調達336時間、作業4時間、停止2時間、既知計画直接費小計30,000 JPYを分離して確認した。
+- 実ブラウザで1440 / 768 / 390pxの非overflow、出典HTMLの非実行、storage非保存、接続解除時の消去を確認。390pxのスクリーンショットも確認した。一般LLM品質・全Business Scenarioの受入合格には拡大しない。初回時間切れの原因は未特定。
+- 所有する試験Compose環境・volumeを片付け、関連image tagを削除した。継続デモ・他projectの環境は維持した。
+- 最新headのCI確認・最終引渡し結果は[PR #250](https://github.com/philippos2/line-scope/pull/250)へ記録する。CI確認前はDraft・【WIP】を維持する。
 
 ## 次の再開点
 

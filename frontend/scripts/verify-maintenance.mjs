@@ -61,7 +61,7 @@ export async function verifyMaintenance(page, token, approver) {
     .getByLabel("評価・記録の期間終了", { exact: true })
     .fill("2099-01-01T00:00:00Z");
   await editor
-    .getByLabel("記録分類", { exact: true })
+    .getByRole("combobox", { name: /^記録分類/ })
     .selectOption("REPLACEMENT_PLAN");
   await editor
     .getByLabel("計画・事象の内容", { exact: true })
@@ -76,7 +76,7 @@ export async function verifyMaintenance(page, token, approver) {
     .getByLabel("評価期間に算入する交換費（JPY）", { exact: true })
     .fill("20000");
   await editor
-    .getByLabel("交換費を評価期間の費用へ含める", { exact: true })
+    .getByRole("combobox", { name: /^交換費を評価期間の費用へ含める/ })
     .selectOption("true");
   await editor
     .getByLabel("計画・実績の出典", { exact: true })
@@ -218,7 +218,7 @@ export async function verifyMaintenance(page, token, approver) {
     .click();
   await editor.getByLabel("停止時間（時間）", { exact: true }).fill("");
   await editor
-    .getByLabel("交換費を評価期間の費用へ含める", { exact: true })
+    .getByRole("combobox", { name: /^交換費を評価期間の費用へ含める/ })
     .selectOption("UNKNOWN");
   await confirm(await prepare());
   const updated = await load();
@@ -233,7 +233,7 @@ export async function verifyMaintenance(page, token, approver) {
     .getByRole("button", { name: "この対応計画・故障履歴の訂正を準備" })
     .click();
   await editor
-    .getByLabel("記録分類", { exact: true })
+    .getByRole("combobox", { name: /^記録分類/ })
     .selectOption("FAILURE_RECORD");
   await editor
     .getByLabel("評価・記録の期間終了", { exact: true })

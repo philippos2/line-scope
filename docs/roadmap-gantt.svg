@@ -29,7 +29,7 @@
 <text x="795" y="149" text-anchor="middle" font-size="14" fill="white" font-weight="bold">0〜1 PR</text>
 <text x="24" y="213" font-size="17" font-weight="bold">対応計画・故障履歴</text>
 <text x="24" y="237" font-size="13">修理／交換案・作業／調達時間・故障事実</text>
-<text x="390" y="213" font-size="14" fill="#c99640">検証中</text>
+<text x="390" y="213" font-size="14" fill="#c99640">検証済</text>
 <rect x="484" y="193" width="172" height="37" rx="4" fill="#c99640"/>
 <text x="570" y="217" text-anchor="middle" font-size="14" fill="white" font-weight="bold">1〜2 PR</text>
 <text x="24" y="281" font-size="17" font-weight="bold">インフラ分析の不足</text>
