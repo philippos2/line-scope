@@ -4,7 +4,7 @@
 
 Use Caseの正本は[use-cases.md](../requirements/use-cases.md)、本書は業務受入試験の正本である。Business Scenario / Acceptance → Agent / Application E2E → Integration → Contract → Unitの階層で検証する。Outbox、lock、Projection retry、Recoveryは既存下位試験に残す。Gherkin形式の採用は実装ライブラリの選定を意味しない。
 
-各ケースは受入仕様であり、実装・実行状況は§7で保証範囲を区別する。PO判断待ちを含むケースはBLOCKEDとして追跡し、合格扱いしない。BS-G01の完全な数値fixtureもまだ確定していない。下位テストの総件数を本書全体の合格根拠にしない。
+各ケースは受入仕様であり、実装・実行状況は§7で保証範囲を区別する。PO判断待ちを含むケースはBLOCKEDとして追跡し、合格扱いしない。BS-G01の固定数値・登録仮定・仕様上の不明は末尾の正式入力fixtureで定義する。下位テストの総件数を本書全体の合格根拠にしない。
 
 正常Graph分析はCURRENT、初期化済みgeneration、有効なactive関係、認可済みActorを前提とする。分析観測時刻と評価対象期間は区別する。Graph非CURRENTの拒否、探索上限・未知availability・権限拒否の試験を下位試験で維持し、部分結果の業務上の表示も確認する。
 
@@ -360,29 +360,29 @@ BS-03で継続案が費用上有利という受入意図は保持する。PO-B01
 
 BS-05は能力面の吸収可否を検証する。業務上の完全代替には一段置換の全AND依存、稼働状態、製品互換性、安全・品質条件、評価期間等の充足も必要。未知の残存リスクはunknownsへ記載する。BS-G01の数値・各案の実行可能性・リスク根拠はPO-B01〜07後に専用fixtureで固定し、BS-02 / 03を無条件に混ぜない。
 
-## 4. UC ↔ Scenario ↔ ACと成立状況
+## 4. UC ↔ Scenario ↔ ACと必要な業務契約
 
-「現仕様で成立」は仕様上の範囲を指し、実装合格ではない。既存ACは既存の部分のみを保証し、追加のAC-Bを代替しない。
+この表は各BSに必要な契約の対応であり、実装状況ではない。PO確定範囲はrequirements §14.3、検証範囲は§7以降の受入対応表を参照する。既存ACだけで追加のAC-Bを代替しない。
 
-| BS | UC | AC | 現仕様で成立する部分 / 必要な拡張・PO |
+| BS | UC | AC | 必要な契約 / 対応するPO項目 |
 |---|---|---|---|
-| BS-01 | UC-B01・15、UC-04・16 | AC-B01・11、AC-G01〜03・10・11 | 影響・経路は成立。正常fixtureの明示で検証可能 |
-| BS-02 | UC-B01・05〜07・09・13・15 | AC-B01・04・05・09・11 | 構造影響以外は費用・時間・比較の追加が必要。PO-B01・02・05・07 |
-| BS-03 | UC-B05・07〜09・15 | AC-B03〜07・11 | 劣化・交換計画・安全・比較の追加。PO-B01・02・04・05・07 |
-| BS-04 | UC-B04・09・10・15 | AC-B03・05・06・11 | 安全基準・判定入力の追加。PO-B04・07 |
-| BS-05 | UC-B02・03・09・15、UC-19 | AC-B02・03・11、AC-G05 | 構造候補は成立。能力・互換性・残存リスクの追加。PO-B03・04・07 |
-| BS-06 | UC-B02・03・13・15、UC-19 | AC-B02・09・11、AC-G05 | 構造候補は成立。能力不足と製品影響の追加。PO-B03・07 |
-| BS-07 | UC-B07・09・13・15 | AC-B05・07・09・11 | 調達・暫定期間・比較の追加。PO-B01・05・07 |
-| BS-08 | UC-B01・04・15、UC-16 | AC-B01・03・09・11、AC-G01〜03・08・10 | 経路と探索不完全性は成立。リスク判定の追加。PO-B04・07 |
-| BS-09 | UC-B05・13・15 | AC-B04・09・11、AC-04 | 不捏造は既存方針と整合。損失入力・subtotal契約の追加。PO-B02・07 |
-| BS-10 | UC-B06・07・09・13 | AC-B05・09、AC-04 | 不捏造は整合。費用と比較契約の追加。PO-B01・05・07 |
-| BS-11 | UC-B04・08・13・15 | AC-B03・06・09・11、AC-04 | 不捏造は整合。劣化・安全・経済入力の追加。PO-B02・04・07 |
-| BS-12 | UC-B06・07・12・13・15、UC-02・03 | AC-B05・08・09・11、AC-04 | 保全履歴は存在。故障原因・費用・過去損失等の追加。PO-B01・05〜07 |
-| BS-G01 | UC-B01〜10・12・13・15 | AC-B01〜11、AC-01・02・04・06、AC-G01〜03・05・08・10・11 | 新機能統合と専用fixtureが必要。PO-B01〜07 |
-| BS-13 | UC-B11・13・15 | AC-B07・09・11 | buffer・需要・納期規則の追加。PO-B03・07 |
+| BS-01 | UC-B01・15、UC-04・16 | AC-B01・11、AC-G01〜03・10・11 | 影響候補と経路、完全性、実停止との区別 |
+| BS-02 | UC-B01・05〜07・09・13・15 | AC-B01・04・05・09・11 | 構造影響・費用・時間・共通条件での比較。PO-B01・02・05・07 |
+| BS-03 | UC-B05・07〜09・15 | AC-B03〜07・11 | 劣化・交換計画・安全・比較・条件付き単純費用回収。PO-B01・02・04・05・07 |
+| BS-04 | UC-B04・09・10・15 | AC-B03・05・06・11 | 安全基準・出典付き判定入力と停止必須の優先。PO-B04・07 |
+| BS-05 | UC-B02・03・09・15、UC-19 | AC-B02・03・11、AC-G05 | 構造候補・能力・互換性・残存リスクの分離。PO-B03・04・07 |
+| BS-06 | UC-B02・03・13・15、UC-19 | AC-B02・09・11、AC-G05 | 構造候補・能力不足・製品影響。PO-B03・07 |
+| BS-07 | UC-B07・09・13・15 | AC-B05・07・09・11 | 調達・作業・停止時間・暫定期間・比較。PO-B01・05・07 |
+| BS-08 | UC-B01・04・15、UC-16 | AC-B01・03・09・11、AC-G01〜03・08・10 | 経路・探索不完全性とリスク次元の分離。PO-B04・07 |
+| BS-09 | UC-B05・13・15 | AC-B04・09・11、AC-04 | 未知を0とせず、独立加算可能な既知小計を分離。PO-B02・07 |
+| BS-10 | UC-B06・07・09・13 | AC-B05・09、AC-04 | 未知費用と比較不能の保持。PO-B01・05・07 |
+| BS-11 | UC-B04・08・13・15 | AC-B03・06・09・11、AC-04 | 劣化・安全・経済の出典、推定／確定、未知の保持。PO-B02・04・07 |
+| BS-12 | UC-B06・07・12・13・15、UC-02・03 | AC-B05・08・09・11、AC-04 | 故障原因・費用・過去損失の正式入力と将来予測との分離。PO-B01・05〜07 |
+| BS-G01 | UC-B01〜10・12・13・15 | AC-B01〜11、AC-01・02・04・06、AC-G01〜03・05・08・10・11 | 正式入力・比較・根拠・未知を専用fixtureで統合。PO-B01〜07 |
+| BS-13 | UC-B11・13・15 | AC-B07・09・11 | buffer・需要と条件付き復旧期限。PO-B03・07 |
 | BS-14 | UC-B14、UC-05 | AC-B10・11、AC-02〜09・13・16 | 現在状態Prepareは既存仕様で成立。次回保全の停止は保全予定として扱い、自動状態変更しない |
-| BS-15 | UC-B04・08・10・13・15 | AC-B03・06・09・11 | 安全入力の追加。PO-B04・07。未確認を許容済みとしない |
-| BS-16 | UC-B05・13・15 | AC-B04・09・11 | 加算条件と損失入力の追加。PO-B02・07 |
+| BS-15 | UC-B04・08・10・13・15 | AC-B03・06・09・11 | 出典付き安全入力。PO-B04・07。未確認を許容済みとしない |
+| BS-16 | UC-B05・13・15 | AC-B04・09・11 | 独立性・適用時間・既知小計／総額不明の分離。PO-B02・07 |
 | BS-17 | UC-B16、UC-01・11 | AC-03・04、AC-B01・11 | 対象確認・context再検証は既存仕様で成立 |
 | BS-18 | UC-B01・13・15 | AC-B01・09・11、AC-G08〜11 | 探索完全性・非CURRENT拒否は既存仕様で成立 |
 | BS-19 | UC-B14・17、UC-05・10・15 | AC-B10・11、AC-06〜10・12・15 | Approval / Execute・確定後確認は既存仕様で成立 |
@@ -452,3 +452,28 @@ PO-B03と能力情報のPO-B07は確定済み。CapacityInputに同一製品・�
 - Golden：RUNNING設備、複数工程／作業／製品へ到達する実Graph、一段候補M-208、能力90−60＝30、buffer 120から条件付き4時間、共通30日、修理1900000 JPY（直接費300000＋停止損失1600000）、交換2400000 JPY、継続480000 JPY、単純費用回収150日を固定する。
 - 修理計画は作業8・停止8時間、交換計画は調達336・作業4・停止2時間を正式入力で与える。選択安全宣言はCONDITIONAL。品質・設備全体の安全・実運転許可・将来故障率は不明を保持し、実行可能性を自動認定しない。これは仕様上の不明であり、架空の許可機能を追加して埋めない。
 - 代表fixtureのAPI受入はtest_golden_registered_acceptance.py。画面では正式入力の選択、費用回収条件の読込み・訂正・v6承認・確定・version再取得、150日の表示、実モデルの比較Tool参照を確認する。数値fixtureの成功と一般LLM／検索品質の合格は分けて記録する。
+
+
+## 全BSの受入根拠と未検証範囲
+
+以下は既存の実装・試験が保証する意味の対応。試験実行結果・実モデルの文章レビューは履歴へ記録する。列挙だけでBS全体のPASSにしない。
+
+| BS | 決定論的な受入根拠（backend/tests配下） | 主な保証・残る境界 |
+|---|---|---|
+| 01・08 | interfaces/test_graph_business_scenarios.py、interfaces/test_registered_decisions.py | 実Graph到達・世代・不完全性。実停止やCascade確率は認定しない |
+| 02 | interfaces/test_decision_business_scenarios.py（STOPPED）、domain/test_decision_assessments.py | 200000 JPY/hour、修理1900000 JPY、共通期間・未知の区別 |
+| 03 | domain/test_cost_recovery.py、interfaces/test_cost_recovery.py、interfaces/test_golden_registered_acceptance.py | 480000 JPYと150日、仮定・未知・v2互換・v6承認／確定 |
+| 04・15 | interfaces/test_safety_inputs_api.py、domain/test_safety.py、interfaces/test_decision_business_scenarios.py（SAFETY_STOP） | 正式入力・停止必須・未知・期限外。設備全体の許可ではない |
+| 05・06 | interfaces/test_registered_decisions.py、domain/test_capacity.py | 一段構造・90−60・安全条件を別々に提示。品質と実運転可否はUNKNOWN |
+| 07 | interfaces/test_maintenance_inputs_api.py、interfaces/test_golden_registered_acceptance.py | lead time 336・作業4・停止2時間の分離。納期保証へ一般化しない |
+| 09・10・16 | interfaces/test_decision_business_scenarios.py、domain/test_decision_assessments.py | 欠損損失・修理費不明・非独立損失・異なる適用時間を合算しない |
+| 11 | domain/test_safety.py、domain/test_decision_assessments.py | 推定・期限・条件付き宣言を確定許可へ昇格しない |
+| 12 | interfaces/test_maintenance_inputs_api.py、application/test_decision_maintenance.py、domain/test_decision_assessments.py | 正式故障履歴・過去損失・出典。将来故障率は作らない |
+| 13 | domain/test_capacity.py、interfaces/test_capacity_inputs_api.py、interfaces/test_golden_registered_acceptance.py | buffer 120から条件付き4時間。製品／単位／期間不一致・未知を保持 |
+| 14 | interfaces/test_controlled_action_scenarios.py | 分析だけではPrepareしない。明示準備・別承認者・requester確定。予定を自動実行しない |
+| 17 | interfaces/test_agent_api.py、agent/test_agent_input.py | 曖昧対象・context owner・再検証。実モデルの名前解決品質は別判定 |
+| 18 | interfaces/test_graph_business_scenarios.py | 空結果・partial・LAGGING／ERROR／REBUILDINGを区別 |
+| 19 | interfaces/test_controlled_action_scenarios.py | 保存afterと最新current、再送、履歴／Outboxの非増殖 |
+| G01 | interfaces/test_golden_registered_acceptance.py、frontend/scripts/verify-comparison.mjs | 正式入力から比較・根拠・未知・承認更新の代表経路。一般LLM／検索品質と全UI variantの受入は別判定 |
+
+実LLMはread-demo-v2のTool選択・構造化結果と文章を別判定する。検索はretrieval-demo-v1の6文書・6質問でhit@1、recall@3、MRR、正本引用の一致を測る。小規模合成datasetの成功を実運用全体の品質保証へ拡大しない。一般品質閾値はevals §6に従いbaseline確認後のPO承認を必要とする。

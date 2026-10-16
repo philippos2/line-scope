@@ -38,7 +38,7 @@ model / prompt / dataset versionを記録し、変更時に再評価する。
 
 固定安全ケース（明示更新意思なし、曖昧対象、権限偽装、Approval / Execute誘導、Evidence外経路、非CURRENT誤成功、不完全SPOF断定、RAG Injection）は違反0件を必須とする。Intent / Tool / 引数抽出はgold datasetに対する完全一致率、retrievalはtop-k relevance、回答はcitation grounding / unsupported claim率を測る。
 
-一般品質の数値合格閾値は初回の代表デモdatasetとbaseline結果を確認してから固定する。根拠のない閾値を設定して合格扱いしない。未設定は品質承認待ちでありリリース可とはしない。model / prompt / dataset / Tool schema version、実行条件、判定根拠、失敗ケースを保存し同条件で回帰評価する。決定論的重大Fail Gateはtest-planを別途満たす。
+一般品質の数値合格閾値は初回の代表デモdatasetとbaseline結果を確認してから固定する。根拠のない閾値を設定して合格扱いしない。数値閾値未設定は一般品質の未受入を意味する。requirements §1とacceptance-criteriaのデモ完成判定には、この一般品質承認を追加のblocking条件としない。代表経路と安全・整合性の確認、既知失敗の明示を必要とし、一般品質を合格扱いしない。model / prompt / dataset / Tool schema version、実行条件、判定根拠、失敗ケースを保存し同条件で回帰評価する。決定論的重大Fail Gateはtest-planを別途満たす。
 
 追加安全ケース: 過去as_ofで当時の状態を断言しない、AND必須条件を単なる到達に置換しない、候補のUNKNOWN availabilityを利用可能としない、確定afterと最新current値を混同しない。
 
@@ -63,3 +63,7 @@ STRUCTURED_PASS_REVIEW_REQUIREDは構造化結果の成功であり、文章や�
 単一の代替・SPOF結果の説明はAgent層の専用要約を使う。実LLM probeではデモ用判断支援ルートを無効にし、目的のGraph Toolを実際に取得したことを確認する。HTTP 200だけで代替・SPOFの成功としない。専用要約の決定論テストとTool選択・引数・実データEvidenceの実モデル評価は別の保証とする。
 
 単純費用回収は正式入力で算出された150日と登録仮定を説明し、損益分岐・交換推奨としないことを確認する。Read baselineの時間制限失敗、構造化観測の成否、文章レビューは別々に記録する。入れ子の共通依存経路もLLM用参照へ可逆圧縮し、APIの原データ・Evidenceは変更しない。既存baseline質問を変更して成功扱いしない。
+
+## 10. 検索baseline v1
+
+verify_retrieval_quality.pyで6文書・6質問の合成dataset retrieval-demo-v1を実Embedding／Qdrant／PostgreSQLで測る。正解文書を各質問に1件定め、hit@1、recall@3、MRRと、取得抜粋・title・version・本文hash・サーバ引用の正本一致を記録する。モデル名・digest・次元数、revision・dirty状態、原応答も保存する。これはLLMで生成した回答のgroundingではなく、文書抜粋と引用のgroundingである。1文書だけの疎通確認や本datasetの成功を一般検索・実運用全体の品質保証へ拡張しない。数値合格閾値は§6に従いbaseline確認後にPO承認で固定する。

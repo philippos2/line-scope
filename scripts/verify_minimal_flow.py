@@ -63,7 +63,7 @@ class DemoFixture:
             if not key.startswith("LINESCOPE_")
         }
 
-    def docker(self, *arguments):
+    def docker(self, *arguments, capture_output=False):
         command = [
             "docker",
             "compose",
@@ -77,7 +77,14 @@ class DemoFixture:
         ]
         if self.docker_group:
             command = ["sg", self.docker_group, "-c", shlex.join(command)]
-        subprocess.run(command, cwd=self.repository, env=self.child_env, check=True)
+        return subprocess.run(
+            command,
+            cwd=self.repository,
+            env=self.child_env,
+            check=True,
+            capture_output=capture_output,
+            text=capture_output,
+        )
 
     def request(self, path, *, token=None, data=None, expected=200, timeout_seconds=15):
         command = [

@@ -14,7 +14,7 @@ python3 scripts/verify_minimal_flow.py
 
 Docker socketへのアクセスに既存のdockerグループが必要な環境では`--docker-group docker`を付けます。専用のCompose project、資格情報、volume、空きloopback portを作り、終了時に削除します。通常の`.env`やvolumeは使用しません。
 
-このスクリプトは実PostgreSQL・Neo4j・HTTPを使い、影響・仮置き費用比較→Prepare→承認前Execute拒否→別の承認者によるApproval→requesterのExecute→再送→更新後確認を実行します。LLMは不要です。費用・能力・安全条件の入力はモックであり、正式な業務受入全体の合格を意味しません。
+このスクリプトは実PostgreSQL・Neo4j・HTTPを使い、影響・比較候補→Prepare→承認前Execute拒否→別の承認者によるApproval→requesterのExecute→再送→更新後確認を実行します。LLMは不要です。未選択の費用・能力・安全条件は不明を保持します。正式入力による数値比較は、登録・承認・確定した入力を選択して行います。
 
 ## 通常環境の起動
 
@@ -45,13 +45,9 @@ docker compose -f compose.yaml -f compose.frontend.yaml --profile frontend up --
 
 `http://127.0.0.1:5173`を開きます。接続欄には私有`.env`の`LINESCOPE_USERS`に登録されたtokenの値だけを貼り付けます。管理・生産・保全ロールでGraph分析を利用できます。tokenを共有、Git登録、スクリーンショット掲載しないでください。初回接続後はHttpOnlyのセッションcookieでF5後も接続を復元します。接続切替・解除は上部の「接続設定」から行えます。セッションは固定8時間で、API再起動・期限切れ後は再接続が必要です。
 
-比較デモを使う場合は私有`.env`で`LINESCOPE_DEMO_DECISION_MOCK=true`を明示設定し、APIを再作成します。既存の値がある場合は重複追記せず編集します。
+画面の「正式入力から対応案を比較する」で設備と入力候補、共通期間を選び、Graph・対応案・Evidenceを確認します。経済・能力・安全・対応計画／履歴は登録・承認・確定してから使い、未選択値は不明です。比較の定型説明はLLM未設定でも表示でき、通常の自然言語調査はローカルLLMを使います。
 
-```sh
-docker compose up -d --no-deps api
-```
-
-「比較デモ」→「問い合わせを送信」でGraph・対応案・Evidenceを確認できます。費用・能力・安全入力は仮置きで、実設備の安全判断には使えません。比較の定型説明はLLMがなくても表示します。通常の自然言語調査には下記のローカルLLM設定が必要です。画面の「変更準備・承認・実行」から明示Prepareと保存Snapshotの確認ができます。要求IDを控え、接続を解除して承認者で再接続し、IDから要求を読み直して承認します。その後、元requesterで再接続して要求を読み直し、実行と更新後の結果を確認します。
+「変更準備・承認・実行」から明示Prepareと保存Snapshotを確認できます。要求IDを控え、接続を解除して承認者で再接続し、要求を読み直して承認します。その後、元requesterで再接続して要求を読み直し、実行と更新後の結果を確認します。
 
 FrontendのproxyがAPIへ接続するため、ブラウザへDB資格情報を渡しません。Frontendはloopbackの5173番で、`LINESCOPE_FRONTEND_PORT`により変更できます。変更後は同じComposeファイルとprofileで再作成します。通常の停止でvolumeを削除しないでください。
 
@@ -70,6 +66,8 @@ docker compose up -d --no-deps api
 ```
 
 コンテナの既定接続先は`http://host.docker.internal:11434`です。Ollamaはコンテナから接続できる待ち受け設定が必要です。必要に応じて`LINESCOPE_LLM_BASE_URL`を指定してください。モデルの自動取得は行わず、具体モデルの採用・日本語回答品質は別途評価します。実Embedding / Qdrantは`compose.rag.yaml`の追加構成で使用します。まず下記の専用環境による実Vector検証で疎通を確認できます。
+
+Read Agent全体の上限は既定120秒です。`LINESCOPE_READ_AGENT_DEADLINE_SECONDS`で正の整数秒を設定できます。初回モデルロードや複数の参照で待ち時間が増え、形式不正・Tool選択ミスもあり得ます。一般質問の失敗と、画面の明示的な比較・Graph操作の結果を区別してください。
 
 ### ログ・停止・再起動
 
@@ -145,7 +143,7 @@ curl -sS -X POST "$BASE_URL/update-requests/$UPDATE_REQUEST_ID/execute" \
 
 承認／拒否は`POST /approvals/{approval_id}/approve`・`/reject`、実行は`POST /update-requests/{update_request_id}/execute`です。approveは`{"snapshot_hash":"<保存済みhash>"}`をJSONで送り、reject / executeはBodyなしです。承認者とrequesterのtokenは権限要件に従って使い分けます。Agentから承認・実行はできません。再送・状態遷移・error codeは[API契約](implementation-design/api-tools.md)を参照してください。
 
-比較を有効にした場合、次の質問でDecision Packageを取得できます。LLM未設定でもサーバ側の決定論的経路で動きます。
+次の質問でDecision Packageを取得できます。LLM未設定でもサーバ側の決定論的経路で動きます。
 
 ```sh
 curl -sS "$BASE_URL/agent" \
@@ -170,14 +168,14 @@ python3 scripts/verify_demo_acceptance.py \
 
 最小経路・複数設備更新・実Embedding/Qdrant文書検索・実LLMの正式比較Tool参照を、独立した専用環境で順次検証します。reportは既存ディレクトリ内の新規ファイルを指定し、0600で保存します。再実行時は別のファイル名にしてください。
 
-全4経路を確認した場合だけPASS（終了code 0）、失敗はFAIL（1）、モデル指定を省略した未実行経路がある場合はPARTIAL（2）です。報告にはrevision・作業ツリー変更有無・時刻・各結果と受入範囲を残します。モック入力、一般LLM grounding未受入、Web UI全体の正式受入未完了は、全4経路PASSでも残ります。
+全4経路を確認した場合だけPASS（終了code 0）、失敗はFAIL（1）、モデル指定を省略した未実行経路がある場合はPARTIAL（2）です。報告にはrevision・作業ツリー変更有無・時刻・各結果と受入範囲を残します。一般LLM groundingと全UI variantの網羅は保証しません。ブラウザの代表比較経路は別の検証で確認します。
 
 実Vector経路は`compose.yaml`と`compose.rag.yaml`を重ね、API用read keyと管理用write keyを分離します。文書本文・metadataの正本は管理ファイルとPostgreSQL、Qdrantは再構築可能な索引です。一括検証ではこれらの設定・取込み・版更新・alias再構築も専用環境で行います。通常環境へ手動導入する場合は[運用設計](implementation-design/operations.md)と[追加Compose構成](../compose.rag.yaml)を確認してください。
 
 ## 確認できる範囲
 
 - 固定デモの構造化結果と承認付き更新を確認できます。
-- 一般Read Agentの説明品質、全Business Scenario、正式な費用・能力・安全入力の受入は別途必要です。
+- 正式な費用・能力・安全入力、Golden代表経路はAPIと画面の検証で確認しています。一般Read品質と任意質問の成功は保証しません。
 - 過去時刻は現在登録情報の期間評価であり、完全なpoint-in-time復元ではありません。
 - 現在の制限と残作業は[ロードマップ](roadmap.md)、仕様は[文書入口](deliverables.md)を参照してください。
 

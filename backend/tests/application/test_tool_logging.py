@@ -19,6 +19,35 @@ from linescope.settings import Settings
 SECRET = "private-message-arguments-token-password-sql"
 
 
+@pytest.mark.parametrize("invalid_reply", [False, True])
+def test_llm_failure_metrics_do_not_expose_content_or_change_failure(invalid_reply):
+    from linescope.integrations.llm import LLMError
+
+    class Broken:
+        def complete(self, *args, **kwargs):
+            if invalid_reply:
+                return SECRET
+            raise LLMError("AGENT_LIMIT_REACHED", SECRET)
+
+    output = io.StringIO()
+    context = session().context
+    with pytest.raises(ToolError) as error:
+        ReadAgent(
+            Dispatcher(lambda: None), Broken(), event_logger=EventLogger("DEBUG", output)
+        ).run(context, request(SECRET))
+    (entry,) = entries(output)
+    assert (
+        entry["result_code"]
+        == error.value.code
+        == ("INTERNAL_ERROR" if invalid_reply else "AGENT_LIMIT_REACHED")
+    )
+    assert entry["event"] == "llm.call.completed" and entry["outcome"] == "failure"
+    assert entry["request_id"] == str(context.request_id)
+    assert entry["llm_input_bytes"] > 0 and entry["llm_output_bytes"] == 0
+    assert entry["llm_tool_count"] == 0 and entry["duration_ms"] >= 0
+    assert SECRET not in output.getvalue()
+
+
 def captured(dispatcher=None, **kwargs):
     output = io.StringIO()
     events = EventLogger("DEBUG", output)
@@ -152,7 +181,7 @@ def test_retries_share_call_id_and_have_individual_attempt_events():
     result = ReadAgent(
         Dispatcher(action), ScriptedLLM(reply, LLMReply("確認しました", ())), event_logger=events
     ).run(session().context, request())
-    logged = entries(output)
+    logged = [row for row in entries(output) if row["event"] == "tool.call.completed"]
     assert [row["attempt_count"] for row in logged] == [1, 2, 3]
     assert [row["result_code"] for row in logged] == [
         "RESOURCE_BUSY",
@@ -162,6 +191,12 @@ def test_retries_share_call_id_and_have_individual_attempt_events():
     assert {row["tool_call_id"] for row in logged} == {reply.tool_calls[0].call_id}
     assert [row["tool_call_id"] for row in logged] == [row["tool_call_id"] for row in result.trace]
     assert SECRET not in output.getvalue()
+    model_calls = [row for row in entries(output) if row["event"] == "llm.call.completed"]
+    assert len(model_calls) == 2
+    assert [row["llm_tool_count"] for row in model_calls] == [1, 0]
+    assert all(row["llm_schema_count"] == 1 for row in model_calls)
+    assert all(row["llm_input_bytes"] > 0 and row["llm_output_bytes"] > 0 for row in model_calls)
+    assert all(row["duration_ms"] >= 0 and row["result_code"] == "OK" for row in model_calls)
 
 
 def test_concurrent_sessions_do_not_share_request_identity():

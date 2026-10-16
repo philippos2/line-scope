@@ -22,7 +22,7 @@ class FrontendFixture(DemoFixture):
 
     def request(self, path, **kwargs):
         if self.live_llm and path == "/agent":
-            kwargs.setdefault("timeout_seconds", 90)
+            kwargs.setdefault("timeout_seconds", 150)
         return super().request(path, **kwargs)
 
     def docker(self, *arguments):

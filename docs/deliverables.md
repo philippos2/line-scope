@@ -69,7 +69,7 @@
 ## 6. v1デモ実装スコープ
 
 - 単一工場
-- 現サーバサイド実装フェーズはHTTP API / curl中心。Frontendはサーバサイド完成後に構築する
+- HTTP API / curlとReact Frontendから代表業務を操作する
 - 固定デモユーザーによる認証を許容
 - PostgreSQLを業務正本とする
 - Neo4jを依存関係探索用派生Read Modelとする

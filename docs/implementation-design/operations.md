@@ -162,6 +162,8 @@ actor_id / roleは認証済みContextまたは内部サービス主体から取�
 {"log_schema_version":1,"timestamp":"2026-10-09T05:00:00.000000Z","level":"DEBUG","service":"linescope","component":"api","event":"http.request.completed","outcome":"success","request_id":"00000000-0000-4000-8000-000000000001","duration_ms":2,"result_code":"OK","http_method":"GET","route":"/health","http_status":200}
 ```
 
+llm_input_bytesはmessagesとschemasのcanonical JSONのUTF-8長、llm_output_bytesは公開assistant messageのUTF-8長であり、token数・HTTP全体のbyte数ではない。providerが有効な非負整数を返す場合だけllm_prompt_tokens／llm_generated_tokensとllm_prompt_ms／llm_generate_ms／llm_load_msを追加する。providerのdurationはnsからmsへ切り捨て、秘密や任意metadataは採用しない。未返却や時間切れで取得不能な内訳を0として補完しない。
+
 ### 13.3 相関と並行処理
 
 HTTPのrequest_idは受信ごとに新しく生成し、Response Envelopeと運用ログで一致させる。外部ヘッダーを正本request_idとして採用しない。middleware入口でContextを設定し、finallyで必ず解除する。async処理・threadpoolの境界ではContextを伝播させ、別要求へ漏らさない。内部Toolには既存Trusted Execution Contextのrequest_idを使う。Tool呼出しごとにローカルなtool_call_idを付ける。
@@ -178,6 +180,7 @@ workerは新しい実行request_idとoutbox_id / update_request_idを記録す�
 | http.request.completed | 通常成功・partial・入力／認証／権限拒否はINFO、一時依存障害はWARNING、内部障害はERROR | route、method、status、result_code、duration_ms |
 | health / readinessの正常完了 | DEBUG。失敗は原因に応じWARNING / ERROR | 同上。監視pollでINFOを埋めない |
 | tool.call.completed | 成功・業務上の拒否はINFO、一時障害／再試行予定はWARNING、内部不整合はERROR | allowlisted Tool名、tool_call_id、code、duration_ms、対象技術ID |
+| llm.call.completed | INFO | Read Agentのモデル呼出しごとのcode、duration_ms、dependency=llm、llm_input_bytes、llm_output_bytes、llm_tool_count、llm_schema_count。本文・引数・prompt・provider responseは記録しない |
 | proposal.saved / replayed / replaced | commit後INFO | 要求・承認ID、hash、旧要求ID（replaced時）、replayed |
 | approval.completed / execute.completed | commit後INFO、拒否はINFO | 主体、要求・承認ID、前後状態、code |
 | execution.outcome_unknown | ERROR。commit結果を確認できないとき | 要求ID、code。成功／rollbackを断定しない |
@@ -351,10 +354,12 @@ docker compose run --rm --no-deps \
   api python /probe/verify_graph_agent.py --base-url http://api:8000
 ```
 
-probeは`/agent`へ固定の読取質問を一回送り、M-204からの6対象・2製品・代表経路・CURRENT・サーバEvidence・初期state versionを照合する。変更済みfixtureは対象外であり、自動resetしない。Approve / Execute / Prepareは要求しない。HTTP redirectは拒否し、tokenや回答本文、外部例外を結果へ出さない。成功でも自然言語の品質・全Business Scenarioの合格・model選定完了を意味しない。LLMの60秒予算を延長しない。
+probeは`/agent`へ固定の読取質問を一回送り、M-204からの6対象・2製品・代表経路・CURRENT・サーバEvidence・初期state versionを照合する。変更済みfixtureは対象外であり、自動resetしない。Approve / Execute / Prepareは要求しない。HTTP redirectは拒否し、tokenや回答本文、外部例外を結果へ出さない。成功でも自然言語の品質・全Business Scenarioの合格・model選定完了を意味しない。Readの既定予算120秒に対してprobeのHTTP待ち時間は150秒とし、probeからサーバの予算を拡張しない。
 
-同じprobeへ`--scenario alternative`または`--scenario spof`を指定すると、初期fixtureのProduct P-100を重要対象、M-204を除外／候補とした構造成立・SPOF分析を確認する。現在時点、初期state version、CURRENT、完全性、未評価次元、Tool結果に対応するサーバEvidenceを照合する。入力に既知typed IDを含むため、名前だけからの対象解決品質は保証しない。HTTP 200でもneeds_inputや必要Tool結果なしはprobe失敗とする。モデルロード時間はAPIの60秒予算と分離し、probe自体でdeadlineを緩めない。
+同じprobeへ`--scenario alternative`または`--scenario spof`を指定すると、初期fixtureのProduct P-100を重要対象、M-204を除外／候補とした構造成立・SPOF分析を確認する。現在時点、初期state version、CURRENT、完全性、未評価次元、Tool結果に対応するサーバEvidenceを照合する。入力に既知typed IDを含むため、名前だけからの対象解決品質は保証しない。HTTP 200でもneeds_inputや必要Tool結果なしはprobe失敗とする。モデルロード時間はAPIの120秒予算と分離し、probe自体でdeadlineを緩めない。
 
 管理CLIのleader競合を避けるため、初回schema / Rebuildを実行するときは通常workerを`docker compose stop projection`で停止し、管理操作完了後に`docker compose start projection`で再開できる。管理操作が失敗した場合は状態を確認し、応答不明の操作を自動retryしない。
 
-Ollamaのコンテキスト枠はサーバ設定`LINESCOPE_LLM_CONTEXT_TOKENS`（既定16384、正整数）で指定する。modelの対応枠とGPU / RAMに合わせて設定し、エンドユーザーやTool引数から変更しない。既定8192では初期GraphのTool結果を含む約10880 tokenの入力がOllamaに拒否されたため拡大した。大きなGraph・会話履歴が常に収まる保証ではなく、LLM実行予算60秒・回答上限・Graph探索上限は維持する。入力超過時の自動枠拡張やTool結果の暗黙切捨ては行わない。
+Ollamaのコンテキスト枠はサーバ設定`LINESCOPE_LLM_CONTEXT_TOKENS`（既定16384、正整数）で指定する。modelの対応枠とGPU / RAMに合わせて設定し、エンドユーザーやTool引数から変更しない。既定8192では初期GraphのTool結果を含む約10880 tokenの入力がOllamaに拒否されたため拡大した。大きなGraph・会話履歴が常に収まる保証ではなく、Read実行予算120秒・回答上限・Graph探索上限は維持する。入力超過時の自動枠拡張やTool結果の暗黙切捨ては行わない。
+
+Readのllm.call.completedには失敗時も取得できたproviderの数値内訳を保持する。llm_finish_reasonはSTOP／LENGTH／OTHERの固定enum、llm_content_chars／llm_thinking_charsは文字数だけを採用し、内容は記録しない。生成上限による不完全応答の拒否をdeadline超過と混同しない。

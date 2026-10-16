@@ -150,15 +150,21 @@ def main():
     parser.add_argument("--docker-group")
     parser.add_argument("--model", required=True)
     parser.add_argument("--report", type=Path, required=True)
+    parser.add_argument("--scenario", choices=list(QUESTIONS))
+    parser.add_argument("--deadline-seconds", type=int, default=120)
     args = parser.parse_args()
+    if args.deadline_seconds <= 0:
+        parser.error("Positive Read Agent deadline required")
     if re.fullmatch(r"[A-Za-z0-9_.:/-]{1,200}", args.model) is None:
         parser.error("モデル名の形式が不正です")
     if args.report.exists() or not args.report.parent.is_dir():
         parser.error("reportは既存ディレクトリ内の新規ファイルを指定してください")
+    selected = {args.scenario: QUESTIONS[args.scenario]} if args.scenario else QUESTIONS
     report = {
         "report_version": 1,
         "dataset_version": "read-demo-v2",
         "model": args.model,
+        "read_agent_deadline_seconds": args.deadline_seconds,
         "revision": subprocess.check_output(
             ["git", "rev-parse", "HEAD"], text=True
         ).strip(),
@@ -166,7 +172,10 @@ def main():
             subprocess.check_output(["git", "status", "--porcelain"], text=True).strip()
         ),
         "observed_at": datetime.now(timezone.utc).isoformat(),
-        "scope": "FIXED_READ_BASELINE_NOT_GENERAL_LLM_ACCEPTANCE",
+        "scope": "DIAGNOSTIC_SUBSET"
+        if args.scenario
+        else "FIXED_READ_BASELINE_NOT_GENERAL_LLM_ACCEPTANCE",
+        "selected_scenarios": list(selected),
         "prose_review": "REQUIRED",
         "review_criteria": [
             "登録状態と一致し、故障原因を捏造しない",
@@ -185,6 +194,9 @@ def main():
                 fixture = DemoFixture(directory, args.docker_group)
                 with fixture.credentials_file.open("a") as credentials:
                     credentials.write(f"LINESCOPE_LLM_MODEL={args.model}\n")
+                    credentials.write(
+                        f"LINESCOPE_READ_AGENT_DEADLINE_SECONDS={args.deadline_seconds}\n"
+                    )
                 try:
                     fixture.docker("up", "--build", "-d", "api")
                     for attempt in range(30):
@@ -201,13 +213,14 @@ def main():
                     fixture.docker(
                         "run", "--rm", "graph-admin", "linescope", "rebuild-graph"
                     )
-                    for scenario, question in QUESTIONS.items():
+                    observed_calls = 0
+                    for scenario, question in selected.items():
                         case = {"scenario": scenario, "question": question}
                         try:
                             payload = fixture.request(
                                 "/agent",
                                 data={"message": question},
-                                timeout_seconds=90,
+                                timeout_seconds=args.deadline_seconds + 30,
                                 expected=None,
                             )
                             case["response"] = {
@@ -245,6 +258,47 @@ def main():
                             )
                         else:
                             case["structured_result"] = "PASS"
+                        logs = fixture.docker(
+                            "logs",
+                            "--no-color",
+                            "--no-log-prefix",
+                            "api",
+                            capture_output=True,
+                        )
+                        calls = []
+                        for line in logs.stdout.splitlines():
+                            try:
+                                event = json.loads(line)
+                            except ValueError:
+                                continue
+                            if (
+                                isinstance(event, dict)
+                                and event.get("event") == "llm.call.completed"
+                            ):
+                                calls.append(
+                                    {
+                                        key: event[key]
+                                        for key in (
+                                            "duration_ms",
+                                            "result_code",
+                                            "llm_input_bytes",
+                                            "llm_output_bytes",
+                                            "llm_tool_count",
+                                            "llm_schema_count",
+                                            "llm_finish_reason",
+                                            "llm_content_chars",
+                                            "llm_thinking_chars",
+                                            "llm_prompt_tokens",
+                                            "llm_generated_tokens",
+                                            "llm_prompt_ms",
+                                            "llm_generate_ms",
+                                            "llm_load_ms",
+                                        )
+                                        if key in event
+                                    }
+                                )
+                        case["llm_calls"] = calls[observed_calls:]
+                        observed_calls = len(calls)
                         report["cases"].append(case)
                         stage(
                             scenario,
@@ -255,15 +309,19 @@ def main():
                     fixture.docker("down", "--volumes", "--remove-orphans")
         finally:
             report["result"] = (
-                "STRUCTURED_PASS_REVIEW_REQUIRED"
-                if len(report["cases"]) == len(QUESTIONS)
+                (
+                    "DIAGNOSTIC_PASS_REVIEW_REQUIRED"
+                    if args.scenario
+                    else "STRUCTURED_PASS_REVIEW_REQUIRED"
+                )
+                if len(report["cases"]) == len(selected)
                 and all(case["structured_result"] == "PASS" for case in report["cases"])
                 else "FAIL"
             )
             json.dump(report, output, ensure_ascii=False, indent=2)
             output.write("\n")
     stage("result", result=report["result"], prose_review="REQUIRED")
-    return 0 if report["result"] == "STRUCTURED_PASS_REVIEW_REQUIRED" else 1
+    return 0 if report["result"].endswith("PASS_REVIEW_REQUIRED") else 1
 
 
 if __name__ == "__main__":

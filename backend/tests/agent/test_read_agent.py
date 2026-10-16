@@ -105,17 +105,20 @@ def test_final_explanation_allowed_after_last_call():
     assert llm.requests[-1][1] == {}
 
 
-def test_deadline_after_llm_does_not_dispatch():
+@pytest.mark.parametrize("deadline_seconds", [60, 90, 120])
+def test_deadline_after_llm_does_not_dispatch(deadline_seconds):
     now = [0]
 
     class Slow(ScriptedLLM):
         def complete(self, *args, **kwargs):
-            now[0] = 60
+            now[0] = deadline_seconds
             return call()
 
     dispatcher = Dispatcher()
     with pytest.raises(ToolError) as error:
-        ReadAgent(dispatcher, Slow(), clock=lambda: now[0]).run(context(), request())
+        ReadAgent(dispatcher, Slow(), clock=lambda: now[0], deadline_seconds=deadline_seconds).run(
+            context(), request()
+        )
     assert error.value.code == "AGENT_LIMIT_REACHED" and dispatcher.calls == 0
 
 

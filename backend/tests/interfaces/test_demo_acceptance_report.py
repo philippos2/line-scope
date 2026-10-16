@@ -19,6 +19,13 @@ spec.loader.exec_module(runner)
         ("minimal", 1, '{"stage":"result","result":"PASS","real_http":true}', "FAIL"),
         ("minimal", 0, "startup completed", "FAIL"),
         ("summary", 0, '{"stage":"summary","result":"PASS","llm_status":"FALLBACK"}', "FAIL"),
+        ("summary", 0, '{"stage":"summary","result":"PASS","source":"REGISTERED_INPUT"}', "PASS"),
+        (
+            "summary",
+            0,
+            '{"stage":"summary","result":"PASS","llm_status":"VALIDATED_ORDER"}',
+            "FAIL",
+        ),
     ],
 )
 def test_report_requires_actual_success_and_matching_scope(stage, code, output, status):

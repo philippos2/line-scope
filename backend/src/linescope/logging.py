@@ -21,6 +21,7 @@ EVENTS = {
     "service.stopped",
     "http.request.completed",
     "tool.call.completed",
+    "llm.call.completed",
     "proposal.saved",
     "proposal.replayed",
     "proposal.replaced",
@@ -92,7 +93,17 @@ UUID_FIELDS = {
     "dependency_relation_id",
 }
 INTEGER_FIELDS = {"duration_ms", "attempt_count", "aggregate_version", "node_count", "event_count"}
+INTEGER_FIELDS |= {"llm_input_bytes", "llm_output_bytes", "llm_tool_count"}
+INTEGER_FIELDS |= {"llm_schema_count", "llm_content_chars", "llm_thinking_chars"}
+INTEGER_FIELDS |= {
+    "llm_prompt_tokens",
+    "llm_generated_tokens",
+    "llm_prompt_ms",
+    "llm_generate_ms",
+    "llm_load_ms",
+}
 ENUM_FIELDS = {
+    "llm_finish_reason": {"STOP", "LENGTH", "OTHER"},
     "role": {"floor", "maintenance", "production", "manager"},
     "dependency": {"postgresql", "neo4j", "qdrant", "llm"},
     "http_method": {"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS", "HEAD", "OTHER"},

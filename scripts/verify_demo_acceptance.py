@@ -50,7 +50,8 @@ def verify_child(stage, returncode, output):
         and {"Embedding", "Qdrant", "PostgreSQL"} <= set(report.get("real", []))
         or stage == "summary"
         and report.get("stage") == "summary"
-        and report.get("llm_status") == "VALIDATED_ORDER"
+        and report.get("source") == "REGISTERED_INPUT"
+        and "llm_status" not in report
     )
     if not valid:
         return {
@@ -68,9 +69,12 @@ def main():
     parser.add_argument("--embedding-digest")
     parser.add_argument("--llm-model")
     parser.add_argument("--report", type=Path, required=True)
+    parser.add_argument("--log-directory", type=Path)
     args = parser.parse_args()
     if args.report.exists() or not args.report.parent.is_dir():
         parser.error("reportは既存ディレクトリ内の新規ファイルを指定してください")
+    if args.log_directory and not args.log_directory.is_dir():
+        parser.error("log-directoryは既存ディレクトリを指定してください")
     if (
         args.embedding_digest
         and re.fullmatch(r"[0-9a-f]{64}", args.embedding_digest) is None
@@ -106,6 +110,9 @@ def main():
             check=False,
         )
         results[stage] = verify_child(stage, child.returncode, child.stdout)
+        if args.log_directory:
+            with (args.log_directory / (stage + ".log")).open("x") as log:
+                log.write(child.stdout)
         print(f"結果: {stage} {results[stage]['status']}", flush=True)
     overall = result_status(results)
     revision = subprocess.run(
@@ -134,7 +141,7 @@ def main():
         "limitations": [
             "BUSINESS_INPUTS_REQUIRE_EXPLICIT_SELECTION",
             "GENERAL_LLM_GROUNDING_NOT_CERTIFIED",
-            "WEB_UI_NOT_IMPLEMENTED",
+            "BROWSER_ACCEPTANCE_RUN_SEPARATELY",
         ],
     }
     descriptor = os.open(args.report, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)

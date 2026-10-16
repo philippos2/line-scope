@@ -63,6 +63,9 @@ def test_database_unavailable_is_sanitized_503():
         {"statement_ms": 0},
         {"lock_ms": -1},
         {"connect_seconds": True},
+        {"read_agent_deadline_seconds": 0},
+        {"read_agent_deadline_seconds": -1},
+        {"read_agent_deadline_seconds": True},
         {"dsn": ""},
         {"users": []},
         {"users": {"x": {"user_id": "u", "role": "root"}}},
@@ -76,10 +79,27 @@ def test_invalid_configuration_is_rejected(values):
 def test_environment_and_secrets_hidden_in_repr(monkeypatch):
     monkeypatch.setenv("LINESCOPE_DSN", "postgresql://user:secret@localhost/database")
     monkeypatch.setenv("LINESCOPE_STATEMENT_MS", "250")
+    monkeypatch.setenv("LINESCOPE_READ_AGENT_DEADLINE_SECONDS", "75")
     monkeypatch.setenv("LINESCOPE_USERS", '{"secret-token":{"user_id":"u","role":"manager"}}')
     value = Settings.env()
     assert value.statement_ms == 250 and value.users["secret-token"]["role"] == "manager"
+    assert value.read_agent_deadline_seconds == 75
     assert "secret" not in repr(value)
+
+
+def test_read_deadline_setting_is_wired_without_changing_prepare_budget():
+    from agent.test_agent_tools import session
+    from agent.test_read_agent import ScriptedLLM
+
+    from linescope.bootstrap import build_api_services
+
+    assert Settings().read_agent_deadline_seconds == 120
+    assert session(clock=lambda: 0, prepare_authorized=True).deadline == 60
+    services = build_api_services(Settings(read_agent_deadline_seconds=75), llm=ScriptedLLM())
+    try:
+        assert services.agent.read_agent.deadline_seconds == 75
+    finally:
+        services.close()
 
 
 @pytest.mark.integration

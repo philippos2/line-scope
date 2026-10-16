@@ -65,6 +65,8 @@ def test_unsupported_analyses_are_not_mislabelled_as_downstream(case):
 
 def test_agent_does_not_repeat_unsupported_llm_claims_in_downstream_summary():
     item = observation()
+    item.result.data["representative_paths"] = [{"nodes": ["full-path-retained"]}]
+    before = deepcopy(item.result)
 
     class GraphDispatcher(Dispatcher):
         def schemas(self):
@@ -81,6 +83,13 @@ def test_agent_does_not_repeat_unsupported_llm_claims_in_downstream_summary():
     assert "未評価" in result.answer
     assert "すべて安全" not in result.answer and "0円" not in result.answer
     assert result.observations[0].result == item.result
+    import json
+
+    payload = json.loads(llm.requests[-1][0][-1]["content"])
+    assert "data" in payload and "evidence" in payload
+    assert payload["data"]["representative_paths"] == before.data["representative_paths"]
+    assert payload["evidence"] == before.evidence
+    assert result.observations[0].result == before
 
 
 def dependency_observation(tool, *, complete=True, empty=False):

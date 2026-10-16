@@ -13,10 +13,11 @@ from ..domain.canonical import canonical_json, strict_json
 class LLMError(Exception):
     """Provider failure; the caller translates it into its public error contract."""
 
-    def __init__(self, code, message):
+    def __init__(self, code, message, *, metrics=()):
         super().__init__(message)
         self.code = code
         self.message = message
+        self.metrics = metrics
 
 
 @dataclass(frozen=True)
@@ -30,6 +31,7 @@ class ToolCall:
 class LLMReply:
     content: str
     tool_calls: tuple[ToolCall, ...]
+    metrics: tuple[tuple[str, int | str], ...] = ()
 
     def assistant_message(self):
         return {
@@ -45,9 +47,41 @@ class LLMReply:
         }
 
 
+def provider_metrics(data):
+    metrics = []
+    for source, name, divisor in (
+        ("prompt_eval_count", "llm_prompt_tokens", 1),
+        ("eval_count", "llm_generated_tokens", 1),
+        ("prompt_eval_duration", "llm_prompt_ms", 1000000),
+        ("eval_duration", "llm_generate_ms", 1000000),
+        ("load_duration", "llm_load_ms", 1000000),
+    ):
+        value = data.get(source)
+        if type(value) is int and 0 <= value <= 2**63 - 1:
+            metrics.append((name, value // divisor))
+    reason = data.get("done_reason")
+    metrics.append(
+        (
+            "llm_finish_reason",
+            {"stop": "STOP", "length": "LENGTH"}.get(reason, "OTHER")
+            if type(reason) is str
+            else "OTHER",
+        )
+    )
+    message = data.get("message")
+    if type(message) is dict:
+        for key, field in (("content", "llm_content_chars"), ("thinking", "llm_thinking_chars")):
+            if type(message.get(key)) is str:
+                metrics.append((field, len(message[key])))
+    return tuple(metrics)
+
+
 def parse_reply(body, schemas):
+    metrics = ()
     try:
         data = strict_json(body)
+        if type(data) is dict:
+            metrics = provider_metrics(data)
         if (
             type(data) is not dict
             or data.get("done") is not True
@@ -83,9 +117,11 @@ def parse_reply(body, schemas):
             if type(arguments) is not dict or len(canonical_json(arguments).encode("utf-8")) > 8000:
                 raise ValueError("Invalid Tool arguments")
             parsed.append(ToolCall(str(uuid4()), function["name"], arguments))
-        return LLMReply(content, tuple(parsed))
+        return LLMReply(content, tuple(parsed), tuple(metrics))
     except (ValueError, TypeError, KeyError) as error:
-        raise LLMError("INTERNAL_ERROR", "LLM returned an invalid response") from error
+        raise LLMError(
+            "INTERNAL_ERROR", "LLM returned an invalid response", metrics=metrics
+        ) from error
 
 
 class OllamaClient:
