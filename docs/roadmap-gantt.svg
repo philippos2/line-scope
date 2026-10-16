@@ -1,9 +1,9 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1280" height="590" viewBox="0 0 1280 590" role="img" aria-labelledby="title desc">
 <title id="title">LineScope 残る業務機能と必要PR数</title>
-<desc id="desc">経済・能力・安全・計画／履歴の代表経路はmerge済み。残りは安全0〜1、計画と履歴0〜1、インフラ0〜1、品質と全業務受入2〜3、運用復旧1〜2の計3〜8 PR。</desc>
+<desc id="desc">経済・能力・安全・計画／履歴の代表経路はmerge済み。残りは安全0〜1、計画と履歴0〜1、インフラ0〜1、品質と全業務受入1〜2、運用復旧1〜2の計2〜7 PR。</desc>
 <rect width="1280" height="590" fill="white"/>
 <g font-family="sans-serif" fill="#24384b">
-<text x="24" y="34" font-size="23" font-weight="bold">残る業務機能と受入：全体約85% ／ 残り3〜8 PR（#250 merge後）</text>
+<text x="24" y="34" font-size="23" font-weight="bold">残る業務機能と受入：全体約88% ／ 残り2〜7 PR（#251 merge後）</text>
 <text x="24" y="63" font-size="15">経済・能力・安全・計画／履歴の代表経路はmerge済み。横軸は想定PR工程枠。実日程・PO判断の待ち時間は未見積もり。</text>
 <path d="M480 112V490" stroke="#dae2e9"/>
 <text x="500" y="102" font-size="14">工程1</text>
@@ -33,21 +33,21 @@
 <rect x="574" y="193" width="82" height="37" rx="4" fill="#c99640"/>
 <text x="615" y="217" text-anchor="middle" font-size="14" fill="white" font-weight="bold">0〜1 PR</text>
 <text x="24" y="281" font-size="17" font-weight="bold">インフラ分析の不足</text>
-<text x="24" y="305" font-size="13">上流依存／被影響の意味確定と不足対応</text>
-<text x="390" y="281" font-size="14" fill="#c99640">要否判断</text>
+<text x="24" y="305" font-size="13">上流依存を比較・画面・Agentへ接続</text>
+<text x="390" y="281" font-size="14" fill="#c99640">検証中</text>
 <rect x="574" y="261" width="82" height="37" rx="4" fill="#c99640"/>
 <text x="615" y="285" text-anchor="middle" font-size="14" fill="white" font-weight="bold">0〜1 PR</text>
 <text x="24" y="349" font-size="17" font-weight="bold">回答品質・全BS／Golden受入</text>
-<text x="24" y="373" font-size="13">正式入力の統合・未知・拒否・画面経路</text>
-<text x="390" y="349" font-size="14" fill="#8295a5">代表済</text>
+<text x="24" y="373" font-size="13">統合比較merge済み。全BS・未知・拒否・一般品質</text>
+<text x="390" y="349" font-size="14" fill="#8295a5">未完了</text>
 <rect x="484" y="329" width="262" height="37" rx="4" fill="#8295a5"/>
-<text x="615" y="353" text-anchor="middle" font-size="14" fill="white" font-weight="bold">2〜3 PR</text>
+<text x="615" y="353" text-anchor="middle" font-size="14" fill="white" font-weight="bold">1〜2 PR</text>
 <text x="24" y="417" font-size="17" font-weight="bold">運用・復旧受入</text>
 <text x="24" y="441" font-size="13">完成schemaで復元・派生再構築・障害復旧</text>
 <text x="390" y="417" font-size="14" fill="#8295a5">未完了</text>
 <rect x="754" y="397" width="172" height="37" rx="4" fill="#8295a5"/>
 <text x="840" y="421" text-anchor="middle" font-size="14" fill="white" font-weight="bold">1〜2 PR</text>
-<text x="24" y="518" font-size="15">安全B04/B07確定済み。次の着手条件： 計画・履歴B05/B06/B07。インフラはB08確定後の必要分。</text>
+<text x="24" y="518" font-size="15">PO-B01〜08確定済み。上流インフラ統合の検証から全BS／Golden・一般品質、運用復旧へ進む。</text>
 <text x="24" y="545" font-size="15">総合受入：正式入力のDecision Package・全BS/Golden・一般LLM/検索・対象UI経路。</text>
 <text x="24" y="572" font-size="15">各PRは画面・Agent・業務経路検証までまとめる。必要な機能・検証を削ってPR数を合わせない。</text>
 </g></svg>

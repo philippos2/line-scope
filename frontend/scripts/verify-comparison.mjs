@@ -196,6 +196,29 @@ export async function verifyComparison(page, token, approver) {
   const result = await (await response).json();
   if (result.status !== "partial" || result.data.source !== "REGISTERED_INPUT")
     throw new Error("Registered comparison response missing");
+  const upstream = result.data.decision_package.upstream_dependencies;
+  const infrastructure = upstream.reached_nodes.filter(
+    (row) => row.entity_type === "InfrastructureResource",
+  );
+  if (
+    !upstream.complete ||
+    infrastructure.length !== 1 ||
+    result.data.decision_package.impact.reached_nodes.some(
+      (row) => row.entity_type === "InfrastructureResource",
+    )
+  )
+    throw new Error(
+      "Upstream infrastructure was confused with downstream damage",
+    );
+  if (
+    result.data.evidence.upstream_dependencies.graph_generation !==
+      result.data.evidence.impact.graph_generation ||
+    !result.data.evidence.upstream_dependencies.representative_paths.length
+  )
+    throw new Error("Upstream infrastructure Evidence missing");
+  await expect(
+    panel.getByRole("region", { name: "設備が依存する上流インフラ" }),
+  ).toContainText(infrastructure[0].entity_id);
   const options = result.data.decision_package.comparison.options;
   if (
     options.find((row) => row.option === "REPAIR").total_cost !== "1900000" ||
@@ -248,6 +271,15 @@ export async function verifyComparison(page, token, approver) {
     !model.answer?.includes("候補から除外")
   )
     throw new Error("Real model registered comparison reference failed");
+  const compareTool = model.data.tool_results.find(
+    (row) => row.tool === "compare_registered_inputs",
+  );
+  if (
+    !compareTool.data.decision_package.upstream_dependencies.reached_nodes.some(
+      (row) => row.entity_id === infrastructure[0].entity_id,
+    )
+  )
+    throw new Error("Agent comparison lost upstream infrastructure");
   if (await page.evaluate(() => globalThis.comparisonInjected === true))
     throw new Error("Source executed");
   await panel

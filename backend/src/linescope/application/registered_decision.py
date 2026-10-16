@@ -77,11 +77,12 @@ class RegisteredDecisions:
         ]
         if len(set(plan_kinds)) != len(plan_kinds):
             raise ProposalError("INVALID_ARGUMENT", "Select one plan per option")
-        states, impact, equipment = self.facts(context, v["equipment_id"], allowed)
+        states, impact, upstream, equipment = self.facts(context, v["equipment_id"], allowed)
         profile = comparison(economic, capacities, safety, maintenance, states)
         package = {
             "equipment": {**equipment.data, **states[0]["data"]},
             "impact": impact.data,
+            "upstream_dependencies": upstream.data,
             "comparison": profile,
             "selected_inputs": {
                 "economic": economic,
@@ -96,6 +97,7 @@ class RegisteredDecisions:
         }
         evidence = {
             "impact": impact.evidence,
+            "upstream_dependencies": upstream.evidence,
             "states": states,
             "registered_inputs": [
                 {"source": "POSTGRESQL", "observed_at": row["observed_at"], "input": row["input"]}
@@ -119,7 +121,14 @@ class RegisteredDecisions:
             "trace_downstream_impact",
             {"target": {"entity_type": "Equipment", "entity_id": identifier}},
         )
-        return states, impact, equipment
+        upstream = self.graph.call(
+            context,
+            "trace_upstream_dependencies",
+            {"target": {"entity_type": "Equipment", "entity_id": identifier}},
+        )
+        if impact.evidence["graph_generation"] != upstream.evidence["graph_generation"]:
+            raise ToolError("GRAPH_NOT_CURRENT", "Graph generation changed; retry the analysis")
+        return states, impact, upstream, equipment
 
     @staticmethod
     def matches(message):
@@ -180,7 +189,7 @@ class RegisteredDecisions:
                     ("maintenance", self.maintenance),
                 )
             }
-            states, impact, equipment = self.facts(context, identifier, {identifier})
+            states, impact, upstream, equipment = self.facts(context, identifier, {identifier})
             profile = comparison(None, [], [], [], states)
             profile.update(document_evidence=[], document_status="NOT_CONFIGURED")
             document_evidence = {}
@@ -205,6 +214,7 @@ class RegisteredDecisions:
                 "equipment": equipment.evidence,
                 "state": states[0]["evidence"],
                 "impact": impact.evidence,
+                "upstream_dependencies": upstream.evidence,
                 "documents": document_evidence,
                 "maintenance": {
                     name: maintenance[name]["evidence"] for name in ("plans", "records")
@@ -213,6 +223,7 @@ class RegisteredDecisions:
             package = {
                 "equipment": {**equipment.data, **states[0]["data"]},
                 "impact": impact.data,
+                "upstream_dependencies": upstream.data,
                 "comparison": profile,
                 "maintenance": maintenance,
                 "comparison_period": None,
@@ -250,6 +261,7 @@ def decision_answer(data):
     excluded = [row["option"] for row in profile["options"] if row["feasibility"] == "INFEASIBLE"]
     return (
         "登録済み入力と共通期間による比較です。"
+        + "上流依存は設備が依存する資源であり、設備停止による被影響対象ではありません。"
         + (
             "現在状態・停止必須・能力制約により候補から除外：" + "、".join(excluded) + "。"
             if excluded

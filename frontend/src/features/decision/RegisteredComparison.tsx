@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { ApiError, object, request, type JsonObject } from "../../api/client";
 import type { EquipmentCandidate } from "../equipment/EquipmentCandidates";
+import { UpstreamDependencies } from "./UpstreamDependencies";
 import { DecisionComparison } from "./DecisionComparison";
 
 const groups = [
@@ -309,6 +310,9 @@ export function RegisteredComparison({
             </p>
           )}
           <DecisionComparison comparison={pkg.comparison} />
+          {object(pkg.upstream_dependencies) && (
+            <UpstreamDependencies data={pkg.upstream_dependencies} />
+          )}
           <details>
             <summary>比較期間・選択入力・Graph・Evidence</summary>
             <pre>{JSON.stringify(result, null, 2)}</pre>

@@ -10,6 +10,7 @@ import { CapacityResult } from "../features/capacity/CapacityResult";
 import { EconomicPanel } from "../features/economics/EconomicPanel";
 import { EconomicResult } from "../features/economics/EconomicResult";
 import { RegisteredComparison } from "../features/decision/RegisteredComparison";
+import { UpstreamDependencies } from "../features/decision/UpstreamDependencies";
 import { DecisionComparison } from "../features/decision/DecisionComparison";
 import {
   EquipmentCandidates,
@@ -502,7 +503,12 @@ export function App() {
               </div>
             ) : tab === "comparison" ? (
               pkg && object(pkg.comparison) ? (
-                <DecisionComparison comparison={pkg.comparison} />
+                <>
+                  <DecisionComparison comparison={pkg.comparison} />
+                  {object(pkg.upstream_dependencies) && (
+                    <UpstreamDependencies data={pkg.upstream_dependencies} />
+                  )}
+                </>
               ) : (
                 <p className="muted">
                   この応答に比較結果はありません。「正式入力から対応案を比較する」で入力と期間を選択してください。
