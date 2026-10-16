@@ -34,7 +34,7 @@
 <text x="615" y="217" text-anchor="middle" font-size="14" fill="white" font-weight="bold">0〜1 PR</text>
 <text x="24" y="281" font-size="17" font-weight="bold">インフラ分析の不足</text>
 <text x="24" y="305" font-size="13">上流依存を比較・画面・Agentへ接続</text>
-<text x="390" y="281" font-size="14" fill="#c99640">検証中</text>
+<text x="390" y="281" font-size="14" fill="#c99640">merge待ち</text>
 <rect x="574" y="261" width="82" height="37" rx="4" fill="#c99640"/>
 <text x="615" y="285" text-anchor="middle" font-size="14" fill="white" font-weight="bold">0〜1 PR</text>
 <text x="24" y="349" font-size="17" font-weight="bold">回答品質・全BS／Golden受入</text>

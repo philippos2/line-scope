@@ -18,8 +18,12 @@
 
 - 新規pytestは3ケース。正常のAPI／Agent・経路Evidence、実探索上限による部分結果、世代切替時の拒否を選定。直積追加なし。
 - 関連34ケース成功（15.67秒）。既存Starlette/httpx warningと終了時logging output failedを確認。
-- Backend format・Frontend lint／型／format／buildをDocker内で確認。最終変更後の結果は追記する。
-- 実モデル・実ブラウザの比較フローを実行中。CI・片付けを含め引渡し前に追記する。
+- Backend ruff check／format（372ファイル）・Frontend lint／型／format／buildをDocker内で確認。最終Frontend差分をmountして再検証し成功。
+- 実モデル・実ブラウザの比較フローは2回目でPASS。初回は実モデル呼出しのAGENT_LIMIT_REACHEDで失敗。制限・モデル・質問を変えず再実行し、compare_registered_inputs取得、上流インフラと下流影響の分離、経路Evidence、正式入力の計算・除外・不明・期間拒否を確認。
+- モデルは導入済み`qwen3:30b-a3b-instruct-2507-q4_K_M`。1440／768／390幅のoverflowなし、出典HTML非実行、storage非保存、接続解除時の消去を検証。390幅のスクリーンショットも確認。一般LLM品質合格とはしない。
+- 試験用Composeと2回分のブラウザ環境をvolume込みで削除し、所有するimage tag 10件を削除。継続デモは変更していない。
+- PR #252はDraft／【WIP】で作成。最終headのCI・件数・時間・収集hashとready化の記録はPR本文を参照。
+- ログは`/tmp/linescope-infrastructure-tests.log`、`/tmp/linescope-infrastructure-browser.log`（初回失敗）、`/tmp/linescope-infrastructure-browser2.log`（再実行PASS）、Frontend最終確認は`/tmp/linescope-infrastructure-frontend-final.log`。
 
 ## 残る工程
 
