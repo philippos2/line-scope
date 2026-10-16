@@ -46,3 +46,8 @@ Embeddingは導入済み`embeddinggemma:latest`、digest `85462619ee721b466c5927
 - 最終headのCI件数・時間・収集hashと片付け・ready化はPR本文に保持する。
 
 ログは`/tmp/linescope-golden-tests*.log`、`/tmp/linescope-golden-final-targets.log`、`/tmp/linescope-golden-final-check.log`、`/tmp/linescope-golden-frontend-final.log`、`/tmp/linescope-golden-browser*.log`、`/tmp/linescope-golden-read-quality*.json`、`/tmp/linescope-golden-vector.log`。ガント描画は`/tmp/linescope-golden-gantt.png`。
+
+## 初回CIの修正
+
+- head `2f94184`のCIはshard 1成功、shard 2で既存API試験1件が失敗。単一状態をサーバで要約する契約変更に対し、旧モデル文面の完全一致が残っていた。実読取り・Evidence・Tool trace・書込みなしのassertを保持し、STOPPED・version 1・原因／安全性／将来状態を推論しない説明を検証する形へ更新。新規ケースは増やしていない。
+- 修正後のAPI／状態要約試験とRuffをDocker内で再実行して成功。最新headの全CIはPR本文へ追記する。

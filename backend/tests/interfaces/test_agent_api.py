@@ -50,7 +50,9 @@ def test_agent_api_uses_real_reads_and_server_evidence(seeded):
         result = client.post("/agent", json={"message": "M-204の状態を教えて"}, headers=HEADERS)
     assert result.status_code == 200
     body = result.json()
-    assert body["answer"] == "M-204はSTOPPEDです" and body["status"] == "ok"
+    assert body["status"] == "ok"
+    assert "STOPPED" in body["answer"] and "version 1" in body["answer"]
+    assert "故障原因・安全性・将来状態はこの状態情報から判断できません" in body["answer"]
     assert body["data"]["tool_results"][1]["data"]["state_code"] == "STOPPED"
     assert body["evidence"]["tool_results"][1]["source"] == "POSTGRESQL"
     assert len(body["data"]["tool_trace"]) == 2 and not body["errors"]
