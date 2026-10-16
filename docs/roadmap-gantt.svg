@@ -40,8 +40,8 @@
 <text x="24" y="349" font-size="17" font-weight="bold">回答品質・全BS／Golden受入</text>
 <text x="24" y="373" font-size="13">統合比較merge済み。全BS・未知・拒否・一般品質</text>
 <text x="390" y="349" font-size="14" fill="#8295a5">未完了</text>
-<rect x="484" y="329" width="262" height="37" rx="4" fill="#8295a5"/>
-<text x="615" y="353" text-anchor="middle" font-size="14" fill="white" font-weight="bold">1〜2 PR</text>
+<rect x="484" y="329" width="172" height="37" rx="4" fill="#8295a5"/>
+<text x="570" y="353" text-anchor="middle" font-size="14" fill="white" font-weight="bold">1〜2 PR</text>
 <text x="24" y="417" font-size="17" font-weight="bold">運用・復旧受入</text>
 <text x="24" y="441" font-size="13">完成schemaで復元・派生再構築・障害復旧</text>
 <text x="390" y="417" font-size="14" fill="#8295a5">未完了</text>
