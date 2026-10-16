@@ -40,6 +40,12 @@ async function connect() {
   await user.type(await screen.findByLabelText("Bearer token"), "secret");
   await user.click(screen.getByRole("button", { name: "接続する" }));
   await screen.findByRole("button", { name: "接続解除" });
+  await user.click(
+    screen
+      .getByRole("navigation", { name: "業務の工程" })
+      .querySelectorAll("button")[1],
+  );
+  await user.click(screen.getByText("自分の言葉で問い合わせる"));
   return user;
 }
 it("connects and shows actual answer and server Evidence", async () => {
@@ -49,7 +55,11 @@ it("connects and shows actual answer and server Evidence", async () => {
   await user.type(screen.getByLabelText("問い合わせ"), "設備を調べる");
   await user.click(screen.getByRole("button", { name: "問い合わせを送信" }));
   await screen.findByText("取得した回答");
-  await user.click(screen.getByRole("button", { name: "Evidence" }));
+  await user.click(
+    screen
+      .getByRole("navigation", { name: "業務の工程" })
+      .querySelectorAll("button")[3],
+  );
   expect(screen.getAllByText(/server/).length).toBeGreaterThan(0);
   expect(localStorage.length).toBe(0);
   expect(sessionStorage.length).toBe(0);
@@ -107,7 +117,7 @@ it("passes server conversation context and clearly marks a partial result", asyn
   const user = await connect();
   await user.type(screen.getByLabelText("問い合わせ"), "調査");
   await user.click(screen.getByRole("button", { name: "問い合わせを送信" }));
-  await screen.findByText("PARTIAL / 部分結果");
+  await screen.findByText("一部の情報・評価が不足しています");
   await user.click(screen.getByRole("button", { name: "問い合わせを送信" }));
   await waitFor(() => expect(fetcher).toHaveBeenCalledTimes(3));
   expect(JSON.parse(fetcher.mock.calls[2][1].body)).toEqual({
@@ -146,12 +156,19 @@ it("selects a named equipment without sending and starts a fresh investigation",
   stubFetch(fetcher);
   render(<App />);
   const user = await connect();
-  await user.click(screen.getByRole("button", { name: "設備を探す" }));
+  await user.click(
+    screen
+      .getByRole("navigation", { name: "業務の工程" })
+      .querySelectorAll("button")[0],
+  );
   expect(fetcher).toHaveBeenCalledTimes(1);
-  await user.click(screen.getByRole("button", { name: "問い合わせを送信" }));
+  await user.click(screen.getByRole("button", { name: "設備を検索" }));
   await user.click(await screen.findByRole("button", { name: /予備加工機/ }));
   expect(fetcher).toHaveBeenCalledTimes(2);
-  expect(document.activeElement).toBe(screen.getByLabelText("問い合わせ"));
+  expect(
+    screen.getByRole("heading", { name: "状態・影響を調べる" }),
+  ).toBeTruthy();
+  await user.click(screen.getByText("自分の言葉で問い合わせる"));
   expect(
     (screen.getByLabelText("問い合わせ") as HTMLTextAreaElement).value,
   ).toContain("20800000-0000-4000-8000-000000000001");

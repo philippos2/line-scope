@@ -16,11 +16,13 @@ export function EconomicPanel({
   onPrepared,
   onInvestigate,
   executionEpoch,
+  initiallyOpen = false,
 }: {
   equipment: EquipmentCandidate | null;
   onPrepared: (id: string) => void;
   onInvestigate: (message: string) => void;
   executionEpoch: number;
+  initiallyOpen?: boolean;
 }) {
   const [query, setQuery] = useState("");
   const [code, setCode] = useState("");
@@ -127,7 +129,7 @@ export function EconomicPanel({
   }
   const selected = result ? readInput(result.data.input) : null;
   return (
-    <details className="economic-panel">
+    <details className="economic-panel" open={initiallyOpen || undefined}>
       <summary>正式な経済・損失入力</summary>
       <p>
         登録済みの費用・損失を探して確認します。登録・訂正には工場管理者による要求と別の工場管理者の承認が必要です。

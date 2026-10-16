@@ -1,87 +1,35 @@
 # LineScope Frontend
 
-React / TypeScript / Viteで実APIへ接続するオペレーション画面です。Backendと同じリポジトリで管理し、Docker内で起動・buildします。
+React / TypeScript / Viteから実APIへ接続する操作画面です。設備選択→状態・影響調査→対応案比較→根拠確認→変更準備→承認・実行の6工程で操作します。対象設備と現在の工程を常に表示し、比較結果とEvidenceを引き継ぎます。別の承認者は工程6から変更要求IDを開きます。
 
-## 使える機能
+## 起動と検証
 
-- tokenで接続し、日本語の問い合わせとサーバの回答を表示する。
-- 「設備を探す」から候補の設備名・コードを確認し、選択した設備の調査文を作る。送信は明示操作。
-- 取得したObjectとCURRENTの下流Graph代表経路を選択・表示する。
-- 修理・交換・継続・代替の比較、制約・不足情報・計算根拠を確認する。
-- Evidenceの情報源・観測日時・Graph世代・入力version・原文を確認する。
-- 正式経済入力を設備名・コードから検索し、出典付き見積・総額不明を確認する。設備候補を選択して登録、登録値から訂正を準備できる。
-- 明示Prepare、保存Snapshotの確認、承認・拒否、元requesterによるExecuteと結果確認。
-
-左ペインは今回取得したObjectの一覧です。全設備の検索画面ではありません。GraphはAPIの代表経路の描画で、React Flowは導入していません。「比較デモ」の費用・能力・安全条件はMOCK_FIXTUREです。「正式な経済・損失入力」は別経路で登録済み正本を使い、画面のフォーム→別管理者の承認→要求者の確定を通します。「変更準備・承認・実行」を開き、変更指示または変更要求IDから操作できます。承認者には要求IDを渡し、接続解除・再接続後に保存Snapshotを読み直します。Execute後は確定afterと現在観測を分けて表示します。通信失敗時は書き込みを自動再送せず、保存状態を再取得してください。
-
-## 起動
-
-[起動ガイド](../docs/getting-started.md#ブラウザで操作する)に従ってBackendの資格情報・seed・Graphを準備してから実行します。
-
-```sh
-docker compose -f compose.yaml -f compose.frontend.yaml --profile frontend up --build -d frontend
-```
-
-`http://127.0.0.1:5173`を開き、サーバに登録されたtokenの値だけを貼り付けて接続します。初回接続後はHttpOnlyのセッションcookieでF5後も接続を復元します。接続切替・解除は上部の「接続設定」から行えます。
-
-## 開発と検証
-
-UIのcomponentは`src/app`／`src/features`、HTTP窓口は`src/api`に置きます。APIの値を表示する責務と、サーバの業務計算・認可を分離します。
+全サービスの起動・私有設定・文書取込みは[起動ガイド](../docs/getting-started.md)を参照します。APIは同一originの `/api` 経由で呼び出し、認証tokenをbrowser storageへ保存しません。接続解除・切替で取得情報を消去します。
 
 ```sh
 docker build --target development -t linescope-frontend-check frontend
 docker run --rm linescope-frontend-check npm run check
 ```
 
-Tabで「調査領域へ移動」、EnterでボタンとGraphの一覧を操作できます。Snapshot取得後は見出し、エラー時はメッセージへフォーカスが移ります。
+業務の通し確認は `scripts/verify-workflow-browser.mjs` を使用します。**接続先へシナリオ用経済入力を1件登録・承認・実行します。** 書き込みを許可したデモ環境だけを対象にし、実業務環境へ実行しません。試験データは実DBに保存され、終了後も結果を確認できます。
 
-通常検証はlint・型チェック・format・buildです。自動テストは必要最小限とし、既存の`npm test`は任意実行です。主要操作は実ブラウザで確認します。使い捨て実API環境の確認には`python3 scripts/verify_frontend_flow.py`を使用できます。
+私有のmode 0600のenvファイルへ以下を設定します。tokenは値だけを記載し、Git・URL・コマンド引数へ含めません。
 
-[画面設計](../docs/design/frontend-console.md)、[roadmap](../docs/roadmap.md)、[開発・PR運用](../CONTRIBUTING.md)を参照してください。正式な業務仕様の入口は[deliverables](../docs/deliverables.md)です。
-
-実Embedding / Qdrantを含む引用表示の確認は、ホストOllamaに導入済みのモデルと正確なdigestを指定します。モデルの自動取得は行いません。
-
-```sh
-python3 scripts/verify_frontend_flow.py --docker-group docker \
-  --embedding-model embeddinggemma:latest \
-  --embedding-digest '<導入済みモデルの64桁digest>'
-```
-
-指定なしの場合はEmbedding / 検索を明示的なモックにして、正本・本文検証・引用表示を確認します。指定ありの失敗をモックへ自動切替しません。いずれも専用の環境と試験文書を作成・削除し、継続デモへは反映しません。実LLMの回答品質、正式な費用・能力・安全入力、全BS / Goldenの受入とは区別します。
-
-実モデルで設備候補検索を含むブラウザ確認をする場合は、導入済みモデルを指定します（自動取得なし）。指定しない既存フローは候補検索を実施しません。
+- `LINESCOPE_BROWSER_URL`：対象Frontend URL
+- `LINESCOPE_BROWSER_TOKEN`：依頼者のtoken
+- `LINESCOPE_BROWSER_APPROVER_TOKEN`：別の承認者のtoken
+- `LINESCOPE_BROWSER_OUTPUT`：container内の結果保存先（例 `/out/story`）
+- `LINESCOPE_BROWSER_REVISION`：対象実装のGit revision
 
 ```sh
-python3 scripts/verify_frontend_flow.py --docker-group docker \
-  --llm-model qwen3:30b-a3b-instruct-2507-q4_K_M
+docker build --target browser-check -t linescope-workflow-browser frontend
+docker run --rm --network host --env-file /private/browser.env \
+  -v /private/results:/out \
+  linescope-workflow-browser node scripts/verify-workflow-browser.mjs
 ```
 
-実モデルを使う経済入力のブラウザ受入は`python3 scripts/verify_frontend_flow.py --docker-group docker --llm-model qwen3:30b-a3b-instruct-2507-q4_K_M --economic-only`で確認します。導入済みモデルを使用し、自動取得しません。設備検索、経済登録・別管理者承認・確定・正式入力取得・Agent Readを実APIで確認し、Embedding / 引用検索のmockとは区別します。
+必要な事前条件はM-204の設備・依存Graph、2名のmanager、導入済みTool callingモデル、実Embedding／Qdrantとデモ参考文書です。APIを裏から呼んで準備・承認・実行を代行せず、全工程をブラウザUIから操作します。スクリーンショットとreportを出力し、未選択費用の不明表示、実検索の引用、実行後の再比較、390／768／1440pxのoverflowも確認します。
 
-正式能力入力の登録・訂正・別承認者・確定・検索・実モデルによる参照だけを確認する場合は、導入済みモデルを指定して次を実行する。
+旧3ペイン画面向けの `verify_frontend_flow.py` と機能別browser probeは旧操作の記録です。現行画面の通し受入には上記のworkflow probeを使用します。一般自然文の全件成功、全更新variant、全Business ScenarioのUI受入をこの1シナリオの成功から宣言しません。
 
-```sh
-python3 scripts/verify_frontend_flow.py --docker-group docker --llm-model qwen3:30b-a3b-instruct-2507-q4_K_M --capacity-only
-```
-
-専用環境はfinallyで削除する。継続デモへの反映や全業務受入とは区別する。
-
-安全入力の登録・訂正・承認・Agent参照の実ブラウザ確認：
-
-```sh
-python3 scripts/verify_frontend_flow.py --docker-group docker --llm-model qwen3:30b-a3b-instruct-2507-q4_K_M --safety-only
-```
-
-対応計画・故障履歴だけの実モデル／実ブラウザ確認：
-
-```sh
-python3 scripts/verify_frontend_flow.py --docker-group docker --llm-model qwen3:30b-a3b-instruct-2507-q4_K_M --maintenance-only
-```
-
-正式入力の統合比較だけの実モデル／実ブラウザ確認：
-
-```sh
-python3 scripts/verify_frontend_flow.py --docker-group docker --llm-model qwen3:30b-a3b-instruct-2507-q4_K_M --comparison-only
-```
-
-この経路は使い捨てPGへ明示fixtureを承認付き登録し、現在Graphを構築して比較する。一般LLM品質・全業務受入の合格を意味しない。
+[画面設計](../docs/design/frontend-console.md)・[ロードマップ](../docs/roadmap.md)・[開発規則](../CONTRIBUTING.md)を参照してください。

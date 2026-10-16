@@ -10,8 +10,6 @@ import { CapacityResult } from "../features/capacity/CapacityResult";
 import { EconomicPanel } from "../features/economics/EconomicPanel";
 import { EconomicResult } from "../features/economics/EconomicResult";
 import { RegisteredComparison } from "../features/decision/RegisteredComparison";
-import { UpstreamDependencies } from "../features/decision/UpstreamDependencies";
-import { DecisionComparison } from "../features/decision/DecisionComparison";
 import {
   EquipmentCandidates,
   type EquipmentCandidate,
@@ -25,7 +23,46 @@ import {
   nodeKey,
   type NodeRef,
 } from "../features/graph/model";
+const steps = [
+  ["equipment", "設備を選ぶ", "対象設備を検索して選択します。"],
+  [
+    "investigation",
+    "状態・影響を調べる",
+    "現在状態と下流の依存関係を確認します。",
+  ],
+  [
+    "comparison",
+    "対応案を比べる",
+    "登録された条件を選び、修理・交換・継続・代替を比較します。",
+  ],
+  ["evidence", "根拠を確かめる", "比較の出典と文書の引用を確認します。"],
+  [
+    "prepare",
+    "変更を準備する",
+    "必要な登録・訂正や変更内容を準備します。まだ確定しません。",
+  ],
+  [
+    "execution",
+    "承認・実行する",
+    "別の承認者が確認し、元の依頼者が実行します。",
+  ],
+] as const;
+type Step = (typeof steps)[number][0];
 export function App() {
+  const [step, setStep] = useState<Step>("equipment");
+  const [comparisonResult, setComparisonResult] = useState<Envelope | null>(
+    null,
+  );
+  const [documentResult, setDocumentResult] = useState<Envelope | null>(null);
+  const [stateResult, setStateResult] = useState<Envelope | null>(null);
+  const [comparisonStale, setComparisonStale] = useState(false);
+  const [stateEpoch, setStateEpoch] = useState(0);
+  const [search, setSearch] = useState("");
+  const [inputTab, setInputTab] = useState("economic");
+  const workspace = useRef<HTMLElement>(null);
+  useEffect(() => {
+    workspace.current?.focus();
+  }, [step]);
   const [economicPrepared, setEconomicPrepared] = useState<
     string | undefined
   >();
@@ -64,9 +101,6 @@ export function App() {
   const [result, setResult] = useState<Envelope | null>(null);
   const [error, setError] = useState("");
   const [selected, setSelected] = useState<NodeRef | null>(null);
-  const [tab, setTab] = useState<
-    "impact" | "comparison" | "evidence" | "trace"
-  >("impact");
   const [stale, setStale] = useState(false);
   const current = useRef(0);
   const abort = useRef<AbortController | null>(null);
@@ -95,7 +129,13 @@ export function App() {
     token.current = "";
     retry.current = null;
     setDraftToken("");
+    setSearch("");
+    setComparisonStale(false);
     setEquipment(null);
+    setComparisonResult(null);
+    setDocumentResult(null);
+    setStateResult(null);
+    setStep("equipment");
     setEconomicPrepared(undefined);
     freshContext.current = false;
     setConnected(false);
@@ -158,6 +198,10 @@ export function App() {
         setShowConnection(false);
         setDraftToken("");
         setEquipment(null);
+        setComparisonResult(null);
+        setDocumentResult(null);
+        setStateResult(null);
+        setStep("equipment");
         setEconomicPrepared(undefined);
         freshContext.current = false;
         setConnected(true);
@@ -168,8 +212,14 @@ export function App() {
     event.preventDefault();
     if (!connected || !message.trim()) return;
     setStale(true);
+    await sendInvestigation(message);
+  }
+  async function sendInvestigation(text: string) {
+    if (!connected || busy || !text.trim()) return;
+    setMessage(text);
+    setStale(true);
     const body = {
-      message,
+      message: text,
       ...(!freshContext.current && result?.context_id
         ? { context_id: result.context_id }
         : {}),
@@ -189,6 +239,16 @@ export function App() {
       (value) => {
         freshContext.current = false;
         setResult(value);
+        if (text.startsWith("文書検索：")) setDocumentResult(value);
+        if (
+          Array.isArray(value.data.tool_results) &&
+          value.data.tool_results.some(
+            (row) => object(row) && row.tool === "get_equipment_state",
+          )
+        ) {
+          setStateResult(value);
+          setStateEpoch(executionEpoch);
+        }
         setEconomicPrepared(undefined);
         setSelected(null);
         setStale(false);
@@ -202,6 +262,12 @@ export function App() {
   }
   function chooseEquipment(item: EquipmentCandidate) {
     setEquipment(item);
+    setComparisonResult(null);
+    setDocumentResult(null);
+    setStateResult(null);
+    setResult(null);
+    setStale(false);
+    setStep("investigation");
     draftInvestigation(
       `Equipment ID ${item.equipment_id} の現在状態と下流の依存到達対象・経路を調べて。実停止・能力・安全性の未評価事項を示して。変更要求は作成しないでください。`,
     );
@@ -231,29 +297,32 @@ export function App() {
         }
       : result;
   const view = analysisResult ? graphView(analysisResult) : null;
-  const pkg =
-    analysisResult && object(analysisResult.data.decision_package)
-      ? analysisResult.data.decision_package
-      : null;
+  const activeIndex = steps.findIndex(([key]) => key === step);
+  const showQuery =
+    step === "equipment" || step === "investigation" || step === "evidence";
+  const evidenceResult = comparisonResult ?? analysisResult;
+  function prepareInput(id: string) {
+    setEconomicPrepared(id);
+    setStep("execution");
+  }
   return (
     <>
-      {connected && !showConnection && (
-        <a className="skip-link" href="#workspace">
-          調査領域へ移動
-        </a>
-      )}
+      <a className="skip-link" href="#workspace">
+        操作画面へ移動
+      </a>
       <header>
-        <div>
+        <div className="brand-block">
           <strong>LineScope</strong>
-          <span className="muted">製造オペレーション / 調査ワークスペース</span>
+          <span className="muted">設備の調査と対応</span>
         </div>
-        <div>
+        <div className="connection-bar">
           <span className="badge">
             {connected ? `接続中：${identity}` : "未接続"}
           </span>
           <button onClick={() => setShowConnection(true)} disabled={restoring}>
             接続設定
           </button>
+          {connected && <button onClick={disconnect}>接続解除</button>}
         </div>
       </header>
       {restoring ? (
@@ -262,20 +331,19 @@ export function App() {
         </main>
       ) : !connected || showConnection ? (
         <main className="connect">
-          <h1>業務データへ接続</h1>
+          <p className="eyebrow">はじめに</p>
+          <h1>LineScopeに接続する</h1>
+          <p>
+            設備を選び、状態と影響を調べ、対応案の比較から承認付きの変更まで進めます。
+          </p>
           {connected && (
             <p>
               現在の接続：{identity}{" "}
               <button onClick={() => setShowConnection(false)}>
-                調査画面へ戻る
-              </button>{" "}
-              <button onClick={disconnect}>接続解除</button>
+                操作画面へ戻る
+              </button>
             </p>
           )}
-          <p className="muted">
-            サーバに登録されたBearer
-            tokenで認証します。権限はサーバが判定します。
-          </p>
           <form onSubmit={connect}>
             <label htmlFor="token">Bearer token</label>
             <input
@@ -286,349 +354,479 @@ export function App() {
               autoComplete="off"
               spellCheck={false}
             />
-            <button disabled={busy || !draftToken.trim()}>
+            <button className="primary" disabled={busy || !draftToken.trim()}>
               {busy ? "確認中…" : "接続する"}
             </button>
           </form>
           <p className="muted">
-            F5後もセッションを復元します。tokenはサーバ側に保持し、ブラウザにはHttpOnlyのセッションcookieを使用します。
+            管理者から受け取った接続tokenを入力してください。承認を行う際は、別の承認者で接続し直します。
           </p>
-          <p role="alert">{error}</p>
+          {error && <p role="alert">{error}</p>}
         </main>
       ) : (
-        <div className="layout">
-          <aside>
-            <div className="section-label">今回取得したOBJECT</div>
-            {view?.nodes.map((item) => (
-              <button
-                className="object"
-                key={nodeKey(item)}
-                onClick={() => setSelected(item)}
-                aria-pressed={
-                  selected !== null && nodeKey(selected) === nodeKey(item)
-                }
-              >
-                <strong>{label(result!, item)}</strong>
-                <small>{item.entity_type}</small>
-              </button>
-            ))}
-            {!view && <p className="muted">分析後に取得対象を表示します。</p>}
-            <button onClick={disconnect}>接続解除</button>
-            {selected && result && (
-              <section>
-                <h2>Object詳細</h2>
-                <pre>{JSON.stringify(detail(result, selected), null, 2)}</pre>
-              </section>
-            )}
-          </aside>
-          <main id="workspace" className="workspace" tabIndex={-1}>
-            <div className="title">
-              <h1>影響と根拠を調べる</h1>
-              {result && (
-                <span
-                  className={`badge ${result.status === "partial" ? "warning" : ""}`}
+        <div className="workflow-layout">
+          <aside className="workflow-sidebar">
+            <p className="section-label">操作の流れ</p>
+            <nav aria-label="業務の工程">
+              {steps.map(([key, title], index) => (
+                <button
+                  key={key}
+                  aria-current={step === key ? "step" : undefined}
+                  disabled={busy}
+                  onClick={() => setStep(key)}
                 >
-                  {result.status === "partial"
-                    ? "PARTIAL / 部分結果"
-                    : "取得済み結果"}
-                </span>
+                  <span className="step-number">{index + 1}</span>
+                  <span>{title}</span>
+                </button>
+              ))}
+            </nav>
+            <p className="muted">
+              承認者は「6 承認・実行する」から変更要求IDを開けます。
+            </p>
+          </aside>
+          <main
+            id="workspace"
+            className="workflow-workspace"
+            ref={workspace}
+            tabIndex={-1}
+          >
+            <div className="equipment-context">
+              <div>
+                <span className="muted">対象設備</span>
+                <strong>
+                  {equipment
+                    ? `${equipment.equipment_name}（${equipment.equipment_code}）`
+                    : "まだ選択していません"}
+                </strong>
+              </div>
+              {equipment && (
+                <button disabled={busy} onClick={() => setStep("equipment")}>
+                  設備を選び直す
+                </button>
               )}
             </div>
-            {pkg && (
-              <p className="notice">
-                正式入力と観測時点の比較です。未選択・情報不足の値は不明として表示します。
+            <div className="workflow-heading">
+              <p className="eyebrow">STEP {activeIndex + 1} / 6</p>
+              <h1>{steps[activeIndex][1]}</h1>
+              <p>{steps[activeIndex][2]}</p>
+            </div>
+            {error && (
+              <p className="notice" role="alert">
+                {error}
               </p>
             )}
-            {stale && result && (
-              <p className="notice">
-                前回の結果です。現在の業務状態とは異なる可能性があります。再調査してください。
+            {busy && (
+              <p className="notice" role="status">
+                取得中です。ローカルLLMを使う調査は最大120秒程度かかります。
               </p>
             )}
-            {view && (
-              <div className="metrics">
-                <div>
-                  Graph同期（取得時）
-                  <strong>
-                    {typeof view.data.graph_sync_state === "string"
-                      ? view.data.graph_sync_state
-                      : "未確認"}
-                  </strong>
-                </div>
-                <div>
-                  探索
-                  <strong>
-                    {view.data.complete === true
-                      ? "探索範囲を確認済み"
-                      : "不完全 / 未確認"}
-                  </strong>
-                </div>
-                <div>
-                  描画対象
-                  <strong>
-                    {view.nodes.length}件{view.limited ? " / 表示制限あり" : ""}
-                  </strong>
-                </div>
-              </div>
-            )}
-            {result && (
-              <EquipmentCandidates
-                result={result}
-                disabled={busy || stale}
-                onSelect={chooseEquipment}
-              />
-            )}
-            <RegisteredComparison
-              key={equipment?.equipment_id ?? "none"}
-              equipment={equipment}
-              executionEpoch={executionEpoch}
-              onInvestigate={draftInvestigation}
-            />
-            <MaintenancePanel
-              equipment={equipment}
-              onPrepared={setEconomicPrepared}
-              onInvestigate={draftInvestigation}
-              executionEpoch={executionEpoch}
-            />
-            <SafetyPanel
-              equipment={equipment}
-              onPrepared={setEconomicPrepared}
-              onInvestigate={draftInvestigation}
-              executionEpoch={executionEpoch}
-            />
-            <CapacityPanel
-              equipment={equipment}
-              onPrepared={setEconomicPrepared}
-              onInvestigate={draftInvestigation}
-              executionEpoch={executionEpoch}
-            />
-            <EconomicPanel
-              equipment={equipment}
-              onPrepared={setEconomicPrepared}
-              onInvestigate={draftInvestigation}
-              executionEpoch={executionEpoch}
-            />
-            <ActionPanel
-              onExecution={() => {
-                setStale(true);
-                setExecutionEpoch((value) => value + 1);
-              }}
-              preparedId={
-                economicPrepared ??
-                (typeof result?.data.update_request_id === "string"
-                  ? result.data.update_request_id
-                  : undefined)
-              }
-            />
-            {Array.isArray(result?.data.tool_results) &&
-              result.data.tool_results
-                .filter(object)
-                .filter(
-                  (row) =>
-                    row.tool === "get_economic_input" && object(row.data),
-                )
-                .map((row, index) => (
-                  <EconomicResult
-                    key={index}
-                    data={row.data as Record<string, unknown>}
-                    stale={stale}
-                  />
-                ))}
-            {Array.isArray(result?.data.tool_results) &&
-              result.data.tool_results
-                .filter(object)
-                .filter(
-                  (row) =>
-                    row.tool === "get_capacity_input" && object(row.data),
-                )
-                .map((row, index) => (
-                  <CapacityResult
-                    key={index}
-                    data={row.data as Record<string, unknown>}
-                    stale={stale}
-                  />
-                ))}
-            {Array.isArray(result?.data.tool_results) &&
-              result.data.tool_results
-                .filter(object)
-                .filter(
-                  (row) => row.tool === "get_safety_input" && object(row.data),
-                )
-                .map((row, index) => (
-                  <SafetyResult
-                    key={index}
-                    data={row.data as Record<string, unknown>}
-                    stale={stale}
-                  />
-                ))}
-            {Array.isArray(result?.data.tool_results) &&
-              result.data.tool_results
-                .filter(object)
-                .filter(
-                  (row) =>
-                    row.tool === "get_maintenance_input" && object(row.data),
-                )
-                .map((row, index) => (
-                  <MaintenanceResult
-                    key={index}
-                    data={row.data as Record<string, unknown>}
-                    stale={stale}
-                  />
-                ))}
-            <nav className="tabs" aria-label="結果表示">
-              {(["impact", "comparison", "evidence", "trace"] as const).map(
-                (key) => (
-                  <button
-                    key={key}
-                    aria-pressed={tab === key}
-                    onClick={() => setTab(key)}
-                  >
-                    {key === "impact"
-                      ? "影響・経路"
-                      : key === "comparison"
-                        ? "対応案の比較"
-                        : key === "evidence"
-                          ? "Evidence"
-                          : "公開Tool Trace"}
-                  </button>
-                ),
-              )}
-            </nav>
-            {!result ? (
-              <div className="empty">
-                <h2>問い合わせから調査を始める</h2>
-                <p>取得した依存関係、回答、根拠を同じ画面で確認します。</p>
-                <p className="muted">
-                  Graph / RAG / モデルの準備状態は未確認です。
-                </p>
-              </div>
-            ) : tab === "comparison" ? (
-              pkg && object(pkg.comparison) ? (
-                <>
-                  <DecisionComparison comparison={pkg.comparison} />
-                  {object(pkg.upstream_dependencies) && (
-                    <UpstreamDependencies data={pkg.upstream_dependencies} />
-                  )}
-                </>
-              ) : (
-                <p className="muted">
-                  この応答に比較結果はありません。「正式入力から対応案を比較する」で入力と期間を選択してください。
-                </p>
-              )
-            ) : tab === "impact" ? (
-              view ? (
-                <>
-                  <GraphCanvas
-                    view={view}
-                    result={analysisResult ?? result}
-                    selected={selected ? nodeKey(selected) : null}
-                    onSelect={setSelected}
-                  />
-                  <p className="notice">
-                    依存関係の到達です。実際の停止・能力・安全性・経済影響を保証しません。
-                  </p>
-                  {Boolean(view.data.limit_reason) && (
-                    <p>探索制限：{String(view.data.limit_reason)}</p>
-                  )}
-                </>
-              ) : (
-                <p className="muted">
-                  この応答に下流Graph結果はありません。回答とEvidenceを確認してください。
-                </p>
-              )
-            ) : tab === "evidence" ? (
-              <EvidencePanel result={analysisResult ?? result} />
-            ) : (
-              <section>
-                <h2>公開Tool Trace</h2>
-                <pre>
-                  {JSON.stringify(result.data.tool_trace ?? [], null, 2)}
-                </pre>
-              </section>
-            )}
-            {result?.warnings.length !== undefined &&
-              result.warnings.length > 0 && (
-                <details>
-                  <summary>注意事項</summary>
-                  <pre>{JSON.stringify(result.warnings, null, 2)}</pre>
-                </details>
-              )}
-            {result && <p className="muted">request_id: {result.request_id}</p>}
-          </main>
-          <aside className="agent">
-            <div className="section-label">INVESTIGATOR</div>
-            <form onSubmit={investigate}>
-              <label htmlFor="message">問い合わせ</label>
-              <textarea
-                ref={messageInput}
-                id="message"
-                value={message}
-                onChange={(e) => setMessage(e.target.value)}
-                rows={5}
-              />
-              {equipment && (
-                <p>
-                  選択した設備：{equipment.equipment_name}（
-                  {equipment.equipment_code}）
-                </p>
-              )}
-              <div className="presets">
-                <button
-                  type="button"
-                  disabled={busy}
-                  onClick={() =>
-                    draftInvestigation(
-                      "登録設備を検索して候補を表示して。検索条件は指定しません。変更要求は作成しないでください。",
-                    )
-                  }
-                >
-                  設備を探す
-                </button>
-                <button
-                  type="button"
-                  disabled={busy || !equipment}
-                  onClick={() => equipment && chooseEquipment(equipment)}
-                >
-                  選んだ設備の下流影響を調べる
-                </button>
-                <button
-                  type="button"
-                  disabled={busy}
-                  onClick={() => {
-                    setEquipment(null);
-                    draftInvestigation(
-                      "M-204の異常について影響・修理・交換・代替を比較して",
-                      false,
+            {step === "equipment" && (
+              <section className="workflow-card">
+                <h2>設備名・コードから探す</h2>
+                <form
+                  onSubmit={(event) => {
+                    event.preventDefault();
+                    freshContext.current = true;
+                    void sendInvestigation(
+                      search.trim()
+                        ? `設備名またはコードに「${search.trim()}」を含む設備を検索して候補を表示して。変更要求は作成しないでください。`
+                        : "登録設備を検索して候補を表示して。検索条件は指定しません。変更要求は作成しないでください。",
                     );
                   }}
                 >
-                  正式入力を探す
-                </button>
-              </div>
-              <button className="primary" disabled={busy || !message.trim()}>
-                {busy ? "調査中…" : "問い合わせを送信"}
-              </button>
-            </form>
-            <p className="muted">
-              設備名やコードの一部で検索するよう問い合わせることもできます。
-              比較には正式入力と共通期間を選択してください。明示的な更新依頼は変更準備を作成し得ます。承認・実行は別の操作です。
-            </p>
-            <p role="alert">{error}</p>
-            {result && (
-              <section className="answer">
-                <h2>回答</h2>
-                <p>
-                  {result.answer ??
-                    "回答文はありません。構造化結果を確認してください。"}
-                </p>
+                  <label htmlFor="equipment-search">
+                    設備名・コード（空欄なら登録設備を検索）
+                  </label>
+                  <div className="search-row">
+                    <input
+                      id="equipment-search"
+                      value={search}
+                      onChange={(event) => setSearch(event.target.value)}
+                      placeholder="設備名やコードの一部"
+                    />
+                    <button className="primary" disabled={busy}>
+                      設備を検索
+                    </button>
+                  </div>
+                </form>
+                {result && (
+                  <EquipmentCandidates
+                    result={result}
+                    disabled={busy || stale}
+                    onSelect={chooseEquipment}
+                  />
+                )}
+                {!result && (
+                  <p className="muted">
+                    検索結果から対象を選ぶと、状態・影響の調査へ進みます。
+                  </p>
+                )}
               </section>
             )}
-            {result && (
-              <details>
-                <summary>構造化結果</summary>
-                <pre>{JSON.stringify(result.data, null, 2)}</pre>
+            {step === "investigation" && (
+              <>
+                {!equipment ? (
+                  <p className="notice">
+                    先に「1 設備を選ぶ」で対象を選択してください。
+                  </p>
+                ) : (
+                  <div className="task-actions">
+                    <button
+                      disabled={busy}
+                      onClick={() => {
+                        freshContext.current = true;
+                        void sendInvestigation(
+                          `Equipment ID ${equipment.equipment_id} の現在のstate_codeとversionを正本から取得して。原因や安全性を推測しないでください。変更要求は作成しないでください。`,
+                        );
+                      }}
+                    >
+                      現在状態を確認
+                    </button>
+                    <button
+                      disabled={busy}
+                      onClick={() => {
+                        freshContext.current = true;
+                        void sendInvestigation(
+                          `Equipment ID ${equipment.equipment_id} から下流の依存到達対象を全ての通常依存関係で調べて。relation_typesにPRECEDESを含め、SUPPLIES、USES、PRODUCES、CONTROLS、DEPENDS_ONも対象とする。実停止・能力・安全性の未評価事項も示して。変更要求は作成しないでください。`,
+                        );
+                      }}
+                    >
+                      下流の影響候補を調べる
+                    </button>
+                  </div>
+                )}
+                {stateResult && (
+                  <section className="workflow-card">
+                    <h2>設備の登録状態</h2>
+                    <p>{stateResult.answer}</p>
+                    {(stale || stateEpoch !== executionEpoch) && (
+                      <p className="notice">再取得前の状態です。</p>
+                    )}
+                  </section>
+                )}
+                {analysisResult && (
+                  <section className="workflow-card">
+                    <h2>調査結果</h2>
+                    <span
+                      className={`badge ${analysisResult.status === "partial" ? "warning" : ""}`}
+                    >
+                      {analysisResult.status === "partial"
+                        ? "一部の情報・評価が不足しています"
+                        : "取得済み結果"}
+                    </span>
+                    {(stale || stateEpoch !== executionEpoch) && (
+                      <p className="notice">
+                        前回取得した結果です。現在の状態は再取得してください。
+                      </p>
+                    )}
+                    <p className="answer">{analysisResult.answer}</p>
+                    {Array.isArray(result?.data.tool_results) &&
+                      result.data.tool_results
+                        .filter(object)
+                        .map((row, index) =>
+                          object(row.data) ? (
+                            row.tool === "get_economic_input" ? (
+                              <EconomicResult
+                                key={index}
+                                data={row.data}
+                                stale={stale}
+                              />
+                            ) : row.tool === "get_capacity_input" ? (
+                              <CapacityResult
+                                key={index}
+                                data={row.data}
+                                stale={stale}
+                              />
+                            ) : row.tool === "get_safety_input" ? (
+                              <SafetyResult
+                                key={index}
+                                data={row.data}
+                                stale={stale}
+                              />
+                            ) : row.tool === "get_maintenance_input" ? (
+                              <MaintenanceResult
+                                key={index}
+                                data={row.data}
+                                stale={stale}
+                              />
+                            ) : null
+                          ) : null,
+                        )}
+                    {view && (
+                      <>
+                        <GraphCanvas
+                          view={view}
+                          result={analysisResult}
+                          selected={selected ? nodeKey(selected) : null}
+                          onSelect={setSelected}
+                        />
+                        <p className="notice">
+                          依存関係の到達候補です。実際の停止・能力・安全性を保証しません。探索：
+                          {view.data.complete === true
+                            ? "指定範囲は完了"
+                            : "不完全・未確認"}
+                          ／Graph同期：
+                          {String(view.data.graph_sync_state ?? "未確認")}
+                        </p>
+                      </>
+                    )}
+                    {selected && (
+                      <details open>
+                        <summary>
+                          {label(analysisResult, selected)}の詳細
+                        </summary>
+                        <pre>
+                          {JSON.stringify(
+                            detail(analysisResult, selected),
+                            null,
+                            2,
+                          )}
+                        </pre>
+                      </details>
+                    )}
+                  </section>
+                )}
+              </>
+            )}
+            <section
+              hidden={step !== "comparison"}
+              aria-label="対応案を比較する工程"
+            >
+              {!equipment && (
+                <p className="notice">先に対象設備を選んでください。</p>
+              )}
+              <RegisteredComparison
+                key={equipment?.equipment_id ?? "none"}
+                equipment={equipment}
+                executionEpoch={executionEpoch}
+                onResult={(value) => {
+                  setComparisonResult(value);
+                  setComparisonStale(false);
+                }}
+                onInvestigate={(text) => {
+                  draftInvestigation(text, false);
+                  setStep("investigation");
+                }}
+              />
+              <button onClick={() => setStep("prepare")}>
+                比較に必要な入力を登録・訂正する
+              </button>
+            </section>
+            {step === "evidence" && (
+              <>
+                {evidenceResult ? (
+                  <section className="workflow-card">
+                    <h2>
+                      {comparisonResult
+                        ? "対応案比較の根拠"
+                        : "直近の調査の根拠"}
+                    </h2>
+                    {(stale || comparisonStale) && (
+                      <p className="notice">
+                        変更前・前回取得の結果を含みます。再調査・再比較してください。
+                      </p>
+                    )}
+                    <EvidencePanel result={evidenceResult} />
+                  </section>
+                ) : (
+                  <p className="notice">
+                    調査または比較を実行すると、その根拠を表示します。
+                  </p>
+                )}
+                <section className="workflow-card">
+                  <h2>関連文書を検索する</h2>
+                  <p>
+                    実文書の抜粋と引用元を確認します。文書は運転許可や確定判断の代わりにはなりません。
+                  </p>
+                  <button
+                    disabled={busy || !equipment}
+                    onClick={() => {
+                      freshContext.current = true;
+                      void sendInvestigation(
+                        `文書検索：${equipment?.equipment_code}の保全調査`,
+                      );
+                    }}
+                  >
+                    選択設備の関連文書を検索
+                  </button>
+                  {documentResult && <EvidencePanel result={documentResult} />}
+                </section>
+              </>
+            )}
+            <section
+              hidden={step !== "prepare"}
+              aria-label="変更の入力を準備する工程"
+            >
+              <p className="notice">
+                比較で不足している情報は、以下から登録・訂正できます。保存後は「6
+                承認・実行する」へ進みます。
+              </p>
+              <nav className="input-categories" aria-label="登録する情報の種類">
+                {[
+                  ["economic", "費用・経済"],
+                  ["capacity", "生産能力"],
+                  ["safety", "安全条件"],
+                  ["maintenance", "対応計画・故障履歴"],
+                ].map(([key, title]) => (
+                  <button
+                    key={key}
+                    aria-pressed={inputTab === key}
+                    onClick={() => setInputTab(key)}
+                  >
+                    {title}
+                  </button>
+                ))}
+              </nav>
+              <div hidden={inputTab !== "economic"}>
+                <EconomicPanel
+                  initiallyOpen
+                  key={"economic:" + (equipment?.equipment_id ?? "none")}
+                  equipment={equipment}
+                  onPrepared={prepareInput}
+                  onInvestigate={(text) => {
+                    draftInvestigation(text, false);
+                    setStep("investigation");
+                  }}
+                  executionEpoch={executionEpoch}
+                />
+              </div>
+              <div hidden={inputTab !== "capacity"}>
+                <CapacityPanel
+                  initiallyOpen
+                  key={"capacity:" + (equipment?.equipment_id ?? "none")}
+                  equipment={equipment}
+                  onPrepared={prepareInput}
+                  onInvestigate={(text) => {
+                    draftInvestigation(text, false);
+                    setStep("investigation");
+                  }}
+                  executionEpoch={executionEpoch}
+                />
+              </div>
+              <div hidden={inputTab !== "safety"}>
+                <SafetyPanel
+                  initiallyOpen
+                  key={"safety:" + (equipment?.equipment_id ?? "none")}
+                  equipment={equipment}
+                  onPrepared={prepareInput}
+                  onInvestigate={(text) => {
+                    draftInvestigation(text, false);
+                    setStep("investigation");
+                  }}
+                  executionEpoch={executionEpoch}
+                />
+              </div>
+              <div hidden={inputTab !== "maintenance"}>
+                <MaintenancePanel
+                  initiallyOpen
+                  key={"maintenance:" + (equipment?.equipment_id ?? "none")}
+                  equipment={equipment}
+                  onPrepared={prepareInput}
+                  onInvestigate={(text) => {
+                    draftInvestigation(text, false);
+                    setStep("investigation");
+                  }}
+                  executionEpoch={executionEpoch}
+                />
+              </div>
+              <p>
+                設備状態などの変更は、次の工程で対象と変更内容を指定して準備できます。
+              </p>
+              <button onClick={() => setStep("execution")}>
+                変更指示を入力する
+              </button>
+            </section>
+            <section
+              hidden={step !== "execution"}
+              aria-label="承認と実行の工程"
+            >
+              <ol className="approval-guide">
+                <li>依頼者：変更を準備し、変更要求IDを控える。</li>
+                <li>
+                  別の承認者：接続を切り替え、IDから保存内容を読み直して承認する。
+                </li>
+                <li>元の依頼者：再接続し、IDから読み直して実行する。</li>
+              </ol>
+              <ActionPanel
+                initiallyOpen
+                onExecution={() => {
+                  setStale(true);
+                  setComparisonStale(true);
+                  setExecutionEpoch((value) => value + 1);
+                }}
+                preparedId={
+                  economicPrepared ??
+                  (typeof result?.data.update_request_id === "string"
+                    ? result.data.update_request_id
+                    : undefined)
+                }
+              />
+              <button onClick={() => setStep("comparison")}>
+                実行後の入力で再比較する
+              </button>
+              <button onClick={() => setStep("investigation")}>
+                実行後の状態を調べる
+              </button>
+            </section>
+            {showQuery && (
+              <details className="free-query">
+                <summary>自分の言葉で問い合わせる</summary>
+                <form onSubmit={investigate}>
+                  <label htmlFor="message">問い合わせ</label>
+                  <textarea
+                    ref={messageInput}
+                    id="message"
+                    value={message}
+                    onChange={(event) => setMessage(event.target.value)}
+                    rows={4}
+                  />
+                  <button disabled={busy || !message.trim()}>
+                    問い合わせを送信
+                  </button>
+                </form>
+                <p className="muted">
+                  明示的な変更指示は変更準備を作成する場合があります。承認・実行は自動で行いません。
+                </p>
               </details>
             )}
-          </aside>
+            <footer className="workflow-footer">
+              {activeIndex > 0 && (
+                <button
+                  disabled={busy}
+                  onClick={() => setStep(steps[activeIndex - 1][0])}
+                >
+                  ← {steps[activeIndex - 1][1]}
+                </button>
+              )}
+              {activeIndex < steps.length - 1 && (
+                <button
+                  className="primary"
+                  disabled={busy || (!equipment && step !== "prepare")}
+                  onClick={() => setStep(steps[activeIndex + 1][0])}
+                >
+                  次へ：{steps[activeIndex + 1][1]} →
+                </button>
+              )}
+            </footer>
+            {result && (
+              <details className="technical-details">
+                <summary>取得情報・処理の詳細</summary>
+                <p>request_id: {result.request_id}</p>
+                <pre>
+                  {JSON.stringify(
+                    {
+                      trace: result.data.tool_trace,
+                      warnings: result.warnings,
+                      errors: result.errors,
+                      data: result.data,
+                    },
+                    null,
+                    2,
+                  )}
+                </pre>
+              </details>
+            )}
+          </main>
         </div>
       )}
     </>

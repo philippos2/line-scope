@@ -1,26 +1,15 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="420" viewBox="0 0 1280 420" role="img" aria-labelledby="title desc">
-<title id="title">LineScope デモ完成までの最終工程</title>
-<desc id="desc">代表受入とPR #255は完了。常設画面を復旧。実検索の常設接続と文書投入を残す。</desc>
-<rect width="1280" height="420" fill="white"/>
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="440" viewBox="0 0 1280 440" role="img" aria-labelledby="title desc">
+<title id="title">LineScopeの常設導入とシナリオUIの残工程</title>
+<desc id="desc">全体約90%。工程1は全必須部品の常設接続、工程2はシナリオUIと最終通し確認、工程3は開発依頼者の操作確認。残り1から2 PR。</desc>
+<rect width="1280" height="440" fill="white"/>
 <g font-family="sans-serif" fill="#24384b">
-<text x="24" y="35" font-size="23" font-weight="bold">代表受入100% ／ 常設デモの実検索接続が残る</text>
-<text x="24" y="68" font-size="15">横軸は確認の順序。日程ではない。工程1・2は完了。工程3の常設検索接続が残る。</text>
-<path d="M490 115V330 M720 115V330 M950 115V330 M1180 115V330" stroke="#dae2e9"/>
-<text x="605" y="105" text-anchor="middle" font-size="15">工程1</text>
-<text x="835" y="105" text-anchor="middle" font-size="15">工程2</text>
-<text x="1065" y="105" text-anchor="middle" font-size="15">工程3</text>
-<text x="24" y="155" font-size="17" font-weight="bold">代表経路・起動・再現確認</text>
-<text x="24" y="180" font-size="13">実接続、正式比較、承認更新、主要UI</text>
-<rect x="494" y="133" width="222" height="40" rx="4" fill="#507ca0"/>
-<text x="605" y="159" text-anchor="middle" font-size="15" fill="white">確認済み</text>
-<text x="24" y="230" font-size="17" font-weight="bold">CI・引渡し・merge</text>
-<text x="24" y="255" font-size="13">安全と整合性を維持し、未受入を明示</text>
-<rect x="724" y="208" width="222" height="40" rx="4" fill="#8295a5"/>
-<text x="835" y="234" text-anchor="middle" font-size="15" fill="white">完了（#255）</text>
-<text x="24" y="305" font-size="17" font-weight="bold">常設デモの利用確認</text>
-<text x="24" y="330" font-size="13">画面復旧済み、実検索接続・文書投入が残る</text>
-<rect x="954" y="283" width="222" height="40" rx="4" fill="#8295a5"/>
-<text x="1065" y="309" text-anchor="middle" font-size="15" fill="white">常設RAGを接続</text>
-<text x="24" y="380" font-size="15" fill="#357354">新規機能PRは不要。常設の実検索・引用まで利用できる状態を確認する。</text>
-<text x="24" y="410" font-size="14">目的：開発依頼者が一連の業務と仕組みを確認できるデモ・習作。商用SLAは求めない。</text>
+<text x="24" y="36" font-size="24" font-weight="bold">全体 約90% ／ 残り1〜2 PR（今回1＋操作確認による修正0〜1）</text>
+<text x="24" y="70" font-size="15">API試験の成功だけを全体完成としない。常設UIでの一連操作と、開発依頼者の確認を残す。</text>
+<path d="M490 120V350 M720 120V350 M950 120V350 M1180 120V350" stroke="#d8e1ea"/>
+<text x="605" y="110" text-anchor="middle" font-size="16">工程1</text><text x="835" y="110" text-anchor="middle" font-size="16">工程2</text><text x="1065" y="110" text-anchor="middle" font-size="16">工程3</text>
+<text x="24" y="159" font-size="18" font-weight="bold">全必須部品の常設導入</text><text x="24" y="185" font-size="13">DB・Graph・Vector・モデル・API・画面</text><rect x="494" y="138" width="222" height="42" rx="4" fill="#357354"/><text x="605" y="165" text-anchor="middle" font-size="16" fill="white">接続・実検索確認済み</text>
+<text x="24" y="239" font-size="18" font-weight="bold">シナリオUI・最終検証</text><text x="24" y="265" font-size="13">調査→比較→根拠→準備→承認→実行</text><rect x="724" y="218" width="222" height="42" rx="4" fill="#446d95"/><text x="835" y="245" text-anchor="middle" font-size="16" fill="white">実装・初回通し済／進行中</text>
+<text x="24" y="319" font-size="18" font-weight="bold">開発依頼者の操作確認</text><text x="24" y="345" font-size="13">分かりにくさ・操作上の支障を確認、修正</text><rect x="954" y="298" width="222" height="42" rx="4" fill="#966c29"/><text x="1065" y="325" text-anchor="middle" font-size="16" fill="white">未完了</text>
+<text x="24" y="397" font-size="15">工程1・2は今回の同じPR。工程3で修正が必要なら0〜1 PR。無条件の完成宣言はしない。</text>
+<text x="24" y="426" font-size="14">自然文の精度・レイテンシの改善は別課題。認可・承認・データ整合性は維持する。</text>
 </g></svg>

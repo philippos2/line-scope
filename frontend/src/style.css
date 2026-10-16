@@ -662,3 +662,198 @@ aside > button {
 :is(.economic-panel, .capacity-panel, .safety-panel, .maintenance-panel) pre {
   max-height: 320px;
 }
+
+/* 業務の順番と対象を画面全体で共有する。 */
+.workflow-layout {
+  display: grid;
+  grid-template-columns: 240px minmax(0, 1fr);
+  min-height: calc(100vh - 70px);
+}
+.workflow-sidebar {
+  padding: 28px 18px;
+}
+.workflow-sidebar nav {
+  display: grid;
+  gap: 10px;
+}
+.workflow-sidebar nav button {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  text-align: left;
+  min-height: 58px;
+  background: transparent;
+  border-color: transparent;
+}
+.workflow-sidebar nav button[aria-current="step"] {
+  background: #214248;
+  border-color: var(--accent);
+  color: #fff;
+}
+.step-number {
+  display: grid;
+  place-items: center;
+  flex: 0 0 28px;
+  height: 28px;
+  border: 1px solid currentColor;
+  border-radius: 50%;
+}
+.workflow-workspace {
+  min-width: 0;
+  width: 100%;
+  max-width: 1200px;
+  padding: 28px 40px 60px;
+}
+.equipment-context,
+.workflow-footer,
+.connection-bar,
+.search-row,
+.task-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.equipment-context {
+  justify-content: space-between;
+  padding: 16px 20px;
+  background: #192a35;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+.equipment-context strong {
+  display: block;
+  font-size: 18px;
+}
+.workflow-heading {
+  margin: 30px 0 24px;
+}
+.workflow-heading h1 {
+  font-size: 30px;
+}
+.workflow-heading p:last-child {
+  color: var(--muted);
+  font-size: 16px;
+}
+.eyebrow {
+  color: var(--accent);
+  font-weight: 650;
+  font-size: 12px;
+  letter-spacing: 0.08em;
+}
+.workflow-card {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 24px;
+  margin: 20px 0;
+}
+.workflow-card h2 {
+  margin-top: 0;
+  font-size: 19px;
+}
+.search-row input {
+  flex: 1 1 260px;
+  margin: 8px 0;
+}
+.search-row .primary,
+.workflow-footer .primary {
+  width: auto;
+}
+.task-actions button {
+  border-color: var(--accent);
+  padding: 14px 20px;
+}
+.workflow-footer {
+  justify-content: space-between;
+  border-top: 1px solid var(--line);
+  margin-top: 32px;
+  padding-top: 24px;
+}
+.free-query,
+.technical-details {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 18px;
+  margin-top: 24px;
+}
+summary {
+  cursor: pointer;
+}
+.approval-guide {
+  padding: 16px 20px 16px 40px;
+  background: var(--panel);
+}
+.approval-guide li {
+  padding: 6px;
+}
+.registered-comparison {
+  margin-top: 0;
+}
+.registered-comparison section label {
+  display: block;
+}
+input[type="checkbox"] {
+  width: auto;
+}
+@media (max-width: 900px) {
+  .workflow-layout {
+    grid-template-columns: 1fr;
+  }
+  .workflow-sidebar {
+    border-right: 0;
+    border-bottom: 1px solid var(--line);
+    padding: 14px;
+  }
+  .workflow-sidebar nav {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 4px;
+  }
+  .workflow-sidebar .section-label,
+  .workflow-sidebar > p.muted {
+    display: none;
+  }
+  .workflow-sidebar nav button {
+    padding: 8px;
+    font-size: 12px;
+    gap: 6px;
+  }
+  .workflow-workspace {
+    padding: 24px;
+  }
+}
+@media (max-width: 500px) {
+  .brand-block .muted {
+    display: block;
+  }
+  .workflow-workspace {
+    padding: 18px 14px;
+  }
+  .workflow-heading h1 {
+    font-size: 25px;
+  }
+  .workflow-card {
+    padding: 16px;
+  }
+  .workflow-sidebar nav {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .workflow-footer button,
+  .task-actions button {
+    width: 100%;
+  }
+}
+.input-categories {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin: 20px 0;
+}
+.input-categories button[aria-pressed="true"] {
+  background: #214248;
+}
+.workflow-workspace
+  :is(.economic-panel, .capacity-panel, .safety-panel, .maintenance-panel)
+  > summary {
+  font-size: 19px;
+}
