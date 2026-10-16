@@ -26,7 +26,7 @@ SYSTEM_PROMPT = """あなたはLineScopeの参照専用アシスタントです�
 find_alternative_pathsは明示した重要対象と除外対象について全必須条件と一段代替の構造を評価する。purpose=SUBSTITUTIONは一段置換で通常の依存経路ではない。find_single_point_failure_candidatesは重要対象ごとに候補を一つずつ除外する。candidate_nodes省略は必須上流の自動探索、空配列は評価なし。
 DEPENDENCY_FULFILLMENTのESTABLISHED・AVAILABLE・CANDIDATEは構造だけの判定。NOT_CANDIDATEはその対象・候補・範囲だけの結果。INDETERMINATE・UNKNOWNを代替なしやSPOFなしとしない。DEPENDENCY_REACHABILITYは到達探索だけ。どちらも実停止・能力・安全・経済はnot_evaluatedに従い未評価と説明する。complete=trueでも全評価済み・不明なし・問題なしとしない。complete=falseは探索不完全。非CURRENT・Tool失敗を影響なしとしない。
 【説明】graph_node_catalog / graph_edge_catalogでnode_ref / edge_refを解決する。Tool引数には参照名でなく実IDを使う。UUID・JSON・経路全件を再列挙せず、詳細とEvidenceは構造化結果を案内する。RAG・計算は公開Toolで実取得した結果だけ説明する。稼働状態だけで安全や原因を断定しない。
-Tool結果のserver_summaryは検証済みの要約です。経路や数値を再計算せず参照してください。取得結果が単一分野のGraph分析、経済・能力・安全・保全入力、設備状態だけならサーバが要約する。この場合だけ、必要な取得後の最終本文を「確認完了。」とする。複数分野・複数Graph・保全実績・文書検索等の混在調査では、全結果に基づいて質問全体へ回答する。必要な他情報は先に取得する。それ以外の最終回答は100〜200字程度で対象・結果・完全性・不明事項を優先し、繰返しを避ける。
+取得結果が単一分野のGraph分析、経済・能力・安全・保全入力、設備状態だけならサーバが要約する。この場合だけ、必要な取得後の最終本文を「確認完了。」とする。複数分野・複数Graph・保全実績・文書検索等の混在調査では、全結果に基づいて質問全体へ回答する。必要な他情報は先に取得する。それ以外の最終回答は100〜200字程度で対象・結果・完全性・不明事項を優先し、繰返しを避ける。
 """
 
 
@@ -47,18 +47,8 @@ class ReadAgentResult:
 
 
 def model_tool_payload(tool, result):
-    """Keep full server results; bound the planner's reachability path context."""
+    """Keep server Evidence intact; send identical Graph paths only once."""
     evidence = dict(result.evidence)
-    data = result.data
-    summary = supported_answer([ReadObservation("", tool, result)])
-    paths_in_response = bool(summary) and tool in {
-        "trace_downstream_impact",
-        "trace_upstream_dependencies",
-        "find_common_dependencies",
-    }
-    if paths_in_response:
-        data = {key: value for key, value in data.items() if key != "representative_paths"}
-        evidence.pop("representative_paths", None)
     if (
         tool in GRAPH_TOOLS
         and "representative_paths" in result.data
@@ -66,20 +56,9 @@ def model_tool_payload(tool, result):
     ):
         del evidence["representative_paths"]
         evidence["representative_paths_location"] = "data.representative_paths"
-    payload = (
-        graph_model_view(data, evidence)
-        if tool in GRAPH_TOOLS
-        else {"data": data, "evidence": evidence}
-    )
-    if summary:
-        payload["server_summary"] = summary
-    if paths_in_response:
-        payload["model_view"] = {
-            "representative_paths": "OMITTED_FROM_MODEL_ONLY",
-            "detail_location": "HTTP response data.tool_results and evidence.tool_results",
-            "instruction": "詳細経路はモデル入力にはありません。経路を推測せず、HTTP応答の構造化結果を案内してください。探索のcompleteとモデル入力の省略は別です。",
-        }
-    return payload
+    if tool in GRAPH_TOOLS:
+        return graph_model_view(result.data, evidence)
+    return {"data": result.data, "evidence": evidence}
 
 
 def supported_answer(observations, *, has_errors=False):
@@ -135,11 +114,13 @@ class ReadAgent:
             schemas = session.schemas() if session.calls < session.max_calls else {}
             started = monotonic()
             result_code, output_bytes, tool_count = "OK", 0, 0
+            metrics = {}
             try:
                 reply = self.llm.complete(messages, schemas=schemas, deadline=session.deadline)
                 if isinstance(reply, LLMReply):
                     output_bytes = len(canonical_json(reply.assistant_message()).encode("utf-8"))
                     tool_count = len(reply.tool_calls)
+                    metrics = dict(reply.metrics)
                 else:
                     raise LLMError("INTERNAL_ERROR", "Invalid internal LLM reply")
             except LLMError as error:
@@ -167,6 +148,7 @@ class ReadAgent:
                         ),
                         llm_output_bytes=output_bytes,
                         llm_tool_count=tool_count,
+                        **metrics,
                     )
             session.check_deadline()
             if not isinstance(reply, LLMReply):

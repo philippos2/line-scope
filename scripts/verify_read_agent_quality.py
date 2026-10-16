@@ -272,6 +272,11 @@ def main():
                                             "llm_input_bytes",
                                             "llm_output_bytes",
                                             "llm_tool_count",
+                                            "llm_prompt_tokens",
+                                            "llm_generated_tokens",
+                                            "llm_prompt_ms",
+                                            "llm_generate_ms",
+                                            "llm_load_ms",
                                         )
                                         if key in event
                                     }

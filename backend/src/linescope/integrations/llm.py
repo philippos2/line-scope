@@ -30,6 +30,7 @@ class ToolCall:
 class LLMReply:
     content: str
     tool_calls: tuple[ToolCall, ...]
+    metrics: tuple[tuple[str, int], ...] = ()
 
     def assistant_message(self):
         return {
@@ -83,7 +84,18 @@ def parse_reply(body, schemas):
             if type(arguments) is not dict or len(canonical_json(arguments).encode("utf-8")) > 8000:
                 raise ValueError("Invalid Tool arguments")
             parsed.append(ToolCall(str(uuid4()), function["name"], arguments))
-        return LLMReply(content, tuple(parsed))
+        metrics = []
+        for source, name, divisor in (
+            ("prompt_eval_count", "llm_prompt_tokens", 1),
+            ("eval_count", "llm_generated_tokens", 1),
+            ("prompt_eval_duration", "llm_prompt_ms", 1000000),
+            ("eval_duration", "llm_generate_ms", 1000000),
+            ("load_duration", "llm_load_ms", 1000000),
+        ):
+            value = data.get(source)
+            if type(value) is int and 0 <= value <= 2**63 - 1:
+                metrics.append((name, value // divisor))
+        return LLMReply(content, tuple(parsed), tuple(metrics))
     except (ValueError, TypeError, KeyError) as error:
         raise LLMError("INTERNAL_ERROR", "LLM returned an invalid response") from error
 

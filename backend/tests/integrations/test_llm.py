@@ -50,6 +50,11 @@ def test_invalid_provider_reply_is_sanitized(changes):
 
 def test_reasoning_dropped_and_tool_arguments_retained():
     raw = body(
+        prompt_eval_count=128,
+        eval_count=4,
+        prompt_eval_duration=10000000,
+        eval_duration=20000000,
+        load_duration="secret",
         message={
             "role": "assistant",
             "content": "",
@@ -64,10 +69,16 @@ def test_reasoning_dropped_and_tool_arguments_retained():
                     },
                 }
             ],
-        }
+        },
     )
     reply = parse_reply(raw, SCHEMAS)
     assert reply.tool_calls[0].arguments == {"equipment_id": "id"}
+    assert dict(reply.metrics) == {
+        "llm_prompt_tokens": 128,
+        "llm_generated_tokens": 4,
+        "llm_prompt_ms": 10,
+        "llm_generate_ms": 20,
+    }
     assert "secret" not in repr(reply) and "thinking" not in reply.assistant_message()
     assert reply.assistant_message()["tool_calls"][0]["function"]["index"] == 0
 
