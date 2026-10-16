@@ -26,7 +26,7 @@ SYSTEM_PROMPT = """あなたはLineScopeの参照専用アシスタントです�
 find_alternative_pathsは明示した重要対象と除外対象について全必須条件と一段代替の構造を評価する。purpose=SUBSTITUTIONは一段置換で通常の依存経路ではない。find_single_point_failure_candidatesは重要対象ごとに候補を一つずつ除外する。candidate_nodes省略は必須上流の自動探索、空配列は評価なし。
 DEPENDENCY_FULFILLMENTのESTABLISHED・AVAILABLE・CANDIDATEは構造だけの判定。NOT_CANDIDATEはその対象・候補・範囲だけの結果。INDETERMINATE・UNKNOWNを代替なしやSPOFなしとしない。DEPENDENCY_REACHABILITYは到達探索だけ。どちらも実停止・能力・安全・経済はnot_evaluatedに従い未評価と説明する。complete=trueでも全評価済み・不明なし・問題なしとしない。complete=falseは探索不完全。非CURRENT・Tool失敗を影響なしとしない。
 【説明】graph_node_catalog / graph_edge_catalogでnode_ref / edge_refを解決する。Tool引数には参照名でなく実IDを使う。UUID・JSON・経路全件を再列挙せず、詳細とEvidenceは構造化結果を案内する。RAG・計算は公開Toolで実取得した結果だけ説明する。稼働状態だけで安全や原因を断定しない。
-単一Graph分析、経済・能力・安全・保全入力、単一設備状態の要約はサーバが作る。質問に必要な取得がそろったら最終本文は「確認完了。」だけとする。複数分析や他情報が必要なら先に取得する。それ以外の最終回答は100〜200字程度で対象・結果・完全性・不明事項を優先し、繰返しを避ける。
+Tool結果のserver_summaryは検証済みの要約です。経路や数値を再計算せず参照してください。取得結果が単一分野のGraph分析、経済・能力・安全・保全入力、設備状態だけならサーバが要約する。この場合だけ、必要な取得後の最終本文を「確認完了。」とする。複数分野・複数Graph・保全実績・文書検索等の混在調査では、全結果に基づいて質問全体へ回答する。必要な他情報は先に取得する。それ以外の最終回答は100〜200字程度で対象・結果・完全性・不明事項を優先し、繰返しを避ける。
 """
 
 
@@ -56,9 +56,36 @@ def model_tool_payload(tool, result):
     ):
         del evidence["representative_paths"]
         evidence["representative_paths_location"] = "data.representative_paths"
-    if tool in GRAPH_TOOLS:
-        return graph_model_view(result.data, evidence)
-    return {"data": result.data, "evidence": evidence}
+    payload = (
+        graph_model_view(result.data, evidence)
+        if tool in GRAPH_TOOLS
+        else {"data": result.data, "evidence": evidence}
+    )
+    summary = supported_answer([ReadObservation("", tool, result)])
+    if summary:
+        payload["server_summary"] = summary
+    return payload
+
+
+def supported_answer(observations, *, has_errors=False):
+    """A domain summary must cover the whole investigation, not win by priority."""
+    tools = {item.tool for item in observations}
+    auxiliary = {"search_equipment", "get_equipment"}
+    groups = (
+        ({"search_safety_inputs", "get_safety_input"}, (safety_answer,)),
+        ({"search_maintenance_inputs", "get_maintenance_input"}, (maintenance_answer,)),
+        ({"search_capacity_inputs", "get_capacity_input"}, (capacity_answer,)),
+        ({"search_economic_inputs", "get_economic_input"}, (economic_answer,)),
+        (GRAPH_TOOLS, (downstream_answer, dependency_answer, fulfillment_answer)),
+        ({"get_equipment_state"}, (state_answer,)),
+    )
+    for domain, renderers in groups:
+        if tools <= domain | auxiliary:
+            for render in renderers:
+                answer = render(observations, has_errors=has_errors)
+                if answer:
+                    return answer
+    return None
 
 
 class ReadAgent:
@@ -159,14 +186,7 @@ class ReadAgent:
                         ),
                         None,
                     )
-                    or safety_answer(observations, has_errors=bool(errors))
-                    or maintenance_answer(observations, has_errors=bool(errors))
-                    or capacity_answer(observations, has_errors=bool(errors))
-                    or economic_answer(observations, has_errors=bool(errors))
-                    or downstream_answer(observations, has_errors=bool(errors))
-                    or dependency_answer(observations, has_errors=bool(errors))
-                    or fulfillment_answer(observations, has_errors=bool(errors))
-                    or state_answer(observations, has_errors=bool(errors))
+                    or supported_answer(observations, has_errors=bool(errors))
                     or reply.content
                 )
                 if request.explicit_as_of:

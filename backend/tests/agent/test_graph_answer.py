@@ -81,6 +81,11 @@ def test_agent_does_not_repeat_unsupported_llm_claims_in_downstream_summary():
     assert "未評価" in result.answer
     assert "すべて安全" not in result.answer and "0円" not in result.answer
     assert result.observations[0].result == item.result
+    import json
+
+    payload = json.loads(llm.requests[-1][0][-1]["content"])
+    assert payload["server_summary"] == result.answer
+    assert "data" in payload and "evidence" in payload
 
 
 def dependency_observation(tool, *, complete=True, empty=False):
