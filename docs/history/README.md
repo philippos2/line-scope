@@ -605,3 +605,5 @@ Dockerで追加36テスト成功、ruff check / format、git diff --check成功�
 - [正式入力の統合比較checkpoint](2026-10-16-registered-decision-checkpoint.md)
 
 - [上流インフラの業務分析統合](2026-10-16-infrastructure-acceptance-checkpoint.md)：PO-B08確定、比較・画面・Agentの接続と検証記録。
+
+- [比較の条件・費用差・履歴根拠の統合](2026-10-16-business-comparison-checkpoint.md)：構造・能力・安全の分離、費用差、履歴とリスク根拠、ガント配置の修正。
