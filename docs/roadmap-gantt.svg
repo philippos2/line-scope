@@ -25,28 +25,28 @@
 <text x="24" y="145" font-size="17" font-weight="bold">安全条件・リスク</text>
 <text x="24" y="169" font-size="13">登録・判定は完了。残る統合受入の不足対応</text>
 <text x="390" y="145" font-size="14" fill="#c99640">統合待ち</text>
-<rect x="484" y="125" width="172" height="37" rx="4" fill="#c99640"/>
-<text x="570" y="149" text-anchor="middle" font-size="14" fill="white" font-weight="bold">0〜1 PR</text>
+<rect x="754" y="125" width="82" height="37" rx="4" fill="#c99640"/>
+<text x="795" y="149" text-anchor="middle" font-size="14" fill="white" font-weight="bold">0〜1 PR</text>
 <text x="24" y="213" font-size="17" font-weight="bold">対応計画・故障履歴</text>
 <text x="24" y="237" font-size="13">修理／交換案・作業／調達時間・故障事実</text>
 <text x="390" y="213" font-size="14" fill="#c99640">検証中</text>
-<rect x="664" y="193" width="172" height="37" rx="4" fill="#c99640"/>
-<text x="750" y="217" text-anchor="middle" font-size="14" fill="white" font-weight="bold">1〜2 PR</text>
+<rect x="484" y="193" width="172" height="37" rx="4" fill="#c99640"/>
+<text x="570" y="217" text-anchor="middle" font-size="14" fill="white" font-weight="bold">1〜2 PR</text>
 <text x="24" y="281" font-size="17" font-weight="bold">インフラ分析の不足</text>
 <text x="24" y="305" font-size="13">上流依存／被影響の意味確定と不足対応</text>
 <text x="390" y="281" font-size="14" fill="#c99640">要否判断</text>
-<rect x="844" y="261" width="82" height="37" rx="4" fill="#c99640"/>
-<text x="885" y="285" text-anchor="middle" font-size="14" fill="white" font-weight="bold">0〜1 PR</text>
+<rect x="574" y="261" width="82" height="37" rx="4" fill="#c99640"/>
+<text x="615" y="285" text-anchor="middle" font-size="14" fill="white" font-weight="bold">0〜1 PR</text>
 <text x="24" y="349" font-size="17" font-weight="bold">回答品質・全BS／Golden受入</text>
 <text x="24" y="373" font-size="13">正式入力の統合・未知・拒否・画面経路</text>
 <text x="390" y="349" font-size="14" fill="#8295a5">未完了</text>
-<rect x="844" y="329" width="262" height="37" rx="4" fill="#8295a5"/>
-<text x="975" y="353" text-anchor="middle" font-size="14" fill="white" font-weight="bold">2〜3 PR</text>
+<rect x="664" y="329" width="262" height="37" rx="4" fill="#8295a5"/>
+<text x="795" y="353" text-anchor="middle" font-size="14" fill="white" font-weight="bold">2〜3 PR</text>
 <text x="24" y="417" font-size="17" font-weight="bold">運用・復旧受入</text>
 <text x="24" y="441" font-size="13">完成schemaで復元・派生再構築・障害復旧</text>
 <text x="390" y="417" font-size="14" fill="#8295a5">未完了</text>
-<rect x="1114" y="397" width="82" height="37" rx="4" fill="#8295a5"/>
-<text x="1155" y="421" text-anchor="middle" font-size="14" fill="white" font-weight="bold">1〜2 PR</text>
+<rect x="934" y="397" width="172" height="37" rx="4" fill="#8295a5"/>
+<text x="1020" y="421" text-anchor="middle" font-size="14" fill="white" font-weight="bold">1〜2 PR</text>
 <text x="24" y="518" font-size="15">安全B04/B07確定済み。次の着手条件： 計画・履歴B05/B06/B07。インフラはB08確定後の必要分。</text>
 <text x="24" y="545" font-size="15">総合受入：正式入力のDecision Package・全BS/Golden・一般LLM/検索・対象UI経路。</text>
 <text x="24" y="572" font-size="15">各PRは画面・Agent・業務経路検証までまとめる。必要な機能・検証を削ってPR数を合わせない。</text>

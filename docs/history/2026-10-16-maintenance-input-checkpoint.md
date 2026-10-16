@@ -24,7 +24,8 @@
 - 初期試験で移植時のHTTP期待値の誤りを検出・修正。新規の業務拒否は既存のBUSINESS_RULE_VIOLATION=422に合わせて確認する。これは実装の認可を緩める変更ではない。
 - Dockerの書込userとhost権限が不一致のため最初のmount上ruff修正が失敗。host uid 1000のuserを指定して実行する。最新backend/scriptsをmountした結果だけを検証記録に採用する。
 - 関連121件成功（12.05秒）。FrontendのDocker内lint・型チェック・format・build成功。既存のStarlette/httpx警告と終了時logging出力失敗メッセージあり。
-- 最終回帰は実行中。実モデル・実ブラウザ、最新head CI、最終片付けは未完了。完了後に結果を追記する。
+- 全体回帰は3,901成功・1skip・1失敗（362.08秒）。失敗はmigration後のtable一覧の期待値にmaintenance_inputを追加し忘れたこと。期待集合へ新tableを追加し、該当schema suite 29件が成功（2.53秒）。
+- 実モデル・実ブラウザ、最新head CI、最終片付けは未完了。完了後に結果を追記する。
 
 ## 次の再開点
 

@@ -255,7 +255,7 @@ Rebuildの既存flag復旧はleader取得後に旧公開generationとrebuild_id�
 
 Decision Packageの計算結果・仮定・比較案は更新Transactionではない。観測した入力version・時刻を保持し、確定済みafterや現在値と区別する。Graph分析のshared lockやCURRENT確認は§16を維持する。新計算の入力取得を全ストアの同時Snapshotと説明しない。
 
-UC-B14の将来停止はrequirements PO-B05確定まで既存EquipmentState UPDATEで予約しない。保全予定CREATEは設備を自動停止しない。新しい業務入力・予約更新・Hard Safety ConstraintのExecute時検証を導入する場合、カテゴリ、Snapshot schema、全Target検証、状態遷移、競合・期限・冪等性・Outbox要否を明示改訂する。未確定の新規則を、既存許可状態間の遷移へ暗黙に挿入しない。
+UC-B14の将来停止は保全予定として扱い、既存EquipmentState UPDATEへ自動実行予約を追加しない。保全予定CREATEは設備を自動停止しない。新しい業務入力・予約更新・Hard Safety ConstraintのExecute時検証を導入する場合、カテゴリ、Snapshot schema、全Target検証、状態遷移、競合・期限・冪等性・Outbox要否を明示改訂する。未確定の新規則を、既存許可状態間の遷移へ暗黙に挿入しない。
 
 既存のApproval / Execute / Outbox / Rebuild遷移とlock取得順は変更しない。数値計算の完了や案の実行可能表示は承認・承認消費・更新commitを意味しない。
 

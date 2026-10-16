@@ -291,18 +291,18 @@ A=現仕様に存在、B=現仕様から一部導出可能、C=現仕様には�
 | production capacity | A | CapacityInputで製品・数量単位/hour・評価期間別の通常能力を明示登録 |
 | available capacity | B | CapacityInputの通常能力から重複しない使用中・予約負荷を控除。不明・網羅性未確認はUNKNOWN |
 | required production volume | B | CapacityInputの必要能力は同一製品・期間の毎時率。可変需要・calendarを含む総量計画は未対応 |
-| repair cost | C | 保全実績resultは費用項目ではない |
-| repair duration | C | 予定期間は修理所要時間の保証ではない |
-| replacement cost | C | 交換費用なし |
-| replacement duration | C | 交換作業期間なし |
-| parts lead time | C | 調達期間なし |
-| next planned maintenance | B | PLANNEDのMaintenancePlan期間から候補抽出可能。「次回」の選択条件はPO-B05 |
-| next planned replacement | C | MaintenancePlanに保全／交換の種別なし |
+| repair cost | A | MaintenanceInputに交換費を除く直接費JPYを出典付き登録。保全実績resultから生成しない |
+| repair duration | A | MaintenanceInputのwork_hours。保全予定期間を作業時間と同一視しない |
+| replacement cost | A | MaintenanceInputのreplacement_cost_jpyと明示的算入条件 |
+| replacement duration | A | MaintenanceInputのwork_hours。停止時間downtime_hoursと区別 |
+| parts lead time | A | MaintenanceInputのlead_time_hours。全期間停止や作業時間へ変換しない |
+| next planned maintenance | B | 将来PLANNEDの最早開始から抽出。同時刻は利用者が選択。不完全な検索は選定不能 |
+| next planned replacement | B | REPLACEMENT_PLANの正式入力と関連MaintenancePlanを明示参照。保全予定だけから交換を推測しない |
 | degradation / stopped distinction | C | STOPPEDは存在するが、劣化の観測・程度・継続条件なし |
 | safety stop criteria | A | SafetyInputに適用期間・観測・基準の出典・登録上の停止判断を保持。基準の数値を推測しない |
 | permissible continued-operation conditions | A | SafetyInputの確認済み条件と適用期間。単一記録の条件付き評価であり実運転許可ではない |
-| failure history | C | 状態履歴は停止原因を示さず、STOPPEDを故障と同一視できない |
-| maintenance history | A | MaintenanceRecordと設備・実施時刻・result。費用・故障分類等は別途必要 |
+| failure history | A | MaintenanceInputのFAILURE_RECORDに事象期間・出典・過去損失を登録。STOPPEDから生成しない |
+| maintenance history | A | 既存MaintenanceRecordの実績と、MaintenanceInputのREPAIR_RECORDの出典・時間・費用を区別して参照 |
 | quality loss | C | 不良量・金額・損失との重複規則なし |
 | production buffer | A | CapacityInputに同一製品・単位の利用可能bufferを明示登録。在庫台帳ではない |
 | permissible downtime | B | PO-B03の一定需要・供給等の条件下でbuffer÷毎時不足量。一般の納期引当は未対応 |
