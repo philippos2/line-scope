@@ -31,6 +31,13 @@
 
 出力は共通Envelope。
 
+### Graphで明示選択した対象の調査
+
+`message`が`関係分析 `で始まる場合、後続は`{"tool":"find_common_dependencies","arguments":{"targets":[...]}}`の厳密JSONとする。許可するのは§19〜23の5 Graph分析と`get_equipment` / `get_process` / `get_production_operation` / `get_product` / `get_infrastructure_resource`だけ。外側JSONは`tool`と`arguments`のみ、argumentsはobject必須。LLMによる対象ID・探索引数の再生成を行わず、既存Tool dispatcherの引数検証・認可・Graph同期gate・探索上限をそのまま適用する。
+
+新規の個別Tool HTTP endpointは設けない。Prepare・Approval・Execute・任意SQL/Cypher・その他Toolへの汎用dispatchは認めない。新規調査として`context_id`と`replace_update_request_id`を拒否する。明示時刻は既存`as_of`契約で固定し、未知・不完全・EvidenceとTool traceを通常の参照Envelopeに保持する。引数不正や権限不足は通常のToolエラーとし、LLMへのfallbackや成功への変換を行わない。
+
+
 ## 3. GET /update-requests/{id}
 
 閲覧権限を確認し、canonical Snapshot、snapshot_hash、status、approval status、expires_atを返す。

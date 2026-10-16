@@ -276,3 +276,89 @@ def test_agent_graph_model_view_and_returned_evidence_are_separate():
     assert restore(payload["data"], payload)["representative_paths"] == paths
     assert "representative_paths" not in payload["evidence"]
     assert outcome.observations[0].result.evidence["representative_paths"] == paths
+
+
+def explicit_request(command, **extra):
+    import json
+
+    return AgentInput.parse(
+        context(),
+        json.dumps({"message": "関係分析 " + json.dumps(command), **extra}),
+        received_at=NOW,
+    )
+
+
+def test_explicit_graph_selection_preserves_ids_and_evidence_without_llm():
+    selected = [{"entity_type": "Product", "entity_id": str(UUID(int=4))}]
+    arguments = {"important_targets": selected, "candidate_nodes": []}
+
+    class SelectedDispatcher(Dispatcher):
+        def schemas(self):
+            return {"find_single_point_failure_candidates": {"type": "object"}}
+
+        def run(self, ctx, tool, supplied, **kwargs):
+            assert ctx.authenticated_user_id == "floor1"
+            assert tool == "find_single_point_failure_candidates"
+            assert supplied == arguments
+            return ReadResult(
+                {"findings": [], "complete": True}, {"source": "NEO4J_AND_POSTGRESQL"}
+            )
+
+    llm = ScriptedLLM()
+    result = ReadAgent(SelectedDispatcher(), llm).run(
+        context(),
+        explicit_request({"tool": "find_single_point_failure_candidates", "arguments": arguments}),
+    )
+    assert not llm.requests
+    assert result.observations[0].result.data["findings"] == []
+    assert result.observations[0].result.evidence["source"] == "NEO4J_AND_POSTGRESQL"
+
+
+@pytest.mark.parametrize(
+    "command",
+    [
+        {"tool": "prepare_equipment_state_update", "arguments": {}},
+        {"tool": "execute", "arguments": {}},
+        {"tool": "get_equipment", "arguments": {}, "role": "manager"},
+        {"tool": "get_equipment", "arguments": None},
+        {"tool": [], "arguments": {}},
+    ],
+)
+def test_explicit_graph_rejects_writes_and_malformed_commands(command):
+    dispatcher, llm = Dispatcher(), ScriptedLLM()
+    with pytest.raises(ToolError, match="Invalid explicit graph investigation"):
+        ReadAgent(dispatcher, llm).run(context(), explicit_request(command))
+    assert dispatcher.calls == 0 and not llm.requests
+
+
+def test_explicit_graph_uses_existing_authorization_failure():
+    dispatcher = Dispatcher(["AUTHORIZATION_DENIED"])
+    llm = ScriptedLLM()
+    with pytest.raises(ToolError) as error:
+        ReadAgent(dispatcher, llm).run(
+            context(),
+            explicit_request(
+                {
+                    "tool": "get_equipment",
+                    "arguments": {"equipment_id": str(UUID(int=1))},
+                }
+            ),
+        )
+    assert error.value.code == "AUTHORIZATION_DENIED"
+    assert dispatcher.calls == 1 and not llm.requests
+
+
+def test_explicit_graph_does_not_bypass_uuid_argument_validation():
+    llm = ScriptedLLM()
+    with pytest.raises(ToolError) as error:
+        ReadAgent(ToolDispatcher(None), llm).run(
+            context(),
+            explicit_request(
+                {
+                    "tool": "get_equipment",
+                    "arguments": {"equipment_id": "not-a-uuid"},
+                }
+            ),
+        )
+    assert error.value.code == "INVALID_ARGUMENT"
+    assert not llm.requests
