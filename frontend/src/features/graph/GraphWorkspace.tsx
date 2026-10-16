@@ -188,6 +188,14 @@ export function GraphWorkspace({
                 result={result}
                 selected={selection ? nodeKey(selection) : null}
                 onSelect={onSelect}
+                classification={
+                  downstream
+                    ? "影響候補"
+                    : active?.key === "upstream_dependencies" ||
+                        active?.key.startsWith("trace_upstream_dependencies:")
+                      ? "依存先"
+                      : "関係先"
+                }
               />
             </div>
             <section

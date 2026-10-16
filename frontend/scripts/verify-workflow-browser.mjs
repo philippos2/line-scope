@@ -113,6 +113,12 @@ try {
   await expect(
     page.locator(".react-flow__node.entity-InfrastructureResource"),
   ).toBeVisible();
+  if (
+    (await page.locator(".node-classification").allTextContents()).some(
+      (text) => text.includes("影響候補"),
+    )
+  )
+    throw new Error("Upstream dependencies were labelled as downstream impact");
   await mark("upstream");
   await page.getByLabel("表示するGraph分析").selectOption("impact");
   const productNode = page.locator(".react-flow__node.entity-Product").first();
@@ -123,6 +129,9 @@ try {
   await expect(
     page.getByRole("region", { name: "選択ノードと根拠経路" }),
   ).toContainText("製品");
+  await page
+    .locator(".graph-workspace")
+    .screenshot({ path: `${output}/graph-selection.png` });
   await page.getByRole("button", { name: "Graphを拡大", exact: true }).click();
   await page
     .getByRole("button", { name: "全ノードを表示", exact: true })

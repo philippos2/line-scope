@@ -27,11 +27,13 @@ export function GraphCanvas({
   result,
   selected,
   onSelect,
+  classification = "影響候補",
 }: {
   view: GraphView;
   result: Envelope;
   selected: string | null;
   onSelect: (node: NodeRef) => void;
+  classification?: string;
 }) {
   const direct = useMemo(
     () =>
@@ -98,9 +100,9 @@ export function GraphCanvas({
                 <strong>{name}</strong>
                 <span className="node-classification">
                   {direct.has(key)
-                    ? "直接影響候補"
+                    ? `直接${classification}`
                     : indirect.has(key)
-                      ? "間接影響候補"
+                      ? `間接${classification}`
                       : depth === 0
                         ? "探索の起点・対象"
                         : "関係先"}
@@ -111,7 +113,7 @@ export function GraphCanvas({
         });
       });
     return nodes;
-  }, [view, result, direct, indirect]);
+  }, [view, result, direct, indirect, classification]);
   const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
   useEffect(() => {
     setNodes(initialNodes);

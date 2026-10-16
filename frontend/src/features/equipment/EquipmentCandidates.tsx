@@ -36,7 +36,7 @@ export function EquipmentCandidates({
       <h2>設備を選ぶ</h2>
       <p className="muted">
         直近の設備検索で取得した候補です。工場全体の一覧や現在状態ではありません。
-        選択すると問い合わせの下書きに反映します。
+        選択すると、この設備を調べる対象にします。
       </p>
       {candidates.length === 0 && <p>選択できる候補はありません。</p>}
       {candidates.length !== data.items.length && (
