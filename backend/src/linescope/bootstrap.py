@@ -119,7 +119,10 @@ def build_api_services(
         proposals = ProposalStore(database)
         read_agent = (
             ReadAgent(
-                ToolDispatcher(database, graph=graph, knowledge=knowledge), llm, event_logger=events
+                ToolDispatcher(database, graph=graph, knowledge=knowledge),
+                llm,
+                event_logger=events,
+                deadline_seconds=settings.read_agent_deadline_seconds,
             )
             if llm is not None
             else None

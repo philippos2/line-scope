@@ -150,7 +150,10 @@ def main():
     parser.add_argument("--docker-group")
     parser.add_argument("--model", required=True)
     parser.add_argument("--report", type=Path, required=True)
+    parser.add_argument("--deadline-seconds", type=int, default=90)
     args = parser.parse_args()
+    if args.deadline_seconds <= 0:
+        parser.error("Positive Read Agent deadline required")
     if re.fullmatch(r"[A-Za-z0-9_.:/-]{1,200}", args.model) is None:
         parser.error("モデル名の形式が不正です")
     if args.report.exists() or not args.report.parent.is_dir():
@@ -159,6 +162,7 @@ def main():
         "report_version": 1,
         "dataset_version": "read-demo-v2",
         "model": args.model,
+        "read_agent_deadline_seconds": args.deadline_seconds,
         "revision": subprocess.check_output(
             ["git", "rev-parse", "HEAD"], text=True
         ).strip(),
@@ -185,6 +189,9 @@ def main():
                 fixture = DemoFixture(directory, args.docker_group)
                 with fixture.credentials_file.open("a") as credentials:
                     credentials.write(f"LINESCOPE_LLM_MODEL={args.model}\n")
+                    credentials.write(
+                        f"LINESCOPE_READ_AGENT_DEADLINE_SECONDS={args.deadline_seconds}\n"
+                    )
                 try:
                     fixture.docker("up", "--build", "-d", "api")
                     for attempt in range(30):
@@ -208,7 +215,7 @@ def main():
                             payload = fixture.request(
                                 "/agent",
                                 data={"message": question},
-                                timeout_seconds=90,
+                                timeout_seconds=args.deadline_seconds + 30,
                                 expected=None,
                             )
                             case["response"] = {
@@ -272,6 +279,7 @@ def main():
                                             "llm_input_bytes",
                                             "llm_output_bytes",
                                             "llm_tool_count",
+                                            "llm_schema_count",
                                             "llm_prompt_tokens",
                                             "llm_generated_tokens",
                                             "llm_prompt_ms",

@@ -83,13 +83,19 @@ def supported_answer(observations, *, has_errors=False):
 
 
 class ReadAgent:
-    def __init__(self, dispatcher, llm, *, clock=monotonic, event_logger=None):
+    def __init__(self, dispatcher, llm, *, clock=monotonic, event_logger=None, deadline_seconds=90):
         self.dispatcher, self.llm, self.clock = dispatcher, llm, clock
         self.events = event_logger
+        self.deadline_seconds = deadline_seconds
 
     def run(self, context, request, *, previous_messages=None):
         session = AgentToolSession(
-            context, request, self.dispatcher, clock=self.clock, event_logger=self.events
+            context,
+            request,
+            self.dispatcher,
+            clock=self.clock,
+            event_logger=self.events,
+            deadline_seconds=self.deadline_seconds,
         )
         # Replacement is a separate update workflow.
         if (request.context_id and previous_messages is None) or request.replace_update_request_id:
@@ -148,6 +154,7 @@ class ReadAgent:
                         ),
                         llm_output_bytes=output_bytes,
                         llm_tool_count=tool_count,
+                        llm_schema_count=len(schemas),
                         **metrics,
                     )
             session.check_deadline()

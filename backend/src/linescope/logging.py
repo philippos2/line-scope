@@ -94,6 +94,7 @@ UUID_FIELDS = {
 }
 INTEGER_FIELDS = {"duration_ms", "attempt_count", "aggregate_version", "node_count", "event_count"}
 INTEGER_FIELDS |= {"llm_input_bytes", "llm_output_bytes", "llm_tool_count"}
+INTEGER_FIELDS.add("llm_schema_count")
 INTEGER_FIELDS |= {
     "llm_prompt_tokens",
     "llm_generated_tokens",
