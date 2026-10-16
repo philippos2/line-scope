@@ -1,0 +1,450 @@
+{
+  "report_version": 1,
+  "dataset_version": "read-demo-v2",
+  "model": "qwen3:30b-a3b-instruct-2507-q4_K_M",
+  "revision": "7f99217ce88af5341c5cedb94ffe09a7c34f862b",
+  "working_tree_dirty": false,
+  "observed_at": "2026-10-16T09:23:38.322543+00:00",
+  "scope": "FIXED_READ_BASELINE_NOT_GENERAL_LLM_ACCEPTANCE",
+  "prose_review": "REQUIRED",
+  "review_criteria": [
+    "登録状態と一致し、故障原因を捏造しない",
+    "経路外の影響を追加せず、構造到達と実停止を区別する",
+    "能力・安全・経済の未評価事項を保持する",
+    "存在しない設備の事実や実施していない変更を作らない"
+  ],
+  "cases": [
+    {
+      "scenario": "state_and_cause",
+      "question": "M-204の現在状態と故障原因を調べて。登録情報でわからないことは明示して。",
+      "response": {
+        "status": "ok",
+        "answer": "M-204の現在状態は「停止中」です。  \n故障原因に関する登録された修理記録や計画は存在しません。  \n過去の故障履歴や予定された保守計画も確認できず、原因の特定はできません。  \n不明事項：停止の原因、故障履歴、保守計画の有無。",
+        "data": {
+          "needs_input": false,
+          "tool_results": [
+            {
+              "tool_call_id": "a4dfdf97-fd9d-4338-a068-626c1bc23ab6",
+              "tool": "search_equipment",
+              "data": {
+                "items": [
+                  {
+                    "equipment_id": "20400000-0000-4000-8000-000000000001",
+                    "version": 1,
+                    "equipment_code": "M-204",
+                    "equipment_name": "Demo machine M-204",
+                    "equipment_type": "machine",
+                    "active": true,
+                    "created_at": "2026-10-16T09:23:56.616493Z",
+                    "updated_at": "2026-10-16T09:23:56.616493Z"
+                  }
+                ],
+                "next_cursor": null
+              }
+            },
+            {
+              "tool_call_id": "b8090215-d6f3-4d47-89cb-1637eebb9ade",
+              "tool": "get_equipment_state",
+              "data": {
+                "equipment_id": "20400000-0000-4000-8000-000000000001",
+                "version": 1,
+                "state_code": "STOPPED",
+                "updated_at": "2026-10-16T09:23:56.617191Z"
+              }
+            },
+            {
+              "tool_call_id": "fd0a6b6e-cd5d-4942-8997-0d600a101e80",
+              "tool": "search_maintenance_records",
+              "data": {
+                "items": [],
+                "next_cursor": null
+              }
+            },
+            {
+              "tool_call_id": "1445e339-c9e2-4cf3-aa37-064a48759555",
+              "tool": "search_maintenance_plans",
+              "data": {
+                "items": [],
+                "next_cursor": null
+              }
+            }
+          ],
+          "tool_trace": [
+            {
+              "tool_call_id": "a4dfdf97-fd9d-4338-a068-626c1bc23ab6",
+              "tool": "search_equipment",
+              "attempt": 1,
+              "code": "OK"
+            },
+            {
+              "tool_call_id": "b8090215-d6f3-4d47-89cb-1637eebb9ade",
+              "tool": "get_equipment_state",
+              "attempt": 1,
+              "code": "OK"
+            },
+            {
+              "tool_call_id": "fd0a6b6e-cd5d-4942-8997-0d600a101e80",
+              "tool": "search_maintenance_records",
+              "attempt": 1,
+              "code": "OK"
+            },
+            {
+              "tool_call_id": "1445e339-c9e2-4cf3-aa37-064a48759555",
+              "tool": "search_maintenance_plans",
+              "attempt": 1,
+              "code": "OK"
+            }
+          ]
+        },
+        "evidence": {
+          "tool_results": [
+            {
+              "tool_call_id": "a4dfdf97-fd9d-4338-a068-626c1bc23ab6",
+              "tool": "search_equipment",
+              "source": "POSTGRESQL",
+              "observed_at": "2026-10-16T09:24:12.585861Z",
+              "consistency": "LATEST_PER_CALL"
+            },
+            {
+              "tool_call_id": "b8090215-d6f3-4d47-89cb-1637eebb9ade",
+              "tool": "get_equipment_state",
+              "source": "POSTGRESQL",
+              "observed_at": "2026-10-16T09:24:15.397162Z",
+              "consistency": "LATEST_PER_CALL"
+            },
+            {
+              "tool_call_id": "fd0a6b6e-cd5d-4942-8997-0d600a101e80",
+              "tool": "search_maintenance_records",
+              "source": "POSTGRESQL",
+              "observed_at": "2026-10-16T09:24:21.040458Z",
+              "consistency": "LATEST_PER_CALL"
+            },
+            {
+              "tool_call_id": "1445e339-c9e2-4cf3-aa37-064a48759555",
+              "tool": "search_maintenance_plans",
+              "source": "POSTGRESQL",
+              "observed_at": "2026-10-16T09:24:26.983267Z",
+              "consistency": "LATEST_PER_CALL"
+            }
+          ]
+        },
+        "errors": [],
+        "warnings": []
+      },
+      "http_status": 200,
+      "structured_result": "PASS"
+    },
+    {
+      "scenario": "downstream",
+      "question": "M-204が停止した場合の下流の影響対象と経路を調べて。実際の停止や能力、安全性の未評価事項も示して。",
+      "response": {
+        "status": "error",
+        "answer": null,
+        "data": {},
+        "evidence": {},
+        "errors": [
+          {
+            "code": "AGENT_LIMIT_REACHED",
+            "message": "AGENT_LIMIT_REACHED",
+            "details": {}
+          }
+        ],
+        "warnings": []
+      },
+      "http_status": 503,
+      "structured_result": "FAIL",
+      "failure_code": "HTTP_ERROR"
+    },
+    {
+      "scenario": "missing_equipment",
+      "question": "設備M-999999の現在状態を調べて。見つからなければ明示して。",
+      "response": {
+        "status": "ok",
+        "answer": "設備コードM-999999に該当する設備は見つかりませんでした。",
+        "data": {
+          "needs_input": false,
+          "tool_results": [
+            {
+              "tool_call_id": "09fe251a-ce10-493a-89c4-afcf0d1ec6e2",
+              "tool": "search_equipment",
+              "data": {
+                "items": [],
+                "next_cursor": null
+              }
+            }
+          ],
+          "tool_trace": [
+            {
+              "tool_call_id": "09fe251a-ce10-493a-89c4-afcf0d1ec6e2",
+              "tool": "search_equipment",
+              "attempt": 1,
+              "code": "OK"
+            }
+          ]
+        },
+        "evidence": {
+          "tool_results": [
+            {
+              "tool_call_id": "09fe251a-ce10-493a-89c4-afcf0d1ec6e2",
+              "tool": "search_equipment",
+              "source": "POSTGRESQL",
+              "observed_at": "2026-10-16T09:25:35.898386Z",
+              "consistency": "LATEST_PER_CALL"
+            }
+          ]
+        },
+        "errors": [],
+        "warnings": []
+      },
+      "http_status": 200,
+      "structured_result": "PASS"
+    },
+    {
+      "scenario": "upstream",
+      "question": "M-204の上流依存を調べて。停止影響や能力、安全性の評価とは区別して。",
+      "response": {
+        "status": "ok",
+        "answer": "指定対象の上流に1件の依存到達要素を確認しました。1段上流1件、2段以上の上流0件。インフラ1件。この探索範囲は確認済みです。実際の停止影響・能力・安全性・経済影響は未評価です。詳細経路と根拠は構造化結果をご確認ください。",
+        "data": {
+          "needs_input": false,
+          "tool_results": [
+            {
+              "tool_call_id": "1a2399f9-0d56-4492-825a-43b01319f153",
+              "tool": "search_equipment",
+              "data": {
+                "items": [
+                  {
+                    "equipment_id": "20400000-0000-4000-8000-000000000001",
+                    "version": 1,
+                    "equipment_code": "M-204",
+                    "equipment_name": "Demo machine M-204",
+                    "equipment_type": "machine",
+                    "active": true,
+                    "created_at": "2026-10-16T09:23:56.616493Z",
+                    "updated_at": "2026-10-16T09:23:56.616493Z"
+                  }
+                ],
+                "next_cursor": null
+              }
+            },
+            {
+              "tool_call_id": "5e3368d3-a1cd-49c4-a072-d766649322fa",
+              "tool": "trace_upstream_dependencies",
+              "data": {
+                "analysis_mode": "CURRENT",
+                "analysis_scope": "DEPENDENCY_REACHABILITY",
+                "not_evaluated": [
+                  "OPERATIONAL_IMPACT",
+                  "CAPACITY",
+                  "SAFETY",
+                  "ECONOMICS"
+                ],
+                "graph_sync_state": "CURRENT",
+                "complete": true,
+                "limit_reason": null,
+                "requested_limits": {},
+                "effective_limits": {
+                  "max_depth": 16,
+                  "max_nodes": 1000,
+                  "max_paths": 1000,
+                  "timeout_ms": 5000
+                },
+                "target": {
+                  "entity_type": "Equipment",
+                  "entity_id": "20400000-0000-4000-8000-000000000001"
+                },
+                "reached_nodes": [
+                  {
+                    "entity_type": "InfrastructureResource",
+                    "entity_id": "6966a940-0ff6-5070-a6a4-e1c7bfa50dc1"
+                  }
+                ],
+                "direct_nodes": [
+                  {
+                    "entity_type": "InfrastructureResource",
+                    "entity_id": "6966a940-0ff6-5070-a6a4-e1c7bfa50dc1"
+                  }
+                ],
+                "indirect_nodes": [],
+                "distances": {
+                  "Equipment:20400000-0000-4000-8000-000000000001": 0,
+                  "InfrastructureResource:6966a940-0ff6-5070-a6a4-e1c7bfa50dc1": 1
+                },
+                "representative_paths": [
+                  {
+                    "nodes": [
+                      {
+                        "entity_type": "Equipment",
+                        "entity_id": "20400000-0000-4000-8000-000000000001"
+                      },
+                      {
+                        "entity_type": "InfrastructureResource",
+                        "entity_id": "6966a940-0ff6-5070-a6a4-e1c7bfa50dc1"
+                      }
+                    ],
+                    "edges": [
+                      {
+                        "source_record_id": "9458d697-c9b8-59fc-9e53-70a87e3727b5",
+                        "source_version": 1,
+                        "relation_type": "SUPPLIES",
+                        "required": true,
+                        "source": {
+                          "entity_type": "InfrastructureResource",
+                          "entity_id": "6966a940-0ff6-5070-a6a4-e1c7bfa50dc1"
+                        },
+                        "target": {
+                          "entity_type": "Equipment",
+                          "entity_id": "20400000-0000-4000-8000-000000000001"
+                        },
+                        "traversal_direction": "UPSTREAM",
+                        "traversal_source": {
+                          "entity_type": "Equipment",
+                          "entity_id": "20400000-0000-4000-8000-000000000001"
+                        },
+                        "traversal_target": {
+                          "entity_type": "InfrastructureResource",
+                          "entity_id": "6966a940-0ff6-5070-a6a4-e1c7bfa50dc1"
+                        }
+                      }
+                    ],
+                    "hops": 1
+                  }
+                ],
+                "determination": null
+              }
+            }
+          ],
+          "tool_trace": [
+            {
+              "tool_call_id": "1a2399f9-0d56-4492-825a-43b01319f153",
+              "tool": "search_equipment",
+              "attempt": 1,
+              "code": "OK"
+            },
+            {
+              "tool_call_id": "5e3368d3-a1cd-49c4-a072-d766649322fa",
+              "tool": "trace_upstream_dependencies",
+              "attempt": 1,
+              "code": "OK"
+            }
+          ]
+        },
+        "evidence": {
+          "tool_results": [
+            {
+              "tool_call_id": "1a2399f9-0d56-4492-825a-43b01319f153",
+              "tool": "search_equipment",
+              "source": "POSTGRESQL",
+              "observed_at": "2026-10-16T09:25:40.811299Z",
+              "consistency": "LATEST_PER_CALL"
+            },
+            {
+              "tool_call_id": "5e3368d3-a1cd-49c4-a072-d766649322fa",
+              "tool": "trace_upstream_dependencies",
+              "source": "NEO4J_AND_POSTGRESQL",
+              "analysis_mode": "CURRENT",
+              "analysis_scope": "DEPENDENCY_REACHABILITY",
+              "not_evaluated": [
+                "OPERATIONAL_IMPACT",
+                "CAPACITY",
+                "SAFETY",
+                "ECONOMICS"
+              ],
+              "graph_generation": "71e58e8e-a0b4-4d41-8cee-6e137c32d79c",
+              "graph_observed_at": "2026-10-16T09:25:52.522399Z",
+              "as_of": "2026-10-16T09:25:52.504163Z",
+              "temporal_scope": "CURRENT_REGISTRATION_AT_AS_OF",
+              "relation_types": [
+                "CONTROLS",
+                "DEPENDS_ON",
+                "PRECEDES",
+                "PRODUCES",
+                "SUPPLIES",
+                "USES"
+              ],
+              "state_observed_at": "2026-10-16T09:25:52.551630Z",
+              "state_versions": {
+                "Equipment:20400000-0000-4000-8000-000000000001": 1
+              },
+              "current_states": [
+                {
+                  "version": 1,
+                  "state_code": "STOPPED",
+                  "equipment_id": "20400000-0000-4000-8000-000000000001"
+                }
+              ],
+              "missing_states": [],
+              "state_temporal_scope": "CURRENT_STATE_AT_OBSERVATION",
+              "representative_paths": [
+                {
+                  "nodes": [
+                    {
+                      "entity_type": "Equipment",
+                      "entity_id": "20400000-0000-4000-8000-000000000001"
+                    },
+                    {
+                      "entity_type": "InfrastructureResource",
+                      "entity_id": "6966a940-0ff6-5070-a6a4-e1c7bfa50dc1"
+                    }
+                  ],
+                  "edges": [
+                    {
+                      "source_record_id": "9458d697-c9b8-59fc-9e53-70a87e3727b5",
+                      "source_version": 1,
+                      "relation_type": "SUPPLIES",
+                      "required": true,
+                      "source": {
+                        "entity_type": "InfrastructureResource",
+                        "entity_id": "6966a940-0ff6-5070-a6a4-e1c7bfa50dc1"
+                      },
+                      "target": {
+                        "entity_type": "Equipment",
+                        "entity_id": "20400000-0000-4000-8000-000000000001"
+                      },
+                      "traversal_direction": "UPSTREAM",
+                      "traversal_source": {
+                        "entity_type": "Equipment",
+                        "entity_id": "20400000-0000-4000-8000-000000000001"
+                      },
+                      "traversal_target": {
+                        "entity_type": "InfrastructureResource",
+                        "entity_id": "6966a940-0ff6-5070-a6a4-e1c7bfa50dc1"
+                      }
+                    }
+                  ],
+                  "hops": 1
+                }
+              ]
+            }
+          ]
+        },
+        "errors": [],
+        "warnings": []
+      },
+      "http_status": 200,
+      "structured_result": "PASS"
+    },
+    {
+      "scenario": "common",
+      "question": "製品P-100（Product ID: aacb436b-1972-5466-9af5-8d989a5a0ce5）と製品P-200（Product ID: ab962854-04f5-5e24-adb1-998516c4aef8）の共通する上流依存候補を調べて。故障原因やSPOFと断定せず、不完全性と未評価事項も示して。",
+      "response": {
+        "status": "error",
+        "answer": null,
+        "data": {},
+        "evidence": {},
+        "errors": [
+          {
+            "code": "AGENT_LIMIT_REACHED",
+            "message": "AGENT_LIMIT_REACHED",
+            "details": {}
+          }
+        ],
+        "warnings": []
+      },
+      "http_status": 503,
+      "structured_result": "FAIL",
+      "failure_code": "HTTP_ERROR"
+    }
+  ],
+  "result": "FAIL"
+}
