@@ -613,3 +613,5 @@ Dockerで追加36テスト成功、ruff check / format、git diff --check成功�
 - [Read品質受入・モデル待ち時間の切り分け](2026-10-16-read-quality-checkpoint.md)
 
 - [常設部品と業務シナリオUIの再設計](2026-10-16-guided-ui.md)
+
+- [Graphを中心から外したUI設計と完成報告の失敗](2026-10-17-graph-ui-design-failure.md)
