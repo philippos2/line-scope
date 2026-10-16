@@ -214,6 +214,32 @@ def test_runtime_prepare_approve_execute_and_replay_work_without_admin_authority
         with stores[PROJECTION_ROLE].transaction() as connection:
             connection.execute("SELECT * FROM capacity_input")
 
+    from interfaces.test_safety_inputs_api import approve as approve_safety
+    from interfaces.test_safety_inputs_api import body as safety_body
+    from interfaces.test_safety_inputs_api import client_for as safety_client
+    from interfaces.test_safety_inputs_api import execute as execute_safety
+    from interfaces.test_safety_inputs_api import prepare as prepare_safety
+
+    values = safety_body("ROLE-SAFETY")
+    values["input"]["equipment_id"] = str(UUID(int=10))
+    with safety_client(runtime) as client:
+        safety = prepare_safety(client, values)
+        assert approve_safety(client, safety).status_code == 200
+        assert execute_safety(client, safety).status_code == 200
+        assert (
+            client.get(
+                f"/safety-inputs/{safety['canonical_snapshot']['targets'][0]['target_id']}",
+                headers={"Authorization": "Bearer production"},
+            ).status_code
+            == 200
+        )
+    with pytest.raises(psycopg.errors.InsufficientPrivilege):
+        with stores[READ_ROLE].transaction() as connection:
+            connection.execute("UPDATE safety_input SET version=version+1")
+    with pytest.raises(psycopg.errors.InsufficientPrivilege):
+        with stores[PROJECTION_ROLE].transaction() as connection:
+            connection.execute("SELECT * FROM safety_input")
+
 
 def test_future_objects_are_denied_until_explicit_grants(roles):
     admin, stores, _ = roles

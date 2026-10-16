@@ -272,3 +272,12 @@ EconomicInputはECONOMIC_INPUTカテゴリ専用Snapshot schema_version=2。v1�
 ## 能力入力の更新
 
 CAPACITY_INPUTはCapacityInput専用のSnapshot schema_version=3。既存v1/v2とはカテゴリを混在させない。CREATE UUID固定・code一意性、UPDATE before全体一致・expected_versionを承認時／確定時に再検証する。lock順はRequest→Approval→設備FK（ID順KEY SHARE）→製品FK（ID順KEY SHARE）→CapacityInput（ID順UPDATE）。CREATEはcode順に書き、一意制約で競合を防ぐ。正本更新・business_update_history・Audit・承認消費・要求完了・結果保存は共通transactionで原子的に確定する。Graph lock/Outboxは追加しない。自己承認禁止・現在role・30分期限・rollback・競合失効・再送は共通制御を維持する。
+
+## 安全入力の更新
+
+- SAFETY_INPUTはSafetyInput専用Snapshot v4。既存カテゴリと混在させない。
+- 共通のRequest→Approval lock後、設備FKをID順KEY SHARE、入力行をID順UPDATE lockする。
+- CREATEのUUID・code一意性、UPDATEのbefore全体・expected_versionを承認時／確定時に再検証する。
+- 正本・履歴・Audit・承認消費・要求完了・結果保存は共通transactionで原子的に確定する。
+- Graph lock / Outboxは追加しない。期限・現在role・自己承認禁止・競合失効・rollback・再送は共通契約を維持する。
+- 安全記録は実設備制御・運転許可ではなく、既存EquipmentStateの事実登録の制約を変更しない。

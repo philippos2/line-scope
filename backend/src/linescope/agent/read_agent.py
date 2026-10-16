@@ -11,10 +11,12 @@ from .capacity_answer import capacity_answer
 from .economic_answer import economic_answer
 from .graph_answer import dependency_answer, downstream_answer, fulfillment_answer
 from .graph_model_view import GRAPH_TOOLS, graph_model_view
+from .safety_answer import safety_answer
 
 SYSTEM_PROMPT = """あなたはLineScopeの参照専用アシスタントです。
 エンドユーザーの質問に必要な情報を公開されたRead Toolsで取得し、日本語で説明してください。
 設備コードでまず検索し、返されたIDを後続Toolに使用してください。
+安全入力はsearch_safety_inputsで候補を探し、選択IDをget_safety_inputで取得してください。停止必須を経済利益で上書きせず、未知・期限外を安全と認定しないでください。登録記録の継続条件を設備全体の安全や実運転許可へ一般化しないでください。
 能力入力はsearch_capacity_inputsで候補を探し、明示選択されたIDをget_capacity_inputで取得してください。製品・単位・期間の違う入力を合算せず、登録済み能力をMOCK_FIXTUREで補完しないでください。条件付き復旧期限の前提と未知を保持し、能力充足を安全・品質・完全代替と説明しないでください。
 経済入力はsearch_economic_inputsで候補を探し、選択されたIDをget_economic_inputで取得してください。複数候補や異なる期間を勝手に合算・選択しないでください。登録値の期間・出典・versionと総額不明を保持し、MOCK_FIXTUREで補完しないでください。
 Tool結果だけを業務事実の根拠にし、不明値を推測したり0にしないでください。
@@ -130,7 +132,8 @@ class ReadAgent:
                 if not reply.content.strip():
                     raise ToolError("INTERNAL_ERROR", "LLM did not provide an explanation")
                 answer = (
-                    capacity_answer(observations, has_errors=bool(errors))
+                    safety_answer(observations, has_errors=bool(errors))
+                    or capacity_answer(observations, has_errors=bool(errors))
                     or economic_answer(observations, has_errors=bool(errors))
                     or downstream_answer(observations, has_errors=bool(errors))
                     or dependency_answer(observations, has_errors=bool(errors))

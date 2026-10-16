@@ -58,6 +58,10 @@ class DemoDecisionFlow:
                     "登録済み能力",
                     "CapacityInput",
                     "capacity_input",
+                    "安全入力",
+                    "登録済み安全",
+                    "SafetyInput",
+                    "safety_input",
                 )
             )
             and "M-204" in message
