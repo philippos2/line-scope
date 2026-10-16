@@ -535,6 +535,10 @@ class HumanApproval(_HumanApproval):
 
     @staticmethod
     def _handler(targets):
+        from .maintenance_inputs import MaintenanceInputApproval
+
+        if targets and all(t["target_type"] == "MaintenanceInput" for t in targets):
+            return MaintenanceInputApproval
         from .safety import SafetyApproval
 
         if targets and all(t["target_type"] == "SafetyInput" for t in targets):

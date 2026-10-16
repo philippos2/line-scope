@@ -71,3 +71,9 @@ python3 scripts/verify_frontend_flow.py --docker-group docker --llm-model qwen3:
 ```sh
 python3 scripts/verify_frontend_flow.py --docker-group docker --llm-model qwen3:30b-a3b-instruct-2507-q4_K_M --safety-only
 ```
+
+対応計画・故障履歴だけの実モデル／実ブラウザ確認：
+
+```sh
+python3 scripts/verify_frontend_flow.py --docker-group docker --llm-model qwen3:30b-a3b-instruct-2507-q4_K_M --maintenance-only
+```

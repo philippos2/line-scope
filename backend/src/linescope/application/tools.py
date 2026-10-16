@@ -13,6 +13,7 @@ from .dependency_prepare import DependencyPrepare
 from .economics import EconomicInputs
 from .graph_request import ENTITY_TYPES, LIMIT_NAMES
 from .graph_request import TOOLS as GRAPH_TOOLS
+from .maintenance_inputs import MaintenanceInputs
 from .prepare import EquipmentStatePrepare, MaintenancePrepare
 from .production_prepare import ProductionPrepare
 from .proposals import ProposalError
@@ -248,6 +249,7 @@ class ToolDispatcher:
     def __init__(self, database, *, graph=None, knowledge=None):
         self.economics = EconomicInputs(database)
         self.safety = SafetyInputs(database)
+        self.maintenance_inputs = MaintenanceInputs(database)
         self.capacity = CapacityInputs(database)
         self.graph = graph
         self.knowledge = knowledge
@@ -305,6 +307,40 @@ class ToolDispatcher:
         schemas["get_capacity_input"] = {
             **_object({"capacity_input_id": UUID_SCHEMA}),
             "description": "Read a selected registered capacity input with server-calculated product-specific capacity shortage and conditional buffer deadline, sources, period and version. Not operational feasibility, safety, a cheapest-option recommendation or historical state reconstruction.",
+        }
+        schemas["search_maintenance_inputs"] = {
+            **_object(
+                {
+                    "filter": _object(
+                        {
+                            "equipment_id": UUID_SCHEMA,
+                            "kind": {
+                                "type": "string",
+                                "enum": [
+                                    "REPAIR_PLAN",
+                                    "REPLACEMENT_PLAN",
+                                    "INTERIM_PLAN",
+                                    "FAILURE_RECORD",
+                                    "REPAIR_RECORD",
+                                ],
+                            },
+                            "period_start": {"type": "string"},
+                            "period_end": {"type": "string"},
+                            "input_code": {"type": "string", "minLength": 1, "maxLength": 100},
+                            "equipment_query": {"type": "string", "minLength": 1, "maxLength": 100},
+                        },
+                        [],
+                    ),
+                    "page_size": {"type": "integer", "minimum": 1, "maximum": 100},
+                    "cursor": {"type": ["string", "null"]},
+                },
+                [],
+            ),
+            "description": "Search registered maintenance plan/history input candidates by equipment name/code substring, exact equipment ID or input code. No mock fallback. Multiple candidates require explicit selection; records/periods must not be merged.",
+        }
+        schemas["get_maintenance_input"] = {
+            **_object({"maintenance_input_id": UUID_SCHEMA}),
+            "description": "Read a selected registered repair/replacement/interim plan or failure/repair history, distinct lead/work/downtime hours, JPY cost components, explicit replacement-cost inclusion, sources and next planned maintenance candidates. Never infer future failure probability or auto-execute a future state change. Not operational feasibility, safety, a cheapest-option recommendation or historical state reconstruction.",
         }
         schemas["search_safety_inputs"] = {
             **_object(
@@ -426,6 +462,32 @@ class ToolDispatcher:
                     "consistency": "LATEST_PER_CALL",
                     "version": data["input"]["version"] if "input" in data else None,
                     "capacity_input_id": data["input"]["capacity_input_id"]
+                    if "input" in data
+                    else None,
+                },
+            )
+        if tool in {"search_maintenance_inputs", "get_maintenance_input"}:
+            try:
+                if tool == "search_maintenance_inputs":
+                    data = self.maintenance_inputs.search(context, arguments)
+                else:
+                    if type(arguments) is not dict or set(arguments) != {"maintenance_input_id"}:
+                        raise ProposalError(
+                            "INVALID_ARGUMENT", "An maintenance input ID is required"
+                        )
+                    data = self.maintenance_inputs.get(context, arguments["maintenance_input_id"])
+            except ProposalError as error:
+                raise ToolError(error.code, error.message) from error
+            data = json_value(data)
+            return ReadResult(
+                data,
+                {
+                    "source": "POSTGRESQL",
+                    "tool": tool,
+                    "observed_at": data["observed_at"],
+                    "consistency": "LATEST_PER_CALL",
+                    "version": data["input"]["version"] if "input" in data else None,
+                    "maintenance_input_id": data["input"]["maintenance_input_id"]
                     if "input" in data
                     else None,
                 },

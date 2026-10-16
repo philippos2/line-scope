@@ -453,3 +453,9 @@ maintenance_plan_idのNULLは計画との関連なしを表す。計画を指定
 - queryはSELECT、runtimeはSELECT/INSERT/UPDATE、projectionは権限なし。
 - SafetyInput専用Snapshot v4を使い、既存v1/v2/v3と既存migration checksumを維持する。
 - Graph node/edgeではないため安全入力からOutboxを発行しない。
+
+## MaintenanceInput
+
+migration `011_maintenance_input.sql`でmaintenance_inputを追加する。UUID maintenance_input_idをPK、input_codeを一意、equipment_idをEquipment FK、payloadをJSONB object、versionを正のBIGINTとする。identityは不変、訂正はpayload全置換とversion + 1。旧migrationのchecksumは変更しない。
+
+payloadの分類・期間・source・details・時間・JPY費用・交換費算入条件・任意maintenance_plan_id・暫定終了・リスク資料はdomain-modelとAPI契約に従う。予定の参照はApplicationで存在と同一設備を検証し、承認／確定時に共有lockで再検証する。Graph対象を増やさずOutboxを発行しない。

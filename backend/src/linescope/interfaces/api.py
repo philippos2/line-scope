@@ -268,6 +268,62 @@ def create_app(
             return response(request, code=error.code, status_code=error_status(error.code))
         return response(request, json_value(data))
 
+    @app.get("/maintenance-inputs/next-plans/{equipment_id}")
+    def maintenance_next_plans(request: Request, equipment_id: str):
+        try:
+            data = services.maintenance_inputs.plans(request.state.execution_context, equipment_id)
+        except ProposalError as error:
+            return response(request, code=error.code, status_code=error_status(error.code))
+        return response(request, json_value(data))
+
+    @app.post("/maintenance-inputs/search")
+    async def search_maintenance_inputs(request: Request):
+        try:
+            if (
+                request.headers.get("content-type", "").split(";")[0].strip().lower()
+                != "application/json"
+            ):
+                raise ValueError("JSON required")
+            body = strict_json(await request.body())
+        except (ValueError, TypeError):
+            return response(request, code="INVALID_ARGUMENT", status_code=400)
+        try:
+            data = await run_in_threadpool(
+                services.maintenance_inputs.search, request.state.execution_context, body
+            )
+        except ProposalError as error:
+            return response(request, code=error.code, status_code=error_status(error.code))
+        return response(request, json_value(data))
+
+    @app.post("/maintenance-inputs/prepare")
+    async def prepare_maintenance_input(request: Request):
+        try:
+            if (
+                request.headers.get("content-type", "").split(";")[0].strip().lower()
+                != "application/json"
+            ):
+                raise ValueError("JSON required")
+            body = strict_json(await request.body())
+        except (ValueError, TypeError):
+            return response(request, code="INVALID_ARGUMENT", status_code=400)
+        try:
+            data = await run_in_threadpool(
+                services.maintenance_inputs.prepare, request.state.execution_context, body
+            )
+        except ProposalError as error:
+            return response(request, code=error.code, status_code=error_status(error.code))
+        return response(request, json_value(data))
+
+    @app.get("/maintenance-inputs/{maintenance_input_id}")
+    def maintenance_input(request: Request, maintenance_input_id: str):
+        try:
+            data = services.maintenance_inputs.get(
+                request.state.execution_context, maintenance_input_id
+            )
+        except ProposalError as error:
+            return response(request, code=error.code, status_code=error_status(error.code))
+        return response(request, json_value(data))
+
     @app.post("/safety-inputs/search")
     async def search_safety_inputs(request: Request):
         try:

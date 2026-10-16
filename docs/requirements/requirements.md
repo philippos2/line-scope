@@ -230,7 +230,7 @@ planned_start < planned_end、effective_from < 非NULL effective_toを要求す�
 
 保全実績登録は設備状態・保全予定・生産予定を自動変更しない。maintenance_plan_id指定時は同じequipment_idの既存計画であることを要求する。DependencyRelationのrequired未使用種別はfalseを要求し、true入力を拒否する。関係自体の必須性はdomain-modelの規則で評価する。
 
-EquipmentState更新の現在状態・履歴は同一Transactionで保存し、現在状態の更新時刻と履歴effective_at / recorded_atは確定実行のサーバ時刻を記録する。既存のEquipmentState UPDATEは過去・未来の状態登録を行わない。将来停止を扱うUC-B14の方式は§14.3のPO-B05で確定するまで、このUPDATEへ予約実行の意味を付与しない。UUID・監査時刻・version等の技術メタデータ生成と業務値の推測を区別する。
+EquipmentState更新の現在状態・履歴は同一Transactionで保存し、現在状態の更新時刻と履歴effective_at / recorded_atは確定実行のサーバ時刻を記録する。既存のEquipmentState UPDATEは過去・未来の状態登録を行わない。UC-B14の将来停止は保全予定として登録し、このUPDATEへ予約実行の意味を付与しない。UUID・監査時刻・version等の技術メタデータ生成と業務値の推測を区別する。
 
 ## 13. 後続Frontendフェーズ
 
@@ -291,18 +291,18 @@ A=現仕様に存在、B=現仕様から一部導出可能、C=現仕様には�
 | production capacity | A | CapacityInputで製品・数量単位/hour・評価期間別の通常能力を明示登録 |
 | available capacity | B | CapacityInputの通常能力から重複しない使用中・予約負荷を控除。不明・網羅性未確認はUNKNOWN |
 | required production volume | B | CapacityInputの必要能力は同一製品・期間の毎時率。可変需要・calendarを含む総量計画は未対応 |
-| repair cost | C | 保全実績resultは費用項目ではない |
-| repair duration | C | 予定期間は修理所要時間の保証ではない |
-| replacement cost | C | 交換費用なし |
-| replacement duration | C | 交換作業期間なし |
-| parts lead time | C | 調達期間なし |
-| next planned maintenance | B | PLANNEDのMaintenancePlan期間から候補抽出可能。「次回」の選択条件はPO-B05 |
-| next planned replacement | C | MaintenancePlanに保全／交換の種別なし |
+| repair cost | A | MaintenanceInputに交換費を除く直接費JPYを出典付き登録。保全実績resultから生成しない |
+| repair duration | A | MaintenanceInputのwork_hours。保全予定期間を作業時間と同一視しない |
+| replacement cost | A | MaintenanceInputのreplacement_cost_jpyと明示的算入条件 |
+| replacement duration | A | MaintenanceInputのwork_hours。停止時間downtime_hoursと区別 |
+| parts lead time | A | MaintenanceInputのlead_time_hours。全期間停止や作業時間へ変換しない |
+| next planned maintenance | B | 将来PLANNEDの最早開始から抽出。同時刻は利用者が選択。不完全な検索は選定不能 |
+| next planned replacement | B | REPLACEMENT_PLANの正式入力と関連MaintenancePlanを明示参照。保全予定だけから交換を推測しない |
 | degradation / stopped distinction | C | STOPPEDは存在するが、劣化の観測・程度・継続条件なし |
 | safety stop criteria | A | SafetyInputに適用期間・観測・基準の出典・登録上の停止判断を保持。基準の数値を推測しない |
 | permissible continued-operation conditions | A | SafetyInputの確認済み条件と適用期間。単一記録の条件付き評価であり実運転許可ではない |
-| failure history | C | 状態履歴は停止原因を示さず、STOPPEDを故障と同一視できない |
-| maintenance history | A | MaintenanceRecordと設備・実施時刻・result。費用・故障分類等は別途必要 |
+| failure history | A | MaintenanceInputのFAILURE_RECORDに事象期間・出典・過去損失を登録。STOPPEDから生成しない |
+| maintenance history | A | 既存MaintenanceRecordの実績と、MaintenanceInputのREPAIR_RECORDの出典・時間・費用を区別して参照 |
 | quality loss | C | 不良量・金額・損失との重複規則なし |
 | production buffer | A | CapacityInputに同一製品・単位の利用可能bufferを明示登録。在庫台帳ではない |
 | permissible downtime | B | PO-B03の一定需要・供給等の条件下でbuffer÷毎時不足量。一般の納期引当は未対応 |
@@ -313,13 +313,13 @@ A=現仕様に存在、B=現仕様から一部導出可能、C=現仕様には�
 
 | ID | 確定が必要な事項 | 影響範囲 |
 |---|---|---|
-| PO-B01 | 経済入力は共通の開始・終了時刻と稼働時間を明示し、JPYで直接費・停止損失・劣化損失を区別する。期間外費用を黙って加算／除外しない。将来計画・共通交換費の扱いはPO-B05と併せて未決定。150日は単純費用回収期間であり案の優劣を意味しない | BS-02・03・07・10・12・G01、経済AC、DB / 計算Tool |
+| PO-B01 | 経済入力は共通の開始・終了時刻と稼働時間を明示し、JPYで直接費・停止損失・劣化損失を区別する。期間外費用を黙って加算／除外しない。計画の共通評価期間と交換費の算入／非算入を明示し、未決定なら総額不明とする。150日は単純費用回収期間であり案の優劣を意味しない | BS-02・03・07・10・12・G01、経済AC、DB / 計算Tool |
 | PO-B02 | 初期通貨JPY。直接費、停止／劣化の時間当たり損失率と時間を区別し、対象・適用期間・単位・推定／確定・出典を保持する。独立性を確認した項目だけ加算。不明値はNULLとして既知小計と総額不明を分離する。設備状態やGraph到達経路から損失率を生成しない | BS-02・03・09・G01、Productと経済入力 |
 | PO-B03 | 同一製品・単位・評価期間で、通常能力から重複しない使用中・予約負荷を控除し必要能力との差を不足量として評価する。不明はUNKNOWN、単位自動換算なし。製品互換性を明示登録し安全・品質の未確認を残す。一定需要・供給、他用途へのbuffer引当なし、復旧後の需要充足が明示された場合だけ、利用可能buffer÷毎時不足量で条件付き許容停止時間・復旧期限を求める | BS-05・06・G01、UC-B02・03・11 |
 | PO-B04 | 設備・適用期間・観測・安全基準の出典・継続条件を正式登録し、停止必須／条件付き継続可／不明を区別する。停止必須を継続候補から除外し、経済利益で上書きしない。不明を安全とせず基準・確率を捏造しない。既存の稼働状態の事実登録を運転許可と区別し、安全判断で事実登録を拒否しない。運転許可の業務操作を追加する場合はその制約を別途契約化する | BS-03・04・11・15・G01、状態／安全入力 |
-| PO-B05 | 修理／交換計画の区別、所要時間と調達lead timeの区別、暫定案の期間、次回計画の選び方。UC-B14の「次回保全で停止」が保全予定作成か、将来状態変更の予約か | BS-03・07・G01、UC-B06〜08・14、計画／更新契約 |
-| PO-B06 | 故障・修理履歴、過去停止損失の正本と登録主体、履歴の対象期間、将来予測の根拠。現在Graphのas_ofで履歴を復元しない | BS-12、UC-B12、履歴DB / Tool |
-| PO-B07 | 経済・能力・安全情報は保全・生産管理・工場管理が閲覧する。工場管理者が更新要求、別の工場管理者が承認、元の要求者が確定する。現場には公開しない。入力・出典・計算結果・Snapshot・履歴にも同じ境界を適用する。故障情報の権限は未決定 | access-control、全Target / Snapshot / API |
+| PO-B05 | 修理・交換・暫定対応案を区別し、調達待ち・作業・停止時間を別々に登録する。暫定終了と共通の費用評価期間を明示する。次回保全は将来のPLANNED予定の最早開始時刻から選び、同時刻に複数あれば利用者が選択する。「次回保全で停止」は保全予定を作成・承認する意味であり、設備状態の自動変更予約ではない | BS-03・07・G01、UC-B06〜08・14、計画／更新契約 |
+| PO-B06 | 出典・事象期間付きの故障・修理・過去停止損失をPostgreSQL正本へ登録し、指定期間で参照する。STOPPEDから故障原因を生成せず、過去損失・頻度から将来故障率を推測しない。現在Graphのas_ofで履歴を復元しない | BS-12、UC-B12、履歴DB / Tool |
+| PO-B07 | 経済・能力・安全・対応計画・故障履歴情報は保全・生産管理・工場管理が閲覧する。工場管理者が更新要求、別の工場管理者が承認、元の要求者が確定する。現場には公開しない。入力・出典・計算結果・Snapshot・履歴にも同じ境界を適用する。既存の保全予定・実績の権限は維持し、新しい対応計画・故障履歴の分類・損失・出典はこの境界に従う | access-control、全Target / Snapshot / API |
 | PO-B08 | 「影響するInfrastructureResource」が被影響対象か、上流依存資源の提示か。現行関係表には設備からInfrastructureResourceへの通常の下流影響関係がない | UC-B01、関係モデル / Graph / AC |
 
 技術実装判断として、UCの番号分離、構造化結果による検証、計算をLLMから分離することを採用する。数量の単位・桁・丸めはPO-B01〜03の意味確定後に設計へ反映し、binary floatや新しいSnapshot形状を先行採用しない。PO判断確定時にはRequirements / Domain / Access / Data / API / Transaction / AC / Testを対応して更新する。

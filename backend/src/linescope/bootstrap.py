@@ -20,6 +20,7 @@ from .application.knowledge_content import VerifiedKnowledgeContent
 from .application.knowledge_flow import KnowledgeRetrieval
 from .application.knowledge_metadata import KnowledgeMetadataGuard
 from .application.maintenance_command import MaintenanceCommandPrepare
+from .application.maintenance_inputs import MaintenanceInputs
 from .application.production_command import ProductionCommandPrepare
 from .application.proposals import ProposalStore
 from .application.reads import ReadTools
@@ -47,6 +48,7 @@ class ApiServices:
     approval: HumanApproval
     execute: HumanExecute
     capacity: CapacityInputs
+    maintenance_inputs: MaintenanceInputs
     safety: SafetyInputs
     economics: EconomicInputs
     agent: AgentApplication
@@ -151,6 +153,7 @@ def build_api_services(
             approval=HumanApproval(database, event_logger=events),
             execute=HumanExecute(database, settings, event_logger=events),
             economics=EconomicInputs(database),
+            maintenance_inputs=MaintenanceInputs(database),
             safety=SafetyInputs(database),
             capacity=CapacityInputs(database),
             agent=agent,

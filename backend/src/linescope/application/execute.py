@@ -118,6 +118,7 @@ class _UpdateExecute:
                 "ECONOMIC_INPUT",
                 "CAPACITY_INPUT",
                 "SAFETY_INPUT",
+                "MAINTENANCE_INPUT",
             } and context.role not in {"maintenance", "production", "manager"}:
                 raise ProposalError(
                     "AUTHORIZATION_DENIED", "Restricted result visibility is required"
@@ -842,6 +843,10 @@ class HumanExecute(_UpdateExecute):
 
     @staticmethod
     def _handler(targets):
+        from .maintenance_inputs import MaintenanceInputExecute
+
+        if targets and all(t["target_type"] == "MaintenanceInput" for t in targets):
+            return MaintenanceInputExecute
         from .safety import SafetyExecute
 
         if targets and all(t["target_type"] == "SafetyInput" for t in targets):

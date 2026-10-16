@@ -428,3 +428,14 @@ calculationは`available_rate=normal_rate-used_rate-reserved_rate`、`shortage_r
 - UNKNOWNを継続可能と認定しない。missing_informationに不足・期限外を示す。
 - assessment_scope=SELECTED_INPUT_ONLY、operational_permission=false、residual_risk=UNKNOWNを保持する。単一記録の評価であり、設備全体の安全を認定しない。
 - 基準・観測・出典・条件は構造化結果に保持。LLMの自由説明で停止必須やUNKNOWNを上書きしない。複数入力を勝手に統合しない。
+
+## 正式対応計画・故障履歴API / Tool
+
+- `POST /maintenance-inputs/search`：filter（equipment_id / input_code / equipment_query / kind / period_start / period_end）、page_size（既定20、最大100）、cursor。期間はUTC正規化後に事象／評価期間との半開区間の重なりで検索する。設備名・コードはliteral substring、code / ID / kindは完全一致、条件はAND。UUID keyset、context・filterに束縛したcursor、候補はpayloadを含まない。
+- `GET /maintenance-inputs/{maintenance_input_id}`：input、calculation、next_maintenance、source=REGISTERED_INPUT、observed_at。入力versionとサーバ観測日時を明示する。
+- `GET /maintenance-inputs/next-plans/{equipment_id}`：将来のPLANNED予定を開始日時・UUID順に最大100件、complete、最早開始のnext_candidates、selection_required、selection_status（UNIQUE / SELECT_REQUIRED / NONE / INCOMPLETE）。不完全なら次回を選ばない。自動状態変更はfalse。
+- `POST /maintenance-inputs/prepare`：厳密なroot fieldsはretry_key、maintenance_input_id（新規null）、input、supersedes_update_request_id（通常null）。inputはinput_code / equipment_id / payload。確定値からretry hashとSnapshotをサーバで生成する。共通UpdateRequest / Approval / Executeを使う。
+- payloadの全field：kind、period_start、period_end、source、details、risk_notes、maintenance_plan_id、interim_until、include_replacement_cost、lead_time_hours、work_hours、downtime_hours、direct_cost_jpy、replacement_cost_jpy、past_loss_jpy。source / detailsは必須1000文字以下。codeは100文字以下。日時はtimezone必須、増加する期間。数量は非負decimal文字列（整数部最大15桁、小数6桁）またはnull。float / boolを数量として受理しない。
+- 履歴では調達待ち・暫定終了・交換費／算入条件はnull、期間終了はサーバ現在時刻以前。計画ではpast_loss_jpyはnull。任意の関連保全予定は存在し、同じ設備であることを再検証する。
+- calculationは正規化payload、record_scope、known_plan_direct_cost_subtotal_jpy、total_economic_impact_jpy=null、future_failure_probability=null、feasibility=UNASSESSED、missing_information、automatic_state_change=falseを返す。直接費小計は交換費を含めない場合direct_cost_jpy、含める場合その和、条件・値が未知ならnull。小計を総額としない。
+- Agent公開は`search_maintenance_inputs` / `get_maintenance_input`のみ。新規PrepareやApproval / Executeは公開しない。EvidenceはPG・LATEST_PER_CALL・観測日時・選択IDとversion。読み取った各記録の期間や分類を合算しない。

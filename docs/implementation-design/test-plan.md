@@ -277,3 +277,9 @@ Dockerで`pytest -p no:cacheprovider backend/tests/interfaces/test_controlled_ac
 - 実PGは登録・訂正・role・自己承認・現在role喪失・競合・retry・並行再送・監査rollback・Snapshot / hash・拒否。登録シナリオでAgent / Evidenceと稼働状態の事実登録の維持も確認する。
 - 既存DB role試験を安全入力へ拡張し、共通更新・migration・既存入力も回帰する。
 - Frontendの新規Unitを増やさず、既存試験・lint・型・buildと実ブラウザで登録／訂正・別承認者・Agent・UNKNOWN・解除を確認する。
+
+## 正式対応計画・故障履歴の試験範囲
+
+新規pytestは展開後20件を予定する。domain 8件（計画3分類、履歴2分類、費用条件未知、期間境界、不正な履歴の同値クラス）、実PG / HTTP 12件（登録・参照・訂正・retry・自己承認・現在role・3roleの要求拒否・3roleの閲覧・競合・並行再送・rollback・厳密入力）。複数因子の無条件直積を作らない。
+
+登録の代表経路で計画・故障／修理履歴・期間検索・同時刻の次回保全候補・予定関連付け・状態不変・Agentの不適切な予測文の置換とEvidenceを確認する。既存DB role試験へ新tableのruntime / query / projection境界を追加する。Frontendは主要業務経路を実ブラウザで確認し、Unit caseを機械的に追加しない。

@@ -627,34 +627,38 @@ aside > button {
   clip-path: none;
 }
 
-:is(.economic-panel, .capacity-panel, .safety-panel) {
+:is(.economic-panel, .capacity-panel, .safety-panel, .maintenance-panel) {
   border: 1px solid var(--line);
   border-radius: 6px;
   padding: 16px;
   margin: 20px 0;
   overflow-wrap: anywhere;
 }
-:is(.economic-panel, .capacity-panel, .safety-panel) summary {
+:is(.economic-panel, .capacity-panel, .safety-panel, .maintenance-panel)
+  summary {
   cursor: pointer;
   font-weight: 600;
 }
-:is(.economic-panel, .capacity-panel, .safety-panel) fieldset {
+:is(.economic-panel, .capacity-panel, .safety-panel, .maintenance-panel)
+  fieldset {
   min-width: 0;
   border: 1px solid var(--line);
   margin: 16px 0;
   padding: 12px;
 }
-:is(.economic-panel, .capacity-panel, .safety-panel) input[type="checkbox"] {
+:is(.economic-panel, .capacity-panel, .safety-panel, .maintenance-panel)
+  input[type="checkbox"] {
   width: auto;
   margin: 12px 8px 12px 0;
 }
-:is(.economic-panel, .capacity-panel, .safety-panel) select {
+:is(.economic-panel, .capacity-panel, .safety-panel, .maintenance-panel)
+  select {
   width: 100%;
   padding: 10px;
   color: var(--text);
   background: var(--panel);
   border: 1px solid var(--line);
 }
-:is(.economic-panel, .capacity-panel, .safety-panel) pre {
+:is(.economic-panel, .capacity-panel, .safety-panel, .maintenance-panel) pre {
   max-height: 320px;
 }

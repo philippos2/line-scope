@@ -66,7 +66,7 @@ Approval成立から30分。
 - 生産管理担当者: 生産運用・経済・能力・安全情報関連
 - 工場管理者: 全件
 
-`GET /update-requests/{id}` も同じ閲覧境界に従う。ただしrequester本人は自身のUpdateRequestを参照できる。ECONOMIC_INPUT / CAPACITY_INPUT / SAFETY_INPUTは例外として、本人にも現在の対象情報閲覧権限を要求する。
+`GET /update-requests/{id}` も同じ閲覧境界に従う。ただしrequester本人は自身のUpdateRequestを参照できる。ECONOMIC_INPUT / CAPACITY_INPUT / SAFETY_INPUT / MAINTENANCE_INPUTは例外として、本人にも現在の対象情報閲覧権限を要求する。
 
 ## 8. 承認対象
 
@@ -77,7 +77,7 @@ Agentが生成した説明文だけを承認対象としない。
 ## 9. レビューで確定した権限・期限
 
 - 未承認要求は無期限。ただしapprove / execute時に対象version・Snapshot・業務制約を再検証し、変化した要求は失効する。
-- 一UpdateRequestは単一業務カテゴリに限定する。同じカテゴリの複数Targetは可能。カテゴリはEQUIPMENT_STATE / MAINTENANCE / PRODUCTION_OPERATION / DEPENDENCY / ECONOMIC_INPUT / CAPACITY_INPUT / SAFETY_INPUT。AssignmentはPRODUCTION_OPERATIONであり、予定値と割当を同一要求で原子的に変更する。
+- 一UpdateRequestは単一業務カテゴリに限定する。同じカテゴリの複数Targetは可能。カテゴリはEQUIPMENT_STATE / MAINTENANCE / PRODUCTION_OPERATION / DEPENDENCY / ECONOMIC_INPUT / CAPACITY_INPUT / SAFETY_INPUT / MAINTENANCE_INPUT。AssignmentはPRODUCTION_OPERATIONであり、予定値と割当を同一要求で原子的に変更する。
 - Execute時にrequesterの現在更新権限と、承認者の現在承認権限・自己承認規則を再検証する。必要権限が失われた承認はINVALIDATED。COMPLETEDの再送はowner確認と現在の要求閲覧権限の下で保存済み結果を返し、新規更新権限の喪失によって確定結果を書き換えない。
 - Graph分析は保全・生産管理・工場管理のみ。現場担当者は依存関係の通常Readまで。UC-04 / UC-16〜20の全Graph Toolに同じ規則を適用し、ノード単位秘匿は導入しない。
 - KnowledgeDocument access_classはv1ではFACTORY_INTERNALのみ。認証済み全ロールに許可し、未知のclassは拒否する。
@@ -110,3 +110,17 @@ CAPACITY_INPUTの入力・出典・計算結果・Snapshot・保存要求・履�
 - managerが要求し、別managerが承認・拒否、元requesterかつ現在managerが確定する。承認者の現在manager権限も検証する。
 - floorには元requesterでも公開しない。COMPLETED再送は元requesterかつ現在の安全情報閲覧権限で許可する。
 - 稼働状態の記録は運転許可ではない。安全判定を理由に既存の状態登録を拒否しない。故障情報への権限付与は本契約に含めない。
+
+## 対応計画・故障履歴の権限
+
+| 操作・情報 | 許可 |
+|---|---|
+| MaintenanceInput検索・取得・計算・出典・Snapshot・履歴 | maintenance / production / manager |
+| 登録・訂正Prepare | manager |
+| Approval | 要求者と異なるmanager。実行時にも現在roleを再検証 |
+| Execute | 元の要求者であり現在もmanager |
+| floor | 上記情報・操作すべて拒否 |
+
+既存MaintenancePlan / MaintenanceRecordの権限を変更しない。分類・損失など新情報を既存の広い読取経路へ混入させない。Agentは新情報の検索・取得のみ行う。
+
+MAINTENANCE_INPUTのCOMPLETED再送は、元requesterかつ現在の対象情報閲覧権限で保存済み結果の参照だけを許可する。新たな確定処理は行わない。

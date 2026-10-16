@@ -53,6 +53,11 @@ def main():
         action="store_true",
         help="正式安全入力の登録・訂正・参照を実ブラウザ確認する（実LLM必須）",
     )
+    parser.add_argument(
+        "--maintenance-only",
+        action="store_true",
+        help="正式対応計画・故障履歴を実ブラウザ確認する（実LLM必須）",
+    )
     parser.add_argument("--embedding-model")
     parser.add_argument("--embedding-digest")
     args = parser.parse_args()
@@ -61,8 +66,20 @@ def main():
         and re.fullmatch(r"[A-Za-z0-9_.:/-]{1,200}", args.llm_model) is None
     ):
         parser.error("Invalid model name")
-    if sum((args.economic_only, args.capacity_only, args.safety_only)) > 1:
+    if (
+        sum(
+            (
+                args.economic_only,
+                args.capacity_only,
+                args.safety_only,
+                args.maintenance_only,
+            )
+        )
+        > 1
+    ):
         parser.error("Choose one focused workflow")
+    if args.maintenance_only and not args.llm_model:
+        parser.error("--maintenance-only requires an installed --llm-model")
     if args.safety_only and not args.llm_model:
         parser.error("--safety-only requires an installed --llm-model")
     if args.capacity_only and not args.llm_model:
@@ -120,7 +137,12 @@ def main():
                 f"LINESCOPE_BROWSER_DISCOVERY={str(bool(args.llm_model)).lower()}\n"
             )
         try:
-            if args.economic_only or args.capacity_only or args.safety_only:
+            if (
+                args.economic_only
+                or args.capacity_only
+                or args.safety_only
+                or args.maintenance_only
+            ):
                 fixture.docker(
                     "up", "--build", "-d", "--wait", "--wait-timeout", "120", "api"
                 )
@@ -162,7 +184,9 @@ def main():
                         str(secret),
                         image,
                         "node",
-                        "scripts/verify-safety-browser.mjs"
+                        "scripts/verify-maintenance-browser.mjs"
+                        if args.maintenance_only
+                        else "scripts/verify-safety-browser.mjs"
                         if args.safety_only
                         else "scripts/verify-capacity-browser.mjs"
                         if args.capacity_only
@@ -189,7 +213,9 @@ def main():
                 json.dumps(
                     {
                         "result": "PASS",
-                        "scope": "Registered safety workflow"
+                        "scope": "Registered maintenance workflow"
+                        if args.maintenance_only
+                        else "Registered safety workflow"
                         if args.safety_only
                         else "Registered capacity workflow"
                         if args.capacity_only

@@ -62,6 +62,10 @@ class DemoDecisionFlow:
                     "登録済み安全",
                     "SafetyInput",
                     "safety_input",
+                    "対応計画",
+                    "故障履歴",
+                    "MaintenanceInput",
+                    "maintenance_input",
                 )
             )
             and "M-204" in message
