@@ -2,10 +2,11 @@
 
 from dataclasses import dataclass
 from time import monotonic
+from uuid import uuid4
 
 from ..application.reads import ReadResult, ToolError
 from ..application.registered_decision import decision_answer
-from ..domain.canonical import canonical_json
+from ..domain.canonical import canonical_json, strict_json
 from ..integrations.llm import LLMError, LLMReply
 from .agent_tools import AgentToolSession
 from .capacity_answer import capacity_answer
@@ -102,6 +103,47 @@ class ReadAgent:
         # Replacement is a separate update workflow.
         if (request.context_id and previous_messages is None) or request.replace_update_request_id:
             raise ToolError("INVALID_ARGUMENT", "This read loop requires a valid read context")
+        if request.message.startswith("関係分析 "):
+            if request.context_id:
+                raise ToolError("INVALID_ARGUMENT", "Start a new explicit graph investigation")
+            try:
+                command = strict_json(request.message.removeprefix("関係分析 "))
+                allowed = GRAPH_TOOLS | {
+                    "get_equipment",
+                    "get_process",
+                    "get_production_operation",
+                    "get_product",
+                    "get_infrastructure_resource",
+                }
+                if (
+                    type(command) is not dict
+                    or set(command) != {"tool", "arguments"}
+                    or type(command["tool"]) is not str
+                    or command["tool"] not in allowed
+                    or type(command["arguments"]) is not dict
+                ):
+                    raise ValueError("Invalid graph selection")
+            except (ValueError, TypeError) as error:
+                raise ToolError(
+                    "INVALID_ARGUMENT", "Invalid explicit graph investigation"
+                ) from error
+            call_id = str(uuid4())
+            result = session.run(command["tool"], command["arguments"], tool_call_id=call_id)
+            if not isinstance(result, ReadResult):
+                raise ToolError("INTERNAL_ERROR", "Read Tool returned an invalid result")
+            observations = (ReadObservation(call_id, command["tool"], result),)
+            return ReadAgentResult(
+                supported_answer(observations)
+                or (
+                    "取得結果と未評価事項は構造化結果をご確認ください。"
+                    if command["tool"] in GRAPH_TOOLS
+                    else "選択したノードの登録属性を取得しました。"
+                ),
+                observations,
+                ({"tool_call_id": call_id, "tool": command["tool"], "attempt": 1, "code": "OK"},),
+                (),
+                False,
+            )
         messages = [
             {"role": "system", "content": SYSTEM_PROMPT},
             {"role": "user", "content": request.message},
