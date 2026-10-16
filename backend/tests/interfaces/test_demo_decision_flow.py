@@ -1,4 +1,4 @@
-"""Temporary M0 journey: real storage/approval, explicitly mocked comparison."""
+"""Unselected comparison: real facts, explicit unknowns and controlled updates."""
 
 from fastapi.testclient import TestClient
 from graph.test_common_dependency_reader import adapters as adapters
@@ -51,19 +51,19 @@ def test_comparison_to_approved_execution_and_current_confirmation(
         assert body["status"] == "partial"
         package = body["data"]["decision_package"]
         assert package["equipment"]["state_code"] == "STOPPED"
-        assert package["comparison"]["source"] == "MOCK_FIXTURE"
+        assert package["comparison"]["source"] == "REGISTERED_INPUT"
         assert package["comparison"]["excluded_options"] == ["CONTINUE"]
-        constraint = package["comparison"]["options"][3]["blocking_constraints"][0]
+        constraint = package["comparison"]["options"][2]["blocking_constraints"][0]
         assert constraint["evidence"] == body["evidence"]["state"]
-        assert package["comparison"]["required_information"]
-        assert package["comparison"]["options"][0]["total_cost"] == 1900000
-        assert package["comparison"]["options"][2]["shortage_units_per_hour"] == 30
+        assert package["comparison"]["options"][0]["missing_information"]
+        assert package["comparison"]["options"][0]["total_cost"] is None
+        assert body["data"]["selection_required"] is True
         assert body["evidence"]["state"] and body["evidence"]["impact"]
         assert package["comparison"]["document_status"] == "MOCK_SEARCH"
         documents = package["comparison"]["document_evidence"]
         assert documents[0]["text"] == "M-204 修理と交換の参考手順"
         assert body["evidence"]["documents"]["citations"] == [documents[0]["citation"]]
-        assert body["evidence"]["comparison"]["calculations"][2]["result"] == 1900000
+        assert package["comparison"]["calculations"] == []
 
         assert counts(db)["business_update_history"] == 0
         prepared = client.post(
@@ -116,7 +116,7 @@ def test_comparison_keeps_facts_and_unknowns_when_knowledge_is_unavailable(
     assert comparison["document_status"] == "UNAVAILABLE"
     assert comparison["document_evidence"] == []
     assert result.json()["evidence"]["documents"] == {}
-    assert comparison["options"][0]["total_cost"] == 1900000
+    assert comparison["options"][0]["total_cost"] is None
     assert counts(db)["business_update_history"] == 0
 
 
@@ -127,9 +127,9 @@ def test_degradation_comparison_does_not_override_current_stopped_state(db, read
         )
     package = result.json()["data"]["decision_package"]
     values = {item["id"]: item["result"] for item in package["comparison"]["calculations"]}
-    assert values["degradation_loss"] == 480000 and values["simple_cost_recovery"] == 150
+    assert values == {}  # No selected economic input: no invented period or cost.
     assert package["equipment"]["state_code"] == "STOPPED"
-    assert package["comparison"]["options"][3]["feasibility"] == "INFEASIBLE"
+    assert package["comparison"]["options"][2]["feasibility"] == "INFEASIBLE"
     assert package["comparison"]["economic_preference"] is None
     assert counts(db)["business_update_history"] == 0
 
@@ -179,9 +179,7 @@ def test_model_only_selects_presentation_order_in_real_decision_api(db, reader_w
         )
     assert response.status_code == 200
     body = response.json()
-    summary = body["data"]["decision_package"]["summary"]
-    assert summary["llm_status"] == "VALIDATED_ORDER"
-    assert summary["sections"][0]["id"] == "REPAIR"
-    assert body["evidence"]["summary"]["llm_scope"] == "PRESENTATION_ORDER_ONLY"
-    assert "1,900,000円" in body["answer"] and "継続案を除外" in body["answer"]
+    assert llm.requests == []  # No model can replace registered facts or supply missing costs.
+    assert body["data"]["decision_package"]["comparison"]["options"][0]["total_cost"] is None
+    assert "候補から除外" in body["answer"]
     assert counts(db)["business_update_history"] == 0

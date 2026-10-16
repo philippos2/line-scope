@@ -32,7 +32,7 @@ def test_graph_tools_are_advertised_only_with_a_server_adapter():
     assert not set(TOOLS) & absent.schemas().keys()
     configured = ToolDispatcher(NoDatabase(), graph=object())
     schemas = configured.schemas()
-    assert len(schemas) == 32
+    assert len(schemas) == 33
     assert (
         "省略" in schemas["find_alternative_paths"]["properties"]["explicit_as_of"]["description"]
     )

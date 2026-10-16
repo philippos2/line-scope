@@ -1,6 +1,7 @@
-"""実Ollamaの表示順選択と、サーバによる日本語要約を専用Composeで検証する。"""
+"""実Ollamaによる正式比較Tool参照と、サーバによる日本語要約を専用Composeで検証する。"""
 
 import argparse
+import json
 import re
 import tempfile
 
@@ -9,7 +10,7 @@ from verify_minimal_flow import DemoFixture, require, stage, verify
 
 class SummaryFixture(DemoFixture):
     def request(self, path, **arguments):
-        return super().request(path, timeout_seconds=30, **arguments)
+        return super().request(path, timeout_seconds=90, **arguments)
 
 
 def main():
@@ -25,30 +26,48 @@ def main():
             output.write(f"LINESCOPE_LLM_MODEL={args.model}\n")
         try:
             verify(fixture)
-            result = fixture.request(
+            discovered = fixture.request(
                 "/agent", data={"message": "M-204の修理と交換を比較して"}
             )
-            summary = result["data"]["decision_package"]["summary"]
+            selection = {
+                "equipment_id": discovered["data"]["equipment_id"],
+                "period_start": "2026-10-01T00:00:00Z",
+                "period_end": "2026-10-02T00:00:00Z",
+                "economic_input_id": None,
+                "capacity_input_ids": [],
+                "safety_input_ids": [],
+                "maintenance_input_ids": [],
+            }
+            result = fixture.request(
+                "/agent",
+                data={
+                    "message": "次の引数でcompare_registered_inputsを呼んで条件を評価してください。"
+                    + json.dumps(selection)
+                },
+            )
+            tools = result["data"].get("tool_results", [])
+            selected = [
+                row for row in tools if row["tool"] == "compare_registered_inputs"
+            ]
             require(
-                summary["llm_status"] == "VALIDATED_ORDER",
-                "Real model did not select a valid order",
+                bool(selected),
+                "Real model did not reference registered comparison Tool",
             )
             require(
-                summary["llm_scope"] == "PRESENTATION_ORDER_ONLY",
-                "Model exceeded presentation scope",
+                selected[0]["data"]["source"] == "REGISTERED_INPUT",
+                "Registered source missing",
             )
             require(
-                "1,900,000円" in result["answer"]
-                and "継続案を除外" in result["answer"],
-                "Server facts or constraints missing",
+                "候補から除外" in result["answer"]
+                and "MOCK_FIXTURE" not in json.dumps(result),
+                "Server constraints missing or fixture fallback present",
             )
             stage(
                 "summary",
                 result="PASS",
                 model=args.model,
-                llm_status=summary["llm_status"],
-                source=summary["source"],
-                scope="Presentation order only; not full LLM quality acceptance",
+                source="REGISTERED_INPUT",
+                scope="Registered readonly Tool; not full LLM quality acceptance",
             )
         finally:
             fixture.docker("down", "--volumes", "--remove-orphans")

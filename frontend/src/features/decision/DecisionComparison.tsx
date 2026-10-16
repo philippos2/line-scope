@@ -5,8 +5,19 @@ const names: Record<string, string> = {
   REPLACE: "交換",
   CONTINUE: "継続使用",
   SUBSTITUTE: "代替設備",
+  INTERIM: "暫定対応",
 };
 const fields: [string, string, string][] = [
+  ["lead_time_hours", "調達待ち", "時間"],
+  ["downtime_hours", "停止時間", "時間"],
+  ["known_subtotal_jpy", "経済入力の既知小計", "JPY"],
+  ["plan_cost_subtotal_jpy", "計画直接費の小計（合算しない）", "JPY"],
+  ["required_rate", "必要能力", "毎時"],
+  ["available_rate", "利用可能能力", "毎時"],
+  ["shortage_rate", "能力不足", "毎時"],
+  ["quantity_unit", "能力の数量単位", ""],
+  ["recovery_deadline", "条件付き復旧期限", ""],
+  ["interim_until", "暫定終了", ""],
   ["direct_cost", "直接費用", "JPY"],
   ["duration_hours", "作業時間", "時間"],
   ["lead_time_days", "調達期間", "日"],
@@ -27,7 +38,9 @@ function display(value: unknown, unit = "", currency: unknown = "JPY") {
       ? `¥${text}`
       : `${text}${unit ? ` ${unit}` : ""}`;
   }
-  return typeof value === "string" ? value : JSON.stringify(value);
+  return typeof value === "string"
+    ? `${value}${unit ? ` ${unit}` : ""}`
+    : JSON.stringify(value);
 }
 function list(value: unknown) {
   return Array.isArray(value)
@@ -36,11 +49,15 @@ function list(value: unknown) {
 }
 const reasons: Record<string, string> = {
   CURRENT_EQUIPMENT_UNAVAILABLE: "現在の設備状態では使用できません",
-  HARD_SAFETY_STOP: "安全停止条件に該当します（デモ条件）",
+  PRODUCT_INCOMPATIBLE: "登録された製品互換性を満たしません",
+  HARD_SAFETY_STOP: "登録された安全停止条件に該当します",
   INSUFFICIENT_CAPACITY_FOR_FULL_ABSORPTION:
     "必要能力を完全には吸収できません。部分的な緩和の可否は別途判断が必要です",
 };
 const calculationNames: Record<string, string> = {
+  economic_REPAIR: "修理の経済入力",
+  economic_REPLACE: "交換の経済入力",
+  economic_CONTINUE: "継続の経済入力",
   loss_rate: "停止損失率",
   repair_downtime: "修理中の生産損失",
   repair_total: "修理の総経済影響",
@@ -62,7 +79,7 @@ export function DecisionComparison({ comparison }: { comparison: JsonObject }) {
     <section className="decision">
       <h2>対応案を比較する</h2>
       <p className="muted">
-        共通の比較期間と安全条件は未確定です。費用の大小だけで案の優劣や実行可否を確定しません。
+        選択した入力と共通期間の比較です。費用の大小だけで案の優劣や実行可否を確定しません。
       </p>
       <div className="metrics">
         <div>
@@ -86,7 +103,7 @@ export function DecisionComparison({ comparison }: { comparison: JsonObject }) {
           経済データ
           <strong>
             {economics.complete === true
-              ? "デモ入力内で算出可能"
+              ? "登録入力内で算出可能"
               : "不完全 / 未確認"}
           </strong>
         </div>

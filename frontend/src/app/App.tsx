@@ -9,6 +9,7 @@ import { CapacityPanel } from "../features/capacity/CapacityPanel";
 import { CapacityResult } from "../features/capacity/CapacityResult";
 import { EconomicPanel } from "../features/economics/EconomicPanel";
 import { EconomicResult } from "../features/economics/EconomicResult";
+import { RegisteredComparison } from "../features/decision/RegisteredComparison";
 import { DecisionComparison } from "../features/decision/DecisionComparison";
 import {
   EquipmentCandidates,
@@ -204,10 +205,34 @@ export function App() {
       `Equipment ID ${item.equipment_id} の現在状態と下流の依存到達対象・経路を調べて。実停止・能力・安全性の未評価事項を示して。変更要求は作成しないでください。`,
     );
   }
-  const view = result ? graphView(result) : null;
+  const compared = Array.isArray(result?.data.tool_results)
+    ? result.data.tool_results
+        .filter(object)
+        .filter(
+          (row) => row.tool === "compare_registered_inputs" && object(row.data),
+        )
+        .at(-1)
+    : null;
+  const comparedData =
+    object(compared) && object(compared.data) ? compared.data : null;
+  const analysisResult =
+    result && comparedData && object(comparedData.decision_package)
+      ? {
+          ...result,
+          data: {
+            ...result.data,
+            decision_package: comparedData.decision_package,
+          },
+          evidence: {
+            ...result.evidence,
+            ...(object(comparedData.evidence) ? comparedData.evidence : {}),
+          },
+        }
+      : result;
+  const view = analysisResult ? graphView(analysisResult) : null;
   const pkg =
-    result && object(result.data.decision_package)
-      ? result.data.decision_package
+    analysisResult && object(analysisResult.data.decision_package)
+      ? analysisResult.data.decision_package
       : null;
   return (
     <>
@@ -310,7 +335,7 @@ export function App() {
             </div>
             {pkg && (
               <p className="notice">
-                MOCK_FIXTUREを含む比較デモ。費用・能力・安全条件は仮置きです。
+                正式入力と観測時点の比較です。未選択・情報不足の値は不明として表示します。
               </p>
             )}
             {stale && result && (
@@ -351,6 +376,12 @@ export function App() {
                 onSelect={chooseEquipment}
               />
             )}
+            <RegisteredComparison
+              key={equipment?.equipment_id ?? "none"}
+              equipment={equipment}
+              executionEpoch={executionEpoch}
+              onInvestigate={draftInvestigation}
+            />
             <MaintenancePanel
               equipment={equipment}
               onPrepared={setEconomicPrepared}
@@ -474,7 +505,7 @@ export function App() {
                 <DecisionComparison comparison={pkg.comparison} />
               ) : (
                 <p className="muted">
-                  この応答に比較結果はありません。比較デモを問い合わせると、取得した対応案を表示します。
+                  この応答に比較結果はありません。「正式入力から対応案を比較する」で入力と期間を選択してください。
                 </p>
               )
             ) : tab === "impact" ? (
@@ -482,7 +513,7 @@ export function App() {
                 <>
                   <GraphCanvas
                     view={view}
-                    result={result}
+                    result={analysisResult ?? result}
                     selected={selected ? nodeKey(selected) : null}
                     onSelect={setSelected}
                   />
@@ -499,7 +530,7 @@ export function App() {
                 </p>
               )
             ) : tab === "evidence" ? (
-              <EvidencePanel result={result} />
+              <EvidencePanel result={analysisResult ?? result} />
             ) : (
               <section>
                 <h2>公開Tool Trace</h2>
@@ -564,7 +595,7 @@ export function App() {
                     );
                   }}
                 >
-                  比較デモ
+                  正式入力を探す
                 </button>
               </div>
               <button className="primary" disabled={busy || !message.trim()}>
@@ -573,7 +604,7 @@ export function App() {
             </form>
             <p className="muted">
               設備名やコードの一部で検索するよう問い合わせることもできます。
-              比較デモはM-204の仮置き条件を使用します。明示的な更新依頼は変更準備を作成し得ます。承認・実行は別の操作です。
+              比較には正式入力と共通期間を選択してください。明示的な更新依頼は変更準備を作成し得ます。承認・実行は別の操作です。
             </p>
             <p role="alert">{error}</p>
             {result && (

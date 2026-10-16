@@ -161,31 +161,25 @@ def verify(fixture):
     )
     package = analysis["data"]["decision_package"]
     require(
-        analysis["status"] == "partial" and analysis["data"]["demo_only"],
-        "Demo boundary missing",
+        analysis["status"] == "partial" and analysis["data"]["selection_required"],
+        "Explicit selection boundary missing",
     )
     require(package["equipment"]["state_code"] == "STOPPED", "Unexpected initial state")
-    require(package["comparison"]["source"] == "MOCK_FIXTURE", "Mock label missing")
-    if fixture.decision_scenario != "AUTO":
-        require(
-            package["comparison"]["demo_scenario"] == fixture.decision_scenario,
-            "Configured scenario was not applied",
-        )
-    if fixture.decision_scenario == "MISSING_LOSS":
-        require(
-            package["comparison"]["economics"]["known_subtotal_per_hour"] == 120000
-            and package["comparison"]["economics"]["loss_per_hour"] is None
-            and package["comparison"]["options"][0]["total_cost"] is None,
-            "Missing loss must remain unknown through the live API",
-        )
+    require(
+        package["comparison"]["source"] == "REGISTERED_INPUT",
+        "Registered source missing",
+    )
+    require(
+        all(row["total_cost"] is None for row in package["comparison"]["options"]),
+        "Missing inputs must remain unknown",
+    )
     stage(
         "analysis",
         http=200,
         graph=package["impact"]["graph_sync_state"],
         current_state=package["equipment"]["state_code"],
-        comparison_source="MOCK_FIXTURE",
-        demo_scenario=package["comparison"]["demo_scenario"],
-        mock_repair_total=package["comparison"]["options"][0]["total_cost"],
+        comparison_source="REGISTERED_INPUT",
+        selection_required=True,
     )
     prepared = fixture.request(
         "/agent", data={"message": package["next_actions"]["prepare_message"]}
@@ -241,7 +235,8 @@ def verify(fixture):
         "transport": "curl",
         "real_stores": ["PostgreSQL", "Neo4j"],
         "llm": "NOT_USED",
-        "mock": ["economics", "capacity", "risk", "document_retrieval", "comparison"],
+        "comparison_source": "REGISTERED_INPUT",
+        "selection_required": True,
         "actors": "disposable authenticated requester and approver fixtures",
         "scope": "M0 fixed scenario, not Golden acceptance",
     }

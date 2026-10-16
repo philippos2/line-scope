@@ -97,7 +97,9 @@ try {
       throw new Error("Selection submitted automatically");
   }
   phase = "comparison";
-  await activate(page.getByRole("button", { name: "比較デモ", exact: true }));
+  await activate(
+    page.getByRole("button", { name: "正式入力を探す", exact: true }),
+  );
   await page.keyboard.press("Tab");
   await expect(
     page.getByRole("button", { name: "問い合わせを送信", exact: true }),
@@ -111,7 +113,7 @@ try {
   await expect(page.getByRole("img")).toBeVisible();
   await expect(
     page.getByText(
-      "MOCK_FIXTUREを含む比較デモ。費用・能力・安全条件は仮置きです。",
+      "正式入力と観測時点の比較です。未選択・情報不足の値は不明として表示します。",
     ),
   ).toBeVisible();
   await activate(page.getByRole("button", { name: "影響・経路", exact: true }));
@@ -128,7 +130,7 @@ try {
   await expect(
     page.getByRole("heading", { name: "対応案を比較する", exact: true }),
   ).toBeVisible();
-  await expect(page.getByText("¥1,900,000", { exact: true })).toBeVisible();
+  await expect(page.getByText("未確認", { exact: true }).first()).toBeVisible();
   await expect(page.getByText("候補から除外", { exact: true })).toBeVisible();
   await page.screenshot({ path: "/tmp/frontend-1440.png", fullPage: true });
   await page.getByRole("button", { name: "Evidence", exact: true }).click();
@@ -139,13 +141,10 @@ try {
     page.locator("main").getByText("Graph世代", { exact: true }),
   ).toBeVisible();
   await expect(
-    page.getByRole("heading", { name: "計算の根拠", exact: true }),
-  ).toBeVisible();
-  await expect(
     page.getByText("デモ入力です。正式な業務情報ではありません。", {
       exact: true,
     }),
-  ).toBeVisible();
+  ).toHaveCount(0);
   await page.screenshot({ path: "/tmp/frontend-1440.png", fullPage: true });
   await activate(
     page.locator("summary").filter({ hasText: /^変更準備・承認・実行$/ }),

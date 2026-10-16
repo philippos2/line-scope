@@ -58,6 +58,11 @@ def main():
         action="store_true",
         help="正式対応計画・故障履歴を実ブラウザ確認する（実LLM必須）",
     )
+    parser.add_argument(
+        "--comparison-only",
+        action="store_true",
+        help="正式入力の統合比較を実モデル・実ブラウザで確認する",
+    )
     parser.add_argument("--embedding-model")
     parser.add_argument("--embedding-digest")
     args = parser.parse_args()
@@ -73,11 +78,14 @@ def main():
                 args.capacity_only,
                 args.safety_only,
                 args.maintenance_only,
+                args.comparison_only,
             )
         )
         > 1
     ):
         parser.error("Choose one focused workflow")
+    if args.comparison_only and not args.llm_model:
+        parser.error("--comparison-only requires an installed --llm-model")
     if args.maintenance_only and not args.llm_model:
         parser.error("--maintenance-only requires an installed --llm-model")
     if args.safety_only and not args.llm_model:
@@ -142,6 +150,7 @@ def main():
                 or args.capacity_only
                 or args.safety_only
                 or args.maintenance_only
+                or args.comparison_only
             ):
                 fixture.docker(
                     "up", "--build", "-d", "--wait", "--wait-timeout", "120", "api"
@@ -149,6 +158,10 @@ def main():
                 fixture.docker(
                     "run", "--rm", "graph-admin", "linescope", "seed-demo-graph"
                 )
+                if args.comparison_only:
+                    fixture.docker(
+                        "run", "--rm", "graph-admin", "linescope", "rebuild-graph"
+                    )
             else:
                 verify(fixture)
                 ingest(
@@ -184,7 +197,9 @@ def main():
                         str(secret),
                         image,
                         "node",
-                        "scripts/verify-maintenance-browser.mjs"
+                        "scripts/verify-comparison-browser.mjs"
+                        if args.comparison_only
+                        else "scripts/verify-maintenance-browser.mjs"
                         if args.maintenance_only
                         else "scripts/verify-safety-browser.mjs"
                         if args.safety_only
@@ -213,7 +228,9 @@ def main():
                 json.dumps(
                     {
                         "result": "PASS",
-                        "scope": "Registered maintenance workflow"
+                        "scope": "Registered comparison workflow"
+                        if args.comparison_only
+                        else "Registered maintenance workflow"
                         if args.maintenance_only
                         else "Registered safety workflow"
                         if args.safety_only

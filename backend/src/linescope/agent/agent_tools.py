@@ -14,6 +14,8 @@ from uuid import UUID, uuid4
 from ..application.proposals import SavedProposal
 from ..application.reads import GET_TOOLS, ToolError
 from ..application.tools import PREPARE_CATEGORIES
+from ..domain.canonical import strict_json
+from ..domain.decision import normalize_selection
 from ..execution import ExecutionContext
 from ..logging import CODES, request_context
 from .agent_input import AgentInput
@@ -176,6 +178,24 @@ class AgentToolSession:
             self.calls += 1
             if type(tool) is not str or tool not in self._schemas:
                 raise ToolError("INVALID_ARGUMENT", "Unknown Agent Tool")
+            if tool == "compare_registered_inputs" and self.request.explicit_as_of is not None:
+                raise ToolError(
+                    "INVALID_ARGUMENT",
+                    "Registered comparison uses current Graph; start a separate comparison",
+                )
+            if tool == "compare_registered_inputs":
+                try:
+                    original = strict_json(self.request.message[self.request.message.index("{") :])
+                    selected = normalize_selection(original)
+                    supplied = normalize_selection(arguments)
+                    for key in ("capacity_input_ids", "safety_input_ids", "maintenance_input_ids"):
+                        selected[key], supplied[key] = sorted(selected[key]), sorted(supplied[key])
+                    if selected != supplied:
+                        raise ValueError("Selection mismatch")
+                except (ValueError, TypeError) as error:
+                    raise ToolError(
+                        "INVALID_ARGUMENT", "Explicit original comparison selection is required"
+                    ) from error
             prepare = tool in PREPARE_CATEGORIES
             if prepare and (
                 not self.prepare_authorized

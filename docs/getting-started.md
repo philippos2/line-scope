@@ -83,20 +83,11 @@ APIの運用ログはstdoutのJSONで、request_id・結果code等を使って�
 
 通常の`down`は正本DB volumeを保持します。通常停止に`--volumes`を付けないでください。`.env`のDB passwordを変えても既存DBのpasswordは自動更新されません。migrationは適用済みchecksumの変更を拒否します。[role・volume運用](implementation-design/operations.md#14-postgresql検索接続の段階分離)
 
-## 比較デモを有効にする
+## 正式入力から比較する
 
-`.env`へ次を追記してAPIを再作成します。実データの参照と仮置き計算入力を混同しないため、比較機能は明示的なopt-inです。
+経済・能力・安全・対応計画／履歴は、画面で登録・承認・確定してから利用する。「正式入力から対応案を比較する」で対象設備、登録入力、共通期間を選択する。分析だけで更新要求は作成しない。
 
-```dotenv
-LINESCOPE_DEMO_DECISION_MOCK=true
-LINESCOPE_DEMO_DECISION_SCENARIO=AUTO
-```
-
-```sh
-docker compose up -d --no-deps --force-recreate api
-```
-
-`AUTO`は現在状態に応じたデモ入力を選びます。固定ケースは`STOPPED`、`DEGRADED`、`SAFETY_STOP`、`SUFFICIENT_CAPACITY`、`MISSING_LOSS`、`MISSING_REPAIR_COST`、`NONADDITIVE_LOSS`です。これはサーバ設定であり、質問文から費用や安全条件を正本として登録する機能ではありません。
+入力が未選択なら候補と不明を返し、固定値で補完しない。従来の`LINESCOPE_DEMO_DECISION_MOCK` / `LINESCOPE_DEMO_DECISION_SCENARIO`は互換受付のみで、固定費用・能力・安全を有効化しない。Graphは現在の同期状態、入力は明示期間の条件付き評価として扱う。
 
 ## APIを直接呼ぶ
 
@@ -163,7 +154,7 @@ curl -sS "$BASE_URL/agent" \
   -d '{"message":"M-204の異常について影響・修理・交換・代替を比較して"}'
 ```
 
-`data.decision_package`に実Graphの影響候補、現在設備状態、仮置き比較、保全根拠、unknowns、次の操作を返します。`partial`、`demo_only`、`MOCK_FIXTURE`は境界の表示です。損失不明を0にせず、安全情報不足を安全と断定しません。LLMを設定した場合の比較要約は表示順の選択のみをLLMへ委ね、数値・制約・文章はサーバで生成します。通常Read Agentの自由回答とは別の経路です。
+`data.decision_package`に実Graphの影響候補、現在設備状態、選択した正式入力の比較、Evidenceとunknownsを返します。未選択時は候補と不明を返し、固定値で補完しません。LLMは明示選択した比較Toolを参照でき、数値・制約・要約はサーバが構築します。
 
 ## 実モデルを含む一括デモ受入
 
@@ -177,7 +168,7 @@ python3 scripts/verify_demo_acceptance.py \
   --report /tmp/linescope-acceptance.json
 ```
 
-最小経路・複数設備更新・実Embedding/Qdrant文書検索・実LLMの表示順選択を、独立した専用環境で順次検証します。reportは既存ディレクトリ内の新規ファイルを指定し、0600で保存します。再実行時は別のファイル名にしてください。
+最小経路・複数設備更新・実Embedding/Qdrant文書検索・実LLMの正式比較Tool参照を、独立した専用環境で順次検証します。reportは既存ディレクトリ内の新規ファイルを指定し、0600で保存します。再実行時は別のファイル名にしてください。
 
 全4経路を確認した場合だけPASS（終了code 0）、失敗はFAIL（1）、モデル指定を省略した未実行経路がある場合はPARTIAL（2）です。報告にはrevision・作業ツリー変更有無・時刻・各結果と受入範囲を残します。モック入力、一般LLM grounding未受入、Web UI全体の正式受入未完了は、全4経路PASSでも残ります。
 
