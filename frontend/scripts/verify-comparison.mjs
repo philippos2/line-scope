@@ -152,6 +152,27 @@ export async function verifyComparison(page, token, approver) {
       include_replacement_cost: false,
     },
   });
+  const history = await register("maintenance", {
+    input_code: "UI-COMP-HISTORY",
+    equipment_id: focus,
+    payload: {
+      kind: "FAILURE_RECORD",
+      period_start: "2021-01-01T00:00:00Z",
+      period_end: "2021-01-02T00:00:00Z",
+      details: "出典付きの過去故障",
+      source: "試験故障記録",
+      risk_notes: null,
+      maintenance_plan_id: null,
+      lead_time_hours: null,
+      work_hours: "4",
+      downtime_hours: "8",
+      direct_cost_jpy: "10000",
+      replacement_cost_jpy: null,
+      past_loss_jpy: "120000",
+      interim_until: null,
+      include_replacement_cost: null,
+    },
+  });
   // The UI independently discovers and explicitly selects equipment and saved records.
   await page
     .getByRole("button", { name: "正式入力を探す", exact: true })
@@ -176,6 +197,7 @@ export async function verifyComparison(page, token, approver) {
     "UI-COMP-CAP",
     "UI-COMP-SAFE",
     "UI-COMP-PLAN",
+    "UI-COMP-HISTORY",
   ])
     await panel.getByLabel(new RegExp(code)).check();
   await panel
@@ -230,6 +252,25 @@ export async function verifyComparison(page, token, approver) {
   await expect(
     panel.getByText("1900000 JPY", { exact: true }).first(),
   ).toBeVisible();
+  const assessment = result.data.decision_package.comparison;
+  if (
+    assessment.economics.loss_per_hour !== "200000" ||
+    assessment.options.find((row) => row.option === "SUBSTITUTE")
+      .condition_assessment.structure !== "AVAILABLE" ||
+    assessment.history[0].calculation.past_loss_jpy !== "120000" ||
+    assessment.history[0].included_in_future_cost !== false
+  )
+    throw new Error("Registered decision assessments are not connected");
+  await expect(panel.getByRole("region", { name: "登録費用差" })).toContainText(
+    "1884000 JPY",
+  );
+  await expect(
+    panel.getByRole("region", { name: "選択した故障・修理履歴" }),
+  ).toContainText("UI-COMP-HISTORY");
+  await expect(
+    panel.getByText("代替の条件別確認", { exact: true }),
+  ).toBeVisible();
+
   await expect(panel.getByText("336 時間", { exact: true })).toBeVisible();
   await expect(panel.getByText("2 時間", { exact: true })).toBeVisible();
   await expect(panel.locator("img")).toHaveCount(0);
@@ -240,7 +281,7 @@ export async function verifyComparison(page, token, approver) {
     economic_input_id: economic,
     capacity_input_ids: [capacity],
     safety_input_ids: [safety],
-    maintenance_input_ids: [maintenance],
+    maintenance_input_ids: [maintenance, history],
   };
   await page
     .getByLabel("問い合わせ", { exact: true })

@@ -267,3 +267,78 @@ def test_generation_change_rejects_mixed_analysis(db, reader_world, adapters, mo
     assert response.status_code == 503
     assert response.json()["errors"][0]["code"] == "GRAPH_NOT_CURRENT"
     assert response.json()["data"] == {}
+
+
+def test_registered_decision_connects_structural_candidate_and_conditional_safety(
+    db, reader_world, adapters
+):
+    from domain.test_safety import payload
+    from graph.test_alternative_facts import M
+    from sqlalchemy import column, table, update
+
+    from interfaces.test_graph_business_scenarios import execute_fixture_statement
+    from linescope.domain.safety import safety_target
+    from linescope.persistence.core_safety import write
+
+    selection = seed_registered(db, "SUFFICIENT_CAPACITY")
+    from sqlalchemy.dialects.postgresql import UUID
+
+    state = table("equipment_current_state", column("equipment_id", UUID()), column("state_code"))
+    execute_fixture_statement(
+        db, update(state).where(state.c.equipment_id == M[1]).values(state_code="RUNNING")
+    )
+    p = payload()
+    p["decision"] = "CONDITIONAL"
+    declaration = safety_target(
+        {
+            "input_code": "CONDITIONAL-ALT",
+            "equipment_id": "20800000-0000-4000-8000-000000000001",
+            "payload": p,
+        }
+    )
+    with db.transaction() as connection:
+        write(connection, declaration)
+    selection["safety_input_ids"].append(declaration["target_id"])
+    before = counts(db)
+    with client(db, adapters[1].driver) as api:
+        result = api.post("/decisions/compare", json=selection, headers=auth())
+    assert result.status_code == 200, result.text
+    data = result.json()["data"]
+    substitute = data["decision_package"]["comparison"]["options"][-1]
+    assert substitute["condition_assessment"] == {
+        "structure": "AVAILABLE",
+        "capacity": "SUFFICIENT",
+        "safety": "CONDITIONAL",
+        "quality": "UNKNOWN",
+        "operational_permission": False,
+    }
+    assert substitute["feasibility"] == "UNKNOWN" and substitute["blocking_constraints"] == []
+    assert data["evidence"]["alternatives"]["graph_generation"] == reader_world[1]
+    assert data["evidence"]["alternatives"]["substitution_relations"]
+    assert counts(db) == before
+
+
+def test_alternative_generation_mismatch_discards_entire_comparison(
+    db, reader_world, adapters, monkeypatch
+):
+    from linescope.application.graph_analysis import GraphAnalysis
+    from linescope.application.reads import ReadResult
+
+    selection = seed_registered(db)
+    original = GraphAnalysis.call
+
+    def changed(self, context, tool, arguments):
+        result = original(self, context, tool, arguments)
+        return (
+            ReadResult(result.data, {**result.evidence, "graph_generation": "changed"})
+            if tool == "find_alternative_paths"
+            else result
+        )
+
+    monkeypatch.setattr(GraphAnalysis, "call", changed)
+    with client(db, adapters[1].driver) as api:
+        response = api.post("/decisions/compare", json=selection, headers=auth())
+    assert (
+        response.status_code == 503 and response.json()["errors"][0]["code"] == "GRAPH_NOT_CURRENT"
+    )
+    assert response.json()["data"] == {}
