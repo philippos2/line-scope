@@ -191,3 +191,79 @@ def test_noncurrent_graph_fails_closed_before_providing_impact(db, reader_world,
         response.status_code == 503 and response.json()["errors"][0]["code"] == "GRAPH_REBUILDING"
     )
     assert response.json()["data"] == {}
+
+
+def test_upstream_infrastructure_is_not_downstream_damage(db, reader_world, adapters):
+    from linescope.demo_graph_seed import demo_id
+
+    selection = seed_registered(db)
+    before = counts(db)
+    with client(db, adapters[1].driver) as api:
+        for path, body in (
+            ("/decisions/compare", selection),
+            ("/agent", {"message": "登録入力で比較 " + canonical_json(selection)}),
+        ):
+            response = api.post(path, json=body, headers=auth())
+            assert response.status_code == 200, response.text
+            data = response.json()["data"]
+            package = data["decision_package"]
+            upstream = package["upstream_dependencies"]
+            resource = {"entity_type": "InfrastructureResource", "entity_id": str(demo_id("R-02"))}
+            assert resource in upstream["direct_nodes"]
+            assert resource not in package["impact"]["reached_nodes"]
+            evidence = data["evidence"] if path != "/agent" else response.json()["evidence"]
+            source = evidence["upstream_dependencies"]
+            assert (
+                source["graph_generation"]
+                == evidence["impact"]["graph_generation"]
+                == reader_world[1]
+            )
+            assert source["representative_paths"] == upstream["representative_paths"]
+            assert source["graph_observed_at"] and upstream["complete"]
+            assert str(demo_id("R-02:SUPPLIES:M-204")) in canonical_json(
+                source["representative_paths"]
+            )
+    assert counts(db) == before
+
+
+def test_partial_upstream_retains_unknown_and_limit(db, reader_world, adapters, monkeypatch):
+    from linescope.application.graph_analysis import GraphAnalysis
+
+    selection = seed_registered(db)
+    original = GraphAnalysis.call
+
+    def limited(self, context, tool, arguments):
+        if tool == "trace_upstream_dependencies":
+            arguments = {**arguments, "requested_max_nodes": 1}
+        return original(self, context, tool, arguments)
+
+    monkeypatch.setattr(GraphAnalysis, "call", limited)
+    with client(db, adapters[1].driver) as api:
+        response = api.post("/decisions/compare", json=selection, headers=auth()).json()
+    upstream = response["data"]["decision_package"]["upstream_dependencies"]
+    assert response["status"] == "partial"
+    assert not upstream["complete"] and upstream["limit_reason"] == "NODE_COUNT"
+    assert upstream["reached_nodes"] == []
+
+
+def test_generation_change_rejects_mixed_analysis(db, reader_world, adapters, monkeypatch):
+    from linescope.application.graph_analysis import GraphAnalysis
+    from linescope.application.reads import ReadResult
+
+    selection = seed_registered(db)
+    original = GraphAnalysis.call
+
+    def switched(self, context, tool, arguments):
+        result = original(self, context, tool, arguments)
+        if tool == "trace_upstream_dependencies":
+            return ReadResult(
+                result.data, {**result.evidence, "graph_generation": "changed-generation"}
+            )
+        return result
+
+    monkeypatch.setattr(GraphAnalysis, "call", switched)
+    with client(db, adapters[1].driver) as api:
+        response = api.post("/decisions/compare", json=selection, headers=auth())
+    assert response.status_code == 503
+    assert response.json()["errors"][0]["code"] == "GRAPH_NOT_CURRENT"
+    assert response.json()["data"] == {}

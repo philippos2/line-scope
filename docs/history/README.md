@@ -603,3 +603,5 @@ Dockerで追加36テスト成功、ruff check / format、git diff --check成功�
 - [対応計画・故障履歴の判断・実装checkpoint](2026-10-16-maintenance-input-checkpoint.md)
 
 - [正式入力の統合比較checkpoint](2026-10-16-registered-decision-checkpoint.md)
+
+- [上流インフラの業務分析統合](2026-10-16-infrastructure-acceptance-checkpoint.md)：PO-B08確定、比較・画面・Agentの接続と検証記録。

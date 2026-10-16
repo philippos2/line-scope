@@ -454,3 +454,5 @@ calculationは`available_rate=normal_rate-used_rate-reserved_rate`、`shortage_r
 - Agentへの明示選択は`登録入力で比較 {JSON}`でも送れる。通常の設備コードによる比較要求では、現在状態・Graph・候補を返し、選択されていない値は不明とする。固定費用・能力を返す旧デモProviderはAPI依存組立から除去する。旧デモ設定は互換受付のみで、業務値を生成しない。
 
 Agentの比較Tool admissionは、元の問い合わせ中のJSON選択とTool引数を同じ純粋normalizerで検証し、日時表記・ID集合順を除き選択内容が一致することを要求する。LLMによる入力ID・期間の差し替え、元の選択JSONがない呼出しを拒否する。
+
+比較のdecision_package.upstream_dependenciesは既存trace_upstream_dependenciesの結果、evidence.upstream_dependenciesはその経路・世代・観測時刻を保持する。impactは下流影響専用とし、上流資源を被影響対象へ混入しない。両Graph結果の世代が異なる場合はGRAPH_NOT_CURRENTで全結果を拒否し再取得を求める。各呼出しの観測時刻は独立であり、同一世代を同一時点の全DB Snapshotとは説明しない。

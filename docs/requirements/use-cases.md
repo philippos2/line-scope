@@ -91,7 +91,7 @@ UC-04 / 16〜20は保全・生産管理・工場管理のみ。UC-09の期間付
 
 ### UC-B01 設備異常の影響範囲
 
-対象設備、直接／間接影響、Process / ProductionOperation / Product、関係種別、必須性、経路、代替候補、Evidence、complete、uncertaintyを提示する。影響なしと確認不能を区別する。InfrastructureResourceの被影響意味はPO-B08。
+対象設備、直接／間接影響、Process / ProductionOperation / Product、関係種別、必須性、経路、代替候補、Evidence、complete、uncertaintyを提示する。影響なしと確認不能を区別する。InfrastructureResourceは設備が依存する上流資源として、下流影響と分離して提示する（PO-B08）。上流の経路・Evidence・探索完全性を示し、設備停止で資源自体が停止すると推測しない。
 
 既存フローとの対応: UC-04・16〜20。
 
