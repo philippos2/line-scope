@@ -3,8 +3,8 @@
 import re
 from dataclasses import dataclass
 
-from ..domain.canonical import normalize_timestamp, normalize_uuid, strict_json
-from ..domain.decision import comparison
+from ..domain.canonical import strict_json
+from ..domain.decision import comparison, normalize_selection
 from ..domain.safety import calculate as safety_calculation
 from .capacity import CapacityInputs
 from .economics import EconomicInputs
@@ -12,16 +12,6 @@ from .maintenance_inputs import MaintenanceInputs
 from .proposals import ProposalError
 from .reads import ReadTools, ToolError, json_value
 from .safety import SafetyInputs, require
-
-FIELDS = {
-    "equipment_id",
-    "period_start",
-    "period_end",
-    "economic_input_id",
-    "capacity_input_ids",
-    "safety_input_ids",
-    "maintenance_input_ids",
-}
 
 
 @dataclass(frozen=True)
@@ -41,27 +31,7 @@ class RegisteredDecisions:
     def compare(self, context, values):
         require(context)
         try:
-            if type(values) is not dict or set(values) != FIELDS:
-                raise ValueError("Explicit selection and common period required")
-            v = {
-                **values,
-                "equipment_id": normalize_uuid(values["equipment_id"]),
-                "period_start": normalize_timestamp(values["period_start"]),
-                "period_end": normalize_timestamp(values["period_end"]),
-            }
-            if v["period_start"] >= v["period_end"]:
-                raise ValueError("Invalid comparison period")
-            v["economic_input_id"] = (
-                normalize_uuid(v["economic_input_id"])
-                if v["economic_input_id"] is not None
-                else None
-            )
-            for key in ("capacity_input_ids", "safety_input_ids", "maintenance_input_ids"):
-                if type(v[key]) is not list or len(v[key]) > 10:
-                    raise ValueError("Bounded explicit selection required")
-                v[key] = [normalize_uuid(identifier) for identifier in v[key]]
-                if len(set(v[key])) != len(v[key]):
-                    raise ValueError("Duplicate selected ID")
+            v = normalize_selection(values)
         except (TypeError, ValueError) as error:
             raise ProposalError(
                 "INVALID_ARGUMENT", "Invalid registered comparison selection"

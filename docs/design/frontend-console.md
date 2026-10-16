@@ -25,7 +25,7 @@ Object Explorerは「今回取得したObject」を表示する。全設備一�
 | 操作・表示 | 既存API / 結果 | UIの責務 |
 |---|---|---|
 | 問い合わせ | POST /agent、message / context_id / as_of | contextと要求を区別。通常調査・明示Prepareを区別して送る |
-| 状態と判断材料 | data.decision_package.equipment / impact / comparison / maintenance / summary | 現在状態とMOCK_FIXTUREの比較入力を分ける。nullを0へ変換しない |
+| 状態と判断材料 | data.decision_package.equipment / impact / comparison / maintenance / summary | 現在状態と正式入力の共通期間評価を分ける。未選択・nullを0へ変換しない |
 | 通常Graph調査 | data.tool_resultsのGraph結果とevidence.tool_results | 経路・分類・complete・limit_reason・分析時刻を同じ結果から表示 |
 | Evidence | evidence、計算式・入力・引用・保全根拠 | 対応する結論から詳細へ移動。見つからない情報を補完しない |
 | Prepare結果 | POST /agentのdata.update_request_id等 | 明示クリック時だけ送信し、before / proposedを表示 |
@@ -117,7 +117,7 @@ UI仕上げ・受入      ·····█··
 
 ## 正式経済入力の業務経路
 
-「正式な経済・損失入力」で登録済み入力を設備名・コード・入力コードから検索し、候補を明示選択する。取得時の比較期間・稼働時間・version・出典、案別見積総額／既知小計と未知・非独立・非網羅を表示し、UIで再計算・最安順位付け・安全判定をしない。MOCK_FIXTUREの比較デモは独立して表示する。
+「正式な経済・損失入力」で登録済み入力を設備名・コード・入力コードから検索し、候補を明示選択する。取得時の比較期間・稼働時間・version・出典、案別見積総額／既知小計と未知・非独立・非網羅を表示し、UIで再計算・最安順位付け・安全判定をしない。統合比較は利用者が正式入力と共通期間を明示選択する。
 
 新規登録は既存の設備検索候補で設備を選択した後にフォームを開く。訂正は取得済み入力を読み込んでpayload全体を編集し、ID・設備・入力コードを変更しない。金額／時間の空欄はnull、明示0は文字列0として保持。項目の適用期間の空欄は、フォームで明示した共通比較期間を使うことを表示し、保存Snapshotで確認する。網羅性・独立性のチェックを自動で肯定しない。Prepare後は要求IDを既存Action画面へ渡し、別managerが保存Snapshotを承認、元requesterがExecuteする。
 

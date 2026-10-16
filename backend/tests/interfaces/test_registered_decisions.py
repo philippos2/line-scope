@@ -92,8 +92,13 @@ def test_golden_registered_stop_cost_capacity_plan_and_evidence_without_writes(
         call("compare_registered_inputs", selection), LLMReply("安全保証、故障率90%。", ())
     )
     with client(db, adapters[1].driver, llm=model) as api:
-        result = api.post("/agent", json={"message": "登録済みの条件を評価して"}, headers=auth())
+        result = api.post(
+            "/agent",
+            json={"message": "登録済みの条件を評価して " + canonical_json(selection)},
+            headers=auth(),
+        )
         assert result.status_code == 200 and "安全保証" not in result.json()["answer"]
+        assert result.json()["status"] == "partial"
         assert "候補から除外" in result.json()["answer"]
         assert result.json()["data"]["tool_results"][0]["tool"] == "compare_registered_inputs"
     assert len(model.requests) == 1  # The verified comparison needs no second model generation.
@@ -108,6 +113,20 @@ def test_golden_registered_stop_cost_capacity_plan_and_evidence_without_writes(
         ).json()
         assert not response["data"].get("tool_results")
         assert response["errors"][0]["code"] == "INVALID_ARGUMENT"
+    tampered_selection = {**selection, "capacity_input_ids": []}
+    tampered_model = ScriptedLLM(
+        call("compare_registered_inputs", tampered_selection),
+        LLMReply("異なる条件でも問題ありません", ()),
+    )
+    with client(db, adapters[1].driver, llm=tampered_model) as api:
+        response = api.post(
+            "/agent",
+            json={"message": "次の条件を評価して " + canonical_json(selection)},
+            headers=auth(),
+        ).json()
+        assert not response["data"].get("tool_results")
+        assert response["data"]["needs_input"] is True
+        assert response["warnings"][0]["code"] == "INVALID_ARGUMENT"
     assert counts(db) == before
 
 

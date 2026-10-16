@@ -49,11 +49,15 @@ function list(value: unknown) {
 }
 const reasons: Record<string, string> = {
   CURRENT_EQUIPMENT_UNAVAILABLE: "現在の設備状態では使用できません",
+  PRODUCT_INCOMPATIBLE: "登録された製品互換性を満たしません",
   HARD_SAFETY_STOP: "登録された安全停止条件に該当します",
   INSUFFICIENT_CAPACITY_FOR_FULL_ABSORPTION:
     "必要能力を完全には吸収できません。部分的な緩和の可否は別途判断が必要です",
 };
 const calculationNames: Record<string, string> = {
+  economic_REPAIR: "修理の経済入力",
+  economic_REPLACE: "交換の経済入力",
+  economic_CONTINUE: "継続の経済入力",
   loss_rate: "停止損失率",
   repair_downtime: "修理中の生産損失",
   repair_total: "修理の総経済影響",

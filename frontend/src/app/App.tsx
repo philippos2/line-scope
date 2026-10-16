@@ -205,10 +205,34 @@ export function App() {
       `Equipment ID ${item.equipment_id} の現在状態と下流の依存到達対象・経路を調べて。実停止・能力・安全性の未評価事項を示して。変更要求は作成しないでください。`,
     );
   }
-  const view = result ? graphView(result) : null;
+  const compared = Array.isArray(result?.data.tool_results)
+    ? result.data.tool_results
+        .filter(object)
+        .filter(
+          (row) => row.tool === "compare_registered_inputs" && object(row.data),
+        )
+        .at(-1)
+    : null;
+  const comparedData =
+    object(compared) && object(compared.data) ? compared.data : null;
+  const analysisResult =
+    result && comparedData && object(comparedData.decision_package)
+      ? {
+          ...result,
+          data: {
+            ...result.data,
+            decision_package: comparedData.decision_package,
+          },
+          evidence: {
+            ...result.evidence,
+            ...(object(comparedData.evidence) ? comparedData.evidence : {}),
+          },
+        }
+      : result;
+  const view = analysisResult ? graphView(analysisResult) : null;
   const pkg =
-    result && object(result.data.decision_package)
-      ? result.data.decision_package
+    analysisResult && object(analysisResult.data.decision_package)
+      ? analysisResult.data.decision_package
       : null;
   return (
     <>
@@ -489,7 +513,7 @@ export function App() {
                 <>
                   <GraphCanvas
                     view={view}
-                    result={result}
+                    result={analysisResult ?? result}
                     selected={selected ? nodeKey(selected) : null}
                     onSelect={setSelected}
                   />
@@ -506,7 +530,7 @@ export function App() {
                 </p>
               )
             ) : tab === "evidence" ? (
-              <EvidencePanel result={result} />
+              <EvidencePanel result={analysisResult ?? result} />
             ) : (
               <section>
                 <h2>公開Tool Trace</h2>

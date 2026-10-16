@@ -371,7 +371,7 @@ representative_pathsのpurpose / root / nodes / edges / hops、MANDATORY_DEPENDE
 
 `GET /economic-inputs/{id}`はmaintenance / production / manager専用。保存済みinput（version含む）、calculation、source=REGISTERED_INPUT、observed_atを返す。calculationは共通期間・JPY・明示稼働時間と案別items（kind / amount_jpy / source / certainty / included_in_subtotal）、known_subtotal_jpy、total_jpy、complete、unknown_or_nonindependent_keysを返す。既知かつ独立な項目だけ小計へ加算する。complete=false、未知項目、非独立項目のいずれかがあればtotal_jpy=null。未登録は404でモックへfallbackしない。feasibility=UNKNOWN、recommendation=nullであり、最安案・安全・完全代替・実停止の認定を返さない。
 
-正式入力の画面・Agent Read・検索は下記の専用経路へ接続する。既存デモ比較APIのMOCK_FIXTUREと正式入力を混在させない。
+正式入力の画面・Agent Read・検索は下記の専用経路へ接続する。正式比較では固定fixture値を使わず、未選択を不明として返す。
 
 ### 正式経済入力の検索とAgent Read
 
@@ -452,3 +452,5 @@ calculationは`available_rate=normal_rate-used_rate-reserved_rate`、`shortage_r
 - responseはsource=REGISTERED_INPUT、decision_package、evidence。packageはequipment、impact、comparison、selected_inputs、comparison_period、selection、consistency=LATEST_PER_CALL、automatic_state_change=false。PGとGraphの全ストア同時Snapshotを意味しない。Evidenceに各入力ID・version・source・観測日時とGraph generationを含む。
 - Graphは現在の検証済みgenerationを利用し、非CURRENT・Rebuild・依存接続不能は従来コードで拒否する。分析はPrepare・Approval・Executeを行わない。
 - Agentへの明示選択は`登録入力で比較 {JSON}`でも送れる。通常の設備コードによる比較要求では、現在状態・Graph・候補を返し、選択されていない値は不明とする。固定費用・能力を返す旧デモProviderはAPI依存組立から除去する。旧デモ設定は互換受付のみで、業務値を生成しない。
+
+Agentの比較Tool admissionは、元の問い合わせ中のJSON選択とTool引数を同じ純粋normalizerで検証し、日時表記・ID集合順を除き選択内容が一致することを要求する。LLMによる入力ID・期間の差し替え、元の選択JSONがない呼出しを拒否する。

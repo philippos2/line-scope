@@ -537,8 +537,17 @@ def create_app(
                 context_id=context_id,
                 partial=bool(result.errors and result.observations)
                 or any(
-                    (item.tool in GRAPH_TOOLS or item.tool == "retrieve_knowledge")
-                    and item.result.data.get("complete") is False
+                    (
+                        (item.tool in GRAPH_TOOLS or item.tool == "retrieve_knowledge")
+                        and item.result.data.get("complete") is False
+                    )
+                    or (
+                        item.tool == "compare_registered_inputs"
+                        and item.result.data["decision_package"]["comparison"][
+                            "decision_completeness"
+                        ]
+                        == "PARTIAL"
+                    )
                     for item in result.observations
                 ),
                 warnings=list(result.errors),

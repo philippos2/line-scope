@@ -154,7 +154,7 @@ curl -sS "$BASE_URL/agent" \
   -d '{"message":"M-204の異常について影響・修理・交換・代替を比較して"}'
 ```
 
-`data.decision_package`に実Graphの影響候補、現在設備状態、仮置き比較、保全根拠、unknowns、次の操作を返します。`partial`、`demo_only`、`MOCK_FIXTURE`は境界の表示です。損失不明を0にせず、安全情報不足を安全と断定しません。LLMを設定した場合の比較要約は表示順の選択のみをLLMへ委ね、数値・制約・文章はサーバで生成します。通常Read Agentの自由回答とは別の経路です。
+`data.decision_package`に実Graphの影響候補、現在設備状態、選択した正式入力の比較、Evidenceとunknownsを返します。未選択時は候補と不明を返し、固定値で補完しません。LLMは明示選択した比較Toolを参照でき、数値・制約・要約はサーバが構築します。
 
 ## 実モデルを含む一括デモ受入
 
@@ -168,7 +168,7 @@ python3 scripts/verify_demo_acceptance.py \
   --report /tmp/linescope-acceptance.json
 ```
 
-最小経路・複数設備更新・実Embedding/Qdrant文書検索・実LLMの表示順選択を、独立した専用環境で順次検証します。reportは既存ディレクトリ内の新規ファイルを指定し、0600で保存します。再実行時は別のファイル名にしてください。
+最小経路・複数設備更新・実Embedding/Qdrant文書検索・実LLMの正式比較Tool参照を、独立した専用環境で順次検証します。reportは既存ディレクトリ内の新規ファイルを指定し、0600で保存します。再実行時は別のファイル名にしてください。
 
 全4経路を確認した場合だけPASS（終了code 0）、失敗はFAIL（1）、モデル指定を省略した未実行経路がある場合はPARTIAL（2）です。報告にはrevision・作業ツリー変更有無・時刻・各結果と受入範囲を残します。モック入力、一般LLM grounding未受入、Web UI全体の正式受入未完了は、全4経路PASSでも残ります。
 

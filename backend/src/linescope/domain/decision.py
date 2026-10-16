@@ -1,5 +1,17 @@
 """Compose selected registered facts without inventing costs or feasibility."""
 
+from .canonical import normalize_timestamp, normalize_uuid
+
+FIELDS = {
+    "equipment_id",
+    "period_start",
+    "period_end",
+    "economic_input_id",
+    "capacity_input_ids",
+    "safety_input_ids",
+    "maintenance_input_ids",
+}
+
 
 def comparison(economic, capacities, safety, maintenance, states):
     options = []
@@ -135,15 +147,44 @@ def comparison(economic, capacities, safety, maintenance, states):
         ],
         "calculations": [
             {
-                "id": "registered_economic_options",
+                "id": "economic_" + row["option"],
                 "input_source": "REGISTERED_INPUT",
                 "input_version": economic["input"]["version"],
                 "formula": "Sum only explicitly independent registered items; see each item",
-                "inputs": economic["input"],
-                "result": economic["calculation"],
-                "complete": all(o["total_jpy"] is not None for o in calculated["options"]),
+                "inputs": next(
+                    option
+                    for option in economic["input"]["payload"]["options"]
+                    if option["option"] == row["option"]
+                ),
+                "result": row["total_jpy"],
+                "unit": "JPY",
+                "complete": row["total_jpy"] is not None,
             }
+            for row in calculated["options"]
         ]
         if economic
         else [],
     }
+
+
+def normalize_selection(values):
+    if type(values) is not dict or set(values) != FIELDS:
+        raise ValueError("Explicit selection and common period required")
+    v = {
+        **values,
+        "equipment_id": normalize_uuid(values["equipment_id"]),
+        "period_start": normalize_timestamp(values["period_start"]),
+        "period_end": normalize_timestamp(values["period_end"]),
+    }
+    if v["period_start"] >= v["period_end"]:
+        raise ValueError("Invalid comparison period")
+    v["economic_input_id"] = (
+        normalize_uuid(v["economic_input_id"]) if v["economic_input_id"] is not None else None
+    )
+    for key in ("capacity_input_ids", "safety_input_ids", "maintenance_input_ids"):
+        if type(v[key]) is not list or len(v[key]) > 10:
+            raise ValueError("Bounded explicit selection required")
+        v[key] = [normalize_uuid(identifier) for identifier in v[key]]
+        if len(set(v[key])) != len(v[key]):
+            raise ValueError("Duplicate selected ID")
+    return v
