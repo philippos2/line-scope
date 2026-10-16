@@ -55,6 +55,14 @@ def test_all_paths_attributes_and_metadata_survive_compaction():
     assert len(view["data"]["representative_paths"]) == 6
     assert len(canonical_json(view)) < len(canonical_json({"data": data, "evidence": evidence}))
     assert (data, evidence) == before
+    # Common-dependency paths are nested under each candidate; preserve and intern those too.
+    common_data = {"representative_paths": [{"candidate": nodes[1], "paths": paths}]}
+    common_view = graph_model_view(common_data, evidence)
+    assert restore(common_view["data"], common_view) == common_data
+    assert len(common_view["graph_edge_catalog"]) == 1
+    assert len(canonical_json(common_view)) < len(
+        canonical_json({"data": common_data, "evidence": evidence})
+    )
 
 
 def test_distinct_edge_semantics_are_never_merged():

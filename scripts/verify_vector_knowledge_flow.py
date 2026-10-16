@@ -204,11 +204,11 @@ def main():
             {
                 "result": "PASS",
                 "real": ["Embedding", "Qdrant", "PostgreSQL", "source", "curl"],
-                "mock": ["decision comparison inputs"],
+                "unselected": ["decision comparison inputs"],
                 "llm": "NOT_USED",
                 "model": args.model,
                 "model_digest": args.digest,
-                "scope": "Real retrieval and fixture-based calculations; not full business acceptance",
+                "scope": "Real retrieval and unselected comparison; not general search quality acceptance",
             },
             ensure_ascii=False,
         ),

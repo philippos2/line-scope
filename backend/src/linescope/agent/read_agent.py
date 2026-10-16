@@ -14,6 +14,7 @@ from .graph_answer import dependency_answer, downstream_answer, fulfillment_answ
 from .graph_model_view import GRAPH_TOOLS, graph_model_view
 from .maintenance_answer import maintenance_answer
 from .safety_answer import safety_answer
+from .state_answer import state_answer
 
 SYSTEM_PROMPT = """あなたはLineScopeの参照専用アシスタントです。
 エンドユーザーの質問に必要な情報を公開されたRead Toolsで取得し、日本語で説明してください。
@@ -42,6 +43,7 @@ Evidenceと詳細経路はサーバが構造化結果として返します。証
 分析種別に沿って対象、結果、探索の完全性、不明事項を優先してください。下流影響探索では直接・間接の影響候補を説明し、上流依存探索やSPOF・代替の構造評価を直接・間接影響と呼ばないでください。構造評価では重要対象、除外対象または候補、判定、一段代替と未評価次元を説明してください。
 Graph結果のnode_ref / edge_refはそれぞれgraph_node_catalog / graph_edge_catalogを参照してください。Tool引数のIDには参照名でなくcatalog内の実IDを使用してください。
 UUID、JSON、経路全件を文章で再列挙せず、詳細経路と根拠は構造化結果で確認できると案内してください。
+単一のGraph分析、経済・能力・安全・保全入力、または単一設備の現在状態はサーバが登録結果から要約します。これらの取得後、質問に必要な参照がそろった場合は、最終本文を「確認完了。」だけにしてください。数値や経路の文章を再生成しないでください。複数分析や他情報が必要なら必要なTool参照を先に完了してください。
 質問に必要な情報を取得済みなら追加Toolを呼ばず回答してください。長い前置きや同じ内容の繰返しは避けてください。
 """
 
@@ -151,6 +153,7 @@ class ReadAgent:
                     or downstream_answer(observations, has_errors=bool(errors))
                     or dependency_answer(observations, has_errors=bool(errors))
                     or fulfillment_answer(observations, has_errors=bool(errors))
+                    or state_answer(observations, has_errors=bool(errors))
                     or reply.content
                 )
                 if request.explicit_as_of:
