@@ -28,3 +28,13 @@
 - 比較Tool結果のPARTIALをHTTP envelopeにも反映し、Agentの比較結果を画面の比較・Graph・Evidenceへ接続した。計算見出しは案別金額とし、長い構造化結果を見出しへ詰めない。
 - 初期全体回帰は3,920成功・1skip（367.02秒）。実行中に追加した選択guard等の最終差分はこの全体回帰だけで合格扱いしない。対象試験を再実行し、最新head CIの全件結果を最終根拠とする。
 - 最終差分の対象試験・実ブラウザ・最新head CIは確認中。旧検証scriptを移行し、所有する試験環境の片付けまで行って引き渡す。
+
+## 代表経路の検証結果
+
+- 選択guard・Agent・比較API・シナリオの対象196件成功（8.31秒）。初期のguard確認1件は、入力確認時の拒否が既存HTTP契約上warningsへ入ることに試験を合わせて解消した。拒否規則を緩めていない。
+- Frontend最終Docker内lint・型・format・build成功。
+- ブラウザ初回は試験fixtureのGraph未構築でGRAPH_UNAVAILABLE。共有のfocused runnerに、比較時だけ明示的なGraph Rebuildを追加した。拒否境界は維持した。
+- 2回目はPASS。4種類の正式入力をHTTPで登録→別manager承認→requester Executeし、画面で設備・入力・共通期間を選択して比較した。修理総額1,900,000 JPY、代替能力不足30、交換の調達待ち336時間と停止2時間、停止必須による継続除外を確認した。
+- 実Qwenがcompare_registered_inputsを参照し、PARTIALとサーバの除外理由を返した。期間不一致は拒否、経済入力を外すと全案の総額は不明。1440 / 768 / 390pxの非overflow、出典HTMLの非実行、storage非保存、接続解除時の消去を確認し、390px screenshotを確認した。
+- 所有する使い捨て環境・volume・関連imageを片付けた。継続デモ・他projectは維持した。
+- 最新headのCI確認・最終引渡し結果は[PR #251](https://github.com/philippos2/line-scope/pull/251)本文へ記録する。確認前はDraft・【WIP】を維持する。全BS・一般LLM／検索品質の包括受入とは区別する。

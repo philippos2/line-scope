@@ -39,7 +39,7 @@
 <text x="615" y="285" text-anchor="middle" font-size="14" fill="white" font-weight="bold">0〜1 PR</text>
 <text x="24" y="349" font-size="17" font-weight="bold">回答品質・全BS／Golden受入</text>
 <text x="24" y="373" font-size="13">正式入力の統合・未知・拒否・画面経路</text>
-<text x="390" y="349" font-size="14" fill="#8295a5">検証中</text>
+<text x="390" y="349" font-size="14" fill="#8295a5">代表済</text>
 <rect x="484" y="329" width="262" height="37" rx="4" fill="#8295a5"/>
 <text x="615" y="353" text-anchor="middle" font-size="14" fill="white" font-weight="bold">2〜3 PR</text>
 <text x="24" y="417" font-size="17" font-weight="bold">運用・復旧受入</text>

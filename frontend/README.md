@@ -77,3 +77,11 @@ python3 scripts/verify_frontend_flow.py --docker-group docker --llm-model qwen3:
 ```sh
 python3 scripts/verify_frontend_flow.py --docker-group docker --llm-model qwen3:30b-a3b-instruct-2507-q4_K_M --maintenance-only
 ```
+
+正式入力の統合比較だけの実モデル／実ブラウザ確認：
+
+```sh
+python3 scripts/verify_frontend_flow.py --docker-group docker --llm-model qwen3:30b-a3b-instruct-2507-q4_K_M --comparison-only
+```
+
+この経路は使い捨てPGへ明示fixtureを承認付き登録し、現在Graphを構築して比較する。一般LLM品質・全業務受入の合格を意味しない。

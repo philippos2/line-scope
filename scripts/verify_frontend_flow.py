@@ -158,6 +158,10 @@ def main():
                 fixture.docker(
                     "run", "--rm", "graph-admin", "linescope", "seed-demo-graph"
                 )
+                if args.comparison_only:
+                    fixture.docker(
+                        "run", "--rm", "graph-admin", "linescope", "rebuild-graph"
+                    )
             else:
                 verify(fixture)
                 ingest(
