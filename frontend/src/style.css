@@ -1089,3 +1089,34 @@ summary {
 .react-flow__node.selected {
   box-shadow: 0 0 0 4px #edc47380;
 }
+
+.graph-investigation {
+  padding: 1rem;
+  margin: 1rem 0;
+  border: 1px solid var(--border, #344658);
+  border-radius: 0.75rem;
+}
+.graph-investigation summary {
+  cursor: pointer;
+  font-weight: 700;
+}
+.graph-selection-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1rem;
+}
+.graph-selection-group ul {
+  padding-left: 1.2rem;
+  overflow-wrap: anywhere;
+}
+.graph-analysis-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-top: 1rem;
+}
+@media (max-width: 900px) {
+  .graph-selection-grid {
+    grid-template-columns: 1fr;
+  }
+}

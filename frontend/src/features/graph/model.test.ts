@@ -104,3 +104,16 @@ it("highlights the actual path edges without cross-highlighting another relation
   expect([...highlighted]).toEqual(["Equipment:a>Product:b:PRODUCES"]);
   expect(highlighted.has("Equipment:a>Product:b:SUPPLIES")).toBe(false);
 });
+
+it("keeps explicit structural subjects visible when no representative path exists", () => {
+  const r = response([]);
+  const rows = r.data.tool_results as {
+    tool: string;
+    data: Record<string, unknown>;
+  }[];
+  rows[0].tool = "find_alternative_paths";
+  rows[0].data.important_targets = [b];
+  rows[0].data.excluded_nodes = [a];
+  expect(graphView(r)?.nodes).toEqual([b, a]);
+  expect(graphView(r)?.edges).toEqual([]);
+});

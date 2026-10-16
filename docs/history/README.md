@@ -617,3 +617,5 @@ Dockerで追加36テスト成功、ruff check / format、git diff --check成功�
 - [Graphを中心から外したUI設計と完成報告の失敗](2026-10-17-graph-ui-design-failure.md)
 
 - [Graph中心UIの第1段階と実機検証](2026-10-17-graph-ui-stage1.md)
+
+- [Graph中心UIの第2段階：共通依存・代替・SPOF](2026-10-17-graph-ui-stage2.md)

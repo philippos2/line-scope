@@ -1,5 +1,7 @@
 import { useMemo, useState, type ReactNode } from "react";
 import { object, type Envelope } from "../../api/client";
+import { GraphFindings } from "./GraphFindings";
+import { GraphInvestigation } from "./GraphInvestigation";
 import { GraphCanvas } from "./GraphCanvas";
 import {
   detail,
@@ -63,9 +65,7 @@ export function GraphWorkspace({
     active?.key === "impact" ||
     active?.key.startsWith("trace_downstream_impact:");
   function analyze(tool: string, args: Record<string, unknown>) {
-    onInvestigate(
-      `公開Read Tool ${tool} を次の明示引数で呼び出して結果と未評価事項を説明してください。変更要求は作成しないでください。${JSON.stringify(args)}`,
-    );
+    onInvestigate(`関係分析 ${JSON.stringify({ tool, arguments: args })}`);
   }
   return (
     <section className="graph-workspace" aria-label="関係と影響の調査">
@@ -136,6 +136,12 @@ export function GraphWorkspace({
         </div>
       ) : (
         <>
+          <GraphInvestigation
+            result={result}
+            selected={selection ?? null}
+            busy={busy}
+            onAnalyze={analyze}
+          />
           <div className="impact-summary" aria-label="探索範囲の概要">
             <div>
               <span>{downstream ? "直接の影響候補" : "取得した関係先"}</span>
@@ -168,6 +174,7 @@ export function GraphWorkspace({
               </strong>
             </div>
           </div>
+          <GraphFindings data={view.data} result={result} />
           <div className="graph-inspection-layout">
             <div className="graph-stage">
               <div className="entity-legend">

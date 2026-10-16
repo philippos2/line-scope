@@ -72,6 +72,17 @@ export function graphView(result: Envelope, key?: string): GraphView | null {
   >();
   let limited = false;
   if (node(data.target)) nodes.set(nodeKey(data.target), data.target);
+  // Keep explicitly returned subjects visible even when there is no path.
+  for (const field of [
+    "targets",
+    "important_targets",
+    "excluded_nodes",
+    "common_candidates",
+  ]) {
+    if (Array.isArray(data[field]))
+      for (const item of data[field])
+        if (node(item)) nodes.set(nodeKey(item), item);
+  }
   for (const path of data.representative_paths) {
     if (
       !object(path) ||

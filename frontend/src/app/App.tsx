@@ -27,6 +27,7 @@ const panels = [
 type Step = (typeof panels)[number][0];
 export function App() {
   const [step, setStep] = useState<Step>("investigation");
+  const [graphEvidence, setGraphEvidence] = useState(false);
   const [comparisonResult, setComparisonResult] = useState<Envelope | null>(
     null,
   );
@@ -206,7 +207,9 @@ export function App() {
     setStale(true);
     const body = {
       message: text,
-      ...(!freshContext.current && result?.context_id
+      ...(!text.startsWith("関係分析 ") &&
+      !freshContext.current &&
+      result?.context_id
         ? { context_id: result.context_id }
         : {}),
     };
@@ -226,6 +229,12 @@ export function App() {
         freshContext.current = false;
         setResult(value);
         if (graphAnalyses(value).length) setGraphResult(value);
+        const packageData = value.data.decision_package;
+        if (object(packageData) && object(packageData.equipment))
+          setNodeReads((previous) => [
+            ...previous,
+            { tool: "get_equipment", data: packageData.equipment },
+          ]);
         if (Array.isArray(value.data.tool_results)) {
           if (
             value.data.tool_results.some(
@@ -322,7 +331,9 @@ export function App() {
         : null,
     [graphResult, nodeReads],
   );
-  const evidenceResult = comparisonResult ?? graphResult ?? analysisResult;
+  const evidenceResult = graphEvidence
+    ? graphResult
+    : (comparisonResult ?? graphResult ?? analysisResult);
   function prepareInput(id: string) {
     setEconomicPrepared(id);
     setStep("execution");
@@ -480,14 +491,20 @@ export function App() {
                   />
                 ) : undefined
               }
-              onEvidence={() => setStep("evidence")}
+              onEvidence={() => {
+                setGraphEvidence(true);
+                setStep("evidence");
+              }}
             />
             <nav className="context-tabs" aria-label="調査に続く操作">
               {panels.map(([key, title]) => (
                 <button
                   key={key}
                   aria-pressed={step === key}
-                  onClick={() => setStep(key)}
+                  onClick={() => {
+                    setGraphEvidence(false);
+                    setStep(key);
+                  }}
                 >
                   {title}
                 </button>
@@ -603,7 +620,12 @@ export function App() {
               <button onClick={() => setStep("prepare")}>
                 不足している入力を登録・訂正する
               </button>
-              <button onClick={() => setStep("evidence")}>
+              <button
+                onClick={() => {
+                  setGraphEvidence(false);
+                  setStep("evidence");
+                }}
+              >
                 比較の根拠を確かめる
               </button>
             </section>
@@ -611,7 +633,7 @@ export function App() {
               {evidenceResult ? (
                 <>
                   <h2>
-                    {comparisonResult
+                    {!graphEvidence && comparisonResult
                       ? "対応案比較の根拠"
                       : "関係と影響の調査根拠"}
                   </h2>
