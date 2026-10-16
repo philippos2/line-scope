@@ -129,6 +129,14 @@ try {
   await expect(
     page.getByRole("region", { name: "選択ノードと根拠経路" }),
   ).toContainText("製品");
+  await expect
+    .poll(async () =>
+      page
+        .locator(".react-flow__edge.path-highlight .react-flow__edge-path")
+        .first()
+        .evaluate((element) => globalThis.getComputedStyle(element).stroke),
+    )
+    .toBe("rgb(240, 189, 102)");
   await page
     .locator(".graph-workspace")
     .screenshot({ path: `${output}/graph-selection.png` });

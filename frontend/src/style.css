@@ -1082,3 +1082,10 @@ summary {
   background: #203542;
   margin: 10px 0;
 }
+.react-flow__edge.path-highlight .react-flow__edge-path {
+  stroke: #f0bd66;
+  stroke-width: 3;
+}
+.react-flow__node.selected {
+  box-shadow: 0 0 0 4px #edc47380;
+}
