@@ -29,11 +29,13 @@ try {
       fullPage: true,
     });
   }
-  async function login(value) {
-    await page.getByLabel("Bearer token").fill(value);
-    await page.getByRole("button", { name: "接続する", exact: true }).click();
+  async function login(value, targetPage = page) {
+    await targetPage.getByLabel("Bearer token").fill(value);
+    await targetPage
+      .getByRole("button", { name: "接続する", exact: true })
+      .click();
     await expect(
-      page.getByRole("navigation", { name: "調査に続く操作" }),
+      targetPage.getByRole("navigation", { name: "調査に続く操作" }),
     ).toBeVisible();
   }
   async function step(name) {
@@ -249,27 +251,37 @@ try {
     .getByRole("button", { name: "直近の変更要求を開く", exact: true })
     .click();
   await expect(action.getByText(/状態：WAITING_APPROVAL/)).toBeVisible();
+  await expect(
+    page.getByText("更新操作後の関係は未確認です。関係を再取得してください。", {
+      exact: true,
+    }),
+  ).toHaveCount(0);
   await mark("prepared", { update_request_id: id });
-  async function switchUser(value) {
-    await page.getByRole("button", { name: "接続解除", exact: true }).click();
-    await login(value);
-    await step(/変更・承認・実行/);
-    await action.getByLabel("変更要求ID", { exact: true }).fill(id);
-    await action
-      .getByRole("button", { name: "保存状態を再取得", exact: true })
-      .click();
-    await expect(
-      action.getByRole("heading", { name: "保存済みSnapshot", exact: true }),
-    ).toBeVisible();
-  }
-  await switchUser(approver);
-  await action.getByLabel("保存Snapshotと操作内容を確認しました").check();
-  await action
+  const approvalPage = await browser.newPage();
+  await approvalPage.goto(base);
+  await login(approver, approvalPage);
+  await approvalPage
+    .getByRole("navigation", { name: "調査に続く操作" })
+    .getByRole("button", { name: /変更・承認・実行/ })
+    .click();
+  const approvalAction = approvalPage.locator(".action-panel");
+  await approvalAction.getByLabel("変更要求ID", { exact: true }).fill(id);
+  await approvalAction
+    .getByRole("button", { name: "保存状態を再取得", exact: true })
+    .click();
+  await approvalAction
+    .getByLabel("保存Snapshotと操作内容を確認しました")
+    .check();
+  await approvalAction
     .getByRole("button", { name: "Snapshotを承認", exact: true })
     .click();
+  await expect(approvalAction.getByText(/状態：APPROVED/)).toBeVisible();
+  await mark("approved-in-separate-session");
+  await approvalPage.close();
+  await action
+    .getByRole("button", { name: "保存状態を再取得", exact: true })
+    .click();
   await expect(action.getByText(/状態：APPROVED/)).toBeVisible();
-  await mark("approved");
-  await switchUser(token);
   await action.getByLabel("保存Snapshotと操作内容を確認しました").check();
   await action
     .getByRole("button", { name: "承認済み変更を実行", exact: true })
@@ -282,13 +294,21 @@ try {
     }),
   ).toBeVisible();
   await mark("executed");
-  await step(/調査・回答/);
-  await page.getByLabel("設備名・コード", { exact: true }).fill("M-204");
-  await agent(page.getByRole("button", { name: "設備を検索", exact: true }));
-  await page
-    .getByRole("region", { name: "設備検索の候補" })
-    .getByRole("button", { name: /M-204/ })
-    .click();
+  const graphWarning = page.getByText(
+    "更新操作後の関係は未確認です。関係を再取得してください。",
+    { exact: true },
+  );
+  await expect(graphWarning).toBeVisible();
+  await agent(
+    page.getByRole("button", { name: "名称・属性を取得", exact: true }),
+  );
+  await expect(graphWarning).toBeVisible();
+  await agent(
+    page.getByRole("button", { name: "関係・影響を再取得", exact: true }),
+  );
+  await expect(graphWarning).toHaveCount(0);
+  await expect(page.locator(".react-flow")).toBeVisible();
+  await mark("graph-refreshed-after-execution");
   await step(/対応案を比べる/);
   await comparison
     .getByRole("button", {
