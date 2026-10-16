@@ -81,3 +81,11 @@
 - 同じ実装でブラウザの正式入力比較経路PASS。入力編集、別ユーザーの承認、確定、条件付き150日、version 2、Graph／Evidence、接続断、画面幅を確認した。
 - 復旧・staging・knowledge rebuild・DB roleの既存試験105成功、21.70秒。Starletteの既知非推奨warning 1件と終了時logging output failedが出たが試験失敗はない。
 - 最新の関連検証307成功、受入runner／probe32成功、Ruff check／format成功（382ファイル）。最終の全体CIは以下へ確認後追記する。
+
+## 全体CIと片付け
+
+- source `2cbf585` の[CI run 38914011103](https://github.com/philippos2/line-scope/actions/runs/38914011103)は全job成功。Backendは3976成功・1 skip。全収集3977、選択1919＋2058、両shardのcollection SHA256は `c1e6894d4161692085d229a39b915ed89dae1daeddef2172cdafc8436f8afe43` で一致。
+- shard 1は1918成功・1 skip、195.63秒、job 4分23秒。shard 2は2058成功、313.75秒、job 6分20秒。slowest 30を両方確認し、最大はshard検証の4.40秒。skipは `LINESCOPE_LIVE_LLM_MODEL` を明示するopt-in試験。実LLMは今回の独立したデモ受入・ブラウザ確認で検証した。Starlette warningと終了時logging output failedは既知の出力として残す。
+- Frontend lint／型チェック／format／build、Runtime起動／migration、PR title、集約checkも成功。
+- 今回所有の `linescope-quality-test` のcontainer／volumeと、保存ログで所有を確認した使い捨てimage 28件を削除した。既存の継続デモと他Repositoryの環境は維持した。
+- ガントチャートをデモ機能・代表受入完了／最終文書headのCI確認に更新。追加機能PRは0、本PRのmergeで今回の完成工程を閉じる。一般自然文品質と性能は未受入のまま改善課題として残す。
