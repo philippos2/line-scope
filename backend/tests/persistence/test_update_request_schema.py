@@ -139,6 +139,7 @@ def test_upgrade_preserves_business_rows_and_packaged_migration(db):
         "009_capacity_input.sql",
         "010_safety_input.sql",
         "011_maintenance_input.sql",
+        "012_economic_cost_recovery.sql",
     ]
     assert db.migrate() == []
     with db.transaction() as connection:
@@ -223,7 +224,7 @@ def test_idempotency_key_is_globally_unique(store):
         {"requester_id": " "},
         {"operation_type": "DELETE"},
         {"status": "PENDING"},
-        {"snapshot_schema_version": 6},
+        {"snapshot_schema_version": 7},
         {"snapshot_hash": "g" * 64},
         {"prepare_input_hash": "A" * 64},
         {"agent_input_hash": "short"},

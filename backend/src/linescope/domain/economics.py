@@ -5,6 +5,8 @@ from decimal import Decimal, localcontext
 from uuid import uuid4
 
 from .canonical import normalize_timestamp, normalize_uuid
+from .cost_recovery import calculate as cost_recovery_calculation
+from .cost_recovery import normalize as normalize_recovery
 from .input_values import exact, quantity, text
 
 INPUT_FIELDS = {"input_code", "equipment_id", "payload"}
@@ -24,7 +26,11 @@ RECORD_FIELDS = INPUT_FIELDS | {"economic_input_id", "version"}
 
 
 def normalize_payload(value):
-    exact(value, PAYLOAD_FIELDS)
+    exact(
+        value,
+        PAYLOAD_FIELDS
+        | ({"cost_recovery"} if type(value) is dict and "cost_recovery" in value else set()),
+    )
     start, end = (
         normalize_timestamp(value["period_start"]),
         normalize_timestamp(value["period_end"]),
@@ -97,13 +103,18 @@ def normalize_payload(value):
         normalized.append({**option, "items": sorted(items, key=lambda item: item["key"])})
     if {option["option"] for option in normalized} != {"REPAIR", "REPLACE", "CONTINUE"}:
         raise ValueError("Duplicate economic option")
-    return {
+    result = {
         "period_start": start,
         "period_end": end,
         "operating_hours": hours,
         "currency": "JPY",
         "options": sorted(normalized, key=lambda option: option["option"]),
     }
+    if "cost_recovery" in value:
+        result["cost_recovery"] = normalize_recovery(
+            value["cost_recovery"], operating_hours=hours, period_micros=micros
+        )
+    return result
 
 
 def normalize_input(value):
@@ -252,4 +263,5 @@ def calculate(value):
         "options": results,
         "feasibility": "UNKNOWN",
         "recommendation": None,
+        "simple_cost_recovery": cost_recovery_calculation(payload),
     }

@@ -1,3 +1,4 @@
+import { CostRecoveryResult } from "../economics/CostRecoveryResult";
 import { object, type JsonObject } from "../../api/client";
 
 const names: Record<string, string> = {
@@ -21,6 +22,7 @@ export function DecisionAssessments({
     : [];
   return (
     <>
+      <CostRecoveryResult value={comparison.simple_cost_recovery} />
       <section aria-label="登録費用差">
         <h2>登録費用差</h2>
         <p>

@@ -66,6 +66,13 @@ export async function verifyComparison(page, token, approver) {
       period_end: end,
       operating_hours: "16",
       currency: "JPY",
+      cost_recovery: {
+        daily_operating_hours: "16",
+        constant_daily_operation: true,
+        replacement_removes_degradation: true,
+        source: "明示した日次稼働・交換効果の試験仮定",
+        certainty: "ESTIMATED",
+      },
       options: [
         {
           option: "REPAIR",
@@ -78,8 +85,8 @@ export async function verifyComparison(page, token, approver) {
         },
         {
           option: "REPLACE",
-          complete: false,
-          items: [item("replacement", "DIRECT", "3000000")],
+          complete: true,
+          items: [item("replacement", "DIRECT", "2400000")],
         },
         {
           option: "CONTINUE",
@@ -184,6 +191,70 @@ export async function verifyComparison(page, token, approver) {
     .getByRole("region", { name: "設備検索の候補" })
     .getByRole("button", { name: new RegExp(equipment.equipment_name) })
     .click();
+  const economicsPanel = page.locator(
+    ".economic-panel:not(.registered-comparison)",
+  );
+  if (!(await economicsPanel.evaluate((element) => element.open)))
+    await economicsPanel.locator("summary").first().click();
+  await economicsPanel
+    .getByLabel("経済入力コード", { exact: true })
+    .fill("UI-COMP-ECON");
+  await economicsPanel
+    .getByRole("button", { name: "登録済み経済入力を検索", exact: true })
+    .click();
+  await economicsPanel
+    .getByRole("region", { name: "経済入力の検索候補" })
+    .getByRole("button", { name: /UI-COMP-ECON/ })
+    .click();
+  await economicsPanel
+    .getByRole("button", { name: "この経済入力の訂正を準備", exact: true })
+    .click();
+  const editor = economicsPanel.getByRole("region", {
+    name: "経済入力の登録・訂正",
+  });
+  await expect(editor.getByLabel("1日稼働時間", { exact: true })).toHaveValue(
+    "16",
+  );
+  await editor
+    .getByLabel("単純費用回収の条件を登録する", { exact: true })
+    .uncheck();
+  await expect(editor.getByLabel("1日稼働時間", { exact: true })).toHaveCount(
+    0,
+  );
+  await editor
+    .getByLabel("単純費用回収の条件を登録する", { exact: true })
+    .check();
+  await editor.getByLabel("1日稼働時間", { exact: true }).fill("16");
+  await editor
+    .getByLabel("一定の日次稼働を仮定する", { exact: true })
+    .selectOption("true");
+  await editor
+    .getByLabel("交換で劣化損失が解消すると仮定する", { exact: true })
+    .selectOption("true");
+  await editor
+    .getByLabel("費用回収条件の出典", { exact: true })
+    .fill("UIで明示して承認した試験仮定");
+  const recoveryPrepare = page.waitForResponse((value) =>
+    value.url().endsWith("/api/economic-inputs/prepare"),
+  );
+  await editor
+    .getByRole("button", { name: "経済入力の変更準備を作成", exact: true })
+    .click();
+  const preparedRecovery = (await (await recoveryPrepare).json()).data;
+  if (preparedRecovery.snapshot_schema_version !== 6)
+    throw new Error("Recovery did not use v6 Snapshot");
+  await api(
+    `/approvals/${preparedRecovery.approval_id}/approve`,
+    { snapshot_hash: preparedRecovery.snapshot_hash },
+    approver,
+  );
+  await api(
+    `/update-requests/${preparedRecovery.update_request_id}/execute`,
+    undefined,
+  );
+  await economicsPanel
+    .getByRole("button", { name: "編集を閉じる", exact: true })
+    .click();
   const panel = page.locator(".registered-comparison");
   await panel.locator("summary").first().click();
   await panel
@@ -253,6 +324,14 @@ export async function verifyComparison(page, token, approver) {
     panel.getByText("1900000 JPY", { exact: true }).first(),
   ).toBeVisible();
   const assessment = result.data.decision_package.comparison;
+  if (
+    assessment.simple_cost_recovery.days !== "150" ||
+    result.data.decision_package.selected_inputs.economic.input.version !== 2
+  )
+    throw new Error("Approved recovery assumptions were not refetched");
+  await expect(
+    panel.getByRole("region", { name: "単純費用回収期間" }),
+  ).toContainText("150 日（登録条件による試算）");
   if (
     assessment.economics.loss_per_hour !== "200000" ||
     assessment.options.find((row) => row.option === "SUBSTITUTE")
