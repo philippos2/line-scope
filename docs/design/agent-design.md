@@ -64,6 +64,8 @@ Toolは以下を構造化して返す。
 
 LLMはこのEvidenceを説明する。Evidence自体はサーバが応答Envelopeへ載せ、LLM文面だけに依存しない。
 
+単一分野の要約で混在調査の他の結果を上書きしない。状態と安全検索など異なる分野を含む場合は、全観測を使ったモデルの説明を保持する。必要な追加Tool参照は継続し、最初のGraph取得だけで調査を打ち切らない。
+
 ## 7. 代表経路
 
 ToolがBFSで最短hopを求める。同hopなら、node_id列→relation_id列の辞書順で決定する。
@@ -127,3 +129,7 @@ Read Agentが単一のtrace_upstream_dependenciesまたはfind_common_dependenci
 Read Agentが単一のfind_alternative_pathsまたはfind_single_point_failure_candidatesを取得した場合、CURRENT / DEPENDENCY_FULFILLMENT、分析モード、探索完全性、全体判定と未評価次元を確認し、取得済みの構造判定をAgent層で要約する。代替は仮想除外後の対象別構造判定と一段代替のavailability別件数、SPOFは対象・候補の組別判定件数を示す。SPOF候補は一要素ずつ独立に除外した結果であり、同時除外や故障原因の確定としない。
 
 完全探索と全体判定の確定性は別に表示する。UNKNOWNを利用可能とせず、空のSPOF findingsをSPOFなしとしない。実停止・能力・安全・経済は未評価とし、過去指定は当時の状態復元でない注意、一部参照失敗も保持する。名称や経路を追加生成しない。対象別の詳細・理由・経路・Evidenceは元の構造化結果に保持する。複数Graph分析・未対応の契約は既存の自由説明経路を維持し、一般品質の受入完了とはしない。
+
+## Read Agentの実行時間
+
+Readループ全体の既定deadlineは90秒。LINESCOPE_READ_AGENT_DEADLINE_SECONDSで正の整数秒を設定できる。全モデル往復・Tool実行・再試行が同じdeadlineを共有する。Prepare用AgentToolSessionの既定60秒、最大Tool数12、Graph／DB個別timeout、承認期限は変更しない。時間切れは引き続きAGENT_LIMIT_REACHEDとし、未完了を成功へ変換しない。評価では使用したdeadlineを明示し、60秒と90秒の実測を同一条件としない。

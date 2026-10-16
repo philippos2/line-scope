@@ -609,3 +609,5 @@ Dockerで追加36テスト成功、ruff check / format、git diff --check成功�
 - [比較の条件・費用差・履歴根拠の統合](2026-10-16-business-comparison-checkpoint.md)：構造・能力・安全の分離、費用差、履歴とリスク根拠、ガント配置の修正。
 
 - [BS-03の正式入力・Golden代表受入と品質測定](2026-10-16-golden-business-checkpoint.md)：日次稼働と仮定、Snapshot v6／旧v2互換、150日、実ブラウザと実Readの成功・失敗、残工程。
+
+- [Read品質受入・モデル待ち時間の切り分け](2026-10-16-read-quality-checkpoint.md)

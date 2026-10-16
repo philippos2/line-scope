@@ -1,35 +1,26 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="500" viewBox="0 0 1280 500" role="img" aria-labelledby="title desc">
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="460" viewBox="0 0 1280 460" role="img" aria-labelledby="title desc">
 <title id="title">LineScope 完成までの残工程と概算PR</title>
-<desc id="desc">#253 merge後、全体約90%、残り3〜4 PR。工程1=BS-03とGolden、工程2=回答検索品質と総合受入、工程3〜4=運用復旧。工程の欠番や空白はない。</desc>
-<rect width="1280" height="500" fill="white"/>
+<desc id="desc">#254 merge後、全体約90%、残り2〜3 PR。工程1は品質と総合受入、工程2〜3は運用復旧。全工程に作業を配置する。</desc>
+<rect width="1280" height="460" fill="white"/>
 <g font-family="sans-serif" fill="#24384b">
-<text x="24" y="34" font-size="23" font-weight="bold">完成までの残工程：全体約90% ／ 残り3〜4 PR（#253 merge後、今回を含む）</text>
-<text x="24" y="66" font-size="15">横軸は最大見積もりのPR工程枠。日程ではない。安全・履歴の不足確認は品質工程へ含める。</text>
-<path d="M500 112V372" stroke="#dae2e9"/>
-<text x="585" y="102" text-anchor="middle" font-size="15">工程1</text>
-<path d="M670 112V372" stroke="#dae2e9"/>
-<text x="755" y="102" text-anchor="middle" font-size="15">工程2</text>
-<path d="M840 112V372" stroke="#dae2e9"/>
-<text x="925" y="102" text-anchor="middle" font-size="15">工程3</text>
-<path d="M1010 112V372" stroke="#dae2e9"/>
-<text x="1095" y="102" text-anchor="middle" font-size="15">工程4</text>
-<path d="M1180 112V372" stroke="#dae2e9"/>
-<text x="24" y="150" font-size="17" font-weight="bold">BS-03・Goldenの正式入力統合</text>
-<text x="24" y="176" font-size="13">日次稼働・150日・v6承認確定・画面／Agent</text>
+<text x="24" y="34" font-size="23" font-weight="bold">完成までの残工程：全体約90% ／ 残り2〜3 PR（#254 merge後、今回を含む）</text>
+<text x="24" y="66" font-size="15">横軸は最大見積もりのPR工程枠。日程ではない。安全・履歴の不足確認は品質工程に含める。</text>
+<path d="M500 112V285 M726 112V285 M952 112V285 M1178 112V285" stroke="#dae2e9"/>
+<text x="613" y="102" text-anchor="middle" font-size="15">工程1</text>
+<text x="839" y="102" text-anchor="middle" font-size="15">工程2</text>
+<text x="1065" y="102" text-anchor="middle" font-size="15">工程3</text>
+<text x="24" y="150" font-size="17" font-weight="bold">回答・検索品質と総合受入</text>
+<text x="24" y="176" font-size="13">LLM時間切れ・全BS・説明／検索の品質確認</text>
 <text x="398" y="150" font-size="14" fill="#507ca0">今回</text>
-<rect x="504" y="128" width="162" height="40" rx="4" fill="#507ca0"/>
-<text x="585" y="154" text-anchor="middle" font-size="15" fill="white" font-weight="bold">1 PR</text>
-<text x="24" y="240" font-size="17" font-weight="bold">回答・検索品質と総合受入</text>
-<text x="24" y="266" font-size="13">時間制限失敗の解消・全BS・検索／説明の受入</text>
+<rect x="504" y="128" width="218" height="40" rx="4" fill="#507ca0"/>
+<text x="613" y="154" text-anchor="middle" font-size="15" fill="white" font-weight="bold">1 PR・作業中</text>
+<text x="24" y="240" font-size="17" font-weight="bold">運用・復旧受入</text>
+<text x="24" y="266" font-size="13">完成schemaで起動・復元・再構築・障害復旧</text>
 <text x="398" y="240" font-size="14" fill="#8295a5">未受入</text>
-<rect x="674" y="218" width="162" height="40" rx="4" fill="#8295a5"/>
-<text x="755" y="244" text-anchor="middle" font-size="15" fill="white" font-weight="bold">1 PR</text>
-<text x="24" y="330" font-size="17" font-weight="bold">運用・復旧受入</text>
-<text x="24" y="356" font-size="13">完成schemaで起動・復元・再構築・障害復旧</text>
-<text x="398" y="330" font-size="14" fill="#8295a5">未受入</text>
-<rect x="844" y="308" width="332" height="40" rx="4" fill="#8295a5"/>
-<text x="1010" y="334" text-anchor="middle" font-size="15" fill="white" font-weight="bold">1〜2 PR</text>
-<text x="24" y="414" font-size="15" fill="#357354">実装済み：正式入力、代替構造・能力・選択安全の比較、費用差、履歴の非加算、上流インフラ。</text>
-<text x="24" y="448" font-size="15">未受入：実Read Agentの応答時間・一般LLM／検索品質・全BS対応・完成版の運用復旧。</text>
-<text x="24" y="482" font-size="15">画面・Agent・必要な業務検証を一つのPRへまとめる。運用が1 PRで済む場合は工程4を省略する。</text>
+<rect x="730" y="218" width="444" height="40" rx="4" fill="#8295a5"/>
+<text x="952" y="244" text-anchor="middle" font-size="15" fill="white" font-weight="bold">1〜2 PR</text>
+<text x="24" y="326" font-size="15" fill="#357354">merge済み：正式入力・統合比較・条件付き150日・Golden代表経路・画面／Agent。</text>
+<text x="24" y="366" font-size="15">未受入：現モデル／実行環境の応答時間・一般LLM／検索品質・総合受入・運用復旧。</text>
+<text x="24" y="406" font-size="15">失敗・未測定を成功にせず、必要な修正と業務検証を品質PRへ集約する。</text>
+<text x="24" y="442" font-size="15">運用復旧が1 PRで済む場合は工程3を省略する。実日程は未見積もり。</text>
 </g></svg>

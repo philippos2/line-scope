@@ -162,6 +162,8 @@ actor_id / roleは認証済みContextまたは内部サービス主体から取�
 {"log_schema_version":1,"timestamp":"2026-10-09T05:00:00.000000Z","level":"DEBUG","service":"linescope","component":"api","event":"http.request.completed","outcome":"success","request_id":"00000000-0000-4000-8000-000000000001","duration_ms":2,"result_code":"OK","http_method":"GET","route":"/health","http_status":200}
 ```
 
+llm_input_bytesはmessagesとschemasのcanonical JSONのUTF-8長、llm_output_bytesは公開assistant messageのUTF-8長であり、token数・HTTP全体のbyte数ではない。providerが有効な非負整数を返す場合だけllm_prompt_tokens／llm_generated_tokensとllm_prompt_ms／llm_generate_ms／llm_load_msを追加する。providerのdurationはnsからmsへ切り捨て、秘密や任意metadataは採用しない。未返却や時間切れで取得不能な内訳を0として補完しない。
+
 ### 13.3 相関と並行処理
 
 HTTPのrequest_idは受信ごとに新しく生成し、Response Envelopeと運用ログで一致させる。外部ヘッダーを正本request_idとして採用しない。middleware入口でContextを設定し、finallyで必ず解除する。async処理・threadpoolの境界ではContextを伝播させ、別要求へ漏らさない。内部Toolには既存Trusted Execution Contextのrequest_idを使う。Tool呼出しごとにローカルなtool_call_idを付ける。
@@ -178,7 +180,7 @@ workerは新しい実行request_idとoutbox_id / update_request_idを記録す�
 | http.request.completed | 通常成功・partial・入力／認証／権限拒否はINFO、一時依存障害はWARNING、内部障害はERROR | route、method、status、result_code、duration_ms |
 | health / readinessの正常完了 | DEBUG。失敗は原因に応じWARNING / ERROR | 同上。監視pollでINFOを埋めない |
 | tool.call.completed | 成功・業務上の拒否はINFO、一時障害／再試行予定はWARNING、内部不整合はERROR | allowlisted Tool名、tool_call_id、code、duration_ms、対象技術ID |
-| llm.call.completed | INFO | Read Agentのモデル呼出しごとのcode、duration_ms、dependency=llm、llm_input_bytes、llm_output_bytes、llm_tool_count。本文・引数・prompt・provider responseは記録しない |
+| llm.call.completed | INFO | Read Agentのモデル呼出しごとのcode、duration_ms、dependency=llm、llm_input_bytes、llm_output_bytes、llm_tool_count、llm_schema_count。本文・引数・prompt・provider responseは記録しない |
 | proposal.saved / replayed / replaced | commit後INFO | 要求・承認ID、hash、旧要求ID（replaced時）、replayed |
 | approval.completed / execute.completed | commit後INFO、拒否はINFO | 主体、要求・承認ID、前後状態、code |
 | execution.outcome_unknown | ERROR。commit結果を確認できないとき | 要求ID、code。成功／rollbackを断定しない |
