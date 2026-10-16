@@ -22,7 +22,7 @@ class Settings:
     llm_base_url: str = field(default="http://127.0.0.1:11434", repr=False)
     llm_model: str = field(default="", repr=False)
     llm_context_tokens: int = 16384
-    read_agent_deadline_seconds: int = 90
+    read_agent_deadline_seconds: int = 120
     read_dsn: str | None = field(default=None, repr=False)
     # Compatibility-only settings; no runtime business fixture provider is assembled.
     demo_decision_mock: bool = False

@@ -105,7 +105,7 @@ def test_final_explanation_allowed_after_last_call():
     assert llm.requests[-1][1] == {}
 
 
-@pytest.mark.parametrize("deadline_seconds", [60, 90])
+@pytest.mark.parametrize("deadline_seconds", [60, 90, 120])
 def test_deadline_after_llm_does_not_dispatch(deadline_seconds):
     now = [0]
 

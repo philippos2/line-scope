@@ -93,7 +93,7 @@ def test_read_deadline_setting_is_wired_without_changing_prepare_budget():
 
     from linescope.bootstrap import build_api_services
 
-    assert Settings().read_agent_deadline_seconds == 90
+    assert Settings().read_agent_deadline_seconds == 120
     assert session(clock=lambda: 0, prepare_authorized=True).deadline == 60
     services = build_api_services(Settings(read_agent_deadline_seconds=75), llm=ScriptedLLM())
     try:

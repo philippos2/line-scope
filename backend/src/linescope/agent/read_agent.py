@@ -83,7 +83,9 @@ def supported_answer(observations, *, has_errors=False):
 
 
 class ReadAgent:
-    def __init__(self, dispatcher, llm, *, clock=monotonic, event_logger=None, deadline_seconds=90):
+    def __init__(
+        self, dispatcher, llm, *, clock=monotonic, event_logger=None, deadline_seconds=120
+    ):
         self.dispatcher, self.llm, self.clock = dispatcher, llm, clock
         self.events = event_logger
         self.deadline_seconds = deadline_seconds
@@ -130,6 +132,7 @@ class ReadAgent:
                 else:
                     raise LLMError("INTERNAL_ERROR", "Invalid internal LLM reply")
             except LLMError as error:
+                metrics = dict(error.metrics)
                 result_code = error.code
                 raise ToolError(error.code, error.message) from error
             except Exception:

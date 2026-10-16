@@ -361,3 +361,5 @@ probeは`/agent`へ固定の読取質問を一回送り、M-204からの6対象�
 管理CLIのleader競合を避けるため、初回schema / Rebuildを実行するときは通常workerを`docker compose stop projection`で停止し、管理操作完了後に`docker compose start projection`で再開できる。管理操作が失敗した場合は状態を確認し、応答不明の操作を自動retryしない。
 
 Ollamaのコンテキスト枠はサーバ設定`LINESCOPE_LLM_CONTEXT_TOKENS`（既定16384、正整数）で指定する。modelの対応枠とGPU / RAMに合わせて設定し、エンドユーザーやTool引数から変更しない。既定8192では初期GraphのTool結果を含む約10880 tokenの入力がOllamaに拒否されたため拡大した。大きなGraph・会話履歴が常に収まる保証ではなく、LLM実行予算60秒・回答上限・Graph探索上限は維持する。入力超過時の自動枠拡張やTool結果の暗黙切捨ては行わない。
+
+Readのllm.call.completedには失敗時も取得できたproviderの数値内訳を保持する。llm_finish_reasonはSTOP／LENGTH／OTHERの固定enum、llm_content_chars／llm_thinking_charsは文字数だけを採用し、内容は記録しない。生成上限による不完全応答の拒否をdeadline超過と混同しない。

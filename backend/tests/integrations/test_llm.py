@@ -46,6 +46,9 @@ def test_invalid_provider_reply_is_sanitized(changes):
         parse_reply(body(**changes), SCHEMAS)
     assert error.value.code == "INTERNAL_ERROR"
     assert error.value.message == "LLM returned an invalid response"
+    assert dict(error.value.metrics)["llm_finish_reason"] == (
+        "LENGTH" if changes.get("done_reason") == "length" else "STOP"
+    )
 
 
 def test_reasoning_dropped_and_tool_arguments_retained():
@@ -78,6 +81,9 @@ def test_reasoning_dropped_and_tool_arguments_retained():
         "llm_generated_tokens": 4,
         "llm_prompt_ms": 10,
         "llm_generate_ms": 20,
+        "llm_finish_reason": "STOP",
+        "llm_content_chars": 0,
+        "llm_thinking_chars": 6,
     }
     assert "secret" not in repr(reply) and "thinking" not in reply.assistant_message()
     assert reply.assistant_message()["tool_calls"][0]["function"]["index"] == 0
