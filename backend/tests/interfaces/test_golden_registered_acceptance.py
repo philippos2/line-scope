@@ -45,12 +45,30 @@ def test_golden_registered_decision_reproduces_costs_time_capacity_safety_and_un
         {"input_code": "GOLDEN-REPLACE", "equipment_id": selection["equipment_id"], "payload": p}
     )
     selection["maintenance_input_ids"] = [rows["maintenance"]["target_id"]]
+    repair_payload = {
+        **p,
+        "kind": "REPAIR_PLAN",
+        "lead_time_hours": "0",
+        "work_hours": "8",
+        "downtime_hours": "8",
+        "direct_cost_jpy": "300000",
+    }
+    rows["repair"] = maintenance_inputs.maintenance_input_target(
+        {
+            "input_code": "GOLDEN-REPAIR",
+            "equipment_id": selection["equipment_id"],
+            "payload": repair_payload,
+        }
+    )
+    selection["maintenance_input_ids"].append(rows["repair"]["target_id"])
+
     with db.transaction() as connection:
         for key, queries in (
             ("economic", core_economics),
             ("capacity", core_capacity),
             ("safety", core_safety),
             ("maintenance", core_maintenance_inputs),
+            ("repair", core_maintenance_inputs),
         ):
             assert queries.write(connection, rows[key]) == 1
     before = counts(db)
@@ -71,6 +89,7 @@ def test_golden_registered_decision_reproduces_costs_time_capacity_safety_and_un
         and replacement["total_cost"] == "2400000"
         and continuation["total_cost"] == "480000"
     )
+    assert repair["duration_hours"] == "8" and repair["downtime_hours"] == "8"
     assert result["simple_cost_recovery"]["days"] == "150"
     assert result["economics"]["loss_per_hour"] == "200000"
     assert replacement["lead_time_hours"] == "336" and replacement["downtime_hours"] == "2"
