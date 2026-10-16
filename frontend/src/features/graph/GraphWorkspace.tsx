@@ -190,6 +190,7 @@ export function GraphWorkspace({
                 ))}
               </div>
               <GraphCanvas
+                key={`${result.request_id}:${active?.key}`}
                 view={view}
                 result={result}
                 selected={selection ? nodeKey(selection) : null}

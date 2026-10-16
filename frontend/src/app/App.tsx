@@ -203,7 +203,7 @@ export function App() {
   }
   async function sendInvestigation(text: string) {
     if (!connected || busy || !text.trim()) return;
-    setMessage(text);
+    if (!text.startsWith("関係分析 ")) setMessage(text);
     setStale(true);
     const body = {
       message: text,

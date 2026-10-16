@@ -61,7 +61,7 @@ try {
     throw new Error("Demo must expose two product subjects");
   async function selectNode(name) {
     const details = page.locator(".graph-node-access");
-    if (!(await details.getAttribute("open")))
+    if ((await details.getAttribute("open")) === null)
       await details.locator("summary").click();
     await page
       .getByLabel("Graphノードの一覧")
@@ -136,6 +136,12 @@ try {
       )
       .toBe(true);
   }
+  await page
+    .getByRole("button", { name: "全ノードを表示", exact: true })
+    .click();
+  await expect(page.getByLabel("関係や影響について質問する")).not.toHaveValue(
+    /^関係分析 /,
+  );
   expect(errors).toEqual([]);
   await page.screenshot({
     path: `${output}/graph-investigation.png`,
