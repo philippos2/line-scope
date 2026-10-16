@@ -85,9 +85,29 @@ class AgentToolSession:
             if self.clock() >= self.deadline:
                 raise self._limit_error()
 
+    def _comparison_selection(self):
+        original = strict_json(self.request.message[self.request.message.index("{") :])
+        return normalize_selection(original)
+
     def schemas(self):
         from copy import deepcopy
 
+        # An explicit, complete selection identifies a readonly comparison task.
+        # Narrow advertisement only; run-time authority and argument guards remain mandatory.
+        if (
+            "compare_registered_inputs" in self._schemas
+            and self.request.explicit_as_of is None
+            and self.request.context_id is None
+            and self.request.replace_update_request_id is None
+        ):
+            try:
+                self._comparison_selection()
+            except (ValueError, TypeError):
+                pass
+            else:
+                return deepcopy(
+                    {"compare_registered_inputs": self._schemas["compare_registered_inputs"]}
+                )
         return deepcopy(
             {
                 name: schema
@@ -185,8 +205,7 @@ class AgentToolSession:
                 )
             if tool == "compare_registered_inputs":
                 try:
-                    original = strict_json(self.request.message[self.request.message.index("{") :])
-                    selected = normalize_selection(original)
+                    selected = self._comparison_selection()
                     supplied = normalize_selection(arguments)
                     for key in ("capacity_input_ids", "safety_input_ids", "maintenance_input_ids"):
                         selected[key], supplied[key] = sorted(selected[key]), sorted(supplied[key])

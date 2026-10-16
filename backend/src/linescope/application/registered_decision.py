@@ -5,6 +5,7 @@ from dataclasses import dataclass
 
 from ..domain.canonical import strict_json
 from ..domain.decision import comparison, normalize_selection
+from ..domain.decision_assessments import assess
 from ..domain.safety import calculate as safety_calculation
 from .capacity import CapacityInputs
 from .economics import EconomicInputs
@@ -78,12 +79,39 @@ class RegisteredDecisions:
         if len(set(plan_kinds)) != len(plan_kinds):
             raise ProposalError("INVALID_ARGUMENT", "Select one plan per option")
         states, impact, upstream, equipment = self.facts(context, v["equipment_id"], allowed)
-        profile = comparison(economic, capacities, safety, maintenance, states)
+        alternatives = None
+        if capacities:
+            alternatives = self.graph.call(
+                context,
+                "find_alternative_paths",
+                {
+                    "important_targets": [
+                        {"entity_type": "Product", "entity_id": identifier}
+                        for identifier in sorted({row["input"]["product_id"] for row in capacities})
+                    ],
+                    "excluded_nodes": [
+                        {"entity_type": "Equipment", "entity_id": v["equipment_id"]}
+                    ],
+                },
+            )
+            if alternatives.evidence["graph_generation"] != impact.evidence["graph_generation"]:
+                raise ToolError("GRAPH_NOT_CURRENT", "Graph generation changed; retry the analysis")
+        profile = assess(
+            comparison(economic, capacities, safety, maintenance, states),
+            economic,
+            capacities,
+            safety,
+            maintenance,
+            states,
+            impact.data,
+            alternatives.data if alternatives else None,
+        )
         package = {
             "equipment": {**equipment.data, **states[0]["data"]},
             "impact": impact.data,
             "upstream_dependencies": upstream.data,
             "comparison": profile,
+            "alternatives": alternatives.data if alternatives else None,
             "selected_inputs": {
                 "economic": economic,
                 "capacity": capacities,
@@ -99,6 +127,7 @@ class RegisteredDecisions:
             "impact": impact.evidence,
             "upstream_dependencies": upstream.evidence,
             "states": states,
+            "alternatives": alternatives.evidence if alternatives else None,
             "registered_inputs": [
                 {"source": "POSTGRESQL", "observed_at": row["observed_at"], "input": row["input"]}
                 for row in ([economic] if economic else []) + capacities + safety + maintenance
@@ -267,5 +296,48 @@ def decision_answer(data):
             if excluded
             else ""
         )
+        + assessment_answer(profile)
         + "費用は出典付きの登録値から計算し、調達待ち・作業・停止時間と過去損失を区別しています。未登録値を仮値で補完せず、実行可能性・設備全体の安全・最適案は認定しません。"
     )
+
+
+def assessment_answer(profile):
+    lines = []
+    economics = profile.get("economics", {})
+    if economics.get("loss_per_hour") is not None:
+        lines.append("選択した修理案の停止損失率：" + economics["loss_per_hour"] + " JPY/hour。")
+    elif economics.get("known_subtotal_per_hour") is not None:
+        lines.append(
+            "停止損失率の完全合計は不明です。独立加算できる登録分の小計："
+            + str(economics.get("known_subtotal_per_hour"))
+            + " JPY/hour。"
+        )
+    labels = {"REPAIR": "修理", "REPLACE": "交換", "CONTINUE": "継続"}
+    for pair in profile.get("cost_comparison", {}).get("pairs", []):
+        lines.append(
+            labels.get(pair["left"], pair["left"])
+            + "－"
+            + labels.get(pair["right"], pair["right"])
+            + "の登録費用差："
+            + pair["left_minus_right_jpy"]
+            + " JPY（共通期間・選択した費用範囲）。"
+        )
+    for option in profile["options"]:
+        if option["option"] == "SUBSTITUTE" and "condition_assessment" in option:
+            conditions = option["condition_assessment"]
+            lines.append(
+                "選択した代替設備の構造候補="
+                + conditions["structure"]
+                + "、能力="
+                + conditions["capacity"]
+                + "、登録上の安全判断="
+                + conditions["safety"]
+                + "。品質と実運転許可は未確認です。"
+            )
+    if "history" in profile:
+        lines.append(
+            "選択した故障・修理履歴は"
+            + str(len(profile["history"]))
+            + "件です。過去損失を将来費用へ加算せず、将来故障率は推測しません。"
+        )
+    return "".join(lines)

@@ -239,3 +239,37 @@ def test_parallel_admission_cannot_exceed_budget():
     assert results.count("OK") == 1
     assert results.count("AGENT_LIMIT_REACHED") == 3
     assert run.calls == 1
+
+
+@pytest.mark.parametrize("mode", ["SELECTED", "INVALID", "ORDINARY"])
+def test_explicit_comparison_advertises_only_needed_read_tool(mode):
+    from decision_fixture import records
+
+    from linescope.domain.canonical import canonical_json
+
+    class ComparisonDispatcher(Dispatcher):
+        def schemas(self):
+            return {**super().schemas(), "compare_registered_inputs": {"type": "object"}}
+
+    _, selection = records()
+    message = "登録条件を評価して " + canonical_json(selection)
+    if mode == "INVALID":
+        message = "登録条件を評価して " + canonical_json({**selection, "role": "manager"})
+    elif mode == "ORDINARY":
+        message = "設備を検索して"
+    request = AgentInput.parse(
+        context(),
+        canonical_json({"message": message}),
+        received_at=NOW,
+        idempotency_key=str(UUID(int=1)),
+    )
+    run = AgentToolSession(context(), request, ComparisonDispatcher())
+    schemas = run.schemas()
+    assert set(schemas) == (
+        {"compare_registered_inputs"}
+        if mode == "SELECTED"
+        else {"get_equipment", "compare_registered_inputs"}
+    )
+    assert PREPARE not in schemas
+    schemas.clear()
+    assert run.schemas()

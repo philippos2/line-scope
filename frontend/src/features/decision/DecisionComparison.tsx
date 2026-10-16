@@ -1,3 +1,4 @@
+import { DecisionAssessments } from "./DecisionAssessments";
 import { object, type JsonObject } from "../../api/client";
 
 const names: Record<string, string> = {
@@ -48,6 +49,7 @@ function list(value: unknown) {
     : [];
 }
 const reasons: Record<string, string> = {
+  STRUCTURAL_SUBSTITUTION_UNAVAILABLE: "登録済みの一段代替構造を満たしません",
   CURRENT_EQUIPMENT_UNAVAILABLE: "現在の設備状態では使用できません",
   PRODUCT_INCOMPATIBLE: "登録された製品互換性を満たしません",
   HARD_SAFETY_STOP: "登録された安全停止条件に該当します",
@@ -140,6 +142,43 @@ export function DecisionComparison({ comparison }: { comparison: JsonObject }) {
                   </div>
                 ))}
             </dl>
+            {object(option.safety_basis) && (
+              <details>
+                <summary>
+                  登録上の安全判断：{String(option.safety_basis.status)}
+                  （選択入力の範囲）
+                </summary>
+                <pre>{JSON.stringify(option.safety_basis, null, 2)}</pre>
+              </details>
+            )}
+            {object(option.condition_assessment) && (
+              <details open>
+                <summary>代替の条件別確認</summary>
+                <dl>
+                  <div>
+                    <dt>構造候補</dt>
+                    <dd>{String(option.condition_assessment.structure)}</dd>
+                  </div>
+                  <div>
+                    <dt>能力</dt>
+                    <dd>{String(option.condition_assessment.capacity)}</dd>
+                  </div>
+                  <div>
+                    <dt>登録上の安全判断</dt>
+                    <dd>{String(option.condition_assessment.safety)}</dd>
+                  </div>
+                  <div>
+                    <dt>品質</dt>
+                    <dd>{String(option.condition_assessment.quality)}</dd>
+                  </div>
+                </dl>
+                <p>実運転許可は認定していません。</p>
+                <details>
+                  <summary>構造候補の根拠</summary>
+                  <pre>{JSON.stringify(option.structural_basis, null, 2)}</pre>
+                </details>
+              </details>
+            )}
             <p className="muted">残存リスク：{display(option.residual_risk)}</p>
             {Array.isArray(option.blocking_constraints) &&
               option.blocking_constraints
@@ -177,10 +216,24 @@ export function DecisionComparison({ comparison }: { comparison: JsonObject }) {
         {Object.entries(risks).map(([key, value]) => (
           <div key={key}>
             <dt>{key}</dt>
-            <dd>{display(value)}</dd>
+            <dd>
+              {display(value)}
+              {object(comparison.risk_details) &&
+                object(comparison.risk_details[key]) && (
+                  <details>
+                    <summary>確認した事実と不足情報</summary>
+                    <pre>
+                      {JSON.stringify(comparison.risk_details[key], null, 2)}
+                    </pre>
+                  </details>
+                )}
+            </dd>
           </div>
         ))}
       </dl>
+      {object(comparison.cost_comparison) && (
+        <DecisionAssessments comparison={comparison} />
+      )}
       <h2>計算の根拠</h2>
       <p className="muted">
         サーバが返した入力・計算式・結果です。調達期間は停止時間と同じではありません。

@@ -84,3 +84,5 @@ search_maintenance_inputsで設備名・コード、分類・期間の候補を�
 ## 正式入力を使った比較
 
 compare_registered_inputsには利用者が選んだ入力IDと共通期間を渡す。候補が複数なら選択を求める。未入力はnull / 空配列とし、固定値を生成しない。入力の出典・観測日時・versionとGraphの現在generationを保持する。停止必須・現在利用不可・能力不足を経済上の利益で上書きしない。実行可否と最適案は不明を保持し、Agentに確定操作を公開しない。
+
+完全な比較選択JSONが元messageの末尾に明示され、現在時点の新規Read問い合わせである場合は、モデルへcompare_registered_inputsのみを提示する。曖昧・不正・通常の問い合わせでは既存のRead Tool集合を維持する。提示の絞込みは実行時の認可・元入力との一致・時刻／context境界の検証を置き換えない。
