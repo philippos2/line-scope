@@ -1,6 +1,6 @@
 import { expect, it } from "vitest";
 import { envelope } from "../../api/client";
-import { graphView } from "./model";
+import { graphView, pathHighlights } from "./model";
 const a = { entity_type: "Equipment", entity_id: "a" },
   b = { entity_type: "Product", entity_id: "b" };
 function response(paths: unknown[]) {
@@ -54,4 +54,53 @@ it("never renders a non-CURRENT graph as a current analysis", () => {
   const rows = r.data.tool_results as { data: Record<string, unknown> }[];
   rows[0].data.graph_sync_state = "LAGGING";
   expect(graphView(r)).toBeNull();
+});
+
+it("selects upstream paths without converting them into downstream impact", () => {
+  const r = response([]);
+  const upstream = {
+    target: b,
+    representative_paths: [
+      { nodes: [b, a], edges: [{ relation_type: "PRODUCES" }] },
+    ],
+    graph_sync_state: "CURRENT",
+    complete: true,
+    analysis_mode: "UPSTREAM",
+  };
+  r.data.decision_package = { upstream_dependencies: upstream };
+  const view = graphView(r, "upstream_dependencies")!;
+  expect(view.edges).toEqual([
+    { source: "Product:b", target: "Equipment:a", label: "PRODUCES" },
+  ]);
+  expect(view.data.analysis_mode).toBe("UPSTREAM");
+});
+it("keeps a confirmed isolated root without inventing neighbours", () => {
+  const r = response([]);
+  const rows = r.data.tool_results as { data: Record<string, unknown> }[];
+  rows[0].data.target = a;
+  const view = graphView(r)!;
+  expect(view.nodes).toEqual([a]);
+  expect(view.edges).toEqual([]);
+});
+it("does not fall back to another current analysis when the chosen one is stale", () => {
+  const r = response([]);
+  r.data.decision_package = {
+    upstream_dependencies: {
+      representative_paths: [],
+      graph_sync_state: "LAGGING",
+    },
+  };
+  expect(graphView(r, "upstream_dependencies")).toBeNull();
+});
+it("highlights the actual path edges without cross-highlighting another relationship", () => {
+  const r = response([
+    { nodes: [a, b], edges: [{ relation_type: "PRODUCES" }] },
+    {
+      nodes: [a, { entity_type: "Process", entity_id: "c" }],
+      edges: [{ relation_type: "SUPPLIES" }],
+    },
+  ]);
+  const highlighted = pathHighlights(graphView(r)!, "Product:b");
+  expect([...highlighted]).toEqual(["Equipment:a>Product:b:PRODUCES"]);
+  expect(highlighted.has("Equipment:a>Product:b:SUPPLIES")).toBe(false);
 });

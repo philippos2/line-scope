@@ -7,9 +7,11 @@ const text = (value: unknown) => (typeof value === "string" ? value : "未確認
 export function ActionPanel({
   preparedId,
   onExecution,
+  initiallyOpen = false,
 }: {
   preparedId?: string;
   onExecution?: () => void;
+  initiallyOpen?: boolean;
 }) {
   const [message, setMessage] = useState("");
   const [id, setId] = useState("");
@@ -18,6 +20,7 @@ export function ActionPanel({
   const [checked, setChecked] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const [copied, setCopied] = useState(false);
   const controller = useRef<AbortController | null>(null);
   const retry = useRef<{ message: string; key: string } | null>(null);
   const pending = useRef(false);
@@ -64,6 +67,7 @@ export function ActionPanel({
   function open(requestId: string) {
     if (!uuid.test(requestId)) return;
     setId(requestId);
+    setCopied(false);
     setExecution(null);
     void run((signal) => load(requestId, signal));
   }
@@ -149,7 +153,7 @@ export function ActionPanel({
     });
   }
   return (
-    <details className="action-panel">
+    <details className="action-panel" open={initiallyOpen || undefined}>
       <summary>変更準備・承認・実行</summary>
       <p>
         分析・変更準備・承認・実行は別操作です。操作権限と承認期限はサーバが判定します。
@@ -210,6 +214,23 @@ export function ActionPanel({
             保存済みSnapshot
           </h2>
           <p>変更要求ID：{requestId}</p>
+          <button
+            type="button"
+            onClick={async () => {
+              try {
+                await navigator.clipboard.writeText(requestId);
+                setCopied(true);
+              } catch {
+                setError(
+                  "コピーできませんでした。上の変更要求IDを選択してコピーしてください。",
+                );
+              }
+            }}
+          >
+            {copied
+              ? "変更要求IDをコピーしました"
+              : "承認者へ渡す変更要求IDをコピー"}
+          </button>
           <p>
             状態：{text(data.status)} / 実効状態：{text(data.effective_status)}{" "}
             / 承認：{text(data.approval_status)}

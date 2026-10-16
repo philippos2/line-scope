@@ -16,11 +16,13 @@ export function MaintenancePanel({
   onPrepared,
   onInvestigate,
   executionEpoch,
+  initiallyOpen = false,
 }: {
   equipment: EquipmentCandidate | null;
   onPrepared: (id: string) => void;
   onInvestigate: (message: string) => void;
   executionEpoch: number;
+  initiallyOpen?: boolean;
 }) {
   const [kind, setKind] = useState("");
   const [periodStart, setPeriodStart] = useState("");
@@ -133,7 +135,7 @@ export function MaintenancePanel({
   }
   const selected = result ? readInput(result.data.input) : null;
   return (
-    <details className="maintenance-panel">
+    <details className="maintenance-panel" open={initiallyOpen || undefined}>
       <summary>正式な対応計画・故障履歴入力</summary>
       <p>
         登録済みの修理・交換・暫定案と故障・修理履歴を探して確認します。登録・訂正には工場管理者による要求と別の工場管理者の承認が必要です。

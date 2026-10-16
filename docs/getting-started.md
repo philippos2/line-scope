@@ -45,9 +45,15 @@ docker compose -f compose.yaml -f compose.frontend.yaml --profile frontend up --
 
 `http://127.0.0.1:5173`を開きます。接続欄には私有`.env`の`LINESCOPE_USERS`に登録されたtokenの値だけを貼り付けます。管理・生産・保全ロールでGraph分析を利用できます。tokenを共有、Git登録、スクリーンショット掲載しないでください。初回接続後はHttpOnlyのセッションcookieでF5後も接続を復元します。接続切替・解除は上部の「接続設定」から行えます。セッションは固定8時間で、API再起動・期限切れ後は再接続が必要です。
 
-画面の「正式入力から対応案を比較する」で設備と入力候補、共通期間を選び、Graph・対応案・Evidenceを確認します。経済・能力・安全・対応計画／履歴は登録・承認・確定してから使い、未選択値は不明です。比較の定型説明はLLM未設定でも表示でき、通常の自然言語調査はローカルLLMを使います。
+接続後は中央の「登録設備を表示して調査を始める」を押し、実検索の候補から対象を選択します。名称・コードで絞りたい場合は左の検索欄を使います。選択すると下流影響と上流依存を取得し、中央の関係Graphを開きます。
 
-「変更準備・承認・実行」から明示Prepareと保存Snapshotを確認できます。要求IDを控え、接続を解除して承認者で再接続し、要求を読み直して承認します。その後、元requesterで再接続して要求を読み直し、実行と更新後の結果を確認します。
+- 「表示する調査」で下流影響と上流依存を切り替えます。直接・間接の影響候補と探索の完全性を確認します。
+- ノードを選ぶと、そのノードを含む代表経路を強調し、隣に属性と根拠経路を表示します。Graphは拡大・縮小、移動、全体表示ができます。
+- Graph下の「対応案を比べる」で正式入力と共通期間を選択し、「根拠を確かめる」でEvidenceや実文書の引用を確認します。パネルを切り替えてもGraphを保持します。
+- 「入力を登録・訂正」で必要な情報を準備し、「変更・承認・実行」で保存された変更内容と要求IDを確認します。接続解除して別の承認者でIDを読み直し承認し、元の依頼者で再接続して同じIDから実行します。
+- 実行後は確定結果と現在値を確認し、左から対象を選び直して関係・影響と比較を再取得します。接続切替で前ユーザーの取得情報は引き継がれません。
+
+第1段階はGraph中心の基本調査です。複数ノードの共通依存・代替・SPOFの指定操作と、判断・変更対象の連動は[ロードマップ](roadmap.md)の後続段階で整えます。Graph到達だけから実停止・能力・安全を断定しません。
 
 FrontendのproxyがAPIへ接続するため、ブラウザへDB資格情報を渡しません。Frontendはloopbackの5173番で、`LINESCOPE_FRONTEND_PORT`により変更できます。変更後は同じComposeファイルとprofileで再作成します。通常の停止でvolumeを削除しないでください。
 
@@ -190,3 +196,27 @@ python3 scripts/verify_read_agent_quality.py \
 必要な環境では`--docker-group docker`を付けます。専用環境で状態と原因不明、下流到達、存在しない設備、上流依存、共通依存の5質問を実行し、回答・Tool結果・Evidenceを0600の新規reportへ保存します。構造化結果成功でも`STRUCTURED_PASS_REVIEW_REQUIRED`であり、文章は別レビューが必要です。モデル名は記録しますがdigestを固定していないため、同名モデルの更新差は保証しません。
 
 単一の下流・上流・共通依存回答は、それぞれの分析種別に沿ってサーバ側で件数・完全性・未評価事項を要約します。共通依存の質問には既知typed IDを含み、名前だけの対象解決は未受入です。代替・SPOF・複数分析や通常Readの自由説明は別の品質評価対象です。
+
+## 全部品を含む常設環境
+
+実文書検索には `compose.rag.yaml` も重ねます。私有envへAPI用read keyと管理用write key、導入済みEmbeddingモデル名・正確なdigest・次元数を設定します（変数名は追加Composeを参照）。通常起動・再起動でも同じ3ファイルを使い、Vector構成を外さないでください。既存のDB資格情報を生成し直したりvolumeを消したりしません。
+
+```sh
+docker compose --env-file .env.browser-demo -p linescope-browser-demo \
+  -f compose.yaml -f compose.frontend.yaml -f compose.rag.yaml \
+  --profile frontend up --build -d --wait frontend projection qdrant
+```
+
+検索用参考資料は `docs/demo-documents/equipment-investigation.md` です。業務の安全規則や実工場の保全手順ではありません。管理用CLIで取り込む例：
+
+```sh
+docker compose --env-file .env.browser-demo -p linescope-browser-demo \
+  -f compose.yaml -f compose.frontend.yaml -f compose.rag.yaml \
+  run --build --rm --no-deps -v "$PWD/docs/demo-documents:/demo-documents:ro" \
+  knowledge-admin linescope ingest-knowledge \
+  --code DEMO-EQUIPMENT-INVESTIGATION --version 1 \
+  --title '設備状態と保全調査の参考資料（デモ）' \
+  --file /demo-documents/equipment-investigation.md
+```
+
+取込みは管理操作です。既に同じcode/versionを取り込んだ環境では無条件に再実行せず、登録済み文書を確認してください。新規環境は通常起動節のenv生成・seed・Graph構築も先に実施します。

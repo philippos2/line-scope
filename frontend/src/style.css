@@ -662,3 +662,430 @@ aside > button {
 :is(.economic-panel, .capacity-panel, .safety-panel, .maintenance-panel) pre {
   max-height: 320px;
 }
+
+/* 関係Graphを保ったまま、選択対象の詳細と業務操作を開く。 */
+.ontology-layout {
+  display: grid;
+  grid-template-columns: 250px minmax(0, 1fr);
+  min-height: calc(100vh - 70px);
+}
+.object-browser {
+  padding: 24px 18px;
+}
+.object-browser h2 {
+  font-size: 17px;
+  margin-top: 0;
+}
+.object-browser .object {
+  padding: 12px;
+}
+.object-browser .object strong {
+  font-size: 14px;
+}
+.object-browser .object small {
+  font-size: 12px;
+}
+.object-browser section h2 {
+  font-size: 15px;
+}
+.object-browser section p {
+  font-size: 12px;
+}
+.ontology-workspace {
+  min-width: 0;
+  padding: 24px 28px 60px;
+}
+.graph-workspace-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-bottom: 18px;
+}
+.graph-workspace-heading h1 {
+  font-size: 26px;
+}
+.eyebrow {
+  color: var(--accent);
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  font-weight: 650;
+  margin: 0 0 6px;
+}
+.graph-question-bar,
+.context-tabs,
+.input-categories,
+.connection-bar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.graph-question-bar {
+  padding: 12px 16px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+.graph-question-bar label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 12px;
+  color: var(--muted);
+}
+.graph-question-bar select {
+  font: inherit;
+  color: var(--text);
+  background: #1b2a35;
+  padding: 8px;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+}
+.graph-question-bar button {
+  font-size: 12px;
+}
+.impact-summary {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  margin: 16px 0;
+}
+.impact-summary > div {
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 12px 16px;
+  background: var(--panel);
+}
+.impact-summary span {
+  color: var(--muted);
+  font-size: 12px;
+}
+.impact-summary strong {
+  display: block;
+  font-size: 19px;
+}
+.graph-inspection-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 260px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  overflow: hidden;
+}
+.graph-stage {
+  min-width: 0;
+  background: #0e1922;
+}
+.relation-canvas {
+  width: 100%;
+  height: 510px;
+}
+.entity-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  padding: 12px 16px;
+  font-size: 12px;
+  border-bottom: 1px solid var(--line);
+}
+.entity-legend span::before {
+  content: "";
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: currentColor;
+  margin-right: 5px;
+}
+.legend-Equipment {
+  color: #78c9c5;
+}
+.legend-Process {
+  color: #79acf0;
+}
+.legend-ProductionOperation {
+  color: #bb9ae7;
+}
+.legend-Product {
+  color: #9bce8d;
+}
+.legend-InfrastructureResource {
+  color: #e2b978;
+}
+.react-flow__node-default {
+  width: 205px;
+  min-height: 82px;
+  text-align: left;
+  border-radius: 8px;
+  border-width: 2px;
+  background: #172733;
+  padding: 12px;
+}
+.react-flow__node-default strong,
+.react-flow__node-default span {
+  display: block;
+  overflow-wrap: anywhere;
+}
+.react-flow__node-default strong {
+  font-size: 14px;
+  color: #f2f6f8;
+  margin: 5px 0;
+}
+.react-flow__node-default .entity-kind,
+.node-classification {
+  font-size: 11px;
+  color: #b4c7d4;
+}
+.react-flow__node-default.entity-Equipment {
+  border-color: #78c9c5;
+}
+.react-flow__node-default.entity-Process {
+  border-color: #79acf0;
+}
+.react-flow__node-default.entity-ProductionOperation {
+  border-color: #bb9ae7;
+}
+.react-flow__node-default.entity-Product {
+  border-color: #9bce8d;
+}
+.react-flow__node-default.entity-InfrastructureResource {
+  border-color: #e2b978;
+}
+.react-flow__node-default.selected {
+  box-shadow: 0 0 0 4px #edc47380;
+}
+.react-flow__edge-text {
+  font-size: 11px;
+  fill: #d9e6f0;
+}
+.react-flow__edge-textbg {
+  fill: #15232e;
+}
+.react-flow__controls button {
+  padding: 4px;
+  background: #203340;
+  color: #edf4f7;
+  border-color: #40515d;
+  width: 30px;
+  height: 30px;
+}
+.react-flow__minimap {
+  width: 125px;
+  height: 85px;
+}
+.graph-caption,
+.graph-node-access {
+  padding: 0 16px;
+  color: var(--muted);
+  font-size: 12px;
+}
+.graph-node-access {
+  padding-bottom: 16px;
+}
+.node-inspector {
+  min-width: 0;
+  padding: 18px;
+  border-left: 1px solid var(--line);
+  background: #141e28;
+  max-height: 670px;
+  overflow: auto;
+}
+.node-inspector h2 {
+  margin-top: 0;
+  font-size: 17px;
+  overflow-wrap: anywhere;
+}
+.node-inspector h3 {
+  margin-top: 22px;
+}
+.node-properties {
+  font-size: 12px;
+}
+.node-properties dt {
+  color: var(--muted);
+}
+.node-properties dd {
+  margin: 2px 0 10px;
+  overflow-wrap: anywhere;
+}
+.path-list {
+  padding-left: 18px;
+  font-size: 12px;
+}
+.path-list li {
+  margin: 10px 0;
+}
+.path-node {
+  display: inline;
+  padding: 2px;
+  font-size: 11px;
+  color: var(--accent);
+  background: transparent;
+  border: 0;
+  text-align: left;
+}
+.context-tabs {
+  border-bottom: 1px solid var(--line);
+  padding-bottom: 12px;
+  margin: 24px 0 20px;
+}
+.context-tabs button[aria-pressed="true"],
+.input-categories button[aria-pressed="true"] {
+  background: #214248;
+  border-color: var(--accent);
+}
+.query-and-answer {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+}
+.query-and-answer h2 {
+  margin-top: 0;
+}
+.technical-details {
+  padding: 16px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  margin-top: 24px;
+}
+.graph-empty {
+  min-height: 470px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  text-align: center;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: radial-gradient(ellipse, #1a2b38, #101922);
+  padding: 30px;
+}
+.empty-network {
+  color: var(--accent);
+  font-size: 38px;
+  letter-spacing: 15px;
+}
+.graph-empty h2 {
+  font-size: 21px;
+}
+.graph-empty p {
+  color: var(--muted);
+}
+.focus-object {
+  border-top: 1px solid var(--line);
+  margin-top: 24px;
+  padding-top: 20px;
+}
+.focus-object strong,
+.focus-object span {
+  display: block;
+}
+.approval-guide {
+  padding-left: 22px;
+}
+.approval-guide li {
+  padding: 6px;
+}
+.input-categories {
+  margin: 20px 0;
+}
+input[type="checkbox"] {
+  width: auto;
+}
+summary {
+  cursor: pointer;
+}
+.brand-block,
+.connection-bar {
+  min-width: 0;
+}
+@media (max-width: 1150px) {
+  .graph-inspection-layout {
+    grid-template-columns: 1fr;
+  }
+  .node-inspector {
+    border-left: 0;
+    border-top: 1px solid var(--line);
+    max-height: 320px;
+  }
+  .relation-canvas {
+    height: 450px;
+  }
+}
+@media (max-width: 800px) {
+  .ontology-layout {
+    grid-template-columns: 1fr;
+  }
+  .object-browser {
+    border-right: 0 !important;
+    border-bottom: 1px solid var(--line);
+  }
+  .ontology-workspace {
+    padding: 20px;
+  }
+  .object-browser form {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 8px;
+    align-items: center;
+  }
+  .object-browser form label {
+    grid-column: 1/-1;
+  }
+  .object-browser form .primary {
+    width: auto;
+  }
+  .object-browser input {
+    margin: 0;
+  }
+  .query-and-answer {
+    grid-template-columns: 1fr;
+  }
+  .impact-summary {
+    gap: 6px;
+  }
+  .impact-summary > div {
+    padding: 10px;
+  }
+  .impact-summary strong {
+    font-size: 15px;
+  }
+  .graph-workspace-heading h1 {
+    font-size: 22px;
+  }
+  .relation-canvas {
+    height: 420px;
+  }
+  .brand-block .muted {
+    display: block;
+  }
+  .context-tabs button {
+    font-size: 12px;
+  }
+  .node-inspector {
+    max-height: 350px;
+  }
+}
+.start-investigation {
+  background: #22555b;
+  border-color: var(--accent);
+  padding: 16px 24px;
+  font-size: 16px;
+  margin-top: 20px;
+}
+.graph-empty > section {
+  width: min(100%, 620px);
+  text-align: left;
+}
+.graph-empty .object {
+  background: #203542;
+  margin: 10px 0;
+}
+.react-flow__edge.path-highlight .react-flow__edge-path {
+  stroke: #f0bd66;
+  stroke-width: 3;
+}
+.react-flow__node.selected {
+  box-shadow: 0 0 0 4px #edc47380;
+}

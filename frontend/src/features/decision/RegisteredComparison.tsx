@@ -1,5 +1,11 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
-import { ApiError, object, request, type JsonObject } from "../../api/client";
+import {
+  ApiError,
+  object,
+  request,
+  type JsonObject,
+  type Envelope,
+} from "../../api/client";
 import type { EquipmentCandidate } from "../equipment/EquipmentCandidates";
 import { UpstreamDependencies } from "./UpstreamDependencies";
 import { DecisionComparison } from "./DecisionComparison";
@@ -27,10 +33,12 @@ export function RegisteredComparison({
   equipment,
   executionEpoch,
   onInvestigate,
+  onResult,
 }: {
   equipment: EquipmentCandidate | null;
   executionEpoch: number;
   onInvestigate: (message: string) => void;
+  onResult?: (result: Envelope | null) => void;
 }) {
   const [candidates, setCandidates] = useState<
     Partial<Record<Group, JsonObject>>
@@ -66,6 +74,7 @@ export function RegisteredComparison({
   function search() {
     if (!equipment) return;
     setResult(null);
+    onResult?.(null);
     setDetails(null);
     setSelected(blank());
     setCandidates({});
@@ -149,6 +158,7 @@ export function RegisteredComparison({
         object(response.data.input.payload)
       ) {
         setResult(null);
+        onResult?.(null);
         setStart(String(response.data.input.payload.period_start));
         setEnd(String(response.data.input.payload.period_end));
       }
@@ -166,6 +176,7 @@ export function RegisteredComparison({
   function compare(event: FormEvent) {
     event.preventDefault();
     setResult(null);
+    onResult?.(null);
     void run(async (signal) => {
       const response = await request(
         "",
@@ -175,6 +186,7 @@ export function RegisteredComparison({
       );
       if (!signal.aborted) {
         setResult(response.data);
+        onResult?.(response);
         setObservedEpoch(executionEpoch);
       }
     });
@@ -182,7 +194,7 @@ export function RegisteredComparison({
   const pkg =
     result && object(result.decision_package) ? result.decision_package : null;
   return (
-    <details className="economic-panel registered-comparison">
+    <details className="economic-panel registered-comparison" open>
       <summary>正式入力から対応案を比較する</summary>
       <p>
         対象設備：
@@ -208,6 +220,13 @@ export function RegisteredComparison({
           {groups.map(([group, label, idKey]) => (
             <section key={group} aria-label={`比較に使う${label}`}>
               <h3>{label}</h3>
+              {Array.isArray(candidates[group]?.items) &&
+                candidates[group]?.items.length === 0 && (
+                  <p className="muted">
+                    登録された候補がありません。「5
+                    変更を準備する」から登録できます。未選択の条件は不明として比較します。
+                  </p>
+                )}
               {typeof candidates[group]?.next_cursor === "string" && (
                 <p className="notice">
                   未取得の候補があります。次の候補を取得してから選択できます。
@@ -234,6 +253,7 @@ export function RegisteredComparison({
                           onChange={(event) => {
                             const id = String(row[idKey]);
                             setResult(null);
+                            onResult?.(null);
                             setSelected((previous) => ({
                               ...previous,
                               [group]: event.target.checked
@@ -268,6 +288,7 @@ export function RegisteredComparison({
               onChange={(event) => {
                 setStart(event.target.value);
                 setResult(null);
+                onResult?.(null);
               }}
             />
           </label>
@@ -279,6 +300,7 @@ export function RegisteredComparison({
               onChange={(event) => {
                 setEnd(event.target.value);
                 setResult(null);
+                onResult?.(null);
               }}
             />
           </label>
