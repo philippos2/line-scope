@@ -1,10 +1,10 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1280" height="420" viewBox="0 0 1280 420" role="img" aria-labelledby="title desc">
 <title id="title">LineScope デモ完成までの最終工程</title>
-<desc id="desc">デモ機能と代表受入100%。今回の1 PR内で、代表経路確認、CIと記録、片付けと引渡しを順に進める。追加PRは予定しない。</desc>
+<desc id="desc">代表受入とPR #255は完了。常設画面を復旧。実検索の常設接続と文書投入を残す。</desc>
 <rect width="1280" height="420" fill="white"/>
 <g font-family="sans-serif" fill="#24384b">
-<text x="24" y="35" font-size="23" font-weight="bold">デモ機能・代表受入100% ／ 今回のPRを最終確認・merge</text>
-<text x="24" y="68" font-size="15">横軸はPR内の作業順。日程ではない。一般品質・実用性能の改善は完成後の課題。</text>
+<text x="24" y="35" font-size="23" font-weight="bold">代表受入100% ／ 常設デモの実検索接続が残る</text>
+<text x="24" y="68" font-size="15">横軸は確認の順序。日程ではない。工程1・2は完了。工程3の常設検索接続が残る。</text>
 <path d="M490 115V330 M720 115V330 M950 115V330 M1180 115V330" stroke="#dae2e9"/>
 <text x="605" y="105" text-anchor="middle" font-size="15">工程1</text>
 <text x="835" y="105" text-anchor="middle" font-size="15">工程2</text>
@@ -13,14 +13,14 @@
 <text x="24" y="180" font-size="13">実接続、正式比較、承認更新、主要UI</text>
 <rect x="494" y="133" width="222" height="40" rx="4" fill="#507ca0"/>
 <text x="605" y="159" text-anchor="middle" font-size="15" fill="white">確認済み</text>
-<text x="24" y="230" font-size="17" font-weight="bold">CI・文書・既知制限</text>
+<text x="24" y="230" font-size="17" font-weight="bold">CI・引渡し・merge</text>
 <text x="24" y="255" font-size="13">安全と整合性を維持し、未受入を明示</text>
 <rect x="724" y="208" width="222" height="40" rx="4" fill="#8295a5"/>
-<text x="835" y="234" text-anchor="middle" font-size="15" fill="white">実装CI成功・最終確認</text>
-<text x="24" y="305" font-size="17" font-weight="bold">片付け・引渡し</text>
-<text x="24" y="330" font-size="13">使い捨て環境の削除、PRをreadyへ</text>
+<text x="835" y="234" text-anchor="middle" font-size="15" fill="white">完了（#255）</text>
+<text x="24" y="305" font-size="17" font-weight="bold">常設デモの利用確認</text>
+<text x="24" y="330" font-size="13">画面復旧済み、実検索接続・文書投入が残る</text>
 <rect x="954" y="283" width="222" height="40" rx="4" fill="#8295a5"/>
-<text x="1065" y="309" text-anchor="middle" font-size="15" fill="white">片付け済・引渡しへ</text>
-<text x="24" y="380" font-size="15" fill="#357354">上記を今回の1 PRで完了する。機能完成のための追加PRは予定しない。</text>
+<text x="1065" y="309" text-anchor="middle" font-size="15" fill="white">常設RAGを接続</text>
+<text x="24" y="380" font-size="15" fill="#357354">新規機能PRは不要。常設の実検索・引用まで利用できる状態を確認する。</text>
 <text x="24" y="410" font-size="14">目的：開発依頼者が一連の業務と仕組みを確認できるデモ・習作。商用SLAは求めない。</text>
 </g></svg>
