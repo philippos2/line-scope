@@ -73,3 +73,11 @@
 - 再現確認だけを別PRへ分けず、既存4経路のデモ受入と主要ブラウザ経路を今回へ集約する方針へ更新。デモ基準で進捗約95%、今回1 PR・追加0 PRを予定する。前の2 PR概算はこの判断前の値。
 - 検索baselineは6/6で正解rank 1、hit@1・recall@3・MRRは1.0、正本引用一致。小規模合成datasetの測定であり一般品質を合格にしていない。原結果は[検索baseline](2026-10-16-retrieval-quality-baseline.json)。
 - 実PG／Neo4jで正式入力・Golden・Graph・承認更新の関連140成功（27.19秒）。受入runnerとprobeの関連検証を実施。新規pytestは12＋runner境界2＝14、検索の新規6質問を合わせた新規検証は20。
+
+## 最終代表経路の実動確認
+
+- 開発依頼者は、精度やレイテンシは実業務水準を求めないが、実際に動作する習作を求めると再確認した。代表シナリオの実接続・一連操作を必須とし、外観だけで完成扱いしない。
+- source `7ffeac474fc3ac42c73ca54a0c974042b86637e3`、開始時cleanでデモ受入4段階すべてPASS。起動・migration・Graph再構築、別承認者とrequesterによる更新、複数対象の原子性、実Embedding／Qdrant／引用、実LLMによる正式入力比較を確認。[原report](2026-10-16-demo-acceptance-final.json)。任意自然文の全件合格を意味しない。
+- 同じ実装でブラウザの正式入力比較経路PASS。入力編集、別ユーザーの承認、確定、条件付き150日、version 2、Graph／Evidence、接続断、画面幅を確認した。
+- 復旧・staging・knowledge rebuild・DB roleの既存試験105成功、21.70秒。Starletteの既知非推奨warning 1件と終了時logging output failedが出たが試験失敗はない。
+- 最新の関連検証307成功、受入runner／probe32成功、Ruff check／format成功（382ファイル）。最終の全体CIは以下へ確認後追記する。

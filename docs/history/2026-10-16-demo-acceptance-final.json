@@ -1,0 +1,73 @@
+{
+  "report_version": 1,
+  "scope": "DEMO_BACKEND_PATHS_NOT_FULL_BUSINESS_ACCEPTANCE",
+  "result": "PASS",
+  "revision": "7ffeac474fc3ac42c73ca54a0c974042b86637e3",
+  "working_tree_dirty": false,
+  "observed_at": "2026-10-16T14:01:35.340351+00:00",
+  "stages": {
+    "minimal": {
+      "status": "PASS",
+      "report": {
+        "stage": "result",
+        "result": "PASS",
+        "real_http": true,
+        "transport": "curl",
+        "real_stores": [
+          "PostgreSQL",
+          "Neo4j"
+        ],
+        "llm": "NOT_USED",
+        "comparison_source": "REGISTERED_INPUT",
+        "selection_required": true,
+        "actors": "disposable authenticated requester and approver fixtures",
+        "scope": "M0 fixed scenario, not Golden acceptance"
+      }
+    },
+    "multi_target": {
+      "status": "PASS",
+      "report": {
+        "stage": "result",
+        "result": "PASS",
+        "transport": "curl",
+        "llm": "NOT_USED",
+        "scope": "Real controlled multi-equipment action"
+      }
+    },
+    "vector": {
+      "status": "PASS",
+      "report": {
+        "result": "PASS",
+        "real": [
+          "Embedding",
+          "Qdrant",
+          "PostgreSQL",
+          "source",
+          "curl"
+        ],
+        "unselected": [
+          "decision comparison inputs"
+        ],
+        "llm": "NOT_USED",
+        "model": "embeddinggemma:latest",
+        "model_digest": "85462619ee721b466c5927d109d4cb765861907d5417b9109caebc4e614679f1",
+        "scope": "Real retrieval and unselected comparison; not general search quality acceptance"
+      }
+    },
+    "summary": {
+      "status": "PASS",
+      "report": {
+        "stage": "summary",
+        "result": "PASS",
+        "model": "qwen3:30b-a3b-instruct-2507-q4_K_M",
+        "source": "REGISTERED_INPUT",
+        "scope": "Registered readonly Tool; not full LLM quality acceptance"
+      }
+    }
+  },
+  "limitations": [
+    "BUSINESS_INPUTS_REQUIRE_EXPLICIT_SELECTION",
+    "GENERAL_LLM_GROUNDING_NOT_CERTIFIED",
+    "BROWSER_ACCEPTANCE_RUN_SEPARATELY"
+  ]
+}

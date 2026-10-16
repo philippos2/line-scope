@@ -6,7 +6,7 @@
 
 「M-204で異常が起きた。どこまで影響する？ 修理・交換・代替ではどう違う？」という問いに、業務Object、依存Graph、文書、決定論的計算を組み合わせて判断材料を提示します。最終判断・承認・実行はエンドユーザーが行います。
 
-> 仮置き入力を明示したデモバックエンドは一段落しています。全機能の完成ではありません。実APIから影響調査、仮置き入力による比較、Prepare→Approval→Execute、更新後確認まで接続しています。実Embedding/Qdrant検索とローカルLLMにも疎通済みです。費用・能力・安全条件にはモックが残り、一般LLMの説明品質と正式な業務受入は未完了です。単一の下流・上流・共通依存は取得済み結果から要約します。Frontendでは調査・Graph・比較・Evidenceと、承認付きActionを操作できます。実引用・主要keyboard操作・4業務カテゴリの代表経路まで確認しています。紹介動画は後回しです。
+> 実PostgreSQL・Neo4j・Embedding／Qdrant・ローカルLLMに接続したデモです。正式な経済・能力・安全・対応計画／履歴の登録、承認・確定、比較、Graph・Evidenceを画面から操作できます。未登録値は不明として扱い、固定値で補完しません。一般的な自然言語調査には遅延・形式不正・Tool選択ミスが残ります。完成範囲はデモ・習作であり、実業務の性能や任意質問への成功を保証しません。
 
 ## 主な機能と検証対象
 
@@ -14,7 +14,7 @@
 |---|---|
 | 業務Object | 設備・状態・保全・工程・生産作業・製品・インフラ・依存関係を認可付きで参照 |
 | Graph調査 | 下流影響・上流依存・共通依存・一段代替・SPOF候補を探索。経路、完全性、未評価項目を提示 |
-| 判断材料の比較 | 影響候補と現在状態、仮置き費用・能力・対応案、保全根拠、不足情報をDecision Packageへ統合 |
+| 判断材料の比較 | 影響候補・現在状態と選択した正式な費用・能力・安全・対応計画／履歴をDecision Packageへ統合 |
 | 文書検索 | 実Embedding/Qdrantで検索し、PostgreSQLのactive versionと管理本文を検証して引用。版更新・再構築に対応 |
 | 承認付き更新 | 設備状態・保全・生産作業・依存関係の明示的Prepare。同一カテゴリの複数Target、要求置換、Approval / Execute |
 | 監査・同期 | version検証、監査・履歴・Outboxの原子性、常駐Graph Projection、Rebuild / Restore、構造化運用ログ |
@@ -33,7 +33,7 @@ flowchart LR
     Agent --> Tools[Read / Graph / Prepare]
     Tools --> PG[(PostgreSQL / 業務正本)]
     Tools --> Neo4j[(Neo4j / 派生Graph)]
-    App --> Comparison[決定論的比較 / 仮置き入力]
+    App --> Comparison[決定論的比較 / 登録済み入力]
     App --> RAG[文書検索 / 正本確認]
     RAG --> PG
     RAG --> Qdrant[(Qdrant / 派生Index)]
@@ -50,7 +50,7 @@ PostgreSQLが業務データ・更新要求・承認・監査・履歴・Outbox�
 
 ## DBスキーマ・ER図
 
-**[業務10テーブルのER図](docs/design/data-model.md#13-適用済み業務スキーマのer図)**
+**[業務データのER図](docs/design/data-model.md#13-適用済み業務スキーマのer図)**
 
 設備と現在状態、保全予定・実績、工程・生産作業・複数設備割当、製品、インフラ、型付きDependencyRelationを管理します。図はSQLのFKを示し、更新要求・承認・監査などの管理テーブルは別です。多態的参照と関係の意味は[ドメインモデル](docs/requirements/domain-model.md)を参照してください。
 
@@ -65,9 +65,9 @@ curl -sS http://127.0.0.1:8000/agent \
   -d '{"message":"M-204の異常について影響・修理・交換・代替を比較して"}'
 ```
 
-比較には`LINESCOPE_DEMO_DECISION_MOCK=true`を明示します。LLM未設定でも比較デモは動作します。一般的な日本語調査にはOllama設定が必要です。
+比較は登録済み入力を使い、LLM未設定でも動作します。入力が未選択なら候補と不明を返します。一般的な日本語調査にはOllama設定が必要です。
 
-共通応答は`answer`、`data`、`evidence`、`warnings`、`errors`、`request_id`、`context_id`、`status`を持ちます。比較の`data.decision_package`には影響・比較・根拠・unknownsを返し、仮置き入力を`demo_only` / `MOCK_FIXTURE`で明示します。
+共通応答は`answer`、`data`、`evidence`、`warnings`、`errors`、`request_id`、`context_id`、`status`を持ちます。比較の`data.decision_package`には実Graphの影響候補、登録済み入力の比較、根拠・unknownsを返します。
 
 ```text
 調査・Evidence確認
@@ -82,10 +82,10 @@ curl -sS http://127.0.0.1:8000/agent \
 
 | シナリオ | 確認する振る舞い |
 |---|---|
-| 最小業務経路 | 影響・仮置き比較→Prepare→承認前拒否→Approval→Execute→再送→更新後確認 |
+| 最小業務経路 | 影響・比較候補→Prepare→承認前拒否→Approval→Execute→再送→更新後確認 |
 | 複数設備の変更 | 同一要求に複数Targetを含め、要求置換・承認・一括更新を確認 |
 | 文書と根拠 | 実Embedding/Qdrant検索、active version、引用、版更新、alias再構築 |
-| 日本語の比較要約 | 実LLMは表示順だけを選択。サーバ側で数値・制約・不明事項を説明 |
+| 日本語の比較要約 | 実LLMが正式比較Toolを参照し、サーバ側で数値・制約・不明事項を説明 |
 
 ```sh
 python3 scripts/verify_minimal_flow.py
@@ -117,10 +117,11 @@ CIはDockerビルド、Ruff、実DBテストを2 shardで並列実行し、runti
 
 ## 制限とスコープ外
 
-- 費用・能力・安全・対応策には仮置き入力が残ります。正式な業務規則の未決事項をデモfixtureで補完しません。
-- 自由な日本語回答の品質、根拠のない故障原因推定、全Business Scenarioの合格は保証していません。
+- 費用・能力・安全・対応計画は正式入力を使います。未登録・期限外・条件不一致は不明を保持し、実設備の安全や運転許可を認定しません。
+- Read Agentの実行上限は既定120秒です。一般質問にはモデル応答の形式不正・Tool選択ミス・時間切れが残ります。明示的な比較や画面のGraph操作と区別してください。
+- 一般LLM／検索品質の数値閾値、任意質問の成功、商用SLA・高負荷運用は保証しません。
 - 過去時点分析は現在登録情報の期間評価であり、当時の状態を完全復元しません。
-- Frontendでは調査・Graph・比較・Evidenceと、承認付きActionを操作できます。実引用・主要keyboard操作・4業務カテゴリの代表経路まで確認しています。紹介動画は後回しです。
+- 画面・実モデル・固定fixtureの確認範囲と既知の失敗は、[作業履歴](docs/history/2026-10-16-read-quality-checkpoint.md)で区別します。
 - AIの自律的な最終判断・Approval / Execute、実設備制御、本番MES / ERP接続、複数工場・マルチテナントは対象外です。
 - 材料・在庫・調達を含むSupply Chain Operational Intelligence、在庫・受注・BOMの完全管理はv1の対象外です。与えられた設備・工程の停止状態からの影響分析とは区別します。
 
