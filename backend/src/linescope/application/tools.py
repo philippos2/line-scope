@@ -18,6 +18,7 @@ from .prepare import EquipmentStatePrepare, MaintenancePrepare
 from .production_prepare import ProductionPrepare
 from .proposals import ProposalError
 from .reads import ReadResult, ReadTools, ToolError, json_value
+from .registered_decision import RegisteredDecisions
 from .safety import SafetyInputs
 
 PREPARE_CATEGORIES = {
@@ -247,6 +248,7 @@ def _graph_schemas():
 
 class ToolDispatcher:
     def __init__(self, database, *, graph=None, knowledge=None):
+        self.decisions = RegisteredDecisions(database, graph, knowledge)
         self.economics = EconomicInputs(database)
         self.safety = SafetyInputs(database)
         self.maintenance_inputs = MaintenanceInputs(database)
@@ -307,6 +309,30 @@ class ToolDispatcher:
         schemas["get_capacity_input"] = {
             **_object({"capacity_input_id": UUID_SCHEMA}),
             "description": "Read a selected registered capacity input with server-calculated product-specific capacity shortage and conditional buffer deadline, sources, period and version. Not operational feasibility, safety, a cheapest-option recommendation or historical state reconstruction.",
+        }
+        schemas["compare_registered_inputs"] = {
+            **_object(
+                {
+                    "equipment_id": UUID_SCHEMA,
+                    "period_start": TIME_SCHEMA,
+                    "period_end": TIME_SCHEMA,
+                    "economic_input_id": {"type": ["string", "null"], "format": "uuid"},
+                    **{
+                        key: {
+                            "type": "array",
+                            "items": UUID_SCHEMA,
+                            "maxItems": 10,
+                            "uniqueItems": True,
+                        }
+                        for key in (
+                            "capacity_input_ids",
+                            "safety_input_ids",
+                            "maintenance_input_ids",
+                        )
+                    },
+                }
+            ),
+            "description": "Compare explicitly selected registered inputs for one equipment and a common period. Search and ask the user to select IDs first; use null/empty lists for missing inputs, never invent data. Read-only, excludes declared stop-required continuation, keeps lead time separate from downtime and history separate from forecasts. No approval or execution.",
         }
         schemas["search_maintenance_inputs"] = {
             **_object(
@@ -466,6 +492,12 @@ class ToolDispatcher:
                     else None,
                 },
             )
+        if tool == "compare_registered_inputs":
+            try:
+                data = self.decisions.compare(context, arguments)
+            except ProposalError as error:
+                raise ToolError(error.code, error.message) from error
+            return ReadResult(data, data["evidence"])
         if tool in {"search_maintenance_inputs", "get_maintenance_input"}:
             try:
                 if tool == "search_maintenance_inputs":

@@ -83,20 +83,11 @@ APIの運用ログはstdoutのJSONで、request_id・結果code等を使って�
 
 通常の`down`は正本DB volumeを保持します。通常停止に`--volumes`を付けないでください。`.env`のDB passwordを変えても既存DBのpasswordは自動更新されません。migrationは適用済みchecksumの変更を拒否します。[role・volume運用](implementation-design/operations.md#14-postgresql検索接続の段階分離)
 
-## 比較デモを有効にする
+## 正式入力から比較する
 
-`.env`へ次を追記してAPIを再作成します。実データの参照と仮置き計算入力を混同しないため、比較機能は明示的なopt-inです。
+経済・能力・安全・対応計画／履歴は、画面で登録・承認・確定してから利用する。「正式入力から対応案を比較する」で対象設備、登録入力、共通期間を選択する。分析だけで更新要求は作成しない。
 
-```dotenv
-LINESCOPE_DEMO_DECISION_MOCK=true
-LINESCOPE_DEMO_DECISION_SCENARIO=AUTO
-```
-
-```sh
-docker compose up -d --no-deps --force-recreate api
-```
-
-`AUTO`は現在状態に応じたデモ入力を選びます。固定ケースは`STOPPED`、`DEGRADED`、`SAFETY_STOP`、`SUFFICIENT_CAPACITY`、`MISSING_LOSS`、`MISSING_REPAIR_COST`、`NONADDITIVE_LOSS`です。これはサーバ設定であり、質問文から費用や安全条件を正本として登録する機能ではありません。
+入力が未選択なら候補と不明を返し、固定値で補完しない。従来の`LINESCOPE_DEMO_DECISION_MOCK` / `LINESCOPE_DEMO_DECISION_SCENARIO`は互換受付のみで、固定費用・能力・安全を有効化しない。Graphは現在の同期状態、入力は明示期間の条件付き評価として扱う。
 
 ## APIを直接呼ぶ
 

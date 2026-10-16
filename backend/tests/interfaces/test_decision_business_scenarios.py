@@ -1,4 +1,4 @@
-"""Semantic API scenario probes with real PG/Graph and declared mock inputs.
+"""Semantic API scenario probes with explicitly registered PG inputs and real Graph.
 
 These partial BS checks do not certify the full business acceptance criteria.
 """
@@ -30,59 +30,53 @@ from linescope.settings import Settings
 def test_given_scenario_when_comparing_then_return_grounded_partial_package(
     db, running_world, adapters, scenario
 ):
-    # Given: named server fixture; operational facts still come from real stores.
+    from decision_fixture import seed_registered
+
+    selection = seed_registered(db, scenario)
     before = counts(db)
     with demo_client(db, adapters[1].driver, demo_decision_scenario=scenario) as client:
-        # When: the same input goes through the real authenticated API.
-        response = client.post(
-            "/agent", json={"message": "M-204の修理と交換を比較して"}, headers=headers()
-        )
-    assert response.status_code == 200
+        response = client.post("/decisions/compare", json=selection, headers=headers())
+    assert response.status_code == 200, response.text
     body = response.json()
     package = body["data"]["decision_package"]
     assert package["equipment"]["state_code"] == "RUNNING"
     result = package["comparison"]
-    # Then: numerical/semantic results, not an exact LLM sentence.
-    assert result["demo_scenario"] == scenario and result["source"] == "MOCK_FIXTURE"
-    assert result["inputs"] == scenario_inputs(scenario)
-    assert body["status"] == "partial" and result["decision_completeness"] == "PARTIAL"
-    assert result["economic_preference"] is None
-    assert body["evidence"]["state"]["source"] == "POSTGRESQL"
+    assert result["source"] == "REGISTERED_INPUT" and body["status"] == "partial"
+    assert result["economic_preference"] is None and result["decision_completeness"] == "PARTIAL"
+    assert body["evidence"]["states"][0]["evidence"]["source"] == "POSTGRESQL"
     assert body["evidence"]["impact"]["graph_generation"]
     assert all(value == "UNKNOWN" for value in result["risk"].values())
-    assert counts(db) == before  # Comparison never prepares or executes a change.
-    repair, replacement, substitute, continuation = result["options"]
-    if scenario == "STOPPED":  # BS-02/06 numerical slice.
-        assert result["economics"]["loss_per_hour"] == 200000
-        assert repair["production_loss"] == 1600000 and repair["total_cost"] == 1900000
-        assert substitute["shortage_units_per_hour"] == 30
-        assert replacement["lead_time_days"] == 14 and replacement["total_cost"] is None
-    elif scenario in {"DEGRADED", "SAFETY_STOP"}:  # BS-03/04 partial, not approved safety.
-        values = {item["id"]: item["result"] for item in result["calculations"]}
-        assert values["degradation_loss"] == 480000 and values["simple_cost_recovery"] == 150
+    assert counts(db) == before
+    repair, replacement, continuation, interim, substitute = result["options"]
+    economics = {
+        row["option"]: row
+        for row in package["selected_inputs"]["economic"]["calculation"]["options"]
+    }
+    if scenario == "STOPPED":
+        assert repair["total_cost"] == "1900000" and substitute["shortage_rate"] == "30"
+        assert replacement["lead_time_hours"] == "336" and replacement["total_cost"] is None
+    elif scenario in {"DEGRADED", "SAFETY_STOP"}:
+        assert continuation["total_cost"] == "480000"
         if scenario == "SAFETY_STOP":
             stop = [
                 item
                 for item in continuation["blocking_constraints"]
                 if item["code"] == "HARD_SAFETY_STOP"
             ]
-            assert len(stop) == 1 and stop[0]["source"] == "MOCK_FIXTURE"
+            assert len(stop) == 1 and stop[0]["source"] == "REGISTERED_INPUT"
             assert continuation["feasibility"] == "INFEASIBLE"
-    elif scenario == "SUFFICIENT_CAPACITY":  # BS-05 capacity only, not full substitution.
-        assert substitute["shortage_units_per_hour"] == 0
-        assert substitute["feasibility"] == "UNKNOWN"
+    elif scenario == "SUFFICIENT_CAPACITY":
+        assert substitute["shortage_rate"] == "0" and substitute["feasibility"] == "UNKNOWN"
         assert substitute["blocking_constraints"] == []
-    elif scenario == "MISSING_LOSS":  # BS-09.
-        assert result["economics"]["known_subtotal_per_hour"] == 120000
-        assert result["economics"]["loss_per_hour"] is None
-        assert result["economics"]["missing_products"] == ["P-200"]
-        assert repair["total_cost"] is None
-    elif scenario == "MISSING_REPAIR_COST":  # BS-10.
-        assert repair["production_loss"] == 1600000 and repair["total_cost"] is None
-        assert "repair_cost" in repair["missing_information"]
-    else:  # BS-16 nonadditive losses.
-        assert result["economics"]["known_subtotal_per_hour"] is None
-        assert result["economics"]["loss_per_hour"] is None
+    elif scenario == "MISSING_LOSS":
+        assert repair["known_subtotal_jpy"] == "1260000" and repair["total_cost"] is None
+        assert "P200" in economics["REPAIR"]["unknown_or_nonindependent_keys"]
+    elif scenario == "MISSING_REPAIR_COST":
+        assert repair["total_cost"] is None and repair["known_subtotal_jpy"] == "1600000"
+        assert "repair" in economics["REPAIR"]["unknown_or_nonindependent_keys"]
+    else:
+        assert repair["total_cost"] is None and repair["known_subtotal_jpy"] == "940000"
+        assert "P100" in economics["REPAIR"]["unknown_or_nonindependent_keys"]
 
 
 def test_named_fixture_requires_explicit_mock_mode():

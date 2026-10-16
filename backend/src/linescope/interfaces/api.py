@@ -11,11 +11,11 @@ from starlette.exceptions import HTTPException
 from ..agent.agent_input import AgentInput
 from ..application.agent_service import PreparedAgentResult
 from ..application.browser_sessions import BrowserSessions
-from ..application.demo_decision import DecisionAgentResult
 from ..application.graph_request import TOOLS as GRAPH_TOOLS
 from ..application.knowledge_flow import KnowledgeAgentResult
 from ..application.proposals import ProposalError
 from ..application.reads import ToolError, json_value
+from ..application.registered_decision import DecisionAgentResult
 from ..bootstrap import build_api_services
 from ..domain.canonical import strict_json
 from ..logging import request_context
@@ -116,6 +116,25 @@ def create_app(
         except psycopg.Error:
             return response(request, code="DEPENDENCY_UNAVAILABLE", status_code=503)
         return response(request, {"service": "linescope", "postgresql": "available"})
+
+    @app.post("/decisions/compare")
+    async def compare_registered_inputs(request: Request):
+        try:
+            if (
+                request.headers.get("content-type", "").split(";")[0].strip().lower()
+                != "application/json"
+            ):
+                raise ValueError("JSON required")
+            body = strict_json(await request.body())
+        except (ValueError, TypeError):
+            return response(request, code="INVALID_ARGUMENT", status_code=400)
+        try:
+            data = await run_in_threadpool(
+                services.decisions.compare, request.state.execution_context, body
+            )
+        except (ProposalError, ToolError) as error:
+            return response(request, code=error.code, status_code=error_status(error.code))
+        return response(request, data, evidence=data["evidence"], partial=True)
 
     @app.get("/update-requests/{request_id}")
     def update_request(request: Request, request_id: str):

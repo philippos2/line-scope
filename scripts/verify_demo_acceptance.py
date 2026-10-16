@@ -132,7 +132,7 @@ def main():
         "observed_at": datetime.now(timezone.utc).isoformat(),
         "stages": results,
         "limitations": [
-            "BUSINESS_INPUTS_INCLUDE_MOCK_FIXTURES",
+            "BUSINESS_INPUTS_REQUIRE_EXPLICIT_SELECTION",
             "GENERAL_LLM_GROUNDING_NOT_CERTIFIED",
             "WEB_UI_NOT_IMPLEMENTED",
         ],

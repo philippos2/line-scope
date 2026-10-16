@@ -23,6 +23,7 @@ class Settings:
     llm_model: str = field(default="", repr=False)
     llm_context_tokens: int = 16384
     read_dsn: str | None = field(default=None, repr=False)
+    # Compatibility-only settings; no runtime business fixture provider is assembled.
     demo_decision_mock: bool = False
     demo_decision_scenario: str = "AUTO"
     knowledge_mock_root: str = field(default="", repr=False)

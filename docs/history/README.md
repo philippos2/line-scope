@@ -601,3 +601,5 @@ Dockerで追加36テスト成功、ruff check / format、git diff --check成功�
 - [安全入力の着手と開発ガイダンス整理](2026-10-16-safety-input-checkpoint.md)：#248 merge後の進捗、次のPO判断案、後続PRでのCONTRIBUTING構造化。
 
 - [対応計画・故障履歴の判断・実装checkpoint](2026-10-16-maintenance-input-checkpoint.md)
+
+- [正式入力の統合比較checkpoint](2026-10-16-registered-decision-checkpoint.md)

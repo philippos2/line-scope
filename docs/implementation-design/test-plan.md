@@ -283,3 +283,9 @@ Dockerで`pytest -p no:cacheprovider backend/tests/interfaces/test_controlled_ac
 新規pytestは展開後20件を予定する。domain 8件（計画3分類、履歴2分類、費用条件未知、期間境界、不正な履歴の同値クラス）、実PG / HTTP 12件（登録・参照・訂正・retry・自己承認・現在role・3roleの要求拒否・3roleの閲覧・競合・並行再送・rollback・厳密入力）。複数因子の無条件直積を作らない。
 
 登録の代表経路で計画・故障／修理履歴・期間検索・同時刻の次回保全候補・予定関連付け・状態不変・Agentの不適切な予測文の置換とEvidenceを確認する。既存DB role試験へ新tableのruntime / query / projection境界を追加する。Frontendは主要業務経路を実ブラウザで確認し、Unit caseを機械的に追加しない。
+
+## 登録入力の統合比較試験
+
+新規pytestは展開後18件を予定する。純粋計算4件（現在状態3水準と計画小計の非合算）、実PG / Graph / HTTP 14件（role 4、厳密入力4、Golden代表、欠落、期間不一致、設備不一致、version再取得、非CURRENT）。無条件の直積を作らない。既存の比較APIシナリオ7件は明示登録fixtureに移行し、元の数値・未知・非加算を実DB入力で検証する。
+
+旧デモ算術の単体試験は、過去の固定fixtureの性質を確認する隔離試験として残す。現行APIの受入根拠にしない。正式経路でMOCK_FIXTUREが返らず、分析がPrepare・Approval・Executeを行わないことを確認する。画面は実API、実モデルは読取Tool接続を確認し、一般LLM／検索品質の包括合格を宣言しない。

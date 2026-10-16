@@ -439,3 +439,16 @@ calculationは`available_rate=normal_rate-used_rate-reserved_rate`、`shortage_r
 - 履歴では調達待ち・暫定終了・交換費／算入条件はnull、期間終了はサーバ現在時刻以前。計画ではpast_loss_jpyはnull。任意の関連保全予定は存在し、同じ設備であることを再検証する。
 - calculationは正規化payload、record_scope、known_plan_direct_cost_subtotal_jpy、total_economic_impact_jpy=null、future_failure_probability=null、feasibility=UNASSESSED、missing_information、automatic_state_change=falseを返す。直接費小計は交換費を含めない場合direct_cost_jpy、含める場合その和、条件・値が未知ならnull。小計を総額としない。
 - Agent公開は`search_maintenance_inputs` / `get_maintenance_input`のみ。新規PrepareやApproval / Executeは公開しない。EvidenceはPG・LATEST_PER_CALL・観測日時・選択IDとversion。読み取った各記録の期間や分類を合算しない。
+
+## 正式入力の統合比較
+
+`POST /decisions/compare`と読取Tool `compare_registered_inputs`は同じ選択契約を使う。maintenance / production / managerのみ許可し、floorを拒否する。
+
+- rootはequipment_id、period_start、period_end、economic_input_id（不明ならnull）、capacity_input_ids、safety_input_ids、maintenance_input_ids。各配列は最大10件、重複なし。UUID・timezone付き増加期間を必須とし、権限等の追加fieldを拒否する。
+- 経済・計画は対象設備、能力は代替設備、安全は対象または選択された代替設備とする。経済・能力・計画の評価期間は共通期間と一致し、安全の適用期間は全比較期間を覆う。履歴は過去の背景情報として分離する。同じ分類の複数計画は選択を求め、黙って一つにしない。
+- 現在の正本・versionを読み、経済は既存の厳密計算、能力・bufferは既存計算を使う。安全の登録上の判断は比較期間開始に評価する。未来・過去の指定期間は現在の登録情報に基づく条件付き評価であり、Graphや設備状態の履歴復元・将来の実運転許可ではない。
+- 現在STOPPED / UNDER_MAINTENANCEまたは選択した停止必須の安全判断は継続候補を除外する。能力不足は完全吸収候補の制約、能力充足は安全・構造成立の証明ではない。feasibilityは制約によるINFEASIBLE、またはUNKNOWN。十分な総合根拠のないFEASIBLE・最適案を返さない。
+- 金額はdecimal文字列。経済入力のtotal / known subtotalと計画直接費小計を別表示し、合算しない。調達待ち・作業・停止時間を分け、過去停止損失を将来案へ加えない。
+- responseはsource=REGISTERED_INPUT、decision_package、evidence。packageはequipment、impact、comparison、selected_inputs、comparison_period、selection、consistency=LATEST_PER_CALL、automatic_state_change=false。PGとGraphの全ストア同時Snapshotを意味しない。Evidenceに各入力ID・version・source・観測日時とGraph generationを含む。
+- Graphは現在の検証済みgenerationを利用し、非CURRENT・Rebuild・依存接続不能は従来コードで拒否する。分析はPrepare・Approval・Executeを行わない。
+- Agentへの明示選択は`登録入力で比較 {JSON}`でも送れる。通常の設備コードによる比較要求では、現在状態・Graph・候補を返し、選択されていない値は不明とする。固定費用・能力を返す旧デモProviderはAPI依存組立から除去する。旧デモ設定は互換受付のみで、業務値を生成しない。

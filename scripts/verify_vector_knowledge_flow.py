@@ -164,20 +164,13 @@ def main():
                 "Approved maintenance facts reach the decision package",
             )
             require(
-                comparison["options"][0]["total_cost"] == 1900000,
-                "Calculated repair cost",
+                all(row["total_cost"] is None for row in comparison["options"]),
+                "Unselected costs must remain unknown",
             )
             require(
-                comparison["options"][2]["shortage_units_per_hour"] == 30,
-                "Calculated capacity shortage",
-            )
-            require(
-                comparison["decision_completeness"] == "PARTIAL"
-                and bool(comparison["required_information"])
-                and comparison["options"][2]["blocking_constraints"][0]["scope"]
-                == "FULL_ABSORPTION"
-                and comparison["options"][2]["feasibility"] == "UNKNOWN",
-                "Missing information and partial substitution remain explicit",
+                compared["data"]["selection_required"]
+                and comparison["decision_completeness"] == "PARTIAL",
+                "Explicit input selection required",
             )
             require(
                 comparison["document_status"] == "VERIFIED_SOURCE",
@@ -190,13 +183,13 @@ def main():
             )
             require(
                 compared["status"] == "partial"
-                and comparison["source"] == "MOCK_FIXTURE",
-                "Fixture inputs remain declared",
+                and comparison["source"] == "REGISTERED_INPUT",
+                "Registered inputs have no fixture fallback",
             )
             stage(
                 "decision-package",
-                repair_total=1900000,
-                shortage=30,
+                repair_total=None,
+                selected_inputs=False,
                 verified_document_version=3,
             )
             fixture.docker("stop", "qdrant")

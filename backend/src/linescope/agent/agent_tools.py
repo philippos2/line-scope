@@ -176,6 +176,11 @@ class AgentToolSession:
             self.calls += 1
             if type(tool) is not str or tool not in self._schemas:
                 raise ToolError("INVALID_ARGUMENT", "Unknown Agent Tool")
+            if tool == "compare_registered_inputs" and self.request.explicit_as_of is not None:
+                raise ToolError(
+                    "INVALID_ARGUMENT",
+                    "Registered comparison uses current Graph; start a separate comparison",
+                )
             prepare = tool in PREPARE_CATEGORIES
             if prepare and (
                 not self.prepare_authorized

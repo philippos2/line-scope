@@ -9,7 +9,6 @@ from .agent.read_agent import ReadAgent
 from .application.agent_service import AgentApplication
 from .application.approvals import HumanApproval
 from .application.capacity import CapacityInputs
-from .application.demo_decision import DemoDecisionFlow, MockDecisionProvider
 from .application.dependency_command import DependencyCommandPrepare
 from .application.economics import EconomicInputs
 from .application.equipment_command import EquipmentCommandPrepare
@@ -24,6 +23,7 @@ from .application.maintenance_inputs import MaintenanceInputs
 from .application.production_command import ProductionCommandPrepare
 from .application.proposals import ProposalStore
 from .application.reads import ReadTools
+from .application.registered_decision import RegisteredDecisions
 from .application.safety import SafetyInputs
 from .application.structured_command import StructuredCommandPrepare
 from .application.tools import ToolDispatcher
@@ -51,6 +51,7 @@ class ApiServices:
     maintenance_inputs: MaintenanceInputs
     safety: SafetyInputs
     economics: EconomicInputs
+    decisions: RegisteredDecisions
     agent: AgentApplication
     owned_graph_driver: object | None = None
 
@@ -133,15 +134,7 @@ def build_api_services(
             production=ProductionCommandPrepare(database, event_logger=events),
             dependency=DependencyCommandPrepare(database, event_logger=events),
             read_agent=read_agent,
-            decision_flow=DemoDecisionFlow(
-                ReadTools(database),
-                graph,
-                MockDecisionProvider(settings.demo_decision_scenario),
-                knowledge,
-                llm,
-            )
-            if settings.demo_decision_mock
-            else None,
+            decision_flow=RegisteredDecisions(database, graph, knowledge),
         )
         return ApiServices(
             settings=settings,
@@ -156,6 +149,7 @@ def build_api_services(
             maintenance_inputs=MaintenanceInputs(database),
             safety=SafetyInputs(database),
             capacity=CapacityInputs(database),
+            decisions=RegisteredDecisions(database, graph, knowledge),
             agent=agent,
             owned_graph_driver=owned_driver,
         )
