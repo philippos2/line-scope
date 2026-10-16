@@ -201,6 +201,7 @@ def main():
                     fixture.docker(
                         "run", "--rm", "graph-admin", "linescope", "rebuild-graph"
                     )
+                    observed_calls = 0
                     for scenario, question in QUESTIONS.items():
                         case = {"scenario": scenario, "question": question}
                         try:
@@ -245,6 +246,38 @@ def main():
                             )
                         else:
                             case["structured_result"] = "PASS"
+                        logs = fixture.docker(
+                            "logs",
+                            "--no-color",
+                            "--no-log-prefix",
+                            "api",
+                            capture_output=True,
+                        )
+                        calls = []
+                        for line in logs.stdout.splitlines():
+                            try:
+                                event = json.loads(line)
+                            except ValueError:
+                                continue
+                            if (
+                                isinstance(event, dict)
+                                and event.get("event") == "llm.call.completed"
+                            ):
+                                calls.append(
+                                    {
+                                        key: event[key]
+                                        for key in (
+                                            "duration_ms",
+                                            "result_code",
+                                            "llm_input_bytes",
+                                            "llm_output_bytes",
+                                            "llm_tool_count",
+                                        )
+                                        if key in event
+                                    }
+                                )
+                        case["llm_calls"] = calls[observed_calls:]
+                        observed_calls = len(calls)
                         report["cases"].append(case)
                         stage(
                             scenario,
