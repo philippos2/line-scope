@@ -550,9 +550,29 @@ def _target(value):
     raise ValueError("Unsupported Snapshot target category")
 
 
+def _schema_version(targets):
+    kind = targets[0]["target_type"]
+    if kind == "EconomicInput" and any(
+        record is not None and "cost_recovery" in record.get("payload", {})
+        for target in targets
+        for record in (target["before"], target["after"])
+    ):
+        return 6
+    return {"EconomicInput": 2, "CapacityInput": 3, "SafetyInput": 4, "MaintenanceInput": 5}.get(
+        kind, 1
+    )
+
+
 def _snapshot(value):
     _exact(value, ROOT_FIELDS)
-    if type(value["schema_version"]) is not int or value["schema_version"] not in {1, 2, 3, 4, 5}:
+    if type(value["schema_version"]) is not int or value["schema_version"] not in {
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+    }:
         raise ValueError("Unsupported Snapshot schema version")
     if type(value["requester_id"]) is not str or not value["requester_id"].strip():
         raise ValueError("Snapshot requester is required")
@@ -561,9 +581,7 @@ def _snapshot(value):
     targets = [_target(target) for target in value["targets"]]
     if len({CATEGORIES[target["target_type"]] for target in targets}) != 1:
         raise ValueError("Snapshot must contain one business category")
-    version = {"EconomicInput": 2, "CapacityInput": 3, "SafetyInput": 4, "MaintenanceInput": 5}.get(
-        targets[0]["target_type"], 1
-    )
+    version = _schema_version(targets)
     if value["schema_version"] != version:
         raise ValueError("Snapshot schema/category mismatch")
     identities = [(target["target_type"], target["target_id"]) for target in targets]
@@ -658,17 +676,12 @@ def build_dependency_relation_snapshot(context, targets, supersedes_update_reque
 def _build_snapshot(context, targets, supersedes_update_request_id, target_types):
     if not isinstance(context, ExecutionContext):
         raise ValueError("Trusted execution context is required")
+    if type(targets) is not list or not targets:
+        raise ValueError("Snapshot requires at least one target")
+    targets = [_target(target) for target in targets]
     value = _snapshot(
         {
-            "schema_version": 5
-            if target_types == {"MaintenanceInput"}
-            else 4
-            if target_types == {"SafetyInput"}
-            else 3
-            if target_types == {"CapacityInput"}
-            else 2
-            if target_types == {"EconomicInput"}
-            else 1,
+            "schema_version": _schema_version(targets),
             "requester_id": context.authenticated_user_id,
             "supersedes_update_request_id": supersedes_update_request_id,
             "targets": targets,

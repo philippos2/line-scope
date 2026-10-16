@@ -163,6 +163,9 @@ def assess(profile, economic, capacities, safety, maintenance, states, impact, a
     ]
     profile["economics"] = economic_breakdown(economic)
     profile["cost_comparison"] = cost_pairs(profile["options"])
+    profile["simple_cost_recovery"] = (
+        economic["calculation"]["simple_cost_recovery"] if economic else None
+    )
     profile["history"] = [
         {"input": row["input"], "calculation": row["calculation"], "included_in_future_cost": False}
         for row in maintenance

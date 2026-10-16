@@ -36,4 +36,19 @@ def economic_answer(observations, *, has_errors=False):
         + "、".join(costs)
         + "。安全性・能力・案の優劣は未評価です。期間・出典は構造化結果を確認してください。"
     )
-    return ("一部の参照に失敗しています。" if has_errors else "") + answer
+    return (
+        ("一部の参照に失敗しています。" if has_errors else "")
+        + answer
+        + recovery_answer(calculation)
+    )
+
+
+def recovery_answer(calculation):
+    recovery = calculation.get("simple_cost_recovery")
+    if recovery and recovery["status"] == "CONDITIONAL":
+        return (
+            "登録した一定稼働・損失解消の仮定では単純費用回収期間は"
+            + recovery["days"]
+            + "日です。両案の損益分岐や交換の推奨を意味しません。"
+        )
+    return "単純費用回収期間は登録条件から未算出です。" if recovery else ""

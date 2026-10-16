@@ -466,3 +466,13 @@ Agentの比較Tool admissionは、元の問い合わせ中のJSON選択とTool�
 - economicsの損失率は選択したREPAIR案のSTOPPAGE項目に限定。独立・金額既知・同じ既知時間の場合だけ完全合計を返し、未知／加算不可は判明分の小計と分離する。工場全体の損失率ではない。
 - cost_comparisonは共通期間の総額が既知な案の組だけ、左案−右案のJPY費用差と低い登録費用の案を示す。実行除外案を明示し、未算出案を含む全体の推奨は返さない。economic_preferenceはnullを維持する。
 - historyは選択したFAILURE_RECORD / REPAIR_RECORDの出典・期間・過去損失。将来案へ加算しない。risk_detailsは六つの次元別に確認事実と不足情報を保持し、riskのUNKNOWNを根拠のないスコアへ置き換えない。
+
+
+### 経済入力の単純費用回収期間
+
+- EconomicInput.payloadの任意cost_recoveryはnull、またはdaily_operating_hours（十進文字列／null）、constant_daily_operation・replacement_removes_degradation（bool／null）、source（必須）、certainty（ESTIMATED／CONFIRMED）。省略した既存入力は省略のまま維持する。
+- 日次稼働は最大24時間。一定稼働trueで既知なら、日次稼働×比較期間の長さ＝明示稼働時間をmicrosecond単位の厳密計算で検証。業務入力全体の不整合はINVALID_ARGUMENTで拒否する。
+- calculation.simple_cost_recoveryはstatus、days、unit=days、rounding=CEILING_6_DECIMALS、formula、inputs、assumptions、missing_information、is_breakeven=false、recommendation=null。
+- 日次稼働・両仮定・交換／継続の費用範囲の申告・独立かつ既知の項目がそろい、劣化項目の時間が全稼働時間に一致する場合だけCONDITIONAL。交換案のDIRECT合計÷（継続案のDEGRADATION率合計×日次稼働）を計算する。未知・仮定false・不適用はUNKNOWN、劣化率0はNO_RECOVERY_FROM_DECLARED_LOSSとしてdays=null。0へ補完しない。
+- 比較のcomparison.simple_cost_recoveryにも同じ結果を保持。画面・Agentはサーバ算出の日数・式・仮定を示し、LLMやFrontendへ再計算を委ねない。
+- Snapshot v6の選定・旧v2互換はdata-modelとtransaction-designを正とする。新規のPrepare Tool・承認権限は追加しない。

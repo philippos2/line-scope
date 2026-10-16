@@ -287,3 +287,8 @@ CAPACITY_INPUTはCapacityInput専用のSnapshot schema_version=3。既存v1/v2�
 Snapshot v5はMaintenanceInputのみ。既存v1〜4の意味を変えない。category=MAINTENANCE_INPUT、操作CREATE / UPDATE、manager要求・別manager承認・元要求者確定とする。現在role、期限、owner、hash、retryの共通制御を維持する。
 
 lock順はUpdateRequest→Approval→Equipment（UUID順KEY SHARE）→関連MaintenancePlan（UUID順SHARE）→MaintenanceInput（UUID順UPDATE）。存在・同一設備の予定参照、CREATEのUUID / code一意性、UPDATEのbefore全体とversionを承認／確定の両方で検証する。関連予定のversion固定や未来の自動状態変更を意味しない。payload更新、version、共通業務履歴、Audit、承認消費、実行結果を一つのPG Transactionで確定する。Graph lock / Outboxは追加しない。監査失敗は全体rollback、同じ完了要求の再送は同じ確定結果を返す。
+
+
+## 単純費用回収条件を含むEconomicInput
+
+Snapshot v6はEconomicInputのcost_recoveryをbefore / afterのいずれかに含む場合に使用する。通常のpayloadと同じcanonical Snapshot・hash・expected_version・Prepare retry fingerprintの対象とし、別managerのApprovalと元requesterのExecuteを経由する。既存v2の省略形状・hashを再生成時に変えず、保存済み承認待ち要求と再送を引き続き処理する。v6の更新・削除も同じtransactionとlock順、履歴・監査・結果保存を維持し、Graph Outboxは生成しない。

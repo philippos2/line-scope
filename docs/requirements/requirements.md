@@ -286,8 +286,8 @@ A=現仕様に存在、B=現仕様から一部導出可能、C=現仕様には�
 
 | 項目 | 分類 | 根拠・不足 |
 |---|---|---|
-| loss per operating hour | C | Product等に損失率・通貨・適用条件なし |
-| operating hours/day | C | 稼働calendarなし。予定開始終了差は実稼働時間とは限らない |
+| loss per operating hour | A | EconomicInputに停止／劣化損失率・適用期間・JPY・加算条件・出典を明示登録 |
+| operating hours/day | A | EconomicInputの任意cost_recoveryに日次稼働時間と一定稼働の仮定を登録。一般稼働calendarではなく予定開始終了差から推測しない |
 | production capacity | A | CapacityInputで製品・数量単位/hour・評価期間別の通常能力を明示登録 |
 | available capacity | B | CapacityInputの通常能力から重複しない使用中・予約負荷を控除。不明・網羅性未確認はUNKNOWN |
 | required production volume | B | CapacityInputの必要能力は同一製品・期間の毎時率。可変需要・calendarを含む総量計画は未対応 |
@@ -323,3 +323,10 @@ A=現仕様に存在、B=現仕様から一部導出可能、C=現仕様には�
 | PO-B08 | 設備が依存する上流InfrastructureResourceを提示する。下流の被影響対象とは区別し、既存関係表の上流探索方向と経路Evidenceに従う。設備停止から資源への影響を推測しない | UC-B01、関係モデル / Graph / AC |
 
 技術実装判断として、UCの番号分離、構造化結果による検証、計算をLLMから分離することを採用する。数量の単位・桁・丸めはPO-B01〜03の意味確定後に設計へ反映し、binary floatや新しいSnapshot形状を先行採用しない。PO判断確定時にはRequirements / Domain / Access / Data / API / Transaction / AC / Testを対応して更新する。
+
+
+### 単純費用回収の登録条件
+
+PO-B01の単純費用回収期間は、共通期間の経済入力に日次稼働・一定稼働・交換で劣化損失が解消する仮定と出典を明示した場合に計算する。交換案の独立加算可能な直接費を、継続案の独立加算可能な毎稼働時間の劣化損失率×日次稼働時間で割る。比較期間の率を一定と置く条件付き単純試算であり、両案の損益分岐・期間外の実損失予測・交換の推奨ではない。劣化損失が全稼働時間に適用される条件を満たさなければ算出しない。
+
+日次稼働は0〜24時間の十進文字列または不明。一定稼働をtrueとする場合は、比較期間の明示稼働時間と整合しなければならない。仮定のfalse／不明、費用範囲の未確認、非独立・未知の損失、稼働0時間では日数不明。劣化損失率0は回収日数なしと区別する。端数は日数を過小表示しないよう小数6桁で切り上げる。既存の承認・確定・閲覧権限を適用する。

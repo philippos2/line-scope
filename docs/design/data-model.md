@@ -459,3 +459,10 @@ maintenance_plan_idのNULLは計画との関連なしを表す。計画を指定
 migration `011_maintenance_input.sql`でmaintenance_inputを追加する。UUID maintenance_input_idをPK、input_codeを一意、equipment_idをEquipment FK、payloadをJSONB object、versionを正のBIGINTとする。identityは不変、訂正はpayload全置換とversion + 1。旧migrationのchecksumは変更しない。
 
 payloadの分類・期間・source・details・時間・JPY費用・交換費算入条件・任意maintenance_plan_id・暫定終了・リスク資料はdomain-modelとAPI契約に従う。予定の参照はApplicationで存在と同一設備を検証し、承認／確定時に共有lockで再検証する。Graph対象を増やさずOutboxを発行しない。
+
+
+## 経済入力の単純費用回収条件
+
+EconomicInput.payloadに任意のcost_recovery objectまたはnullを保持する。新しいtableやcolumnは追加しない。Migration 012はupdate_requestのSnapshot version制約へ6を追加する。v1〜5の保存内容・適用済みmigration checksumは変更しない。
+
+cost_recoveryがbeforeまたはafterに含まれるEconomicInputはSnapshot v6。いずれにも含まれない旧形状はv2。省略と明示nullを正規化で相互変換せず、旧Snapshotのcanonical bytes・hash・承認待ち要求を維持する。v6の訂正で項目を削除する場合もbeforeが拡張形状なのでv6。v6の内容をv2として保存することを拒否する。JSONBは出典・十進文字列・三値の仮定を保持し、直接費と損失率を取り違えない。

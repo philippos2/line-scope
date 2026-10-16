@@ -227,6 +227,7 @@ def test_upgrade_preserves_existing_requests_and_has_no_fabricated_events(db):
         "009_capacity_input.sql",
         "010_safety_input.sql",
         "011_maintenance_input.sql",
+        "012_economic_cost_recovery.sql",
     ]
     assert db.migrate() == []
     assert ProjectionState(db).observe().status == "ERROR"

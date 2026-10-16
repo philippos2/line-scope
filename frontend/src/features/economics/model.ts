@@ -16,6 +16,13 @@ export type CostOption = {
   complete: boolean;
   items: CostItem[];
 };
+export type CostRecovery = {
+  daily_operating_hours: string | null;
+  constant_daily_operation: boolean | null;
+  replacement_removes_degradation: boolean | null;
+  source: string;
+  certainty: string;
+};
 export type EconomicInput = {
   economic_input_id: string;
   input_code: string;
@@ -27,6 +34,7 @@ export type EconomicInput = {
     operating_hours: string;
     currency: string;
     options: CostOption[];
+    cost_recovery?: CostRecovery | null;
   };
 };
 export const optionNames: Record<string, string> = {
@@ -118,6 +126,20 @@ export function readInput(value: unknown): EconomicInput {
     )
   )
     throw new Error("INVALID_RESPONSE");
+  if (payload.cost_recovery !== undefined && payload.cost_recovery !== null) {
+    const r = payload.cost_recovery;
+    if (
+      !object(r) ||
+      (r.daily_operating_hours !== null &&
+        typeof r.daily_operating_hours !== "string") ||
+      !["constant_daily_operation", "replacement_removes_degradation"].every(
+        (key) => r[key] === null || typeof r[key] === "boolean",
+      ) ||
+      typeof r.source !== "string" ||
+      typeof r.certainty !== "string"
+    )
+      throw new Error("INVALID_RESPONSE");
+  }
   // Preserve server strings; do not recalculate or infer business facts.
   return value as unknown as EconomicInput;
 }

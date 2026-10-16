@@ -1,4 +1,5 @@
 import { object, type JsonObject } from "../../api/client";
+import { CostRecoveryResult } from "./CostRecoveryResult";
 import { kindNames, optionNames } from "./model";
 
 const shown = (value: unknown) =>
@@ -96,6 +97,7 @@ export function EconomicResult({
           </article>
         ))}
       </div>
+      <CostRecoveryResult value={calculation.simple_cost_recovery} />
       <details>
         <summary>計算入力・適用期間・出典の全文</summary>
         <pre>{JSON.stringify(input, null, 2)}</pre>

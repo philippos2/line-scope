@@ -142,6 +142,149 @@ export function EconomicEditor({
           </label>
           <p>通貨：JPY</p>
         </fieldset>
+        <fieldset disabled={busy}>
+          <legend>単純費用回収期間の登録条件</legend>
+          <label>
+            <input
+              type="checkbox"
+              checked={Boolean(value.payload.cost_recovery)}
+              onChange={(event) => {
+                setValue((previous) => ({
+                  ...previous,
+                  payload: {
+                    ...previous.payload,
+                    cost_recovery: event.target.checked
+                      ? {
+                          daily_operating_hours: null,
+                          constant_daily_operation: null,
+                          replacement_removes_degradation: null,
+                          source: "",
+                          certainty: "ESTIMATED",
+                        }
+                      : null,
+                  },
+                }));
+                setSavedId("");
+              }}
+            />
+            単純費用回収の条件を登録する
+          </label>
+          <p>
+            一定の日次稼働と、交換で劣化損失が解消する仮定を明示します。未登録・不明から日数を推測しません。
+          </p>
+          {value.payload.cost_recovery && (
+            <>
+              <label>
+                1日稼働時間
+                <input
+                  inputMode="decimal"
+                  value={
+                    value.payload.cost_recovery.daily_operating_hours ?? ""
+                  }
+                  onChange={(event) => {
+                    const daily = event.target.value;
+                    setValue((previous) => ({
+                      ...previous,
+                      payload: {
+                        ...previous.payload,
+                        cost_recovery: {
+                          ...previous.payload.cost_recovery!,
+                          daily_operating_hours: daily || null,
+                        },
+                      },
+                    }));
+                    setSavedId("");
+                  }}
+                />
+              </label>
+              {(
+                [
+                  ["constant_daily_operation", "一定の日次稼働を仮定する"],
+                  [
+                    "replacement_removes_degradation",
+                    "交換で劣化損失が解消すると仮定する",
+                  ],
+                ] as const
+              ).map(([key, label]) => (
+                <label key={key}>
+                  {label}
+                  <select
+                    aria-label={label}
+                    value={
+                      value.payload.cost_recovery?.[key] === null
+                        ? "UNKNOWN"
+                        : String(value.payload.cost_recovery?.[key])
+                    }
+                    onChange={(event) => {
+                      const next = event.target.value;
+                      setValue((previous) => ({
+                        ...previous,
+                        payload: {
+                          ...previous.payload,
+                          cost_recovery: {
+                            ...previous.payload.cost_recovery!,
+                            [key]: next === "UNKNOWN" ? null : next === "true",
+                          },
+                        },
+                      }));
+                      setSavedId("");
+                    }}
+                  >
+                    <option value="UNKNOWN">不明</option>
+                    <option value="true">はい</option>
+                    <option value="false">いいえ</option>
+                  </select>
+                </label>
+              ))}
+              <label>
+                費用回収条件の出典
+                <input
+                  required
+                  maxLength={1000}
+                  value={value.payload.cost_recovery.source}
+                  onChange={(event) => {
+                    const next = event.target.value;
+                    setValue((previous) => ({
+                      ...previous,
+                      payload: {
+                        ...previous.payload,
+                        cost_recovery: {
+                          ...previous.payload.cost_recovery!,
+                          source: next,
+                        },
+                      },
+                    }));
+                    setSavedId("");
+                  }}
+                />
+              </label>
+              <label>
+                費用回収条件の確度
+                <select
+                  aria-label="費用回収条件の確度"
+                  value={value.payload.cost_recovery.certainty}
+                  onChange={(event) => {
+                    const next = event.target.value;
+                    setValue((previous) => ({
+                      ...previous,
+                      payload: {
+                        ...previous.payload,
+                        cost_recovery: {
+                          ...previous.payload.cost_recovery!,
+                          certainty: next,
+                        },
+                      },
+                    }));
+                    setSavedId("");
+                  }}
+                >
+                  <option value="ESTIMATED">推定</option>
+                  <option value="CONFIRMED">確認済み</option>
+                </select>
+              </label>
+            </>
+          )}
+        </fieldset>
         {value.payload.options.map((choice, index) => (
           <fieldset key={choice.option} disabled={busy}>
             <legend>{optionNames[choice.option] ?? choice.option}</legend>

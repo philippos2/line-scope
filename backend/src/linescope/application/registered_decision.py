@@ -334,6 +334,13 @@ def assessment_answer(profile):
                 + conditions["safety"]
                 + "。品質と実運転許可は未確認です。"
             )
+    recovery = profile.get("simple_cost_recovery")
+    if recovery and recovery["status"] == "CONDITIONAL":
+        lines.append(
+            "登録した一定稼働・損失解消の仮定での単純費用回収期間は"
+            + recovery["days"]
+            + "日です。両案の損益分岐や交換の推奨ではありません。"
+        )
     if "history" in profile:
         lines.append(
             "選択した故障・修理履歴は"
