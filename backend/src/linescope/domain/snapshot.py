@@ -553,7 +553,7 @@ def _target(value):
 def _schema_version(targets):
     kind = targets[0]["target_type"]
     if kind == "EconomicInput" and any(
-        record is not None and "cost_recovery" in record["payload"]
+        record is not None and "cost_recovery" in record.get("payload", {})
         for target in targets
         for record in (target["before"], target["after"])
     ):
