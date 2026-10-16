@@ -65,6 +65,8 @@ def test_unsupported_analyses_are_not_mislabelled_as_downstream(case):
 
 def test_agent_does_not_repeat_unsupported_llm_claims_in_downstream_summary():
     item = observation()
+    item.result.data["representative_paths"] = [{"nodes": ["full-path-retained"]}]
+    before = deepcopy(item.result)
 
     class GraphDispatcher(Dispatcher):
         def schemas(self):
@@ -86,6 +88,10 @@ def test_agent_does_not_repeat_unsupported_llm_claims_in_downstream_summary():
     payload = json.loads(llm.requests[-1][0][-1]["content"])
     assert payload["server_summary"] == result.answer
     assert "data" in payload and "evidence" in payload
+    assert "representative_paths" not in payload["data"]
+    assert "representative_paths" not in payload["evidence"]
+    assert payload["model_view"]["representative_paths"] == "OMITTED_FROM_MODEL_ONLY"
+    assert result.observations[0].result == before
 
 
 def dependency_observation(tool, *, complete=True, empty=False):

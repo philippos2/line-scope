@@ -1,8 +1,8 @@
 """Single-domain prose cannot suppress a different part of an investigation."""
 
 import pytest
-from agent.test_read_agent import Dispatcher, ScriptedLLM, call, context, request
 
+from agent.test_read_agent import Dispatcher, ScriptedLLM, call, context, request
 from linescope.agent.read_agent import ReadAgent
 from linescope.application.reads import ReadResult
 from linescope.integrations.llm import LLMReply

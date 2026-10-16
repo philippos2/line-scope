@@ -47,8 +47,18 @@ class ReadAgentResult:
 
 
 def model_tool_payload(tool, result):
-    """Keep server Evidence intact; send identical Graph paths only once."""
+    """Keep full server results; bound the planner's reachability path context."""
     evidence = dict(result.evidence)
+    data = result.data
+    summary = supported_answer([ReadObservation("", tool, result)])
+    paths_in_response = bool(summary) and tool in {
+        "trace_downstream_impact",
+        "trace_upstream_dependencies",
+        "find_common_dependencies",
+    }
+    if paths_in_response:
+        data = {key: value for key, value in data.items() if key != "representative_paths"}
+        evidence.pop("representative_paths", None)
     if (
         tool in GRAPH_TOOLS
         and "representative_paths" in result.data
@@ -57,13 +67,18 @@ def model_tool_payload(tool, result):
         del evidence["representative_paths"]
         evidence["representative_paths_location"] = "data.representative_paths"
     payload = (
-        graph_model_view(result.data, evidence)
+        graph_model_view(data, evidence)
         if tool in GRAPH_TOOLS
-        else {"data": result.data, "evidence": evidence}
+        else {"data": data, "evidence": evidence}
     )
-    summary = supported_answer([ReadObservation("", tool, result)])
     if summary:
         payload["server_summary"] = summary
+    if paths_in_response:
+        payload["model_view"] = {
+            "representative_paths": "OMITTED_FROM_MODEL_ONLY",
+            "detail_location": "HTTP response data.tool_results and evidence.tool_results",
+            "instruction": "詳細経路はモデル入力にはありません。経路を推測せず、HTTP応答の構造化結果を案内してください。探索のcompleteとモデル入力の省略は別です。",
+        }
     return payload
 
 
