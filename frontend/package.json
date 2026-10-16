@@ -13,6 +13,7 @@
     "check": "npm run lint && npm run typecheck && npm run format && npm run build"
   },
   "dependencies": {
+    "@xyflow/react": "12.12.0",
     "react": "19.3.0",
     "react-dom": "19.3.0"
   },

@@ -33,16 +33,17 @@ try {
     await page.getByLabel("Bearer token").fill(value);
     await page.getByRole("button", { name: "接続する", exact: true }).click();
     await expect(
-      page.getByRole("navigation", { name: "業務の工程" }),
+      page.getByRole("navigation", { name: "調査に続く操作" }),
     ).toBeVisible();
   }
   async function step(name) {
     await page
-      .getByRole("navigation", { name: "業務の工程" })
+      .getByRole("navigation", { name: "調査に続く操作" })
       .getByRole("button", { name })
       .click();
   }
   async function agent(button) {
+    await expect(button).toBeEnabled({ timeout: 150000 });
     const waiting = page.waitForResponse(
       (r) => r.url().endsWith("/api/agent") && r.request().method() === "POST",
       { timeout: 150000 },
@@ -60,19 +61,36 @@ try {
   await page.goto(base);
   await login(token);
   await mark("login");
-  await page
-    .getByLabel("設備名・コード（空欄なら登録設備を検索）")
-    .fill("M-204");
   const discovered = await agent(
-    page.getByRole("button", { name: "設備を検索", exact: true }),
+    page.getByRole("button", {
+      name: "登録設備を表示して調査を始める",
+      exact: true,
+    }),
+  );
+  const initialGraph = page.waitForResponse(
+    (r) =>
+      r.url().endsWith("/api/agent") &&
+      r
+        .request()
+        .postDataJSON()
+        ?.message?.includes("異常について影響・修理・交換・代替を比較して"),
+    { timeout: 150000 },
   );
   await page
     .getByRole("region", { name: "設備検索の候補" })
     .getByRole("button", { name: /M-204/ })
     .click();
+  const firstGraphResponse = await initialGraph;
+  const firstGraphBody = await firstGraphResponse.json();
+  if (firstGraphResponse.status() !== 200)
+    throw new Error("Initial relationship query failed");
   await expect(
-    page.getByRole("heading", { name: "状態・影響を調べる", exact: true }),
+    page.getByRole("heading", {
+      name: "何とつながり、どこまで影響するか",
+      exact: true,
+    }),
   ).toBeVisible();
+  await expect(page.locator(".react-flow")).toBeVisible({ timeout: 150000 });
   await mark("equipment-selected", { seconds: discovered.seconds });
   const state = await agent(
     page.getByRole("button", { name: "現在状態を確認", exact: true }),
@@ -84,26 +102,33 @@ try {
   )
     throw new Error("State not fetched");
   await mark("state", { seconds: state.seconds });
-  const impact = await agent(
-    page.getByRole("button", { name: "下流の影響候補を調べる", exact: true }),
-  );
-  const graph = impact.body.data.tool_results?.find(
-    (row) => row.tool === "trace_downstream_impact",
-  );
-  if (
-    !graph ||
-    graph.data.complete !== true ||
-    !graph.data.reached_nodes.length
-  )
-    throw new Error("Complete downstream graph missing");
-  await expect(page.locator("svg.graph")).toBeVisible();
-  await mark("impact", {
-    seconds: impact.seconds,
-    reached: graph.data.reached_nodes.length,
-  });
+  const graph = firstGraphBody.data.decision_package?.impact;
+  if (!graph || graph.complete !== true || graph.reached_nodes.length !== 6)
+    throw new Error("Expected six downstream candidates from real graph");
+  await expect(page.locator(".react-flow")).toBeVisible();
+  await mark("impact", { reached: graph.reached_nodes.length });
   await page
-    .getByRole("button", { name: "次へ：対応案を比べる →", exact: true })
+    .getByLabel("表示するGraph分析")
+    .selectOption("upstream_dependencies");
+  await expect(
+    page.locator(".react-flow__node.entity-InfrastructureResource"),
+  ).toBeVisible();
+  await mark("upstream");
+  await page.getByLabel("表示するGraph分析").selectOption("impact");
+  const productNode = page.locator(".react-flow__node.entity-Product").first();
+  await productNode.click();
+  await expect(
+    page.locator(".react-flow__edge.path-highlight").first(),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("region", { name: "選択ノードと根拠経路" }),
+  ).toContainText("製品");
+  await page.getByRole("button", { name: "Graphを拡大", exact: true }).click();
+  await page
+    .getByRole("button", { name: "全ノードを表示", exact: true })
     .click();
+  await step(/対応案を比べる/);
+  await expect(page.locator(".react-flow")).toBeVisible();
   const comparison = page.locator(".registered-comparison");
   await comparison
     .getByRole("button", {
@@ -137,9 +162,8 @@ try {
   )
     throw new Error("Unselected costs inferred");
   await mark("comparison-unknown");
-  await page
-    .getByRole("button", { name: "次へ：根拠を確かめる →", exact: true })
-    .click();
+  await step(/根拠を確かめる/);
+  await expect(page.locator(".react-flow")).toBeVisible();
   await expect(
     page.getByRole("heading", { name: "対応案比較の根拠", exact: true }),
   ).toBeVisible();
@@ -162,9 +186,7 @@ try {
     source: "QDRANT",
     citations: documents.body.evidence.citations.length,
   });
-  await page
-    .getByRole("button", { name: "次へ：変更を準備する →", exact: true })
-    .click();
+  await step(/入力を登録・訂正/);
   const economics = page.locator(".economic-panel:not(.registered-comparison)");
   if (!(await economics.evaluate((element) => element.open)))
     await economics.locator("summary").first().click();
@@ -214,7 +236,7 @@ try {
   async function switchUser(value) {
     await page.getByRole("button", { name: "接続解除", exact: true }).click();
     await login(value);
-    await step(/承認・実行する/);
+    await step(/変更・承認・実行/);
     await action.getByLabel("変更要求ID", { exact: true }).fill(id);
     await action
       .getByRole("button", { name: "保存状態を再取得", exact: true })
@@ -243,10 +265,8 @@ try {
     }),
   ).toBeVisible();
   await mark("executed");
-  await step(/設備を選ぶ/);
-  await page
-    .getByLabel("設備名・コード（空欄なら登録設備を検索）")
-    .fill("M-204");
+  await step(/調査・回答/);
+  await page.getByLabel("設備名・コード", { exact: true }).fill("M-204");
   await agent(page.getByRole("button", { name: "設備を検索", exact: true }));
   await page
     .getByRole("region", { name: "設備検索の候補" })

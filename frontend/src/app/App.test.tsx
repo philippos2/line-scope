@@ -40,25 +40,22 @@ async function connect() {
   await user.type(await screen.findByLabelText("Bearer token"), "secret");
   await user.click(screen.getByRole("button", { name: "接続する" }));
   await screen.findByRole("button", { name: "接続解除" });
-  await user.click(
-    screen
-      .getByRole("navigation", { name: "業務の工程" })
-      .querySelectorAll("button")[1],
-  );
-  await user.click(screen.getByText("自分の言葉で問い合わせる"));
   return user;
 }
 it("connects and shows actual answer and server Evidence", async () => {
   stubFetch(vi.fn().mockImplementation(() => Promise.resolve(reply())));
   render(<App />);
   const user = await connect();
-  await user.type(screen.getByLabelText("問い合わせ"), "設備を調べる");
+  await user.type(
+    screen.getByLabelText("関係や影響について質問する"),
+    "設備を調べる",
+  );
   await user.click(screen.getByRole("button", { name: "問い合わせを送信" }));
   await screen.findByText("取得した回答");
   await user.click(
     screen
-      .getByRole("navigation", { name: "業務の工程" })
-      .querySelectorAll("button")[3],
+      .getByRole("navigation", { name: "調査に続く操作" })
+      .querySelectorAll("button")[2],
   );
   expect(screen.getAllByText(/server/).length).toBeGreaterThan(0);
   expect(localStorage.length).toBe(0);
@@ -79,7 +76,7 @@ it("disconnects while a response is pending and never restores old results", asy
   );
   render(<App />);
   const user = await connect();
-  await user.type(screen.getByLabelText("問い合わせ"), "調査");
+  await user.type(screen.getByLabelText("関係や影響について質問する"), "調査");
   await user.click(screen.getByRole("button", { name: "問い合わせを送信" }));
   await user.click(screen.getByRole("button", { name: "接続解除" }));
   finish(reply());
@@ -99,7 +96,7 @@ it("renders untrusted answer text without executing HTML", async () => {
   );
   render(<App />);
   const user = await connect();
-  await user.type(screen.getByLabelText("問い合わせ"), "調査");
+  await user.type(screen.getByLabelText("関係や影響について質問する"), "調査");
   await user.click(screen.getByRole("button", { name: "問い合わせを送信" }));
   await screen.findByText("<img src=x onerror=alert(1)>");
   expect(document.querySelector("img")).toBeNull();
@@ -115,7 +112,7 @@ it("passes server conversation context and clearly marks a partial result", asyn
   stubFetch(fetcher);
   render(<App />);
   const user = await connect();
-  await user.type(screen.getByLabelText("問い合わせ"), "調査");
+  await user.type(screen.getByLabelText("関係や影響について質問する"), "調査");
   await user.click(screen.getByRole("button", { name: "問い合わせを送信" }));
   await screen.findByText("一部の情報・評価が不足しています");
   await user.click(screen.getByRole("button", { name: "問い合わせを送信" }));
@@ -125,7 +122,7 @@ it("passes server conversation context and clearly marks a partial result", asyn
     context_id: "c1",
   });
 });
-it("selects a named equipment without sending and starts a fresh investigation", async () => {
+it("selects a named equipment and explicitly loads its relationships in a fresh context", async () => {
   const fetcher = vi
     .fn()
     .mockResolvedValueOnce(reply())
@@ -156,23 +153,13 @@ it("selects a named equipment without sending and starts a fresh investigation",
   stubFetch(fetcher);
   render(<App />);
   const user = await connect();
-  await user.click(
-    screen
-      .getByRole("navigation", { name: "業務の工程" })
-      .querySelectorAll("button")[0],
-  );
   expect(fetcher).toHaveBeenCalledTimes(1);
   await user.click(screen.getByRole("button", { name: "設備を検索" }));
   await user.click(await screen.findByRole("button", { name: /予備加工機/ }));
-  expect(fetcher).toHaveBeenCalledTimes(2);
-  expect(
-    screen.getByRole("heading", { name: "状態・影響を調べる" }),
-  ).toBeTruthy();
-  await user.click(screen.getByText("自分の言葉で問い合わせる"));
-  expect(
-    (screen.getByLabelText("問い合わせ") as HTMLTextAreaElement).value,
-  ).toContain("20800000-0000-4000-8000-000000000001");
-  await user.click(screen.getByRole("button", { name: "問い合わせを送信" }));
   await waitFor(() => expect(fetcher).toHaveBeenCalledTimes(3));
+  expect(
+    screen.getByRole("heading", { name: "何とつながり、どこまで影響するか" }),
+  ).toBeTruthy();
+  expect(JSON.parse(fetcher.mock.calls[2][1].body).message).toContain("M-208");
   expect(JSON.parse(fetcher.mock.calls[2][1].body).context_id).toBeUndefined();
 });
