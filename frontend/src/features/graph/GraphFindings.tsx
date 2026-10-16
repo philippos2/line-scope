@@ -1,5 +1,5 @@
 import { object, type Envelope, type JsonObject } from "../../api/client";
-import { label, node } from "./model";
+import { label, node, type NodeRef } from "./model";
 
 const reasons: Record<string, string> = {
   CYCLIC_REQUIREMENTS: "必須依存に循環があるため判定不明",
@@ -23,12 +23,20 @@ const verdicts: Record<string, string> = {
 export function GraphFindings({
   data,
   result,
+  onSelect,
 }: {
   data: JsonObject;
   result: Envelope;
+  onSelect: (item: NodeRef) => void;
 }) {
   const name = (value: unknown) =>
-    node(value) ? label(result, value) : "対象未確認";
+    node(value) ? (
+      <button className="path-node" onClick={() => onSelect(value)}>
+        {label(result, value)}
+      </button>
+    ) : (
+      "対象未確認"
+    );
   const verdict = (value: unknown) =>
     typeof value === "string" ? (verdicts[value] ?? value) : "未確認";
   return (

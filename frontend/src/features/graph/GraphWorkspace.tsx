@@ -174,7 +174,6 @@ export function GraphWorkspace({
               </strong>
             </div>
           </div>
-          <GraphFindings data={view.data} result={result} />
           <div className="graph-inspection-layout">
             <div className="graph-stage">
               <div className="entity-legend">
@@ -287,6 +286,7 @@ export function GraphWorkspace({
               )}
             </section>
           </div>
+          <GraphFindings data={view.data} result={result} onSelect={onSelect} />
           <p className="notice">
             取得した関係と探索範囲の結果です。工場全体の一覧ではありません。依存到達や構造成立だけで、実停止・能力・安全・経済影響を断定しません。
             {view.data.complete !== true

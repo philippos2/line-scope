@@ -71,7 +71,12 @@ export function graphView(result: Envelope, key?: string): GraphView | null {
     { source: string; target: string; label: string }
   >();
   let limited = false;
-  if (node(data.target)) nodes.set(nodeKey(data.target), data.target);
+  function addSubject(item: unknown) {
+    if (!node(item) || nodes.has(nodeKey(item))) return;
+    if (nodes.size >= 100) limited = true;
+    else nodes.set(nodeKey(item), item);
+  }
+  addSubject(data.target);
   // Keep explicitly returned subjects visible even when there is no path.
   for (const field of [
     "targets",
@@ -80,9 +85,14 @@ export function graphView(result: Envelope, key?: string): GraphView | null {
     "common_candidates",
   ]) {
     if (Array.isArray(data[field]))
-      for (const item of data[field])
-        if (node(item)) nodes.set(nodeKey(item), item);
+      for (const item of data[field]) addSubject(item);
   }
+  if (Array.isArray(data.findings))
+    for (const finding of data.findings)
+      if (object(finding)) {
+        addSubject(finding.important_target);
+        addSubject(finding.candidate);
+      }
   for (const path of data.representative_paths) {
     if (
       !object(path) ||
