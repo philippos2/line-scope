@@ -38,6 +38,7 @@ export function App() {
   const [search, setSearch] = useState("");
   const [searchResult, setSearchResult] = useState<Envelope | null>(null);
   const [graphResult, setGraphResult] = useState<Envelope | null>(null);
+  const [graphEpoch, setGraphEpoch] = useState(0);
   const [nodeReads, setNodeReads] = useState<unknown[]>([]);
   const [inputTab, setInputTab] = useState("economic");
   const workspace = useRef<HTMLElement>(null);
@@ -228,7 +229,10 @@ export function App() {
       (value) => {
         freshContext.current = false;
         setResult(value);
-        if (graphAnalyses(value).length) setGraphResult(value);
+        if (graphAnalyses(value).length) {
+          setGraphResult(value);
+          setGraphEpoch(executionEpoch);
+        }
         const packageData = value.data.decision_package;
         if (object(packageData) && object(packageData.equipment))
           setNodeReads((previous) => [
@@ -468,7 +472,7 @@ export function App() {
               result={graphDisplayResult}
               selected={selected}
               busy={busy}
-              stale={stale}
+              stale={graphResult !== null && graphEpoch !== executionEpoch}
               onSelect={setSelected}
               onInvestigate={investigateGraph}
               onRefresh={() =>
@@ -762,8 +766,23 @@ export function App() {
                 }
               />
               <p>
-                実行後は対象を左から選び直し、関係・影響と比較を再取得してください。
+                実行後は関係・影響を再取得し、正式入力の比較をやり直してください。
               </p>
+              <button
+                disabled={busy}
+                onClick={() => {
+                  setStep("investigation");
+                  if (equipment)
+                    investigateGraph(
+                      `設備コード${equipment.equipment_code}の異常について影響・修理・交換・代替を比較して`,
+                    );
+                }}
+              >
+                {equipment ? "関係・影響を再取得" : "調査する設備を選ぶ"}
+              </button>
+              <button onClick={() => setStep("comparison")}>
+                正式入力の比較へ戻る
+              </button>
             </section>
             {result && (
               <details className="technical-details">

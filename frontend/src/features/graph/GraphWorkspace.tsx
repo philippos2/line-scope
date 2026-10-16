@@ -82,7 +82,7 @@ export function GraphWorkspace({
       </div>
       {stale && (
         <p className="notice">
-          前回取得した関係です。変更後の状態は再調査してください。
+          更新操作後の関係は未確認です。関係を再取得してください。
         </p>
       )}
       {entries.length > 0 && (
