@@ -20,6 +20,7 @@ export function GraphWorkspace({
   busy,
   stale,
   onSelect,
+  onUseEquipment,
   onInvestigate,
   onEvidence,
   onStart,
@@ -31,6 +32,7 @@ export function GraphWorkspace({
   busy: boolean;
   stale: boolean;
   onSelect: (item: NodeRef) => void;
+  onUseEquipment: (item: NodeRef) => void;
   onInvestigate: (text: string) => void;
   onEvidence: () => void;
   onStart: () => void;
@@ -253,6 +255,25 @@ export function GraphWorkspace({
                   >
                     名称・属性を取得
                   </button>
+                  {selection.entity_type === "Equipment" && (
+                    <>
+                      <button
+                        disabled={
+                          busy ||
+                          typeof properties?.equipment_code !== "string" ||
+                          typeof properties?.equipment_name !== "string"
+                        }
+                        onClick={() => onUseEquipment(selection)}
+                      >
+                        この設備を比較・入力の対象にする
+                      </button>
+                      {typeof properties?.equipment_code !== "string" && (
+                        <p className="muted">
+                          先に名称・属性を取得して対象を確認してください。
+                        </p>
+                      )}
+                    </>
+                  )}
                   <button onClick={onEvidence}>この調査の根拠を開く</button>
                 </>
               ) : (

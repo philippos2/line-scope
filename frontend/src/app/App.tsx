@@ -16,7 +16,7 @@ import {
 } from "../features/equipment/EquipmentCandidates";
 import { EvidencePanel } from "../features/evidence/EvidencePanel";
 import { GraphWorkspace } from "../features/graph/GraphWorkspace";
-import { graphAnalyses, type NodeRef } from "../features/graph/model";
+import { detail, graphAnalyses, type NodeRef } from "../features/graph/model";
 const panels = [
   ["investigation", "調査・回答"],
   ["comparison", "対応案を比べる"],
@@ -54,6 +54,8 @@ export function App() {
   const freshContext = useRef(false);
   const messageInput = useRef<HTMLTextAreaElement>(null);
   const [equipment, setEquipment] = useState<EquipmentCandidate | null>(null);
+  const [decisionEquipment, setDecisionEquipment] =
+    useState<EquipmentCandidate | null>(null);
   const retry = useRef<{ body: string; key: string } | null>(null);
   const [connected, setConnected] = useState(false);
   const [restoring, setRestoring] = useState(true);
@@ -114,6 +116,7 @@ export function App() {
     setSearch("");
     setComparisonStale(false);
     setEquipment(null);
+    setDecisionEquipment(null);
     setComparisonResult(null);
     setDocumentResult(null);
     setSearchResult(null);
@@ -183,6 +186,7 @@ export function App() {
         setShowConnection(false);
         setDraftToken("");
         setEquipment(null);
+        setDecisionEquipment(null);
         setComparisonResult(null);
         setDocumentResult(null);
         setSearchResult(null);
@@ -279,6 +283,7 @@ export function App() {
   function chooseEquipment(item: EquipmentCandidate) {
     if (busy) return;
     setEquipment(item);
+    setDecisionEquipment(item);
     setComparisonResult(null);
     setDocumentResult(null);
     setStateResult(null);
@@ -338,6 +343,30 @@ export function App() {
   const evidenceResult = graphEvidence
     ? graphResult
     : (comparisonResult ?? graphResult ?? analysisResult);
+  function useGraphEquipment(item: NodeRef) {
+    if (busy || !graphDisplayResult || item.entity_type !== "Equipment") return;
+    const record = detail(graphDisplayResult, item);
+    if (
+      record.equipment_id !== item.entity_id ||
+      typeof record.equipment_code !== "string" ||
+      typeof record.equipment_name !== "string"
+    )
+      return;
+    if (decisionEquipment?.equipment_id !== item.entity_id) {
+      setDecisionEquipment({
+        equipment_id: item.entity_id,
+        equipment_code: record.equipment_code,
+        equipment_name: record.equipment_name,
+      });
+      setComparisonResult(null);
+      setComparisonStale(false);
+      setDocumentResult(null);
+      setEconomicPrepared(undefined);
+      setResult(null);
+    }
+    setGraphEvidence(false);
+    setStep("comparison");
+  }
   function prepareInput(id: string) {
     setEconomicPrepared(id);
     setStep("execution");
@@ -441,10 +470,16 @@ export function App() {
               </p>
             )}
             {equipment && (
+              <p className="muted">
+                Graph調査の起点：{equipment.equipment_name}（
+                {equipment.equipment_code}）
+              </p>
+            )}
+            {decisionEquipment && (
               <div className="focus-object">
                 <span className="muted">比較・入力の対象設備</span>
-                <strong>{equipment.equipment_name}</strong>
-                <span>{equipment.equipment_code}</span>
+                <strong>{decisionEquipment.equipment_name}</strong>
+                <span>{decisionEquipment.equipment_code}</span>
               </div>
             )}
             <p className="muted">
@@ -474,6 +509,7 @@ export function App() {
               busy={busy}
               stale={graphResult !== null && graphEpoch !== executionEpoch}
               onSelect={setSelected}
+              onUseEquipment={useGraphEquipment}
               onInvestigate={investigateGraph}
               onRefresh={() =>
                 equipment &&
@@ -603,14 +639,14 @@ export function App() {
               hidden={step !== "comparison"}
               aria-label="対応案を比較する"
             >
-              {!equipment && (
+              {!decisionEquipment && (
                 <p className="notice">
                   左から比較する設備を検索して選んでください。
                 </p>
               )}
               <RegisteredComparison
-                key={equipment?.equipment_id ?? "none"}
-                equipment={equipment}
+                key={decisionEquipment?.equipment_id ?? "none"}
+                equipment={decisionEquipment}
                 executionEpoch={executionEpoch}
                 onResult={(value) => {
                   setComparisonResult(value);
@@ -653,10 +689,10 @@ export function App() {
               )}
               <h2>関連文書を検索する</h2>
               <button
-                disabled={busy || !equipment}
+                disabled={busy || !decisionEquipment}
                 onClick={() =>
                   investigateGraph(
-                    `文書検索：${equipment?.equipment_code}の保全調査`,
+                    `文書検索：${decisionEquipment?.equipment_code}の保全調査`,
                   )
                 }
               >
@@ -690,8 +726,10 @@ export function App() {
               <div hidden={inputTab !== "economic"}>
                 <EconomicPanel
                   initiallyOpen
-                  key={"economic:" + (equipment?.equipment_id ?? "none")}
-                  equipment={equipment}
+                  key={
+                    "economic:" + (decisionEquipment?.equipment_id ?? "none")
+                  }
+                  equipment={decisionEquipment}
                   onPrepared={prepareInput}
                   onInvestigate={(text) => {
                     draftInvestigation(text, false);
@@ -703,8 +741,10 @@ export function App() {
               <div hidden={inputTab !== "capacity"}>
                 <CapacityPanel
                   initiallyOpen
-                  key={"capacity:" + (equipment?.equipment_id ?? "none")}
-                  equipment={equipment}
+                  key={
+                    "capacity:" + (decisionEquipment?.equipment_id ?? "none")
+                  }
+                  equipment={decisionEquipment}
                   onPrepared={prepareInput}
                   onInvestigate={(text) => {
                     draftInvestigation(text, false);
@@ -716,8 +756,8 @@ export function App() {
               <div hidden={inputTab !== "safety"}>
                 <SafetyPanel
                   initiallyOpen
-                  key={"safety:" + (equipment?.equipment_id ?? "none")}
-                  equipment={equipment}
+                  key={"safety:" + (decisionEquipment?.equipment_id ?? "none")}
+                  equipment={decisionEquipment}
                   onPrepared={prepareInput}
                   onInvestigate={(text) => {
                     draftInvestigation(text, false);
@@ -729,8 +769,10 @@ export function App() {
               <div hidden={inputTab !== "maintenance"}>
                 <MaintenancePanel
                   initiallyOpen
-                  key={"maintenance:" + (equipment?.equipment_id ?? "none")}
-                  equipment={equipment}
+                  key={
+                    "maintenance:" + (decisionEquipment?.equipment_id ?? "none")
+                  }
+                  equipment={decisionEquipment}
                   onPrepared={prepareInput}
                   onInvestigate={(text) => {
                     draftInvestigation(text, false);
@@ -752,6 +794,7 @@ export function App() {
                 <li>元の依頼者：再接続し、IDから読み直して実行する。</li>
               </ol>
               <ActionPanel
+                key={decisionEquipment?.equipment_id ?? "none"}
                 initiallyOpen
                 onExecution={() => {
                   setStale(true);
