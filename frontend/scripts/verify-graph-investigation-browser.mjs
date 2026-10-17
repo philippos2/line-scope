@@ -207,10 +207,7 @@ try {
     .getByRole("navigation", { name: "調査に続く操作" })
     .getByRole("button", { name: "入力を登録・訂正", exact: true })
     .click();
-  const economics = page.getByRole("region", {
-    name: "正式な経済・損失入力",
-    exact: true,
-  });
+  const economics = page.locator(".economic-panel:not(.registered-comparison)");
   await economics
     .getByRole("button", { name: "選択設備の経済入力を登録", exact: true })
     .click();
