@@ -2,7 +2,7 @@
 
 M-204が主軸異常で停止→影響先P-100／P-200→登録条件による200,000円／時間→稼働中M-208を代替候補として提示する初期データ。[JSON](data/scenario1.json)だけに値を置き、Pythonには固定の形式検証とコード参照の変換を置く。
 
-この段階で提供するのはBackendの読取経路と再現データ。単一画面UIは後続PR 2の別承認後に実装する。[計画](../design/scenario1-implementation-plan.md)を参照する。
+Backendの読取経路と再現データは実装済み。一画面UIは作業ブランチにあるが、利用可能性による提案制御・サーバ値表示・新UI受入は未完了。[計画](../design/scenario1-implementation-plan.md)を参照する。
 
 ## 専用環境への初期投入
 
@@ -44,6 +44,6 @@ APIは初期投入前でも起動するが、正常な関係分析は投入と�
 4. 下流到達製品すべてをimportant_targets、選択設備をexcluded_nodesとしてfind_alternative_pathsを送る。candidates内の候補、representative_paths、evidence.current_statesを確認する。
 5. 候補のequipment_idで能力入力を検索・取得し、元設備IDと候補の入力IDをPOST /decisions/compareへ送る。安全・保全の入力IDは空配列、期間は入力と同じ値。
 
-期待値は損害額200000、P-100のrequired_rate=60、available_rate=80、capacity_status=SUFFICIENT。実測では候補のstructure.determination=ESTABLISHEDだがavailability=UNKNOWN、比較のstructural_basis.statusもUNKNOWN。能力は充足するが安全・品質・運用許可・全体の代替成立を保証しない。これは入力を増やして隠す対象ではない。
+期待値は損害額200000、P-100のrequired_rate=60、available_rate=80、capacity_status=SUFFICIENT。A案ではR-02→M-204のみ必須供給とし、R-02→M-208を登録しない。再測定で候補のstructure.determination=ESTABLISHED、availability=AVAILABLE、比較のstructural_basis.status=AVAILABLEを確認した。能力は充足するが安全・品質・運用許可・全体の代替成立を保証しない。利用可能は運転許可ではない。
 
 製品別未評価の一覧は返らない。P-200の表示は、下流の到達製品IDと今回選択した能力入力のproduct_idを照合した「今回選択した能力入力ではP-200を評価していません」という選択範囲の説明に限る。not_evaluatedを製品一覧と解釈しない。
