@@ -627,3 +627,5 @@ Dockerで追加36テスト成功、ruff check / format、git diff --check成功�
 - [文書入口・README・設計FAQの整理](2026-10-18-documentation-organization.md)
 
 - [機材トラブルの影響・損失提示と計画の見直し](2026-10-18-incident-impact-plan.md)
+
+- [P1：2台の異常データと実Graphのcheckpoint](2026-10-18-incident-data-checkpoint.md)

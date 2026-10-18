@@ -22,9 +22,9 @@ class SeedConflict(ValueError):
     """Existing data cannot safely be associated with this fixture."""
 
 
-def _seed_equipment(connection):
+def _seed_equipment(connection, equipment=DEMO_EQUIPMENT):
     inserted, retained = [], []
-    for equipment_id, code, name, state in DEMO_EQUIPMENT:
+    for equipment_id, code, name, state in equipment:
         created = insert_row(
             connection,
             "equipment",
