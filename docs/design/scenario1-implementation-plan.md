@@ -9,7 +9,7 @@
 - M-204：登録上の状態は停止中。下流の工程・製品P-100／P-200を表示する。上流依存も切替で確認できる。
 - 損害額：登録条件に基づく200,000円／時間。内訳はP-100の120,000とP-200の80,000。Frontendで合算しない。
 - 代替：M-208を登録された代替候補として図と提案に表示する。候補を利用者が暗記して指定する前提にしない。
-- 能力：P-100について必要60・空き80をサーバ値で表示し、「能力面では吸収できる見込み」とする。P-200を含む全業務の置換・安全・品質・実復旧は保証しない。
+- 能力：P-100について必要60・空き80をサーバ値で表示し、「P-100は、能力面で吸収できる見込み（P-200は未評価）」とする。P-200を含む全業務の置換・安全・品質・実復旧は保証しない。
 - 任意でM-208を調査対象にすると、登録上の状態は稼働中、停止損害は算定対象外と表示する。
 
 ## 2. 残PR数と分割
@@ -27,7 +27,7 @@ PR 1→merge→PR 2の順。内部部品だけの追加PR、確認専用PRは作
 
 | 確認事項 | 現コードの根拠・結果 | 計画への反映 |
 |---|---|---|
-| 非LLM設備検索 | [read_agent](../../backend/src/linescope/agent/read_agent.py)の直接経路にsearch_equipmentは未許可。[EquipmentFilter](../../backend/src/linescope/application/reads.py)はequipment_code・name | 決定済み案AをPR 1で追加。既存dispatcherの引数検証・認可を維持。設備名は部分一致、設備コードは完全一致であることをcore_reads.search_rowsでも確認。UIは検索対象を選べるようにし、この違いを表示。両方の実API確認 |
+| 非LLM設備検索 | [read_agent](../../backend/src/linescope/agent/read_agent.py)の直接経路にsearch_equipmentは未許可。[EquipmentFilter](../../backend/src/linescope/application/reads.py)はequipment_code・name | 決定済み案AをPR 1で追加。既存dispatcherの引数検証・認可を維持。設備名は部分一致、設備コードは完全一致であることをcore_reads.search_rowsでも確認。UIは一欄から両検索を別要求で並行送信し、equipment_idで重複排除する。空欄は一要求。経路別cursor・部分失敗・同一要求世代を管理する。両方の実API確認 |
 | 代替候補の返却 | [alternative_evidence](../../backend/src/linescope/application/alternative_evidence.py)はalternatives[].excluded_node、candidates[].candidate／availability／structure、target_results、representative_pathsを返す | 選択設備の下流到達製品すべてをimportant_targets、選択設備をexcluded_nodesにする。候補の型とIDを使い、返却経路だけを描く。M-208が返ることとP-200側の判定をPR 1で実測 |
 | 候補と能力の照合 | [capacity](../../backend/src/linescope/application/capacity.py)のsearchはequipment_id完全一致あり | 候補IDで検索、cursorを最後まで追跡。0件は未登録、1件は自動選択、複数件は利用者が選択。候補以外の入力を混ぜない |
 | 判定API | [registered_decision](../../backend/src/linescope/application/registered_decision.py)は元設備ID＋代替設備のcapacity_input_idsを受け、入力の共通期間を検証 | 元設備をM-204に保ち、M-208の入力IDを送る。安全・保全は空配列。期間は読取専用。製品単位と他製品未評価を明示 |
@@ -76,7 +76,7 @@ PR 1→merge→PR 2の順。内部部品だけの追加PR、確認専用PRは作
 
 ## 6. 検証・承認と残項目
 
-S1-01〜08はUI設計案の表を正とし、PR 2で実画面・実バックエンドの証拠を提出する。候補が返る形・金額・能力はPR 1で先に照合し、UI実装の最後まで不確実性を残さない。PR 1内の検証はBackendをDocker内で実施する。
+S1-01〜08はUI設計案の表を正とし、PR 2で実画面・実バックエンドの証拠を提出する。候補が返る形・金額・能力はPR 1で先に照合し、UI実装の最後まで不確実性を残さない。PR 2は一画面の検索→図の導線から組み立て、その後に金額・候補・能力を接続する。PR分割は増やさない。PR 1内の検証はBackendをDocker内で実施する。
 
 ローダーの入力検証・原子性・再投入・構築後拒否、直接検索の認可、UIの遅延応答・失敗の分離を必要なケースで確認する。追加ケース数は実装前に見積もり、20件超の了承規則を守る。今回の計画段階ではテストを追加・実行しない。
 
