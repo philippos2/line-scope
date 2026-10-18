@@ -38,7 +38,7 @@ export function GraphFindings({
       "対象未確認"
     );
   const verdict = (value: unknown) =>
-    typeof value === "string" ? (verdicts[value] ?? value) : "未確認";
+    typeof value === "string" ? (verdicts[value] ?? "未確認") : "未確認";
   return (
     <section aria-label="対象別の構造判定" className="graph-findings">
       {Array.isArray(data.common_candidates) && (
@@ -112,7 +112,10 @@ export function GraphFindings({
                     <p className="muted">
                       {row.reasons
                         .filter((value) => typeof value === "string")
-                        .map((value) => reasons[value as string] ?? value)
+                        .map(
+                          (value) =>
+                            reasons[value as string] ?? "条件を確認できません",
+                        )
                         .join(" / ")}
                     </p>
                   )}

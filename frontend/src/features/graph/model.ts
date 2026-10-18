@@ -173,9 +173,15 @@ export function label(result: Envelope, item: NodeRef): string {
     typeof data.operation_code === "string"
   )
     return data.operation_code;
+  if (
+    item.entity_type === "Equipment" &&
+    typeof data.equipment_name === "string" &&
+    typeof data.equipment_code === "string"
+  )
+    return `${data.equipment_name} · ${data.equipment_code}`;
   for (const key of [`${prefix}_name`, `${prefix}_code`])
     if (typeof data[key] === "string") return data[key];
-  return typeLabel(item.entity_type) + " · " + item.entity_id.slice(0, 8);
+  return typeLabel(item.entity_type) + "（名称を確認）";
 }
 
 export function typeLabel(kind: string): string {
