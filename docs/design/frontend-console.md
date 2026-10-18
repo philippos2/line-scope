@@ -2,6 +2,8 @@
 
 要件の正本は[requirements §13](../requirements/requirements.md#13-後続frontendフェーズ)、業務目的は[Use Case](../requirements/use-cases.md)、権限は[access-control](../requirements/access-control.md)、APIは[api-tools](../implementation-design/api-tools.md)。本書は現バックエンドへ接続する画面・実装計画であり、新しい業務データや規則を定義しない。
 
+> [シナリオ1のUI再設計案](frontend-redesign-proposal.md)はレビュー待ちの別文書です。以下は現行設計の記録であり、再設計案の承認・実装済みを意味しません。
+
 ## 最初に通す体験
 
 M-204の異常をエンドユーザーが認識し、問い合わせる → 現在状態と影響候補を確認 → 仮置き条件による対応案比較 → Evidenceと不足情報を確認 → 必要なら明示Prepare → 別の承認者がSnapshotを確認してApproval → 元requesterがExecute → 更新後を確認する。
