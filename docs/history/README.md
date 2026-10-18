@@ -623,3 +623,5 @@ Dockerで追加36テスト成功、ruff check / format、git diff --check成功�
 - [Graph中心UIの第3段階と警告表示の修正](2026-10-17-graph-ui-stage3.md)
 
 - [第3段階の優先順位再点検とGraph対象の引継ぎ](2026-10-18-graph-decision-handoff.md)
+
+- [文書入口・README・設計FAQの整理](2026-10-18-documentation-organization.md)
