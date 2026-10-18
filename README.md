@@ -10,7 +10,7 @@
 - [設計FAQ：構成と設計判断の理由](docs/design-faq.md)
 - [文書入口：要件・設計・実装設計の正本](docs/deliverables.md)
 
-> 計画したBackend・Frontendの実装は完了し、現在は利用者による受入確認の段階です。実PostgreSQL・Neo4j・Embedding／Qdrant・ローカルLLMに接続して動作します。デモ・習作としての実装完了と、受入完了・任意の質問への品質保証は区別しています。
+> 実PostgreSQL・Neo4j・Embedding／Qdrant・ローカルLLMへ接続する基盤とGraph中心UIは実装済みです。2台の機材トラブルから影響範囲・時間当たり損失を把握する一連の操作には、データ拡充と追加実装が残っています。[残工程と概算PR数](docs/roadmap.md)を参照してください。
 
 ## 主な機能と検証対象
 
