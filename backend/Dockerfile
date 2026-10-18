@@ -26,5 +26,6 @@ COPY backend/requirements-dev.lock /tmp/requirements-dev.lock
 RUN pip install --no-cache-dir -r /tmp/requirements-dev.lock
 COPY --chown=10001:10001 backend /workspace/backend
 COPY --chown=10001:10001 scripts /workspace/scripts
+COPY --chown=10001:10001 docs/demo/data /workspace/docs/demo/data
 USER 10001:10001
 CMD ["pytest", "backend/tests", "-q", "-p", "no:cacheprovider"]

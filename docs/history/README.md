@@ -637,3 +637,5 @@ Dockerで追加36テスト成功、ruff check / format、git diff --check成功�
 - [UI再設計のレビュー準備](2026-10-18-ui-redesign-review.md)
 
 - [シナリオ1への集中と改修計画](2026-10-18-scenario1-plan.md)
+
+- [シナリオ1の実装工程1：JSON投入と非LLM検索](2026-10-18-scenario1-pr1.md)

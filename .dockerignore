@@ -11,3 +11,7 @@ backend/**/.ruff_cache/
 backend/**/*.egg-info/
 backend/build/
 backend/dist/
+!docs/
+!docs/demo/
+!docs/demo/data/
+!docs/demo/data/scenario1.json

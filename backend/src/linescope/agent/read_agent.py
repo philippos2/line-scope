@@ -109,6 +109,7 @@ class ReadAgent:
             try:
                 command = strict_json(request.message.removeprefix("関係分析 "))
                 allowed = GRAPH_TOOLS | {
+                    "search_equipment",
                     "get_equipment",
                     "get_process",
                     "get_production_operation",

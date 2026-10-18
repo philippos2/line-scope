@@ -1,0 +1,388 @@
+{
+  "schema_version": 1,
+  "equipment": [
+    {
+      "equipment_code": "M-204",
+      "equipment_name": "第1加工機",
+      "state_code": "STOPPED"
+    },
+    {
+      "equipment_code": "M-208",
+      "equipment_name": "第2加工機",
+      "state_code": "RUNNING"
+    }
+  ],
+  "processes": [
+    {
+      "process_code": "P-10",
+      "process_name": "第1加工工程",
+      "active": true
+    },
+    {
+      "process_code": "P-20",
+      "process_name": "仕上工程",
+      "active": true
+    },
+    {
+      "process_code": "P-30",
+      "process_name": "第2加工工程",
+      "active": true
+    }
+  ],
+  "products": [
+    {
+      "product_code": "P-100",
+      "product_name": "製品 P-100",
+      "active": true
+    },
+    {
+      "product_code": "P-200",
+      "product_name": "製品 P-200",
+      "active": true
+    },
+    {
+      "product_code": "P-300",
+      "product_name": "製品 P-300",
+      "active": true
+    }
+  ],
+  "infrastructure": [
+    {
+      "resource_code": "R-02",
+      "resource_name": "共通電源",
+      "resource_type": "power",
+      "active": true
+    }
+  ],
+  "operations": [
+    {
+      "operation_code": "OP-30",
+      "process_code": "P-10",
+      "planned_status": "PLANNED",
+      "planned_start": "2026-01-01T00:00:00Z",
+      "planned_end": "2027-01-01T00:00:00Z",
+      "active": true
+    },
+    {
+      "operation_code": "OP-40",
+      "process_code": "P-20",
+      "planned_status": "PLANNED",
+      "planned_start": "2026-01-01T00:00:00Z",
+      "planned_end": "2027-01-01T00:00:00Z",
+      "active": true
+    },
+    {
+      "operation_code": "OP-50",
+      "process_code": "P-30",
+      "planned_status": "PLANNED",
+      "planned_start": "2026-01-01T00:00:00Z",
+      "planned_end": "2027-01-01T00:00:00Z",
+      "active": true
+    }
+  ],
+  "assignments": [
+    {
+      "code": "USES-M-204",
+      "operation_code": "OP-30",
+      "equipment_code": "M-204",
+      "effective_from": "2026-01-01T00:00:00Z",
+      "effective_to": null,
+      "active": true
+    },
+    {
+      "code": "USES-M-208",
+      "operation_code": "OP-50",
+      "equipment_code": "M-208",
+      "effective_from": "2026-01-01T00:00:00Z",
+      "effective_to": null,
+      "active": true
+    }
+  ],
+  "relations": [
+    {
+      "code": "M-204:SUPPLIES:P-10",
+      "source_entity_type": "Equipment",
+      "source_code": "M-204",
+      "target_entity_type": "Process",
+      "target_code": "P-10",
+      "relation_type": "SUPPLIES",
+      "required": true,
+      "effective_from": "2026-01-01T00:00:00Z",
+      "effective_to": null,
+      "active": true
+    },
+    {
+      "code": "P-10:PRECEDES:P-20",
+      "source_entity_type": "Process",
+      "source_code": "P-10",
+      "target_entity_type": "Process",
+      "target_code": "P-20",
+      "relation_type": "PRECEDES",
+      "required": false,
+      "effective_from": "2026-01-01T00:00:00Z",
+      "effective_to": null,
+      "active": true
+    },
+    {
+      "code": "P-20:PRODUCES:P-100",
+      "source_entity_type": "Process",
+      "source_code": "P-20",
+      "target_entity_type": "Product",
+      "target_code": "P-100",
+      "relation_type": "PRODUCES",
+      "required": false,
+      "effective_from": "2026-01-01T00:00:00Z",
+      "effective_to": null,
+      "active": true
+    },
+    {
+      "code": "P-20:PRODUCES:P-200",
+      "source_entity_type": "Process",
+      "source_code": "P-20",
+      "target_entity_type": "Product",
+      "target_code": "P-200",
+      "relation_type": "PRODUCES",
+      "required": false,
+      "effective_from": "2026-01-01T00:00:00Z",
+      "effective_to": null,
+      "active": true
+    },
+    {
+      "code": "OP-30:PRECEDES:OP-40",
+      "source_entity_type": "ProductionOperation",
+      "source_code": "OP-30",
+      "target_entity_type": "ProductionOperation",
+      "target_code": "OP-40",
+      "relation_type": "PRECEDES",
+      "required": false,
+      "effective_from": "2026-01-01T00:00:00Z",
+      "effective_to": null,
+      "active": true
+    },
+    {
+      "code": "OP-40:PRODUCES:P-100",
+      "source_entity_type": "ProductionOperation",
+      "source_code": "OP-40",
+      "target_entity_type": "Product",
+      "target_code": "P-100",
+      "relation_type": "PRODUCES",
+      "required": false,
+      "effective_from": "2026-01-01T00:00:00Z",
+      "effective_to": null,
+      "active": true
+    },
+    {
+      "code": "OP-40:PRODUCES:P-200",
+      "source_entity_type": "ProductionOperation",
+      "source_code": "OP-40",
+      "target_entity_type": "Product",
+      "target_code": "P-200",
+      "relation_type": "PRODUCES",
+      "required": false,
+      "effective_from": "2026-01-01T00:00:00Z",
+      "effective_to": null,
+      "active": true
+    },
+    {
+      "code": "R-02:SUPPLIES:M-204",
+      "source_entity_type": "InfrastructureResource",
+      "source_code": "R-02",
+      "target_entity_type": "Equipment",
+      "target_code": "M-204",
+      "relation_type": "SUPPLIES",
+      "required": true,
+      "effective_from": "2026-01-01T00:00:00Z",
+      "effective_to": null,
+      "active": true
+    },
+    {
+      "code": "M-208:CAN_SUBSTITUTE:M-204",
+      "source_entity_type": "Equipment",
+      "source_code": "M-208",
+      "target_entity_type": "Equipment",
+      "target_code": "M-204",
+      "relation_type": "CAN_SUBSTITUTE",
+      "required": false,
+      "effective_from": "2026-01-01T00:00:00Z",
+      "effective_to": null,
+      "active": true
+    },
+    {
+      "code": "M-208:SUPPLIES:P-30",
+      "source_entity_type": "Equipment",
+      "source_code": "M-208",
+      "target_entity_type": "Process",
+      "target_code": "P-30",
+      "relation_type": "SUPPLIES",
+      "required": true,
+      "effective_from": "2026-01-01T00:00:00Z",
+      "effective_to": null,
+      "active": true
+    },
+    {
+      "code": "R-02:SUPPLIES:M-208",
+      "source_entity_type": "InfrastructureResource",
+      "source_code": "R-02",
+      "target_entity_type": "Equipment",
+      "target_code": "M-208",
+      "relation_type": "SUPPLIES",
+      "required": true,
+      "effective_from": "2026-01-01T00:00:00Z",
+      "effective_to": null,
+      "active": true
+    },
+    {
+      "code": "P-30:PRODUCES:P-100",
+      "source_entity_type": "Process",
+      "source_code": "P-30",
+      "target_entity_type": "Product",
+      "target_code": "P-100",
+      "relation_type": "PRODUCES",
+      "required": false,
+      "effective_from": "2026-01-01T00:00:00Z",
+      "effective_to": null,
+      "active": true
+    },
+    {
+      "code": "P-30:PRODUCES:P-300",
+      "source_entity_type": "Process",
+      "source_code": "P-30",
+      "target_entity_type": "Product",
+      "target_code": "P-300",
+      "relation_type": "PRODUCES",
+      "required": false,
+      "effective_from": "2026-01-01T00:00:00Z",
+      "effective_to": null,
+      "active": true
+    },
+    {
+      "code": "OP-50:PRODUCES:P-100",
+      "source_entity_type": "ProductionOperation",
+      "source_code": "OP-50",
+      "target_entity_type": "Product",
+      "target_code": "P-100",
+      "relation_type": "PRODUCES",
+      "required": false,
+      "effective_from": "2026-01-01T00:00:00Z",
+      "effective_to": null,
+      "active": true
+    },
+    {
+      "code": "OP-50:PRODUCES:P-300",
+      "source_entity_type": "ProductionOperation",
+      "source_code": "OP-50",
+      "target_entity_type": "Product",
+      "target_code": "P-300",
+      "relation_type": "PRODUCES",
+      "required": false,
+      "effective_from": "2026-01-01T00:00:00Z",
+      "effective_to": null,
+      "active": true
+    }
+  ],
+  "economic_inputs": [
+    {
+      "input_code": "M-204-S1-ECONOMIC",
+      "equipment_code": "M-204",
+      "payload": {
+        "period_start": "2026-10-18T00:00:00Z",
+        "period_end": "2026-10-19T00:00:00Z",
+        "operating_hours": "24",
+        "currency": "JPY",
+        "incident_losses": [
+          {
+            "scope_key": "scenario1:P-100",
+            "product_code": "P-100",
+            "loss_per_hour": "120000",
+            "independent": true,
+            "source": "架空工場シナリオ1の登録条件（デモ仮定）",
+            "certainty": "ESTIMATED"
+          },
+          {
+            "scope_key": "scenario1:P-200",
+            "product_code": "P-200",
+            "loss_per_hour": "80000",
+            "independent": true,
+            "source": "架空工場シナリオ1の登録条件（デモ仮定）",
+            "certainty": "ESTIMATED"
+          }
+        ],
+        "options": [
+          {
+            "option": "REPAIR",
+            "complete": false,
+            "items": [
+              {
+                "key": "unregistered-cost",
+                "kind": "DIRECT",
+                "amount": null,
+                "hours": null,
+                "independent": true,
+                "source": "架空工場シナリオ1の登録条件（デモ仮定）",
+                "certainty": "ESTIMATED",
+                "valid_from": "2026-10-18T00:00:00Z",
+                "valid_to": "2026-10-19T00:00:00Z"
+              }
+            ]
+          },
+          {
+            "option": "REPLACE",
+            "complete": false,
+            "items": [
+              {
+                "key": "unregistered-cost",
+                "kind": "DIRECT",
+                "amount": null,
+                "hours": null,
+                "independent": true,
+                "source": "架空工場シナリオ1の登録条件（デモ仮定）",
+                "certainty": "ESTIMATED",
+                "valid_from": "2026-10-18T00:00:00Z",
+                "valid_to": "2026-10-19T00:00:00Z"
+              }
+            ]
+          },
+          {
+            "option": "CONTINUE",
+            "complete": false,
+            "items": [
+              {
+                "key": "unregistered-cost",
+                "kind": "DIRECT",
+                "amount": null,
+                "hours": null,
+                "independent": true,
+                "source": "架空工場シナリオ1の登録条件（デモ仮定）",
+                "certainty": "ESTIMATED",
+                "valid_from": "2026-10-18T00:00:00Z",
+                "valid_to": "2026-10-19T00:00:00Z"
+              }
+            ]
+          }
+        ]
+      }
+    }
+  ],
+  "capacity_inputs": [
+    {
+      "input_code": "M-208-S1-CAPACITY",
+      "equipment_code": "M-208",
+      "product_code": "P-100",
+      "payload": {
+        "period_start": "2026-10-18T00:00:00Z",
+        "period_end": "2026-10-19T00:00:00Z",
+        "quantity_unit": "個",
+        "required_rate": "60",
+        "normal_rate": "120",
+        "used_rate": "40",
+        "reserved_rate": "0",
+        "loads_independent": true,
+        "loads_complete": true,
+        "compatible": true,
+        "source": "架空工場シナリオ1の登録条件（デモ仮定）",
+        "certainty": "ESTIMATED",
+        "recovery": null
+      }
+    }
+  ]
+}
