@@ -6,6 +6,7 @@ from threading import Event
 
 import psycopg
 
+from .demo_file_seed import seed_demo_file
 from .demo_graph_seed import seed_graph_demo
 from .demo_seed import SeedConflict, seed_demo
 from .incident_demo_seed import seed_incident_demo
@@ -55,6 +56,10 @@ def main():
         "seed-demo-incident",
         help="Bootstrap the opt-in two-machine incident before Graph Rebuild",
     )
+    seed_file = commands.add_parser(
+        "seed-demo-file", help="Bootstrap an isolated demo from strict JSON"
+    )
+    seed_file.add_argument("--file", required=True)
     serve = commands.add_parser("serve")
     serve.add_argument("--host", default="127.0.0.1")
     serve.add_argument("--port", type=int, default=8000)
@@ -143,6 +148,13 @@ def main():
         else:
             applied = database.migrate()
         print(json.dumps({"applied": applied}))
+    elif args.command == "seed-demo-file":
+        try:
+            print(json.dumps(seed_demo_file(Database(settings), args.file)))
+        except (OSError, ValueError, TypeError, KeyError, psycopg.Error):
+            parser.exit(
+                1, "Demo JSON bootstrap failed; inspect the file and dedicated environment.\n"
+            )
     elif args.command in {"seed-demo", "seed-demo-graph", "seed-demo-incident"}:
         seeders = {
             "seed-demo": seed_demo,
