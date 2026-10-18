@@ -9,7 +9,7 @@
 - M-204：登録上の状態は停止中。下流の工程・製品P-100／P-200を表示する。上流依存も切替で確認できる。
 - 損害額：登録条件に基づく200,000円／時間。内訳はP-100の120,000とP-200の80,000。Frontendで合算しない。
 - 代替：M-208を登録された代替候補として図と提案に表示する。候補を利用者が暗記して指定する前提にしない。
-- 能力：P-100について必要60・空き80をサーバ値で表示し、「P-100は、能力面で吸収できる見込み（P-200は未評価）」とする。P-200を含む全業務の置換・安全・品質・実復旧は保証しない。
+- 能力：P-100について必要60・空き80をサーバ値で表示し、見出しは「P-100は、能力面で吸収できる見込み」、直下に「今回選択した能力入力ではP-200を評価していません」とする。P-200を含む全業務の置換・安全・品質・実復旧は保証しない。
 - 任意でM-208を調査対象にすると、登録上の状態は稼働中、停止損害は算定対象外と表示する。
 
 ## 2. 残PR数と分割
@@ -27,8 +27,8 @@ PR 1→merge→PR 2の順。内部部品だけの追加PR、確認専用PRは作
 
 | 確認事項 | 現コードの根拠・結果 | 計画への反映 |
 |---|---|---|
-| 非LLM設備検索 | [read_agent](../../backend/src/linescope/agent/read_agent.py)の直接経路にsearch_equipmentは未許可。[EquipmentFilter](../../backend/src/linescope/application/reads.py)はequipment_code・name | 決定済み案AをPR 1で追加。既存dispatcherの引数検証・認可を維持。設備名は部分一致、設備コードは完全一致であることをcore_reads.search_rowsでも確認。UIは一欄から両検索を別要求で並行送信し、equipment_idで重複排除する。空欄は一要求。経路別cursor・部分失敗・同一要求世代を管理する。両方の実API確認 |
-| 代替候補の返却 | [alternative_evidence](../../backend/src/linescope/application/alternative_evidence.py)はalternatives[].excluded_node、candidates[].candidate／availability／structure、target_results、representative_pathsを返す | 選択設備の下流到達製品すべてをimportant_targets、選択設備をexcluded_nodesにする。候補の型とIDを使い、返却経路だけを描く。M-208が返ることとP-200側の判定をPR 1で実測 |
+| 非LLM設備検索 | [read_agent](../../backend/src/linescope/agent/read_agent.py)の直接経路にsearch_equipmentは未許可。[EquipmentFilter](../../backend/src/linescope/application/reads.py)はequipment_code・name | 決定済み案AをPR 1で追加。既存dispatcherの引数検証・認可を維持。設備名は部分一致、設備コードは完全一致であることをcore_reads.search_rowsでも確認。UIは一欄から両検索を別要求で並行送信し、equipment_idで重複排除する。空欄は一要求。経路別cursor・部分失敗・同一要求世代を管理する。コードは大小文字を区別し、小文字入力の空結果では入力方法と大小文字の案内を表示する。両方の実API確認 |
+| 代替候補の返却 | [alternative_evidence](../../backend/src/linescope/application/alternative_evidence.py)はalternatives[].excluded_node、candidates[].candidate／availability／structure、target_results、representative_pathsを返す | 選択設備の下流到達製品すべてをimportant_targets、選択設備をexcluded_nodesにする。候補の型とIDを使い、返却経路だけを描く。M-208が返ることとP-200側の判定をPR 1で実測。サーバが製品別未評価を返すかも確認し、なければ到達製品と選択能力入力の製品IDの照合による選択範囲の説明に限る |
 | 候補と能力の照合 | [capacity](../../backend/src/linescope/application/capacity.py)のsearchはequipment_id完全一致あり | 候補IDで検索、cursorを最後まで追跡。0件は未登録、1件は自動選択、複数件は利用者が選択。候補以外の入力を混ぜない |
 | 判定API | [registered_decision](../../backend/src/linescope/application/registered_decision.py)は元設備ID＋代替設備のcapacity_input_idsを受け、入力の共通期間を検証 | 元設備をM-204に保ち、M-208の入力IDを送る。安全・保全は空配列。期間は読取専用。製品単位と他製品未評価を明示 |
 | 既存表示 | [DecisionComparison](../../frontend/src/features/decision/DecisionComparison.tsx)はrequired_rate／available_rateを表示。[decision](../../backend/src/linescope/domain/decision.py)はSUBSTITUTE案へ製品・能力・不足を返す | 主画面の小さな提案表示へ再利用。全比較は下段に残す。現行の内部列挙値表示を日本語へ揃える |
