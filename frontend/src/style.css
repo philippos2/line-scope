@@ -1453,3 +1453,10 @@ summary {
     font-size: 20px;
   }
 }
+
+.unconfirmed-candidate {
+  border: 1px dashed #d9b45e;
+  border-radius: 8px;
+  padding: 12px;
+  margin-top: 16px;
+}

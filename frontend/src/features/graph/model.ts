@@ -179,6 +179,15 @@ export function label(result: Envelope, item: NodeRef): string {
     typeof data.equipment_code === "string"
   )
     return `${data.equipment_name} · ${data.equipment_code}`;
+  if (item.entity_type === "InfrastructureResource") {
+    if (
+      typeof data.resource_name === "string" &&
+      typeof data.resource_code === "string"
+    )
+      return `${data.resource_name} · ${data.resource_code}`;
+    if (typeof data.resource_name === "string") return data.resource_name;
+    if (typeof data.resource_code === "string") return data.resource_code;
+  }
   for (const key of [`${prefix}_name`, `${prefix}_code`])
     if (typeof data[key] === "string") return data[key];
   return typeLabel(item.entity_type) + "（名称を確認）";

@@ -6,7 +6,7 @@ import {
   type JsonObject,
 } from "../../api/client";
 import type { EquipmentCandidate } from "../equipment/EquipmentCandidates";
-import { type NodeRef } from "../graph/model";
+import { node, nodeKey, type NodeRef } from "../graph/model";
 import {
   candidates,
   direct,
@@ -36,6 +36,7 @@ export function useEquipmentInvestigation(
   const [candidateEquipment, setCandidateEquipment] = useState<
     EquipmentCandidate[]
   >([]);
+  const [capacityOwner, setCapacityOwner] = useState("");
   const [observedEpoch, setObservedEpoch] = useState(executionEpoch);
   const [selected, setSelected] = useState<NodeRef | null>(null),
     [attributeError, setAttributeError] = useState("");
@@ -53,6 +54,7 @@ export function useEquipmentInvestigation(
     setMetadata(root ? [{ tool: "get_equipment", data: root }] : []);
     setEconomic([]);
     setCapacity([]);
+    setCapacityOwner("");
     setEconomicId("");
     setCapacityId("");
     setCandidateEquipment([]);
@@ -65,15 +67,24 @@ export function useEquipmentInvestigation(
     function update(channel: Channel, state: ReadState) {
       if (!signal.aborted) setStates((old) => ({ ...old, [channel]: state }));
     }
+    const labelRequests = new Set<string>();
     async function labels(subjects: NodeRef[]) {
-      // Only names required by the monetary/proposal cards; full node inspection is lazy.
+      // Names for the amount/proposal and upstream infrastructure; other node inspection is lazy.
       for (const item of subjects) {
+        if (signal.aborted) return;
+        if (labelRequests.has(nodeKey(item))) continue;
+        labelRequests.add(nodeKey(item));
+        const field =
+          item.entity_type === "InfrastructureResource"
+            ? "infrastructure_resource"
+            : item.entity_type === "Product"
+              ? "product"
+              : "equipment";
         try {
           const response = await direct(
-            item.entity_type === "Product" ? "get_product" : "get_equipment",
+            `get_${field}`,
             {
-              [item.entity_type === "Product" ? "product_id" : "equipment_id"]:
-                item.entity_id,
+              [`${field}_id`]: item.entity_id,
             },
             signal,
           );
@@ -92,8 +103,9 @@ export function useEquipmentInvestigation(
                 d as unknown as EquipmentCandidate,
               ]);
           }
-        } catch {
-          /* Names are optional; the independently retrieved analysis remains visible. */
+        } catch (e) {
+          if (!signal.aborted)
+            setInputErrors((old) => ({ ...old, names: errorCode(e) }));
         }
       }
     }
@@ -113,6 +125,7 @@ export function useEquipmentInvestigation(
           );
         } else {
           setCapacity(replies);
+          setCapacityOwner(root?.equipment_id ?? "");
           setCapacityId(
             replies.length === 1
               ? String((replies[0].data.input as JsonObject).capacity_input_id)
@@ -131,7 +144,19 @@ export function useEquipmentInvestigation(
     update("down", { loading: true });
     update("up", { loading: true });
     void direct("trace_upstream_dependencies", { target }, signal)
-      .then((value) => update("up", { value }))
+      .then((value) => {
+        update("up", { value });
+        if (!signal.aborted)
+          void labels(
+            rows(toolData(value).reached_nodes)
+              .filter(node)
+              .filter((n) => n.entity_type === "InfrastructureResource")
+              .map((n) => ({
+                entity_type: String(n.entity_type),
+                entity_id: String(n.entity_id),
+              })),
+          );
+      })
       .catch((e) => update("up", { error: errorCode(e) }));
     void loadInputs("economic", [root.equipment_id]);
     void direct("trace_downstream_impact", { target }, signal)
@@ -204,7 +229,11 @@ export function useEquipmentInvestigation(
         ? payload
         : null;
     const capPayload =
-      object(capRecord) && object(capRecord.payload) ? capRecord.payload : null;
+      object(capRecord) &&
+      object(capRecord.payload) &&
+      capacityOwner === root.equipment_id
+        ? capRecord.payload
+        : null;
     const period = ownPayload ?? capPayload;
     if (ownPayload) {
       update("loss", { loading: true });
@@ -249,7 +278,15 @@ export function useEquipmentInvestigation(
       }
     } else update("comparison", {});
     return () => controller.abort();
-  }, [root, economic, capacity, economicId, capacityId, choiceGeneration]);
+  }, [
+    root,
+    economic,
+    capacity,
+    economicId,
+    capacityId,
+    choiceGeneration,
+    capacityOwner,
+  ]);
   function select(item: NodeRef) {
     setSelected(item);
     setAttributeError("");

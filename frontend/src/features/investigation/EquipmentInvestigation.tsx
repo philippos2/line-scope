@@ -26,6 +26,11 @@ import {
   toolData,
   type ReadState,
 } from "./readModel";
+import {
+  AlternativeAssessment,
+  availabilityLabel,
+  availabilityReason,
+} from "./AlternativeAssessment";
 import { useEquipmentInvestigation } from "./useEquipmentInvestigation";
 
 function Failure({ code, retry }: { code?: string; retry: () => void }) {
@@ -192,6 +197,23 @@ export function EquipmentInvestigation({
   const view = shown ? graphView(shown) : null;
   const down = toolData(states.down?.value);
   const candidateRefs = candidates(states.alternatives?.value);
+  const candidateFacts = rows(
+    toolData(states.alternatives?.value).alternatives,
+  ).flatMap((row) => rows(row.candidates));
+  const factOf = (id: unknown) =>
+    candidateFacts.find(
+      (row) => object(row.candidate) && row.candidate.entity_id === id,
+    );
+  const alternativesUsable =
+    toolData(states.alternatives?.value).complete === true &&
+    toolData(states.alternatives?.value).graph_sync_state === "CURRENT" &&
+    sameGenerationForAlternatives();
+  function sameGenerationForAlternatives() {
+    return (
+      generation(states.alternatives?.value) === generation(states.down?.value)
+    );
+  }
+
   const observedStates = [
     ...rows(rows(states.down?.value?.evidence.tool_results)[0]?.current_states),
     ...rows(
@@ -251,7 +273,11 @@ export function EquipmentInvestigation({
   const options = rows(profile?.options).filter(
     (o) => o.option === "SUBSTITUTE",
   );
-  const selectedProducts = new Set(options.map((o) => o.product_id));
+  const selectedProducts = new Set(
+    rows(object(pkg?.selected_inputs) ? pkg.selected_inputs.capacity : []).map(
+      (row) => (object(row.input) ? row.input.product_id : undefined),
+    ),
+  );
   const notSelected = products(states.down?.value).filter(
     (n) => n.entity_type === "Product" && !selectedProducts.has(n.entity_id),
   );
@@ -384,6 +410,7 @@ export function EquipmentInvestigation({
             <p role="status">つながりを調べています…</p>
           )}
           <Failure code={states[direction]?.error} retry={model.retry} />
+          <Failure code={model.inputErrors.names} retry={model.retry} />
           {view && shown ? (
             <>
               <p className="relationship-summary">
@@ -418,7 +445,11 @@ export function EquipmentInvestigation({
                 selected={selected ? nodeKey(selected) : null}
                 onSelect={model.select}
                 classification={
-                  direction === "down" ? "影響を受ける先" : "依存先"
+                  direction === "down"
+                    ? "影響を受ける先"
+                    : direction === "up"
+                      ? "依存先"
+                      : "関係先"
                 }
                 candidates={candidateRefs.map(nodeKey)}
                 registeredStates={Object.fromEntries(
@@ -575,13 +606,20 @@ export function EquipmentInvestigation({
             {model.stale
               ? info("更新前の結果です。再調査してください。")
               : candidateRefs.map((candidate) => {
+                  const fact = factOf(candidate.entity_id);
+                  const available =
+                    alternativesUsable && fact?.availability === "AVAILABLE";
                   const equipment = model.candidateEquipment.find(
                     (x) => x.equipment_id === candidate.entity_id,
                   );
                   return (
                     <article key={nodeKey(candidate)}>
                       <h3>
-                        代替候補：
+                        {available
+                          ? "代替候補："
+                          : fact?.availability === "UNAVAILABLE"
+                            ? "利用できない候補："
+                            : "確認が必要な候補："}
                         {equipment
                           ? `${equipment.equipment_name} · ${equipment.equipment_code}`
                           : titleOf(candidate)}
@@ -590,6 +628,13 @@ export function EquipmentInvestigation({
                         登録上の状態：
                         {registeredState(stateOf(candidate.entity_id))}
                       </p>
+                      <p>
+                        利用可能性：
+                        {availabilityLabel(
+                          alternativesUsable ? fact?.availability : "UNKNOWN",
+                        )}
+                      </p>
+                      {!available && <p>{availabilityReason(fact)}</p>}
                       {equipment && (
                         <button onClick={() => choose(equipment)}>
                           この設備を調べる
@@ -618,81 +663,20 @@ export function EquipmentInvestigation({
               retry={model.retryCalculation}
             />
             {!model.stale && sameGeneration(states.comparison) ? (
-              options.map((option, i) => {
-                const product = titleOf({
-                  entity_type: "Product",
-                  entity_id: String(option.product_id),
-                });
-                const max = Math.max(
-                  Number(option.required_rate),
-                  Number(option.available_rate),
-                  1,
-                );
-                const assessment = object(option.condition_assessment)
-                  ? option.condition_assessment
-                  : {};
-                return (
-                  <article className="capacity-assessment" key={i}>
-                    <h3>
-                      {product}は、
-                      {option.capacity_status === "SUFFICIENT"
-                        ? "能力面で吸収できる見込み"
-                        : option.capacity_status === "INSUFFICIENT"
-                          ? "能力が不足しています"
-                          : "能力条件を確認できません"}
-                    </h3>
-                    {notSelected.length > 0 && (
-                      <p>
-                        今回選択した能力データでは
-                        {notSelected.map(titleOf).join("、")}
-                        を評価していません。
-                      </p>
-                    )}
-                    <div className="capacity-bars">
-                      <label>
-                        必要能力：{String(option.required_rate ?? "不明")}{" "}
-                        {String(option.quantity_unit ?? "")}／時間
-                        <progress
-                          max={max}
-                          value={Number(option.required_rate) || 0}
-                        />
-                      </label>
-                      <label>
-                        空き能力：{String(option.available_rate ?? "不明")}{" "}
-                        {String(option.quantity_unit ?? "")}／時間
-                        <progress
-                          max={max}
-                          value={Number(option.available_rate) || 0}
-                        />
-                      </label>
-                    </div>
-                    <dl>
-                      <dt>構造上の代替</dt>
-                      <dd>
-                        {assessment.structure === "AVAILABLE"
-                          ? "成立"
-                          : assessment.structure === "UNAVAILABLE"
-                            ? "不成立"
-                            : "利用条件が未確認"}
-                      </dd>
-                      <dt>安全</dt>
-                      <dd>未確認</dd>
-                      <dt>品質</dt>
-                      <dd>未確認</dd>
-                      <dt>残るリスク</dt>
-                      <dd>未確認</dd>
-                    </dl>
-                    <details>
-                      <summary>判定の出典と条件</summary>
-                      <p>
-                        {rows(profile?.missing_information).length
-                          ? "不足条件があります。"
-                          : "安全・品質・運用の条件を別途確認してください。"}
-                      </p>
-                    </details>
-                  </article>
-                );
-              })
+              options.map((option, i) => (
+                <AlternativeAssessment
+                  key={i}
+                  option={option}
+                  candidate={
+                    alternativesUsable ? factOf(option.equipment_id) : undefined
+                  }
+                  product={titleOf({
+                    entity_type: "Product",
+                    entity_id: String(option.product_id),
+                  })}
+                  unevaluated={notSelected.map(titleOf)}
+                />
+              ))
             ) : !model.stale && states.comparison?.value ? (
               <Failure code="GRAPH_NOT_CURRENT" retry={model.retry} />
             ) : null}
