@@ -206,3 +206,7 @@ Neo4jProjectionは公式Python driverの明示transactionで、validated generat
 
 
 ProjectionWorker.run_onceは取得済み専用leader上で通常workerの1回分を担当する。PostgreSQL同期状態がERROR / REBUILDINGなら処理を止め、それ以外でlease回収 → 最大1件claim → ProjectionApplication / Neo4jProjection → APPLIEDまたは固定retry / DEAD遷移をつなぐ。一般的なValueErrorを恒久不正へ分類せず、ProjectionPayloadError / ProjectionIntegrityErrorだけをその根拠にする。再試行不可driver異常・未知例外・leader喪失は呼出し元へ伝播し、常駐loopが勝手に握り潰して続行しない契約とする。実Neo4j timeoutはlease未満を要求する。成功・再試行・DEAD・期限切れ回収のログは確定commit後に出し、worker試行ごとに新しいrequest_idと業務IDで相関する。常駐loop・専用role / credentials・heartbeat・seed / Rebuildはまだ後続であり、APIやAgent Toolからworkerを操作できない。
+
+## 複数設備の影響・停止損失調査の責務
+
+IncidentInvestigationは明示選択された設備・経済入力を受け、既存ReadTools・GraphAnalysis・EconomicInputsを組み合わせる読取Application。scopeの一致・重複排除・未知の保持は純粋なdomain処理、認可と観測の組立はApplication、表示はFrontendに置く。正本DBからの入力再取得とCURRENT gateを維持し、GraphとPGを同時の分散Snapshotとは扱わない。HTTP handlerやLLMに計算・認可・確定を委譲しない。

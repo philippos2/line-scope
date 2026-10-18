@@ -466,3 +466,9 @@ payloadの分類・期間・source・details・時間・JPY費用・交換費算
 EconomicInput.payloadに任意のcost_recovery objectまたはnullを保持する。新しいtableやcolumnは追加しない。Migration 012はupdate_requestのSnapshot version制約へ6を追加する。v1〜5の保存内容・適用済みmigration checksumは変更しない。
 
 cost_recoveryがbeforeまたはafterに含まれるEconomicInputはSnapshot v6。いずれにも含まれない旧形状はv2。省略と明示nullを正規化で相互変換せず、旧Snapshotのcanonical bytes・hash・承認待ち要求を維持する。v6の訂正で項目を削除する場合もbeforeが拡張形状なのでv6。v6の内容をv2として保存することを拒否する。JSONBは出典・十進文字列・三値の仮定を保持し、直接費と損失率を取り違えない。
+
+## 複数設備調査の損失根拠
+
+EconomicInput.payloadの任意`incident_losses`に、製品UUID・グローバルな損失scope_key・JPY/hourの率・独立性・出典・区分を保存する。JSONBを使用し、既存経済入力のID・設備FK・versionを維持する。製品IDは型検証し、調査時に認可された実Graphの影響候補と照合する。Graphとの対応をLLMや自由文の製品コード解釈で決めない。
+
+migration 013はSnapshot v7の許容を追加する。適用済みmigrationのchecksumは変更しない。仕様・検証はdomain-model、API契約、transaction-designを参照する。

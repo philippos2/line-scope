@@ -117,6 +117,27 @@ def create_app(
             return response(request, code="DEPENDENCY_UNAVAILABLE", status_code=503)
         return response(request, {"service": "linescope", "postgresql": "available"})
 
+    @app.post("/incidents/investigate")
+    async def investigate_incident(request: Request):
+        try:
+            if (
+                request.headers.get("content-type", "").split(";")[0].strip().lower()
+                != "application/json"
+            ):
+                raise ValueError("JSON required")
+            body = strict_json(await request.body())
+        except (ValueError, TypeError):
+            return response(request, code="INVALID_ARGUMENT", status_code=400)
+        try:
+            data = await run_in_threadpool(
+                services.incidents.investigate, request.state.execution_context, body
+            )
+        except (ProposalError, ToolError) as error:
+            return response(request, code=error.code, status_code=error_status(error.code))
+        return response(
+            request, data, evidence=data["evidence"], partial=not data["loss"]["complete"]
+        )
+
     @app.post("/decisions/compare")
     async def compare_registered_inputs(request: Request):
         try:

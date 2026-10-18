@@ -292,3 +292,9 @@ lock順はUpdateRequest→Approval→Equipment（UUID順KEY SHARE）→関連Mai
 ## 単純費用回収条件を含むEconomicInput
 
 Snapshot v6はEconomicInputのcost_recoveryをbefore / afterのいずれかに含む場合に使用する。通常のpayloadと同じcanonical Snapshot・hash・expected_version・Prepare retry fingerprintの対象とし、別managerのApprovalと元requesterのExecuteを経由する。既存v2の省略形状・hashを再生成時に変えず、保存済み承認待ち要求と再送を引き続き処理する。v6の更新・削除も同じtransactionとlock順、履歴・監査・結果保存を維持し、Graph Outboxは生成しない。
+
+## 停止損失範囲を持つ経済入力
+
+EconomicInputのbefore / afterのいずれかが`incident_losses`を持つ場合はSnapshot v7を使う。cost_recoveryも併存でき、v7を優先する。省略した既存v2・v6の形状・hashを変えない。削除時もbeforeに情報が残るためv7とする。
+
+損失範囲の登録・訂正はECONOMIC_INPUTのPrepare retry、保存Snapshot、別manager承認、元requester Execute、expected_version、原子性、履歴・監査をそのまま使う。追加のGraph OutboxやGraph lockを経済入力更新へ導入しない。今回の調査APIは読取専用で、PGとNeo4jの観測を分散Transactionとはしない。

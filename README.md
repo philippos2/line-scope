@@ -94,7 +94,7 @@ BackendはPython / FastAPI / Uvicorn、SQLAlchemy Core / Psycopg 3を使用し�
 5. 正式入力と共通期間を選んで比較し、Evidenceと文書の引用を確認します。
 6. 必要な変更を準備し、承認者の承認、元の依頼者による実行、再取得・再比較へ進みます。
 
-デモのM-208には、M-204の代替候補という関係が登録されています。この代替関係は通常の下流・上流探索には含まれません。[デモでM-208の関連ノードが出ない理由](docs/design-faq.md#5-m-208の関連ノードが通常の調査で表示されないのはなぜか)
+旧GraphデモのM-208には、M-204の代替候補という関係が登録されています。この代替関係は通常の下流・上流探索には含まれません。[デモでM-208の関連ノードが出ない理由](docs/design-faq.md#5-m-208の関連ノードが通常の調査で表示されないのはなぜか)
 
 ## APIを直接呼ぶ
 
@@ -208,6 +208,7 @@ line-scope/
 
 - [起動・操作ガイド](docs/getting-started.md)
 - [設計FAQ](docs/design-faq.md)
+- [2台トラブルのデモデータ・調査API](docs/demo/incident-story.md)
 - [文書入口・正本の責務](docs/deliverables.md)
 - [実装・受入確認のロードマップ](docs/roadmap.md)
 

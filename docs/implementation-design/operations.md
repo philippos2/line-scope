@@ -363,3 +363,9 @@ probeは`/agent`へ固定の読取質問を一回送り、M-204からの6対象�
 Ollamaのコンテキスト枠はサーバ設定`LINESCOPE_LLM_CONTEXT_TOKENS`（既定16384、正整数）で指定する。modelの対応枠とGPU / RAMに合わせて設定し、エンドユーザーやTool引数から変更しない。既定8192では初期GraphのTool結果を含む約10880 tokenの入力がOllamaに拒否されたため拡大した。大きなGraph・会話履歴が常に収まる保証ではなく、Read実行予算120秒・回答上限・Graph探索上限は維持する。入力超過時の自動枠拡張やTool結果の暗黙切捨ては行わない。
 
 Readのllm.call.completedには失敗時も取得できたproviderの数値内訳を保持する。llm_finish_reasonはSTOP／LENGTH／OTHERの固定enum、llm_content_chars／llm_thinking_charsは文字数だけを採用し、内容は記録しない。生成上限による不完全応答の拒否をdeadline超過と混同しない。
+
+## 2台トラブルの専用デモ初期投入
+
+`seed-demo-incident`は初期Graph構築前の管理CLI。Graph・設備・正式業務入力の初期fixtureを単一PG transactionで投入し、Graph排他lockと構築世代の制約を維持する。失敗は全体をrollbackする。既存行は識別情報を照合し、利用者の名称・状態・version・正式入力payloadを上書きしない。初期fixtureに架空のApproval・監査・Outboxを作らず、以後の業務変更は通常の承認経路を使う。
+
+旧デモ・構築済み環境を初期状態へ移行するコマンドではない。新規専用project・資格情報・portを用意し、継続デモのvolumeを削除しない。構成と実行手順は[2台トラブルのデモ](../demo/incident-story.md)を参照する。

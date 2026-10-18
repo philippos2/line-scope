@@ -8,6 +8,7 @@ import psycopg
 
 from .demo_graph_seed import seed_graph_demo
 from .demo_seed import SeedConflict, seed_demo
+from .incident_demo_seed import seed_incident_demo
 from .logging import EventLogger, configure_runtime_logging
 from .persistence.database import Database
 from .persistence.db_roles import RoleProvisionError, provision_roles, validate_passwords
@@ -49,6 +50,10 @@ def main():
     projection.add_argument("--once", action="store_true")
     commands.add_parser(
         "seed-demo-graph", help="Explicitly bootstrap the initial Graph demo fixture"
+    )
+    commands.add_parser(
+        "seed-demo-incident",
+        help="Bootstrap the opt-in two-machine incident before Graph Rebuild",
     )
     serve = commands.add_parser("serve")
     serve.add_argument("--host", default="127.0.0.1")
@@ -138,15 +143,14 @@ def main():
         else:
             applied = database.migrate()
         print(json.dumps({"applied": applied}))
-    elif args.command in {"seed-demo", "seed-demo-graph"}:
+    elif args.command in {"seed-demo", "seed-demo-graph", "seed-demo-incident"}:
+        seeders = {
+            "seed-demo": seed_demo,
+            "seed-demo-graph": seed_graph_demo,
+            "seed-demo-incident": seed_incident_demo,
+        }
         try:
-            print(
-                json.dumps(
-                    (seed_demo if args.command == "seed-demo" else seed_graph_demo)(
-                        Database(settings)
-                    )
-                )
-            )
+            print(json.dumps(seeders[args.command](Database(settings))))
         except SeedConflict as error:
             parser.exit(1, f"{args.command}: {error}\n")
         except psycopg.Error:

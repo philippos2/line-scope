@@ -15,6 +15,7 @@ from .application.equipment_command import EquipmentCommandPrepare
 from .application.execute import HumanExecute
 from .application.graph_analysis import GraphAnalysis
 from .application.graph_request import GraphLimits
+from .application.incident_investigation import IncidentInvestigation
 from .application.knowledge_content import VerifiedKnowledgeContent
 from .application.knowledge_flow import KnowledgeRetrieval
 from .application.knowledge_metadata import KnowledgeMetadataGuard
@@ -52,6 +53,7 @@ class ApiServices:
     safety: SafetyInputs
     economics: EconomicInputs
     decisions: RegisteredDecisions
+    incidents: IncidentInvestigation
     agent: AgentApplication
     owned_graph_driver: object | None = None
 
@@ -153,6 +155,7 @@ def build_api_services(
             safety=SafetyInputs(database),
             capacity=CapacityInputs(database),
             decisions=RegisteredDecisions(database, graph, knowledge),
+            incidents=IncidentInvestigation(database, graph),
             agent=agent,
             owned_graph_driver=owned_driver,
         )

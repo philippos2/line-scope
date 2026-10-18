@@ -124,3 +124,5 @@ CAPACITY_INPUTの入力・出典・計算結果・Snapshot・保存要求・履�
 既存MaintenancePlan / MaintenanceRecordの権限を変更しない。分類・損失など新情報を既存の広い読取経路へ混入させない。Agentは新情報の検索・取得のみ行う。
 
 MAINTENANCE_INPUTのCOMPLETED再送は、元requesterかつ現在の対象情報閲覧権限で保存済み結果の参照だけを許可する。新たな確定処理は行わない。
+
+複数設備の明示調査`POST /incidents/investigate`はmanager / maintenance / productionが利用できる。floorには公開しない。`incident_losses`を含む経済入力もECONOMIC_INPUTと同じmanager要求・別manager承認・元requester確定とする。入力JSON内のID・role・出典を業務権限の根拠にしない。
