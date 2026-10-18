@@ -36,7 +36,7 @@ curl -sS http://127.0.0.1:8000/incidents/investigate \
   --data-binary @/private/incident-selection.json
 ```
 
-`data.impacts`に設備別の影響経路、`data.loss`に推定損失と内訳、`evidence`に入力version・Graph世代・時点を返す。金額を表示するUIはP2の残項目。
+`data.impacts`に設備別の影響経路、`data.loss`に推定損失と内訳、`evidence`に入力version・Graph世代・時点を返す。画面の「工場トラブルと被害額」から同じ対象・根拠を選んで取得できる。
 
 ## 損失と対応条件
 
@@ -51,4 +51,4 @@ curl -sS http://127.0.0.1:8000/incidents/investigate \
 
 [架空トラブルの参考文書](knowledge/incident-recovery.md)を、実Embedding・Qdrantを設定した専用環境で管理CLI `ingest-knowledge` から取り込む。CLIのfile引数はコンテナから読める場所を指定する。document code例は `INCIDENT-RECOVERY`、versionは1。本文の率は説明用で、APIが金額を計算するときは正式経済入力を正本にする。
 
-文書の取込み・実検索手順は[起動ガイド](../getting-started.md#全部品を含む常設環境)を参照する。P1でこの文書の実Embedding取込み・検索を実行したことにはしない。P2の通し確認で実検索を確認する。
+文書の取込み・実検索手順は[起動ガイド](../getting-started.md#全部品を含む常設環境)を参照する。実Embeddingでの取込みとQdrantからの引用をP2の実ブラウザ通し確認で検証した。環境ごとの取込みは別途必要。
