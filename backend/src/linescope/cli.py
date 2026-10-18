@@ -9,7 +9,6 @@ import psycopg
 from .demo_file_seed import seed_demo_file
 from .demo_graph_seed import seed_graph_demo
 from .demo_seed import SeedConflict, seed_demo
-from .incident_demo_seed import seed_incident_demo
 from .logging import EventLogger, configure_runtime_logging
 from .persistence.database import Database
 from .persistence.db_roles import RoleProvisionError, provision_roles, validate_passwords
@@ -51,10 +50,6 @@ def main():
     projection.add_argument("--once", action="store_true")
     commands.add_parser(
         "seed-demo-graph", help="Explicitly bootstrap the initial Graph demo fixture"
-    )
-    commands.add_parser(
-        "seed-demo-incident",
-        help="Bootstrap the opt-in two-machine incident before Graph Rebuild",
     )
     seed_file = commands.add_parser(
         "seed-demo-file", help="Bootstrap an isolated demo from strict JSON"
@@ -155,11 +150,10 @@ def main():
             parser.exit(
                 1, "Demo JSON bootstrap failed; inspect the file and dedicated environment.\n"
             )
-    elif args.command in {"seed-demo", "seed-demo-graph", "seed-demo-incident"}:
+    elif args.command in {"seed-demo", "seed-demo-graph"}:
         seeders = {
             "seed-demo": seed_demo,
             "seed-demo-graph": seed_graph_demo,
-            "seed-demo-incident": seed_incident_demo,
         }
         try:
             print(json.dumps(seeders[args.command](Database(settings))))

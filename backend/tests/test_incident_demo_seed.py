@@ -1,20 +1,15 @@
 import pytest
 from graph.test_common_dependency_reader import adapters as adapters
 from graph.test_common_dependency_reader import graph_driver as graph_driver
+from incident_graph_fixture import EQUIPMENT, FIXTURES, seed_incident_demo
 from test_demo_graph_seed import counts
 from test_demo_graph_seed import source as source
 
-from linescope import cli
 from linescope.demo_seed import SeedConflict
-from linescope.incident_demo_seed import EQUIPMENT, FIXTURES, seed_incident_demo
 
 
-def test_incident_cli_initializes_shared_and_individual_impact_data(source, monkeypatch, capsys):
-    monkeypatch.setattr(cli.Settings, "env", lambda: source.settings)
-    monkeypatch.setattr(cli, "Database", lambda settings: source)
-    monkeypatch.setattr("sys.argv", ["linescope", "seed-demo-incident"])
-    cli.main()
-    assert '"equipment"' in capsys.readouterr().out
+def test_regression_fixture_initializes_shared_and_individual_impact_data(source):
+    assert "equipment" in seed_incident_demo(source)
     with source.transaction() as connection:
         states = connection.execute(
             "SELECT state_code FROM equipment_current_state ORDER BY equipment_id"

@@ -6,10 +6,10 @@ from pathlib import Path
 from psycopg.errors import UniqueViolation
 
 from .demo_graph_seed import demo_id, seed_graph_rows
+from .demo_input_record import make_record
 from .demo_seed import SeedConflict, _lock_seed
 from .domain.canonical import normalize_timestamp, strict_json
 from .domain.input_values import exact, text
-from .incident_demo_inputs import make_record
 from .persistence.core_demo_seed import require_demo_rebuild
 
 MAX_BYTES = 1_000_000

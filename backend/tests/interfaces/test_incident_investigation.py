@@ -3,12 +3,12 @@ from uuid import uuid4
 import pytest
 from graph.test_common_dependency_reader import adapters as adapters
 from graph.test_common_dependency_reader import graph_driver as graph_driver
+from incident_graph_fixture import seed_incident_demo
+from incident_loss_fixture import END, START, records
 
 from interfaces.test_registered_decisions import auth, client
 from linescope.demo_seed import DEMO_EQUIPMENT
 from linescope.graph.administration import GraphAdministration
-from linescope.incident_demo_inputs import END, START, records
-from linescope.incident_demo_seed import seed_incident_demo
 
 
 @pytest.fixture
