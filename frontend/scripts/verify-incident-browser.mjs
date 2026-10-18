@@ -1,3 +1,4 @@
+/* global document */
 import { chromium, expect } from "@playwright/test";
 import { mkdir, writeFile } from "node:fs/promises";
 const base = process.env.LINESCOPE_BROWSER_URL,
