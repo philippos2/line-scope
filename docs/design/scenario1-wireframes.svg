@@ -1,0 +1,144 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1480" height="1990" viewBox="0 0 1480 1990" role="img" aria-labelledby="title desc"><title id="title">シナリオ1 UIワイヤーフレーム</title><desc id="desc">検索前、M-204を調査した後、M-208へ調査を切り替えた状態の静的画面案。実装済み画面ではない。</desc><rect width="1480" height="1990" fill="#eef3f7"/><g font-family="sans-serif" fill="#21394a">
+<defs><marker id="arrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0 0L8 4L0 8" fill="#607d8b"/></marker></defs>
+<text x="30" y="38" font-size="26">シナリオ1：画面案（レビュー用・未実装）</text>
+<text x="30" y="67" font-size="18">検索前 → 停止設備の影響・損害額・代替提案 → 稼働中の候補設備を調べる</text>
+<text x="30" y="105" font-size="22">A  検索前：設備は固定表示しない</text>
+<rect x="25" y="123" width="1430" height="540" rx="7" fill="#fff" stroke="#b8c9d4"/>
+<rect x="25" y="123" width="1430" height="45" rx="7" fill="#163a4b" stroke="#163a4b"/>
+<text x="45" y="152" font-size="20" fill="white">LineScope   設備を調べる</text>
+<text x="1210" y="152" font-size="15" fill="white">接続設定／解除</text>
+<rect x="40" y="183" width="225" height="415" rx="7" fill="#f8fbfd" stroke="#b8c9d4"/>
+<text x="55" y="210" font-size="19">設備を探す</text>
+<rect x="55" y="226" width="195" height="36" rx="7" fill="#fff" stroke="#b8c9d4"/>
+<text x="65" y="250" font-size="16">設備名の一部</text>
+<rect x="55" y="272" width="195" height="33" rx="7" fill="#d7eeed" stroke="#b8c9d4"/>
+<text x="125" y="294" font-size="16">検索</text>
+<rect x="280" y="183" width="875" height="238" rx="7" fill="#fafcfd" stroke="#b8c9d4"/>
+<text x="295" y="209" font-size="19">つながりと影響の範囲</text>
+<rect x="295" y="222" width="220" height="27" rx="7" fill="#d7eeed" stroke="#b8c9d4"/>
+<text x="307" y="241" font-size="14">止まると影響を受ける先</text>
+<text x="540" y="241" font-size="14">この設備が依存する先</text>
+<rect x="1170" y="183" width="270" height="415" rx="7" fill="#f8fbfd" stroke="#b8c9d4"/>
+<text x="1185" y="210" font-size="19">選択した項目</text>
+<rect x="280" y="434" width="425" height="164" rx="7" fill="#fff" stroke="#b8c9d4"/>
+<text x="295" y="462" font-size="18">推定損害額（円／時間）</text>
+<rect x="720" y="434" width="435" height="164" rx="7" fill="#fff" stroke="#b8c9d4"/>
+<text x="735" y="462" font-size="18">代替の提案</text>
+<text x="55" y="340" font-size="15">設備名またはコードを</text>
+<text x="55" y="364" font-size="15">入力して検索します。</text>
+<text x="480" y="324" font-size="18">設備を選ぶと関係図が表示されます。</text>
+<text x="295" y="503" font-size="16">設備を選ぶと表示されます。</text>
+<text x="735" y="503" font-size="16">設備を選ぶと候補を探します。</text>
+<text x="1185" y="259" font-size="15">項目を選ぶと情報を表示します。</text>
+<text x="295" y="618" font-size="12">登録された条件での見積もりです。実際の損害額ではありません。</text>
+<text x="50" y="652" font-size="15">質問する   ｜   対応案を比べる   ｜   出典と経路   ｜   入力を登録・訂正   ｜   変更・承認・実行</text>
+<text x="30" y="700" font-size="22">B  M-204調査後：影響と額・代替を一画面で読む</text>
+<rect x="25" y="718" width="1430" height="570" rx="7" fill="#fff" stroke="#b8c9d4"/>
+<rect x="25" y="718" width="1430" height="45" rx="7" fill="#163a4b" stroke="#163a4b"/>
+<text x="45" y="747" font-size="20" fill="white">LineScope   設備を調べる</text>
+<text x="1210" y="747" font-size="15" fill="white">接続設定／解除</text>
+<rect x="40" y="778" width="225" height="415" rx="7" fill="#f8fbfd" stroke="#b8c9d4"/>
+<text x="55" y="805" font-size="19">設備を探す</text>
+<rect x="55" y="821" width="195" height="36" rx="7" fill="#fff" stroke="#b8c9d4"/>
+<text x="65" y="845" font-size="16">第1</text>
+<rect x="55" y="867" width="195" height="33" rx="7" fill="#d7eeed" stroke="#b8c9d4"/>
+<text x="125" y="889" font-size="16">検索</text>
+<rect x="280" y="778" width="875" height="238" rx="7" fill="#fafcfd" stroke="#b8c9d4"/>
+<text x="295" y="804" font-size="19">つながりと影響の範囲</text>
+<rect x="295" y="817" width="220" height="27" rx="7" fill="#d7eeed" stroke="#b8c9d4"/>
+<text x="307" y="836" font-size="14">止まると影響を受ける先</text>
+<text x="540" y="836" font-size="14">この設備が依存する先</text>
+<rect x="1170" y="778" width="270" height="415" rx="7" fill="#f8fbfd" stroke="#b8c9d4"/>
+<text x="1185" y="805" font-size="19">選択した項目</text>
+<rect x="280" y="1029" width="425" height="164" rx="7" fill="#fff" stroke="#b8c9d4"/>
+<text x="295" y="1057" font-size="18">推定損害額（円／時間）</text>
+<rect x="720" y="1029" width="435" height="164" rx="7" fill="#fff" stroke="#b8c9d4"/>
+<text x="735" y="1057" font-size="18">代替の提案</text>
+<rect x="55" y="921" width="195" height="77" rx="7" fill="#e4f3ef" stroke="#b8c9d4"/>
+<text x="65" y="944" font-size="15">選択中：第1加工機</text>
+<text x="65" y="968" font-size="15">M-204  ● 停止中</text>
+<text x="65" y="1035" font-size="15">第2加工機 M-208</text>
+<text x="65" y="1059" font-size="15">● 稼働中／代替候補</text>
+<rect x="300" y="874" width="165" height="55" rx="7" fill="#e9f5f3" stroke="#b8c9d4"/>
+<text x="310" y="897" font-size="15">第1加工機 M-204</text>
+<text x="310" y="917" font-size="13">設備・停止中</text>
+<rect x="535" y="874" width="150" height="55" rx="7" fill="#e9f5f3" stroke="#b8c9d4"/>
+<text x="545" y="897" font-size="15">工程</text>
+<text x="545" y="917" font-size="13">影響先</text>
+<rect x="760" y="874" width="160" height="55" rx="7" fill="#e9f5f3" stroke="#b8c9d4"/>
+<text x="770" y="897" font-size="15">製品 P-100</text>
+<text x="770" y="917" font-size="13">影響先</text>
+<rect x="960" y="874" width="165" height="55" rx="7" fill="#e9f5f3" stroke="#b8c9d4"/>
+<text x="970" y="897" font-size="15">製品 P-200</text>
+<text x="970" y="917" font-size="13">影響先</text>
+<path d="M465 898 L535 898" stroke="#607d8b" fill="none" marker-end="url(#arrow)"/>
+<path d="M685 891 L760 891" stroke="#607d8b" fill="none" marker-end="url(#arrow)"/>
+<path d="M685 915 L960 915" stroke="#607d8b" fill="none" marker-end="url(#arrow)"/>
+<path d="M380 946V929" stroke="#9275b5" stroke-dasharray="4 3" marker-end="url(#arrow)" fill="none"/>
+<rect x="300" y="946" width="190" height="44" rx="7" fill="#f6edff" stroke="#9275b5" stroke-dasharray="7 5"/>
+<text x="310" y="965" font-size="14">第2加工機 M-208</text>
+<text x="310" y="983" font-size="13">代替候補・稼働中</text>
+<text x="510" y="972" font-size="13">凡例：破線枠＝代替候補</text>
+<text x="295" y="1088" font-size="28" fill="#95651c">200,000 円／時間</text>
+<text x="295" y="1115" font-size="15">P-100：120,000 ／ P-200：80,000</text>
+<text x="295" y="1138" font-size="13">算定データ：選択中の入力・版・出典</text>
+<text x="735" y="1083" font-size="16">第2加工機 M-208 ／ 対象製品 P-100</text>
+<rect x="735" y="1095" width="185" height="13" rx="7" fill="#e5bd70" stroke="#b8c9d4"/>
+<rect x="735" y="1116" width="245" height="13" rx="7" fill="#5da7a3" stroke="#b8c9d4"/>
+<text x="990" y="1106" font-size="13">必要 60</text>
+<text x="990" y="1128" font-size="13">空き 80</text>
+<text x="735" y="1153" font-size="16">能力面では吸収できる見込み</text>
+<text x="735" y="1176" font-size="13">安全・品質：未確認／他製品は別途確認</text>
+<text x="1185" y="854" font-size="15">第1加工機 M-204</text>
+<text x="1185" y="878" font-size="15">登録上の状態：停止中</text>
+<text x="1185" y="902" font-size="15">属性と選択項目の経路</text>
+<text x="1185" y="926" font-size="15">算定・能力入力は選び直し可</text>
+<rect x="1185" y="989" width="235" height="35" rx="7" fill="#d7eeed" stroke="#b8c9d4"/>
+<text x="1197" y="1012" font-size="14">この設備で対応案を比べる</text>
+<text x="295" y="1006" font-size="13">つながりをたどった結果です。実際に止まるとは限りません</text>
+<text x="295" y="1213" font-size="12">登録された条件での見積もりです。実際の損害額ではありません。</text>
+<text x="50" y="1247" font-size="15">質問する   ｜   対応案を比べる   ｜   出典と経路   ｜   入力を登録・訂正   ｜   変更・承認・実行</text>
+<text x="30" y="1330" font-size="22">C  M-208へ調査対象を切替：古い額と提案は残さない</text>
+<rect x="25" y="1348" width="1430" height="540" rx="7" fill="#fff" stroke="#b8c9d4"/>
+<rect x="25" y="1348" width="1430" height="45" rx="7" fill="#163a4b" stroke="#163a4b"/>
+<text x="45" y="1377" font-size="20" fill="white">LineScope   設備を調べる</text>
+<text x="1210" y="1377" font-size="15" fill="white">接続設定／解除</text>
+<rect x="40" y="1408" width="225" height="415" rx="7" fill="#f8fbfd" stroke="#b8c9d4"/>
+<text x="55" y="1435" font-size="19">設備を探す</text>
+<rect x="55" y="1451" width="195" height="36" rx="7" fill="#fff" stroke="#b8c9d4"/>
+<text x="65" y="1475" font-size="16">第2</text>
+<rect x="55" y="1497" width="195" height="33" rx="7" fill="#d7eeed" stroke="#b8c9d4"/>
+<text x="125" y="1519" font-size="16">検索</text>
+<rect x="280" y="1408" width="875" height="238" rx="7" fill="#fafcfd" stroke="#b8c9d4"/>
+<text x="295" y="1434" font-size="19">つながりと影響の範囲</text>
+<rect x="295" y="1447" width="220" height="27" rx="7" fill="#d7eeed" stroke="#b8c9d4"/>
+<text x="307" y="1466" font-size="14">止まると影響を受ける先</text>
+<text x="540" y="1466" font-size="14">この設備が依存する先</text>
+<rect x="1170" y="1408" width="270" height="415" rx="7" fill="#f8fbfd" stroke="#b8c9d4"/>
+<text x="1185" y="1435" font-size="19">選択した項目</text>
+<rect x="280" y="1659" width="425" height="164" rx="7" fill="#fff" stroke="#b8c9d4"/>
+<text x="295" y="1687" font-size="18">推定損害額（円／時間）</text>
+<rect x="720" y="1659" width="435" height="164" rx="7" fill="#fff" stroke="#b8c9d4"/>
+<text x="735" y="1687" font-size="18">代替の提案</text>
+<rect x="55" y="1551" width="195" height="77" rx="7" fill="#e4f3ef" stroke="#b8c9d4"/>
+<text x="65" y="1574" font-size="15">選択中：第2加工機</text>
+<text x="65" y="1598" font-size="15">M-208  ● 稼働中</text>
+<text x="400" y="1535" font-size="18">第2加工機 → 工程・製品の関係を再取得</text>
+<text x="400" y="1572" font-size="15">上流依存も同じ方向切替で確認できます。</text>
+<text x="295" y="1722" font-size="16">登録状態が稼働中のため、</text>
+<text x="295" y="1746" font-size="16">停止損害の算定対象外です。</text>
+<text x="295" y="1770" font-size="16">金額は表示しません。</text>
+<text x="735" y="1722" font-size="15">M-208を起点に改めて候補を探索。</text>
+<text x="735" y="1746" font-size="15">M-204調査時の提案は表示しません。</text>
+<text x="735" y="1770" font-size="15">結果または候補なしの理由を表示。</text>
+<text x="1185" y="1484" font-size="15">第2加工機 M-208</text>
+<text x="1185" y="1508" font-size="15">登録上の状態：稼働中</text>
+<text x="1185" y="1532" font-size="15">属性と選択項目の経路</text>
+<rect x="1185" y="1619" width="235" height="35" rx="7" fill="#d7eeed" stroke="#b8c9d4"/>
+<text x="1197" y="1642" font-size="14">この設備で対応案を比べる</text>
+<text x="295" y="1636" font-size="13">つながりをたどった結果です。実際に止まるとは限りません</text>
+<text x="295" y="1843" font-size="12">登録された条件での見積もりです。実際の損害額ではありません。</text>
+<text x="50" y="1877" font-size="15">質問する   ｜   対応案を比べる   ｜   出典と経路   ｜   入力を登録・訂正   ｜   変更・承認・実行</text>
+<text x="30" y="1940" font-size="16">図内の工程・線の配置は説明用。実装ではサーバの返却経路・判定・値だけを使います。</text>
+<text x="30" y="1967" font-size="15">狭い画面：検索 → 関係図 → 損害額 → 代替提案 → 属性 → 補助機能。取得中・失敗等は設計書§5を参照。</text>
+</g></svg>

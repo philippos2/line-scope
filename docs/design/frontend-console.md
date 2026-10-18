@@ -2,7 +2,7 @@
 
 要件の正本は[requirements §13](../requirements/requirements.md#13-後続frontendフェーズ)、業務目的は[Use Case](../requirements/use-cases.md)、権限は[access-control](../requirements/access-control.md)、APIは[api-tools](../implementation-design/api-tools.md)。本書は現バックエンドへ接続する画面・実装計画であり、新しい業務データや規則を定義しない。
 
-> [設備探索・関係図・損害額のUI再設計案](frontend-redesign-proposal.md)はレビュー待ちの別文書です。以下は現行設計の記録であり、再設計案の承認・実装済みを意味しません。
+> [シナリオ1のUI再設計案](frontend-redesign-proposal.md)はレビュー待ちの別文書です。以下は現行設計の記録であり、再設計案の承認・実装済みを意味しません。
 
 ## 最初に通す体験
 

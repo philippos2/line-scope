@@ -635,3 +635,5 @@ Dockerで追加36テスト成功、ruff check / format、git diff --check成功�
 - [P2：工場トラブルのUIと実機検証](2026-10-18-incident-ui-acceptance.md)
 
 - [UI再設計のレビュー準備](2026-10-18-ui-redesign-review.md)
+
+- [シナリオ1への集中と改修計画](2026-10-18-scenario1-plan.md)
