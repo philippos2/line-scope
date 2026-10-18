@@ -641,3 +641,5 @@ Dockerで追加36テスト成功、ruff check / format、git diff --check成功�
 - [シナリオ1の実装工程1：JSON投入と非LLM検索](2026-10-18-scenario1-pr1.md)
 
 - [旧2台停止デモの廃止と表示先の混在への対応](2026-10-18-retire-two-stopped-demo.md)
+
+- [シナリオ1のA案データ修正と実API再測定](2026-10-19-scenario1-availability.md)

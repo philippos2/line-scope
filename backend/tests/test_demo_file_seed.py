@@ -220,7 +220,9 @@ def test_json_scenario_real_api_graph_and_comparison(source, adapters):
         )
         result = selected["tool_results"][0]["data"]
         candidates = [c for row in result["alternatives"] for c in row["candidates"]]
-        assert any(c["candidate"]["entity_id"] == m208 for c in candidates)
+        candidate = next(c for c in candidates if c["candidate"]["entity_id"] == m208)
+        assert candidate["structure"]["determination"] == "ESTABLISHED"
+        assert candidate["availability"] == "AVAILABLE"
         assert result["representative_paths"]
         comparison = post(
             "/decisions/compare",
@@ -237,6 +239,8 @@ def test_json_scenario_real_api_graph_and_comparison(source, adapters):
         options = comparison["decision_package"]["comparison"]["options"]
         substitute = next(o for o in options if o["option"] == "SUBSTITUTE")
         assert substitute["required_rate"] == "60" and substitute["available_rate"] == "80"
+        assert substitute["structural_basis"]["status"] == "AVAILABLE"
+        assert substitute["condition_assessment"]["structure"] == "AVAILABLE"
         assert substitute["feasibility"] != "FEASIBLE"
         assert substitute["condition_assessment"]["quality"] == "UNKNOWN"
         print(
