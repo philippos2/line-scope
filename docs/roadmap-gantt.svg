@@ -1,17 +1,23 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1510" height="520" viewBox="0 0 1510 520" role="img" aria-labelledby="title desc">
-<title id="title">LineScopeの常設導入とシナリオUIの残工程</title>
-<desc id="desc">第1段階はGraph中心の基本調査、第2段階は共通依存・代替・SPOF、第3段階は判断・変更との連動。計画実装は完了。利用者確認と必要な不具合対応が残る。</desc>
-<rect width="1510" height="520" fill="white"/>
-<g font-family="sans-serif" fill="#24384b">
-<text x="24" y="36" font-size="24" font-weight="bold">計画実装は完了 ／ 残り：利用者確認と必要な不具合対応</text>
-<text x="24" y="70" font-size="15">常設の必須部品は接続済み。関係と影響を理解できる操作体験を、段階ごとに実機と利用者で確認する。</text>
-<path d="M490 120V430 M720 120V430 M950 120V430 M1180 120V430 M1410 120V430" stroke="#d8e1ea"/>
-<text x="605" y="110" text-anchor="middle" font-size="16">工程1</text><text x="835" y="110" text-anchor="middle" font-size="16">工程2</text><text x="1065" y="110" text-anchor="middle" font-size="16">工程3</text>
-<text x="24" y="159" font-size="18" font-weight="bold">Graph中心の基本調査</text><text x="24" y="185" font-size="13">開始導線・影響範囲・経路・ノード選択</text><rect x="494" y="138" width="222" height="42" rx="4" fill="#446d95"/><text x="605" y="165" text-anchor="middle" font-size="16" fill="white">第1段階：完了 #256</text>
-<text x="24" y="239" font-size="18" font-weight="bold">共通依存・代替・SPOF</text><text x="24" y="265" font-size="13">複数ノード・除外対象を選んで構造分析</text><rect x="724" y="218" width="222" height="42" rx="4" fill="#446d95"/><text x="835" y="245" text-anchor="middle" font-size="16" fill="white">第2段階：完了 #257</text>
-<text x="24" y="319" font-size="18" font-weight="bold">判断・変更との連動</text><text x="24" y="345" font-size="13">比較・根拠・承認後のGraph再取得</text><rect x="954" y="298" width="222" height="42" rx="4" fill="#446d95"/><text x="1065" y="325" text-anchor="middle" font-size="16" fill="white">第3段階：完了 #258</text>
-<text x="1295" y="110" text-anchor="middle" font-size="16">利用者確認</text>
-<text x="24" y="399" font-size="18" font-weight="bold">常設UIでの操作確認</text><text x="24" y="425" font-size="13">開発依頼者による確認・必要な不具合の修正</text><rect x="1184" y="378" width="222" height="42" rx="4" fill="#966c29"/><text x="1295" y="405" text-anchor="middle" font-size="16" fill="white">受入確認中</text>
-<text x="24" y="477" font-size="15">第1〜3段階（#256・#257・#258）はmerge済み。残り計画機能実装0 PR。不具合修正は内容を精査する。</text>
-<text x="24" y="506" font-size="14">自然文の精度・レイテンシの改善は別課題。認可・承認・データ整合性は維持する。</text>
+<svg xmlns="http://www.w3.org/2000/svg" width="1510" height="650" viewBox="0 0 1510 650" role="img" aria-labelledby="title desc">
+<title id="title">機材トラブルの影響・損失提示までの残工程</title>
+<desc id="desc">計画整理1 PRの後、工場データと影響・損失計算1 PR、UI改善と通し確認1 PR、利用者確認、必要なら修正0〜1 PR。実装は未着手。</desc>
+<rect width="1510" height="650" fill="white"/><g font-family="sans-serif" fill="#24384b">
+<text x="24" y="36" font-size="24" font-weight="bold">残り実装 2〜3 PR ／ 今回の計画整理を含む総数 3〜4 PR</text>
+<text x="24" y="70" font-size="16">工場の異常発見 → 影響Graph・時間当たり損失 → 対応判断・承認 → 再調査</text>
+<path d="M470 120V560" stroke="#d8e1ea"/><text x="570" y="110" text-anchor="middle" font-size="16">計画</text>
+<path d="M670 120V560" stroke="#d8e1ea"/><text x="770" y="110" text-anchor="middle" font-size="16">実装枠1</text>
+<path d="M870 120V560" stroke="#d8e1ea"/><text x="970" y="110" text-anchor="middle" font-size="16">実装枠2</text>
+<path d="M1070 120V560" stroke="#d8e1ea"/><text x="1170" y="110" text-anchor="middle" font-size="16">利用者確認</text>
+<path d="M1270 120V560" stroke="#d8e1ea"/><text x="1370" y="110" text-anchor="middle" font-size="16">修正予備</text>
+<text x="24" y="166" font-size="19" font-weight="bold">P0 計画整理</text><text x="24" y="192" font-size="14">残項目・UI方針・工数を明示</text><rect x="475" y="145" width="190" height="43" rx="4" fill="#446d95"/><text x="570" y="173" text-anchor="middle" font-size="16" fill="white">今回 1 PR</text>
+<path d="M665 167h10v83h5" fill="none" stroke="#64748b" stroke-width="2"/>
+<text x="24" y="249" font-size="19" font-weight="bold">P1 データ＋影響・損失計算</text><text x="24" y="275" font-size="14">2台の異常・共有影響・二重計上防止</text><rect x="675" y="228" width="190" height="43" rx="4" fill="#966c29"/><text x="770" y="256" text-anchor="middle" font-size="16" fill="white">未着手 1 PR</text>
+<path d="M865 250h10v83h5" fill="none" stroke="#64748b" stroke-width="2"/>
+<text x="24" y="332" font-size="19" font-weight="bold">P2 UI改善＋通し確認</text><text x="24" y="358" font-size="14">Graphと被害額・対応後の再調査</text><rect x="875" y="311" width="190" height="43" rx="4" fill="#966c29"/><text x="970" y="339" text-anchor="middle" font-size="16" fill="white">未着手 1 PR</text>
+<path d="M1065 333h10v83h5" fill="none" stroke="#64748b" stroke-width="2"/>
+<text x="24" y="415" font-size="19" font-weight="bold">利用者確認</text><text x="24" y="441" font-size="14">一連の業務として利用できるか</text><rect x="1075" y="394" width="190" height="43" rx="4" fill="#64748b"/><text x="1170" y="422" text-anchor="middle" font-size="16" fill="white">確認待ち</text>
+<path d="M1265 416h10v83h5" fill="none" stroke="#64748b" stroke-width="2"/>
+<text x="24" y="498" font-size="19" font-weight="bold">P3 必要な修正の予備</text><text x="24" y="524" font-size="14">指摘がある場合のみ実施</text><rect x="1275" y="477" width="190" height="43" rx="4" fill="#64748b"/><text x="1370" y="505" text-anchor="middle" font-size="16" fill="white">0〜1 PR</text>
+<text x="24" y="598" font-size="16">既存のGraph・正式入力・承認基盤を再利用。各実装PRで実DB／実UIを検証し、確認を先送りしない。</text>
+<text x="24" y="628" font-size="14">横軸は相対的な作業順。日付・人日ではない。受入確認だけではPRを増やさず、修正予備は必要時のみ使用。</text>
 </g></svg>
