@@ -1,6 +1,6 @@
 import { expect, it } from "vitest";
-import { envelope } from "../../api/client";
-import { graphView, pathHighlights } from "./model";
+import { envelope, type Envelope } from "../../api/client";
+import { graphView, pathHighlights, label } from "./model";
 const a = { entity_type: "Equipment", entity_id: "a" },
   b = { entity_type: "Product", entity_id: "b" };
 function response(paths: unknown[]) {
@@ -116,4 +116,28 @@ it("keeps explicit structural subjects visible when no representative path exist
   rows[0].data.excluded_nodes = [a];
   expect(graphView(r)?.nodes).toEqual([b, a]);
   expect(graphView(r)?.edges).toEqual([]);
+});
+
+it("keeps a parent Process distinct from an operation with the same process_id", () => {
+  const value = {
+    data: {
+      tool_results: [
+        {
+          tool: "get_process",
+          data: { process_id: "process-1", process_name: "加工工程" },
+        },
+        {
+          tool: "get_production_operation",
+          data: {
+            production_operation_id: "operation-1",
+            process_id: "process-1",
+            operation_code: "OP-50",
+          },
+        },
+      ],
+    },
+  } as unknown as Envelope;
+  expect(label(value, { entity_type: "Process", entity_id: "process-1" })).toBe(
+    "加工工程",
+  );
 });

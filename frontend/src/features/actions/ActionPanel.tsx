@@ -6,14 +6,16 @@ const text = (value: unknown) => (typeof value === "string" ? value : "未確認
 
 export function ActionPanel({
   preparedId,
+  initialMessage = "",
   onExecution,
   initiallyOpen = false,
 }: {
+  initialMessage?: string;
   preparedId?: string;
   onExecution?: () => void;
   initiallyOpen?: boolean;
 }) {
-  const [message, setMessage] = useState("");
+  const [message, setMessage] = useState(initialMessage);
   const [id, setId] = useState("");
   const [saved, setSaved] = useState<Envelope | null>(null);
   const [execution, setExecution] = useState<Envelope | null>(null);

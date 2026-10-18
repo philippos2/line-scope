@@ -25,7 +25,7 @@ git clone https://github.com/philippos2/line-scope.git
 cd line-scope
 python3 scripts/create_demo_env.py
 docker compose up --build -d --wait api
-docker compose run --rm migrate linescope seed-demo-graph
+docker compose run --rm migrate linescope seed-demo-incident
 docker compose run --build --rm graph-admin linescope install-graph-schema
 docker compose run --build --rm graph-admin linescope rebuild-graph
 docker compose up -d projection
@@ -33,9 +33,9 @@ docker compose up -d projection
 
 既存`.env`は上書きしません。既存環境では生成を省略し、`python3 scripts/upgrade_demo_env.py`で不足するrole用credential・Neo4j秘密を追加してから起動してください。資格情報ファイルはGit管理外・mode 0600です。管理者用と検索・runtime・Projection用のDB資格情報を分離します。
 
-PostgreSQLのmigration / role付与とNeo4jのhealth確認後にAPI・Projectionを起動します。APIは`127.0.0.1:8000`に公開し、DB portはホストへ公開しません。API portは`LINESCOPE_API_PORT`で変更できます。seedはM-204（STOPPED）・M-208（RUNNING）と工程・生産作業・製品・インフラの関係を初期投入し、再実行で既存の状態やversionをリセットしません。seed自体は依存Graphの生成を行いません。後続の管理CLIで正本から検証済みgenerationを構築します。未構築の間はworkerがBLOCKEDとなり、Graph分析は利用できません。
+PostgreSQLのmigration / role付与とNeo4jのhealth確認後にAPI・Projectionを起動します。APIは`127.0.0.1:8000`に公開し、DB portはホストへ公開しません。API portは`LINESCOPE_API_PORT`で変更できます。
 
-2台停止の影響・損失を検証する新規専用環境では、上記の `seed-demo-graph` を `seed-demo-incident` に置き換えます。[2台トラブルのデモ構成](demo/incident-story.md)に投入対象・登録条件・読取APIを記載しています。既存環境へ上書きする操作ではありません。
+上記は新規環境向けの2台停止シナリオです。設備・Graph・正式入力11件を初期投入し、再実行で既存状態やversionをリセットしません。旧デモは `seed-demo-graph` を使います。構築済み環境へ追加する移行コマンドではありません。[デモデータと参考文書の投入](demo/incident-story.md)を参照し、Graph Rebuild後に利用します。未構築の間はGraph分析を利用できません。
 
 ## ブラウザで操作する
 
@@ -47,17 +47,18 @@ docker compose -f compose.yaml -f compose.frontend.yaml --profile frontend up --
 
 `http://127.0.0.1:5173`を開きます。接続欄には私有`.env`の`LINESCOPE_USERS`に登録されたtokenの値だけを貼り付けます。管理・生産・保全ロールでGraph分析を利用できます。tokenを共有、Git登録、スクリーンショット掲載しないでください。初回接続後はHttpOnlyのセッションcookieでF5後も接続を復元します。接続切替・解除は上部の「接続設定」から行えます。セッションは固定8時間で、API再起動・期限切れ後は再接続が必要です。
 
-接続後は中央の「登録設備を表示して調査を始める」を押し、実検索の候補から対象を選択します。名称・コードで絞りたい場合は左の検索欄を使います。選択すると下流影響と上流依存を取得し、中央の関係Graphを開きます。
+接続後は「工場トラブルと被害額」から進みます。
 
-- 「表示する調査」で下流影響と上流依存を切り替えます。直接・間接の影響候補と探索の完全性を確認します。
-- ノードを選ぶと、そのノードを含む代表経路を強調し、隣に属性と根拠経路を表示します。Graphは拡大・縮小、移動、全体表示ができます。
-- 共通依存・代替・SPOFでは分析対象や除外候補を指定し、構造判定と未評価を確認します。
-- Graphで別の設備を選び「この設備を比較・入力の対象にする」を押すと、調査Graphを保持したまま比較・入力対象を切り替えます。
-- Graph下の「対応案を比べる」で正式入力と共通期間を選択し、「根拠を確かめる」でEvidenceや実文書の引用を確認します。パネルを切り替えてもGraphを保持します。
-- 「入力を登録・訂正」で必要な情報を準備し、「変更・承認・実行」で保存された変更内容と要求IDを確認します。接続解除して別の承認者でIDを読み直し承認し、元の依頼者で再接続して同じIDから実行します。
-- 実行後は確定結果と現在値を確認し、関係の再取得操作でGraphを更新し、比較も再取得します。接続切替で前ユーザーの取得情報は引き継がれません。
+1. 「設備と損失根拠を確認する」で、経済入力のある設備の候補を取得します。工場全体の網羅一覧や自動異常検知ではありません。設備名・コードで絞れます。
+2. 対象と根拠を選び、最初の根拠から記入される共通期間を確認して「選択した設備の影響と被害額を調べる」を押します。
+3. Graphに隣接する「推定被害額」と内訳・出典・不足を確認します。設定欄は取得後に折りたたまれ、開いて対象や期間を変更できます。変更時に古い結果を消します。
+4. ノード選択で経路を強調し、属性・根拠を確認します。まとめ表示と設備別表示を切り替えられます。「複数の対象から関係を調べる」を開くと共通依存・代替・SPOFへ進めます。
+5. 設備カードから対応案比較へ進み、正式入力を選んで比較・文書引用を確認します。パネルを切り替えてもGraphは保持します。
+6. 「入力を登録・訂正」で必要な情報を準備します。状態変更は設備カードの「この設備の登録状態を変更する」を開き、状態を選んで準備画面へ渡します。まだ確定はしません。
+7. 保存Snapshotを別の承認者が承認し、元依頼者が実行します。別セッションを使うか、接続を切り替えて要求IDから読み直します。接続切替では前ユーザーの取得情報を引き継ぎません。
+8. 確定後は金額を未算出にして再取得を案内します。「影響と被害額を再取得する」を押して、最新の入力version・状態に基づく結果を確認します。
 
-計画したGraph中心UIの3段階は実装済みです。現在の確認事項は[ロードマップ](roadmap.md)を参照してください。Graph到達だけから実停止・能力・安全を断定しません。
+「設備単位の詳しい調査」では、従来の設備検索から下流／上流の調査も利用できます。Graph到達・構造成立・登録状態の変更だけで、実停止・能力・安全や実復旧を認定しません。
 
 FrontendのproxyがAPIへ接続するため、ブラウザへDB資格情報を渡しません。Frontendはloopbackの5173番で、`LINESCOPE_FRONTEND_PORT`により変更できます。変更後は同じComposeファイルとprofileで再作成します。通常の停止でvolumeを削除しないでください。
 

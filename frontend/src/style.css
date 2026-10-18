@@ -1120,3 +1120,111 @@ summary {
     grid-template-columns: 1fr;
   }
 }
+
+.incident-entry {
+  padding: 22px;
+  border: 1px solid var(--line);
+  background: var(--panel);
+  margin-bottom: 16px;
+}
+.incident-entry h1 {
+  font-size: 25px;
+}
+.incident-candidates {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 12px;
+  margin: 16px 0;
+}
+.incident-candidate {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  border: 1px solid var(--line);
+  padding: 14px;
+  border-radius: 8px;
+}
+.incident-candidate input {
+  width: auto;
+  margin-top: 7px;
+}
+.incident-candidate span,
+.incident-candidate small {
+  display: block;
+  overflow-wrap: anywhere;
+}
+.incident-period {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+.incident-results {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 310px;
+  gap: 16px;
+  align-items: start;
+}
+.incident-loss {
+  border: 1px solid var(--line);
+  border-top: 4px solid var(--accent);
+  border-radius: 8px;
+  overflow-wrap: anywhere;
+}
+.incident-loss h2 {
+  margin-top: 0;
+}
+.incident-amount {
+  color: var(--warn);
+  font-size: 28px;
+  font-weight: 750;
+  line-height: 1.4;
+}
+.incident-loss article {
+  border-top: 1px solid var(--line);
+  padding: 12px 0;
+}
+.incident-loss pre {
+  max-height: 320px;
+  overflow: auto;
+}
+@media (max-width: 1200px) {
+  .incident-results {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .incident-loss {
+    grid-row: 1;
+  }
+}
+@media (max-width: 600px) {
+  .incident-period {
+    grid-template-columns: 1fr;
+  }
+  .incident-entry {
+    padding: 14px;
+  }
+  .incident-entry h1 {
+    font-size: 22px;
+  }
+}
+.incident-controls summary {
+  cursor: pointer;
+  color: var(--accent);
+  padding: 8px 0;
+}
+.incident-loss small {
+  display: block;
+  color: var(--muted);
+}
+.incident-loss label {
+  display: block;
+  margin-top: 10px;
+}
+.incident-loss select {
+  display: block;
+  width: 100%;
+  margin: 6px 0;
+}
+.incident-loss article > button {
+  display: block;
+  margin: 8px 0;
+}

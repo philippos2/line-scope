@@ -41,6 +41,7 @@ export async function request(
     | "/health/ready"
     | "/agent"
     | "/decisions/compare"
+    | "/incidents/investigate"
     | `/maintenance-inputs/${string}`
     | `/safety-inputs/${string}`
     | `/capacity-inputs/${string}`

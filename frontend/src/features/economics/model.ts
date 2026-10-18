@@ -35,6 +35,14 @@ export type EconomicInput = {
     currency: string;
     options: CostOption[];
     cost_recovery?: CostRecovery | null;
+    incident_losses?: {
+      scope_key: string;
+      product_id: string;
+      loss_per_hour: string | null;
+      independent: boolean;
+      source: string;
+      certainty: string;
+    }[];
   };
 };
 export const optionNames: Record<string, string> = {
@@ -124,6 +132,21 @@ export function readInput(value: unknown): EconomicInput {
             typeof item.independent === "boolean",
         ),
     )
+  )
+    throw new Error("INVALID_RESPONSE");
+  if (
+    payload.incident_losses !== undefined &&
+    (!Array.isArray(payload.incident_losses) ||
+      !payload.incident_losses.every(
+        (row) =>
+          object(row) &&
+          ["scope_key", "product_id", "source", "certainty"].every(
+            (key) => typeof row[key] === "string",
+          ) &&
+          (row.loss_per_hour === null ||
+            typeof row.loss_per_hour === "string") &&
+          typeof row.independent === "boolean",
+      ))
   )
     throw new Error("INVALID_RESPONSE");
   if (payload.cost_recovery !== undefined && payload.cost_recovery !== null) {

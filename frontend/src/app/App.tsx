@@ -17,6 +17,7 @@ import {
 import { EvidencePanel } from "../features/evidence/EvidencePanel";
 import { GraphWorkspace } from "../features/graph/GraphWorkspace";
 import { detail, graphAnalyses, type NodeRef } from "../features/graph/model";
+import { IncidentWorkspace } from "../features/incidents/IncidentWorkspace";
 const panels = [
   ["investigation", "調査・回答"],
   ["comparison", "対応案を比べる"],
@@ -26,6 +27,9 @@ const panels = [
 ] as const;
 type Step = (typeof panels)[number][0];
 export function App() {
+  const [actionDraftVersion, setActionDraftVersion] = useState(0);
+  const [actionDraft, setActionDraft] = useState("");
+  const [incidentMode, setIncidentMode] = useState(true);
   const [step, setStep] = useState<Step>("investigation");
   const [graphEvidence, setGraphEvidence] = useState(false);
   const [comparisonResult, setComparisonResult] = useState<Envelope | null>(
@@ -125,6 +129,7 @@ export function App() {
     setStateResult(null);
     setStep("investigation");
     setEconomicPrepared(undefined);
+    setActionDraft("");
     freshContext.current = false;
     setConnected(false);
     setIdentity("");
@@ -195,6 +200,7 @@ export function App() {
         setStateResult(null);
         setStep("investigation");
         setEconomicPrepared(undefined);
+        setActionDraft("");
         freshContext.current = false;
         setConnected(true);
       },
@@ -271,6 +277,7 @@ export function App() {
           setStateEpoch(executionEpoch);
         }
         setEconomicPrepared(undefined);
+        setActionDraft("");
         setStale(false);
       },
     );
@@ -281,8 +288,11 @@ export function App() {
     if (focus) messageInput.current?.focus();
   }
   function chooseEquipment(item: EquipmentCandidate) {
+    setIncidentMode(false);
     if (busy) return;
     setEquipment(item);
+    setEconomicPrepared(undefined);
+    setActionDraft("");
     setDecisionEquipment(item);
     setComparisonResult(null);
     setDocumentResult(null);
@@ -362,12 +372,14 @@ export function App() {
       setComparisonStale(false);
       setDocumentResult(null);
       setEconomicPrepared(undefined);
+      setActionDraft("");
       setResult(null);
     }
     setGraphEvidence(false);
     setStep("comparison");
   }
   function prepareInput(id: string) {
+    setActionDraft("");
     setEconomicPrepared(id);
     setStep("execution");
   }
@@ -502,40 +514,90 @@ export function App() {
                 調査中です。ローカルLLMを使う場合は最大120秒程度かかります。
               </p>
             )}
-            <GraphWorkspace
-              key={equipment?.equipment_id ?? "none"}
-              result={graphDisplayResult}
-              selected={selected}
-              busy={busy}
-              stale={graphResult !== null && graphEpoch !== executionEpoch}
-              onSelect={setSelected}
-              onUseEquipment={useGraphEquipment}
-              onInvestigate={investigateGraph}
-              onRefresh={() =>
-                equipment &&
-                investigateGraph(
-                  `設備コード${equipment.equipment_code}の異常について影響・修理・交換・代替を比較して`,
-                )
-              }
-              onStart={() =>
-                investigateGraph(
-                  "登録設備を検索して候補を表示して。検索条件は指定しません。変更要求は作成しないでください。",
-                )
-              }
-              emptyContent={
-                searchResult ? (
-                  <EquipmentCandidates
-                    result={searchResult}
-                    disabled={busy}
-                    onSelect={chooseEquipment}
-                  />
-                ) : undefined
-              }
-              onEvidence={() => {
-                setGraphEvidence(true);
-                setStep("evidence");
-              }}
-            />
+            <nav className="context-tabs" aria-label="調査の種類">
+              <button
+                aria-pressed={incidentMode}
+                onClick={() => setIncidentMode(true)}
+              >
+                工場トラブルと被害額
+              </button>
+              <button
+                aria-pressed={!incidentMode}
+                onClick={() => setIncidentMode(false)}
+              >
+                設備単位の詳しい調査
+              </button>
+            </nav>
+            <div hidden={!incidentMode}>
+              <IncidentWorkspace
+                onPrepareState={(item, state) => {
+                  setDecisionEquipment(item);
+                  setComparisonResult(null);
+                  setDocumentResult(null);
+                  setResult(null);
+                  setEconomicPrepared(undefined);
+                  setActionDraft("");
+                  setActionDraftVersion((value) => value + 1);
+                  setActionDraft(
+                    `設備${item.equipment_code}の状態を${state}に変更する準備を作って`,
+                  );
+                  setStep("execution");
+                }}
+                executionEpoch={executionEpoch}
+                onUseEquipment={(item) => {
+                  if (decisionEquipment?.equipment_id !== item.equipment_id) {
+                    setDecisionEquipment(item);
+                    setComparisonResult(null);
+                    setComparisonStale(false);
+                    setDocumentResult(null);
+                    setEconomicPrepared(undefined);
+                    setActionDraft("");
+                    setResult(null);
+                  }
+                  setStep("comparison");
+                }}
+                onInvestigate={(text) => {
+                  setIncidentMode(false);
+                  investigateGraph(text);
+                }}
+              />
+            </div>
+            <div hidden={incidentMode}>
+              <GraphWorkspace
+                key={equipment?.equipment_id ?? "none"}
+                result={graphDisplayResult}
+                selected={selected}
+                busy={busy}
+                stale={graphResult !== null && graphEpoch !== executionEpoch}
+                onSelect={setSelected}
+                onUseEquipment={useGraphEquipment}
+                onInvestigate={investigateGraph}
+                onRefresh={() =>
+                  equipment &&
+                  investigateGraph(
+                    `設備コード${equipment.equipment_code}の異常について影響・修理・交換・代替を比較して`,
+                  )
+                }
+                onStart={() =>
+                  investigateGraph(
+                    "登録設備を検索して候補を表示して。検索条件は指定しません。変更要求は作成しないでください。",
+                  )
+                }
+                emptyContent={
+                  searchResult ? (
+                    <EquipmentCandidates
+                      result={searchResult}
+                      disabled={busy}
+                      onSelect={chooseEquipment}
+                    />
+                  ) : undefined
+                }
+                onEvidence={() => {
+                  setGraphEvidence(true);
+                  setStep("evidence");
+                }}
+              />
+            </div>
             <nav className="context-tabs" aria-label="調査に続く操作">
               {panels.map(([key, title]) => (
                 <button
@@ -794,7 +856,14 @@ export function App() {
                 <li>元の依頼者：再接続し、IDから読み直して実行する。</li>
               </ol>
               <ActionPanel
-                key={decisionEquipment?.equipment_id ?? "none"}
+                key={
+                  (decisionEquipment?.equipment_id ?? "none") +
+                  ":" +
+                  actionDraftVersion +
+                  ":" +
+                  actionDraft
+                }
+                initialMessage={actionDraft}
                 initiallyOpen
                 onExecution={() => {
                   setStale(true);

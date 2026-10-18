@@ -49,7 +49,8 @@ export function graphAnalyses(
       )
         entries.push({
           key: `${row.tool}:${index}`,
-          title: graphTools[row.tool],
+          title:
+            typeof row.title === "string" ? row.title : graphTools[row.tool],
           data: row.data,
         });
     });
@@ -153,8 +154,9 @@ export function detail(result: Envelope, nodeRef: NodeRef): JsonObject {
   if (Array.isArray(result.data.tool_results))
     for (const row of [...result.data.tool_results].reverse()) {
       if (!object(row) || !object(row.data)) continue;
-      if (row.data[id] === nodeRef.entity_id) return row.data;
-      if (Array.isArray(row.data.items)) {
+      if (row.tool === `get_${prefix}` && row.data[id] === nodeRef.entity_id)
+        return row.data;
+      if (row.tool === `search_${prefix}` && Array.isArray(row.data.items)) {
         const match = row.data.items.find(
           (item) => object(item) && item[id] === nodeRef.entity_id,
         );
@@ -166,6 +168,11 @@ export function detail(result: Envelope, nodeRef: NodeRef): JsonObject {
 export function label(result: Envelope, item: NodeRef): string {
   const data = detail(result, item);
   const prefix = fields[item.entity_type];
+  if (
+    item.entity_type === "ProductionOperation" &&
+    typeof data.operation_code === "string"
+  )
+    return data.operation_code;
   for (const key of [`${prefix}_name`, `${prefix}_code`])
     if (typeof data[key] === "string") return data[key];
   return typeLabel(item.entity_type) + " · " + item.entity_id.slice(0, 8);
