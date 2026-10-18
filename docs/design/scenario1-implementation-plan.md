@@ -1,6 +1,6 @@
 # シナリオ1：残項目と改修計画
 
-**状態：文書#264・Backend#263はmerge済み。一画面UIはブランチに保存済み。A案データの再測定は成功し、報告後のUI修正承認を待つ。** [UI設計案](frontend-redesign-proposal.md)と[画面案](scenario1-wireframes.svg)を参照する。既存3コミットは維持し、データと実測結果を追加コミットに分離する。
+**状態：文書#264・Backend#263はmerge済み。一画面UIはブランチに保存済み。A案データの再測定は成功し、報告後の明示承認を受けてPR #265内でUIを修正・検証する。** [UI設計案](frontend-redesign-proposal.md)と[画面案](scenario1-wireframes.svg)を参照する。既存3コミットは維持し、データと実測結果を追加コミットに分離する。
 
 ## 1. 完成させる流れ
 

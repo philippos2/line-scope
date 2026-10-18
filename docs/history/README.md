@@ -643,3 +643,5 @@ Dockerで追加36テスト成功、ruff check / format、git diff --check成功�
 - [旧2台停止デモの廃止と表示先の混在への対応](2026-10-18-retire-two-stopped-demo.md)
 
 - [シナリオ1のA案データ修正と実API再測定](2026-10-19-scenario1-availability.md)
+
+- [UIの利用可能性・インフラ名・ブラウザ環境の修正](2026-10-19-ui-availability-and-environments.md)

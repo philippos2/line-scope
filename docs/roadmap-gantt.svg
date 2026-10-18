@@ -24,17 +24,17 @@
 <text x="28" y="286" font-size="19">A案データ再測定</text>
 <text x="28" y="308" font-size="14">利用可能性・額・能力の再照合</text>
 <rect x="805" y="268" width="172" height="40" rx="5" fill="#64748b"/>
-<text x="891" y="294" text-anchor="middle" font-size="15" fill="white">測定完了・報告</text>
+<text x="891" y="294" text-anchor="middle" font-size="15" fill="white">測定・承認完了</text>
 <path d="M977 288h8v61h10" fill="none" stroke="#64748b" stroke-width="2"/>
 <text x="28" y="347" font-size="19">単一画面UI・受入</text>
 <text x="28" y="369" font-size="14">実画面・CI・片付けまで</text>
 <rect x="990" y="329" width="172" height="40" rx="5" fill="#31788b"/>
-<text x="1076" y="355" text-anchor="middle" font-size="15" fill="white">修正承認待ち</text>
+<text x="1076" y="355" text-anchor="middle" font-size="15" fill="white">ローカル検証済み</text>
 <path d="M1162 349h8v61h10" fill="none" stroke="#64748b" stroke-width="2"/>
 <text x="28" y="408" font-size="19">利用者確認</text>
 <text x="28" y="430" font-size="14">導線と意味を実際に確認</text>
 <rect x="1175" y="390" width="172" height="40" rx="5" fill="#64748b"/>
 <text x="1261" y="416" text-anchor="middle" font-size="15" fill="white">確認待ち</text>
-<text x="28" y="493" font-size="17">同じDraft PRで進行。データ測定を先行し、報告後にUI修正の明示承認を待つ。</text>
-<text x="28" y="522" font-size="15">横軸は相対的な工程順であり日付・人日ではない。UI修正は再測定の報告と承認後。</text>
+<text x="28" y="493" font-size="17">同じDraft PRで進行。データ測定・報告・承認を経てUI修正と新UI検証。</text>
+<text x="28" y="522" font-size="15">横軸は相対的な工程順であり日付・人日ではない。最終のブラウザ確認と5173番切替の確認は別々に行う。</text>
 </g></svg>
