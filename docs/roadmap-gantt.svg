@@ -1,17 +1,17 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1510" height="520" viewBox="0 0 1510 520" role="img" aria-labelledby="title desc">
 <title id="title">LineScopeの常設導入とシナリオUIの残工程</title>
-<desc id="desc">全体約85%。第1段階はGraph中心の基本調査、第2段階は共通依存・代替・SPOF、第3段階は判断・変更との連動。残り計画実装1 PRと利用者確認。</desc>
+<desc id="desc">第1段階はGraph中心の基本調査、第2段階は共通依存・代替・SPOF、第3段階は判断・変更との連動。計画実装は完了。利用者確認と必要な不具合対応が残る。</desc>
 <rect width="1510" height="520" fill="white"/>
 <g font-family="sans-serif" fill="#24384b">
-<text x="24" y="36" font-size="24" font-weight="bold">全体 約85% ／ Graph中心UIの残り計画実装1 PR＋利用者確認</text>
+<text x="24" y="36" font-size="24" font-weight="bold">計画実装は完了 ／ 残り：利用者確認と必要な不具合対応</text>
 <text x="24" y="70" font-size="15">常設の必須部品は接続済み。関係と影響を理解できる操作体験を、段階ごとに実機と利用者で確認する。</text>
 <path d="M490 120V430 M720 120V430 M950 120V430 M1180 120V430 M1410 120V430" stroke="#d8e1ea"/>
 <text x="605" y="110" text-anchor="middle" font-size="16">工程1</text><text x="835" y="110" text-anchor="middle" font-size="16">工程2</text><text x="1065" y="110" text-anchor="middle" font-size="16">工程3</text>
 <text x="24" y="159" font-size="18" font-weight="bold">Graph中心の基本調査</text><text x="24" y="185" font-size="13">開始導線・影響範囲・経路・ノード選択</text><rect x="494" y="138" width="222" height="42" rx="4" fill="#446d95"/><text x="605" y="165" text-anchor="middle" font-size="16" fill="white">第1段階：完了 #256</text>
 <text x="24" y="239" font-size="18" font-weight="bold">共通依存・代替・SPOF</text><text x="24" y="265" font-size="13">複数ノード・除外対象を選んで構造分析</text><rect x="724" y="218" width="222" height="42" rx="4" fill="#446d95"/><text x="835" y="245" text-anchor="middle" font-size="16" fill="white">第2段階：完了 #257</text>
-<text x="24" y="319" font-size="18" font-weight="bold">判断・変更との連動</text><text x="24" y="345" font-size="13">比較・根拠・承認後のGraph再取得</text><rect x="954" y="298" width="222" height="42" rx="4" fill="#966c29"/><text x="1065" y="325" text-anchor="middle" font-size="16" fill="white">第3段階：対象引継ぎ</text>
+<text x="24" y="319" font-size="18" font-weight="bold">判断・変更との連動</text><text x="24" y="345" font-size="13">比較・根拠・承認後のGraph再取得</text><rect x="954" y="298" width="222" height="42" rx="4" fill="#446d95"/><text x="1065" y="325" text-anchor="middle" font-size="16" fill="white">第3段階：完了 #258</text>
 <text x="1295" y="110" text-anchor="middle" font-size="16">利用者確認</text>
-<text x="24" y="399" font-size="18" font-weight="bold">常設UIでの操作確認</text><text x="24" y="425" font-size="13">開発依頼者による確認・必要な不具合の修正</text><rect x="1184" y="378" width="222" height="42" rx="4" fill="#966c29"/><text x="1295" y="405" text-anchor="middle" font-size="16" fill="white">merge後・未確認</text>
-<text x="24" y="477" font-size="15">第1段階（#256）・第2段階（#257）はmerge済み。第3段階は今回PRで引渡し、利用者確認へ進む。</text>
+<text x="24" y="399" font-size="18" font-weight="bold">常設UIでの操作確認</text><text x="24" y="425" font-size="13">開発依頼者による確認・必要な不具合の修正</text><rect x="1184" y="378" width="222" height="42" rx="4" fill="#966c29"/><text x="1295" y="405" text-anchor="middle" font-size="16" fill="white">受入確認中</text>
+<text x="24" y="477" font-size="15">第1〜3段階（#256・#257・#258）はmerge済み。残り計画機能実装0 PR。不具合修正は内容を精査する。</text>
 <text x="24" y="506" font-size="14">自然文の精度・レイテンシの改善は別課題。認可・承認・データ整合性は維持する。</text>
 </g></svg>
