@@ -10,7 +10,7 @@
 - 同一scopeの宣言を照合し、一致なら1回、不一致なら当該範囲全体を除外。入力不足・期間・探索不完全・状態の適用不明を完全合計に変換しない。
 - 認可された読取API `POST /incidents/investigate` を追加。Applicationが既存ReadTools・GraphAnalysis・EconomicInputsを組み合わせ、HTTP handlerにはDB操作・業務計算を置かない。LLMへ新Toolや確定操作を追加していない。
 - Snapshot v7とmigration 013を追加。before / afterのどちらかに新根拠があればv7。過去v2 / v6のcanonical形状は維持し、承認・version・retry・履歴・監査の共通制御を再利用した。
-- 専用デモの初期Graphと正式入力9件（経済2、安全2、修理／交換4、能力1）を同じ管理transactionで投入。既存の名称・状態・version・入力payloadは再投入で上書きしない。初期管理データにApprovalや業務履歴を捏造しない。
+- 専用デモの初期Graphと正式入力11件（経済2、安全2、修理／交換4、過去故障2、能力1）を同じ管理transactionで投入。既存の名称・状態・version・入力payloadは再投入で上書きしない。初期管理データにApprovalや業務履歴を捏造しない。
 - 共有P-100は12万円／時間、個別P-200は8万円／時間、P-300は5万円／時間の架空根拠。登録範囲の両設備停止時合計は25万円／時間。参考文書と専用環境の投入・読取手順を追加した。
 
 ## 検証
@@ -19,7 +19,7 @@
 - 新規20件：4.72秒で成功。最終コードで再実行も成功。
 - 経済入力・Snapshot・承認・Golden・DB role・旧デモの関連回帰193件：22.26秒で成功。
 - Docker内Ruff check成功、format checkは389ファイル成功。
-- 最終Backendから配布runtime imageをbuildし、所有する使い捨てDBでmigration→seed-demo-incident→再投入を確認。正式入力9件、再投入の新規0件、読取API用selectionを確認した。
+- 最終Backendから配布runtime imageをbuildし、所有する使い捨てDBでmigration→seed-demo-incident→再投入を確認。正式入力11件、再投入の新規0件、読取API用selectionを確認した。
 - ローカル試験は既存test imageへ変更後のBackendを明示mountして実行した。hostでBackendテスト・lintは実行していない。
 - Starletteのhttpx非推奨警告1件と試験終了後のlogger出力失敗メッセージが残る。試験の失敗ではないが、ログに残し無警告とは報告しない。
 - 最新headのCI・scope・required checks・片付けの結果はPR本文に追記する。
@@ -35,3 +35,5 @@ P2で常設デモへの導入方法を確認し、Graphに隣接する金額要�
 最初の全体CIでは4005件を収集し、6件が失敗した。5件は既存のmigration適用一覧に013を追記していなかったこと、1件は正式対応したv7を未知版として拒否させる旧条件が原因。適用済みデータの保持・checksum・未知版拒否の検証を維持し、一覧へ013を追加、拒否対象をv8へ更新した。新規ケース数は増やしていない。
 
 対象5ファイルの既存試験をDocker内で再実行して成功した。最新headの全体CIを再確認し、結果はPR本文に記録する。
+
+最終データレビューで、P0に含めた過去履歴のfixtureが不足していたため、過去故障2件を追加した。過去損失は今回の率や将来費用へ加算せず、正式入力は計11件。新規テスト件数は20件のまま、初期投入の試験で件数も確認する。

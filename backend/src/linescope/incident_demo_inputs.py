@@ -112,6 +112,30 @@ def records():
                     },
                 )
             )
+        result.append(
+            make_record(
+                "maintenance",
+                code + "-INCIDENT-FAILURE_RECORD",
+                str(identifier),
+                {
+                    "period_start": "2026-10-01T00:00:00Z",
+                    "period_end": "2026-10-02T00:00:00Z",
+                    "kind": "FAILURE_RECORD",
+                    "source": SOURCE,
+                    "details": "架空の過去異常記録。現在異常の原因確定や将来故障率を意味しない。",
+                    "risk_notes": "過去損失は今回の時間当たり損失や将来対応費へ加算しない",
+                    "maintenance_plan_id": None,
+                    "interim_until": None,
+                    "include_replacement_cost": None,
+                    "lead_time_hours": None,
+                    "work_hours": None,
+                    "downtime_hours": "1",
+                    "direct_cost_jpy": None,
+                    "past_loss_jpy": "125000" if index == 0 else "50000",
+                    "replacement_cost_jpy": None,
+                },
+            )
+        )
     result.append(
         make_record(
             "capacity",

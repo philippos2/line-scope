@@ -23,6 +23,7 @@ def test_incident_cli_initializes_shared_and_individual_impact_data(source, monk
         assert connection.execute("SELECT count(*) AS n FROM update_request").fetchone()["n"] == 0
     assert counts(source)["production_operation_equipment_assignment"] == 2
     assert counts(source)["product"] == 3
+    assert len(seed_incident_demo(source)["registered_inputs"]["retained"]) == 11
     assert counts(source)["dependency_relation"] == 15
     again = seed_incident_demo(source)
     assert again["inserted"] == [] and len(again["retained"]) == len(FIXTURES)
