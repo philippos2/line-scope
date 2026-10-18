@@ -5,7 +5,7 @@
 <text x="30" y="105" font-size="22">A  検索前：設備は固定表示しない</text>
 <rect x="25" y="123" width="1430" height="540" rx="7" fill="#fff" stroke="#b8c9d4"/>
 <rect x="25" y="123" width="1430" height="45" rx="7" fill="#163a4b" stroke="#163a4b"/>
-<text x="45" y="152" font-size="20" fill="white">LineScope   設備を調べる</text>
+<text x="45" y="152" font-size="20" fill="white">LineScope   設備調査</text>
 <text x="1210" y="152" font-size="15" fill="white">接続設定／解除</text>
 <rect x="40" y="183" width="225" height="415" rx="7" fill="#f8fbfd" stroke="#b8c9d4"/>
 <text x="55" y="210" font-size="19">設備を探す</text>
@@ -35,7 +35,7 @@
 <text x="30" y="700" font-size="22">B  M-204調査後：影響と額・代替を一画面で読む</text>
 <rect x="25" y="718" width="1430" height="570" rx="7" fill="#fff" stroke="#b8c9d4"/>
 <rect x="25" y="718" width="1430" height="45" rx="7" fill="#163a4b" stroke="#163a4b"/>
-<text x="45" y="747" font-size="20" fill="white">LineScope   設備を調べる</text>
+<text x="45" y="747" font-size="20" fill="white">LineScope   設備調査</text>
 <text x="1210" y="747" font-size="15" fill="white">接続設定／解除</text>
 <rect x="40" y="778" width="225" height="415" rx="7" fill="#f8fbfd" stroke="#b8c9d4"/>
 <text x="55" y="805" font-size="19">設備を探す</text>
@@ -101,7 +101,7 @@
 <text x="30" y="1330" font-size="22">C  M-208へ調査対象を切替：古い額と提案は残さない</text>
 <rect x="25" y="1348" width="1430" height="540" rx="7" fill="#fff" stroke="#b8c9d4"/>
 <rect x="25" y="1348" width="1430" height="45" rx="7" fill="#163a4b" stroke="#163a4b"/>
-<text x="45" y="1377" font-size="20" fill="white">LineScope   設備を調べる</text>
+<text x="45" y="1377" font-size="20" fill="white">LineScope   設備調査</text>
 <text x="1210" y="1377" font-size="15" fill="white">接続設定／解除</text>
 <rect x="40" y="1408" width="225" height="415" rx="7" fill="#f8fbfd" stroke="#b8c9d4"/>
 <text x="55" y="1435" font-size="19">設備を探す</text>
