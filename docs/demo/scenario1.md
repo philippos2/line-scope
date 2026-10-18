@@ -1,6 +1,6 @@
 # シナリオ1：JSONデータの投入とAPI確認
 
-M-204停止→影響先P-100／P-200→登録条件による200,000円／時間→稼働中M-208を代替候補として提示する初期データ。[JSON](data/scenario1.json)だけに値を置き、Pythonには固定の形式検証とコード参照の変換を置く。
+M-204が主軸異常で停止→影響先P-100／P-200→登録条件による200,000円／時間→稼働中M-208を代替候補として提示する初期データ。[JSON](data/scenario1.json)だけに値を置き、Pythonには固定の形式検証とコード参照の変換を置く。
 
 この段階で提供するのはBackendの読取経路と再現データ。単一画面UIは後続PR 2の別承認後に実装する。[計画](../design/scenario1-implementation-plan.md)を参照する。
 
@@ -34,7 +34,7 @@ APIは初期投入前でも起動するが、正常な関係分析は投入と�
 - 全投入を一transactionに収める。既存のGraph mutation lockとcontrol行lockを保持し、途中の正式入力失敗でもGraph・設備・入力・control変更をrollbackする。
 - CLIは管理用。HTTP／Agentからファイル投入を公開しない。ファイル内容・SQL・秘密値をCLI失敗メッセージへ出さない。
 
-既存seed-demo／seed-demo-graph／seed-demo-incidentのデータと動作は変更しない。新データの安全入力・保全入力は登録しない。
+公開デモにはこのJSONを使用する。新データの安全入力・保全入力は登録しない。
 
 ## 照合する読取操作
 

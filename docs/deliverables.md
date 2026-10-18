@@ -97,7 +97,7 @@ POはUC-B01〜15とBusiness Scenarioの意図を既存仕様との不整合時�
 
 - [README](../README.md)：目的、代表操作、構成と資料一覧。
 - [起動・操作ガイド](getting-started.md)：環境構築とブラウザ操作。
-- [2台トラブルのデモ構成](demo/incident-story.md)：架空データ、初期投入と調査API。
+- [M-204停止と代替候補のデモ構成](demo/scenario1.md)：架空データ、初期投入と調査API。
 - [設計FAQ](design-faq.md)：設計理由、制約、正本への案内。
 - [Frontend画面設計](design/frontend-console.md)：画面の責務と操作。
 - [Frontend README](../frontend/README.md)：画面の起動・検証手順。

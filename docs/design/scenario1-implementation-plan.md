@@ -32,7 +32,7 @@
 | 候補と能力の照合 | [capacity](../../backend/src/linescope/application/capacity.py)のsearchはequipment_id完全一致あり | 候補IDで検索、cursorを最後まで追跡。0件は未登録、1件は自動選択、複数件は利用者が選択。候補以外の入力を混ぜない |
 | 判定API | [registered_decision](../../backend/src/linescope/application/registered_decision.py)は元設備ID＋代替設備のcapacity_input_idsを受け、入力の共通期間を検証 | 元設備をM-204に保ち、M-208の入力IDを送る。安全・保全は空配列。期間は読取専用。製品単位と他製品未評価を明示 |
 | 既存表示 | [DecisionComparison](../../frontend/src/features/decision/DecisionComparison.tsx)はrequired_rate／available_rateを表示。[decision](../../backend/src/linescope/domain/decision.py)はSUBSTITUTE案へ製品・能力・不足を返す | 主画面の小さな提案表示へ再利用。全比較は下段に残す。現行の内部列挙値表示を日本語へ揃える |
-| 基本シード | seed-demoは設備、seed-demo-graphは関係で能力入力なし。seed-demo-incidentは能力等を持つが二台停止 | 新JSONにシナリオ1だけの正式入力を置く。既存関数・既定値・fixtureを変更しない |
+| 基本シード | 公開デモはscenario1.jsonから投入。旧2台停止デモの投入経路は廃止 | JSONにシナリオ1の正式入力を置く。計算回帰試験はテスト専用fixtureで維持 |
 | ID生成 | [demo_seed](../../backend/src/linescope/demo_seed.py)の設備IDは固定UUID。[demo_graph_seed](../../backend/src/linescope/demo_graph_seed.py)のdemo_idはuuid5 | 新ローダーではdemo_idと同じnamespace／label規則でコードからID生成し、参照を同じ方式で解決。既存の固定設備IDは変更しない。旧データとの混在を避ける専用環境で検証 |
 | 安全・保全 | 未選択なら比較は不明を保持する | 今回のJSONには登録しない。品質・残余リスクも不明として表示。既存の停止必須・認可等の制御は弱めない |
 | 無関係設備 | 必須ではない | 今回は追加しない。検索操作と結果の意味を確認し、件数を増やすためだけのデータは加えない |
