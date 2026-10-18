@@ -285,6 +285,49 @@ export function EconomicEditor({
             </>
           )}
         </fieldset>
+        {value.payload.incident_losses && (
+          <fieldset>
+            <legend>調査用の停止損失根拠（円／時間）</legend>
+            <p>
+              製品・範囲・出典を保持して訂正します。修理案の費用とは別の根拠です。
+            </p>
+            {value.payload.incident_losses.map((row, index) => (
+              <section key={row.scope_key}>
+                <p>
+                  {row.scope_key} ／ 製品ID：{row.product_id}
+                </p>
+                <label>
+                  時間当たり損失：{row.scope_key}
+                  <input
+                    value={row.loss_per_hour ?? ""}
+                    onChange={(e) => {
+                      setValue((old) => ({
+                        ...old,
+                        payload: {
+                          ...old.payload,
+                          incident_losses: old.payload.incident_losses?.map(
+                            (item, i) =>
+                              i === index
+                                ? {
+                                    ...item,
+                                    loss_per_hour: e.target.value || null,
+                                  }
+                                : item,
+                          ),
+                        },
+                      }));
+                      setSavedId("");
+                    }}
+                  />
+                </label>
+                <p>
+                  出典：{row.source} ／{" "}
+                  {row.independent ? "独立加算可能と登録" : "独立性は未確認"}
+                </p>
+              </section>
+            ))}
+          </fieldset>
+        )}
         {value.payload.options.map((choice, index) => (
           <fieldset key={choice.option} disabled={busy}>
             <legend>{optionNames[choice.option] ?? choice.option}</legend>

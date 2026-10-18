@@ -64,8 +64,9 @@ export function GraphWorkspace({
         )
       : [];
   const downstream =
-    active?.key === "impact" ||
-    active?.key.startsWith("trace_downstream_impact:");
+    view?.data.analysis_scope !== "MULTIPLE_REGISTERED_IMPACTS" &&
+    (active?.key === "impact" ||
+      active?.key.startsWith("trace_downstream_impact:"));
   function analyze(tool: string, args: Record<string, unknown>) {
     onInvestigate(`関係分析 ${JSON.stringify({ tool, arguments: args })}`);
   }
@@ -140,6 +141,9 @@ export function GraphWorkspace({
         <>
           <GraphInvestigation
             result={result}
+            initiallyOpen={
+              view.data.analysis_scope !== "MULTIPLE_REGISTERED_IMPACTS"
+            }
             selected={selection ?? null}
             busy={busy}
             onAnalyze={analyze}

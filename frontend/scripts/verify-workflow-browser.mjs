@@ -37,6 +37,9 @@ try {
     await expect(
       targetPage.getByRole("navigation", { name: "調査に続く操作" }),
     ).toBeVisible();
+    await targetPage
+      .getByRole("button", { name: "設備単位の詳しい調査", exact: true })
+      .click();
   }
   async function step(name) {
     await page

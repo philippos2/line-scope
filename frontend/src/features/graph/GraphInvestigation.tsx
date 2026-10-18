@@ -7,7 +7,9 @@ export function GraphInvestigation({
   selected,
   busy,
   onAnalyze,
+  initiallyOpen = true,
 }: {
+  initiallyOpen?: boolean;
   result: Envelope;
   selected: NodeRef | null;
   busy: boolean;
@@ -65,7 +67,7 @@ export function GraphInvestigation({
     );
   }
   return (
-    <details className="graph-investigation" open>
+    <details className="graph-investigation" open={initiallyOpen}>
       <summary>複数の対象から関係を調べる</summary>
       <p>
         製品や生産作業を重要対象に追加し、依存先の共通点や、設備・インフラを失った場合の構造を調べます。
