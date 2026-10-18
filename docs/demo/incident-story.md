@@ -27,4 +27,27 @@
 docker compose run --rm migrate linescope seed-demo-incident
 ```
 
-現在の追加実装は初期Graphデータまで。損失入力・集計と一連のUIはP1・P2の残項目であり、このコマンドだけで完成シナリオにはならない。
+CLIの応答に `investigation` を返す。そこには調査に使う設備ID・経済入力IDと共通期間が揃う。このobjectを `POST /incidents/investigate` のJSON本文に指定する。tokenは私有設定の値を使い、ファイルやURLへ公開しない。
+
+```sh
+curl -sS http://127.0.0.1:8000/incidents/investigate \
+  -H "Authorization: Bearer $LINESCOPE_TOKEN" \
+  -H 'Content-Type: application/json' \
+  --data-binary @/private/incident-selection.json
+```
+
+`data.impacts`に設備別の影響経路、`data.loss`に推定損失と内訳、`evidence`に入力version・Graph世代・時点を返す。金額を表示するUIはP2の残項目。
+
+## 損失と対応条件
+
+- 共通評価期間：2026-10-18T00:00:00Z〜2026-10-19T00:00:00Z。金額は架空の登録仮定で、現在時刻で有効な値へ自動延長しない。
+- P-100：120000 JPY/hour、P-200：80000 JPY/hour、P-300：50000 JPY/hour。共有範囲を1回だけ数え、両設備停止時の登録範囲は250000 JPY/hour。
+- 各設備の修理：直接費300000円、作業・停止8時間。交換：交換費2400000円、調達待ち336時間・作業4時間・停止2時間。修理案の費用計算と調査対象の時間当たり損失を区別する。
+- 各設備の安全入力は停止必須。M-208の代替能力入力は必要100個／時間、利用可能40個／時間。現在状態・能力・安全をそれぞれ確認し、構造上の候補だけで利用可能としない。
+- 初期データは管理者が投入するfixture。業務上のApprovalや監査履歴を捏造しない。以後の訂正は正式入力のPrepare・別manager承認・元requester実行を使う。
+
+## 文書検索の準備
+
+[架空トラブルの参考文書](knowledge/incident-recovery.md)を、実Embedding・Qdrantを設定した専用環境で管理CLI `ingest-knowledge` から取り込む。CLIのfile引数はコンテナから読める場所を指定する。document code例は `INCIDENT-RECOVERY`、versionは1。本文の率は説明用で、APIが金額を計算するときは正式経済入力を正本にする。
+
+文書の取込み・実検索手順は[起動ガイド](../getting-started.md#全部品を含む常設環境)を参照する。P1でこの文書の実Embedding取込み・検索を実行したことにはしない。P2の通し確認で実検索を確認する。

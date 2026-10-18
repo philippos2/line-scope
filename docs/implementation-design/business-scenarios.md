@@ -477,3 +477,11 @@ PO-B03と能力情報のPO-B07は確定済み。CapacityInputに同一製品・�
 | G01 | interfaces/test_golden_registered_acceptance.py、frontend/scripts/verify-comparison.mjs | 正式入力から比較・根拠・未知・承認更新の代表経路。一般LLM／検索品質と全UI variantの受入は別判定 |
 
 実LLMはread-demo-v2のTool選択・構造化結果と文章を別判定する。検索はretrieval-demo-v1の6文書・6質問でhit@1、recall@3、MRR、正本引用の一致を測る。小規模合成datasetの成功を実運用全体の品質保証へ拡大しない。一般品質閾値はevals §6に従いbaseline確認後のPO承認を必要とする。
+
+## 2台停止デモの影響・損失fixture
+
+`seed-demo-incident`の新規専用環境でM-204・M-208をSTOPPEDとして投入する。M-204はP-100・P-200、M-208はP-100・P-300へ到達する。正式経済入力の共通期間は2026-10-18T00:00:00Z〜2026-10-19T00:00:00Z。
+
+共通台帳のscope_keyは製品ごとに固定し、P-100=120000、P-200=80000、P-300=50000 JPY/hourを独立加算可能な架空推定として登録する。両設備から到達するP-100を1回だけ数え、登録範囲の合計250000 JPY/hourを得る。未知・不一致・期間不一致なら完全合計は不明。M-208をRUNNINGへ変更した後の読取では、M-204側の選択停止範囲200000 JPY/hourを得るが、実生産や安全回復の認定はしない。
+
+損失根拠の訂正はv7の承認付き更新で行い、再調査で新versionを確認する。停止状態の直接DB変更は読取試験fixtureの準備と区別し、業務UIからの状態変更・再調査はP2で確認する。

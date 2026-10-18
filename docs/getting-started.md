@@ -35,6 +35,8 @@ docker compose up -d projection
 
 PostgreSQLのmigration / role付与とNeo4jのhealth確認後にAPI・Projectionを起動します。APIは`127.0.0.1:8000`に公開し、DB portはホストへ公開しません。API portは`LINESCOPE_API_PORT`で変更できます。seedはM-204（STOPPED）・M-208（RUNNING）と工程・生産作業・製品・インフラの関係を初期投入し、再実行で既存の状態やversionをリセットしません。seed自体は依存Graphの生成を行いません。後続の管理CLIで正本から検証済みgenerationを構築します。未構築の間はworkerがBLOCKEDとなり、Graph分析は利用できません。
 
+2台停止の影響・損失を検証する新規専用環境では、上記の `seed-demo-graph` を `seed-demo-incident` に置き換えます。[2台トラブルのデモ構成](demo/incident-story.md)に投入対象・登録条件・読取APIを記載しています。既存環境へ上書きする操作ではありません。
+
 ## ブラウザで操作する
 
 上記のseedとGraph Rebuildを完了してからFrontendを起動します。ホストにNodeをインストールする必要はありません。

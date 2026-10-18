@@ -483,3 +483,23 @@ Agentの比較Tool admissionは、元の問い合わせ中のJSON選択とTool�
 - 日次稼働・両仮定・交換／継続の費用範囲の申告・独立かつ既知の項目がそろい、劣化項目の時間が全稼働時間に一致する場合だけCONDITIONAL。交換案のDIRECT合計÷（継続案のDEGRADATION率合計×日次稼働）を計算する。未知・仮定false・不適用はUNKNOWN、劣化率0はNO_RECOVERY_FROM_DECLARED_LOSSとしてdays=null。0へ補完しない。
 - 比較のcomparison.simple_cost_recoveryにも同じ結果を保持。画面・Agentはサーバ算出の日数・式・仮定を示し、LLMやFrontendへ再計算を委ねない。
 - Snapshot v6の選定・旧v2互換はdata-modelとtransaction-designを正とする。新規のPrepare Tool・承認権限は追加しない。
+
+## 複数設備の影響と停止損失の調査
+
+`POST /incidents/investigate`はmanager / maintenance / production向けの明示的な読取API。AgentへのTool追加、Prepare・Approval・Executeの公開拡大ではない。認証済みExecutionContextを使い、本文のrole等は拒否する。
+
+```json
+{
+  "equipment_ids": ["20400000-0000-4000-8000-000000000001", "20800000-0000-4000-8000-000000000001"],
+  "economic_input_ids": [],
+  "period_start": "2026-10-18T00:00:00Z",
+  "period_end": "2026-10-19T00:00:00Z"
+}
+```
+
+- 設備は1〜10件、経済入力は0〜10件。UUIDは型検証・正規化し、重複・未知field・逆転期間を400で拒否する。選択外設備の経済入力はBUSINESS_RULE_VIOLATION。
+- 共通のGraph評価時点で各設備の下流影響を既存CURRENT gate経由で取得する。分析間のgeneration変更は拒否し、全ストアの同時Snapshotとは説明しない。
+- `data.impacts`は設備属性・現在状態/version・影響Graph・到達製品IDを持つ。`data.loss`は`loss_per_hour`、`known_subtotal_per_hour`、JPY/hour、登録範囲、complete、各scopeの内訳・重複宣言・算入回数・除外理由・不足を返す。
+- 率はEconomicInput.payloadの任意`incident_losses`から取得する。配列1〜30件、scope_keyは入力内一意・100文字以内。各項目は`scope_key`、`product_id`（UUID）、`loss_per_hour`（既存の非負十進文字列制約、NULL可）、`independent`（boolean）、`source`（既存bounded text）、`certainty`（ESTIMATED / CONFIRMED）を必須とする。省略は既存payloadを維持し、率を修理案から自動転記しない。
+- 入力は正本から再読込し、共通期間の一致・各停止設備の影響製品の網羅を照合する。率が不明、非独立、同一scopeの宣言不一致、期間不一致等は完全合計をNULLにしてpartialで返す。既知小計は完全合計と区別する。Graph・認可等のerrorは既存status対応に従う。
+- `evidence`に各Graphの根拠、世代・時点、PG観測時刻と状態version、正式入力のID・version・出典を残す。金額は登録条件下の推定。`actual_damage_confirmed=false`、`cumulative_loss=null`、`automatic_state_change=false`を保持する。

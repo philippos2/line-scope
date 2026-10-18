@@ -289,3 +289,9 @@ Dockerで`pytest -p no:cacheprovider backend/tests/interfaces/test_controlled_ac
 新規pytestは展開後18件を予定する。純粋計算4件（現在状態3水準と計画小計の非合算）、実PG / Graph / HTTP 14件（role 4、厳密入力4、Golden代表、欠落、期間不一致、設備不一致、version再取得、非CURRENT）。無条件の直積を作らない。既存の比較APIシナリオ7件は明示登録fixtureに移行し、元の数値・未知・非加算を実DB入力で検証する。
 
 旧デモ算術の単体試験は、過去の固定fixtureの性質を確認する隔離試験として残す。現行APIの受入根拠にしない。正式経路でMOCK_FIXTUREが返らず、分析がPrepare・Approval・Executeを行わないことを確認する。画面は実API、実モデルは読取Tool接続を確認し、一般LLM／検索品質の包括合格を宣言しない。
+
+## 複数設備の停止損失調査
+
+P1の新規試験は展開後20件。初期投入・保持・rollback・構築済み拒否・実Graph5件、純粋な集計・入力・Snapshot8件、HTTP認可・実PG／Neo4j・期間／欠落／非CURRENT・承認付き訂正7件。全直積を生成せず、共有範囲の一回計上と不完全合計の拒否を中心に代表・境界を選ぶ。
+
+対象はUC-B01・05、BS-09・16と追加受入。既存の経済入力・Snapshot・承認・ロール・migrationの回帰も実行する。実UIで被害額を発見し、一連の対応を操作する受入はP2で確認し、API試験で代用しない。

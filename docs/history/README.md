@@ -629,3 +629,5 @@ Dockerで追加36テスト成功、ruff check / format、git diff --check成功�
 - [機材トラブルの影響・損失提示と計画の見直し](2026-10-18-incident-impact-plan.md)
 
 - [P1：2台の異常データと実Graphのcheckpoint](2026-10-18-incident-data-checkpoint.md)
+
+- [P1：複数設備の影響と登録停止損失の実装](2026-10-18-incident-loss-implementation.md)
