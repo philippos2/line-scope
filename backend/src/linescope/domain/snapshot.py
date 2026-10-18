@@ -553,6 +553,12 @@ def _target(value):
 def _schema_version(targets):
     kind = targets[0]["target_type"]
     if kind == "EconomicInput" and any(
+        record is not None and "incident_losses" in record.get("payload", {})
+        for target in targets
+        for record in (target["before"], target["after"])
+    ):
+        return 7
+    if kind == "EconomicInput" and any(
         record is not None and "cost_recovery" in record.get("payload", {})
         for target in targets
         for record in (target["before"], target["after"])
@@ -572,6 +578,7 @@ def _snapshot(value):
         4,
         5,
         6,
+        7,
     }:
         raise ValueError("Unsupported Snapshot schema version")
     if type(value["requester_id"]) is not str or not value["requester_id"].strip():

@@ -145,32 +145,36 @@ def seed_graph_demo(database, *, fixtures=FIXTURES, equipment_rows=DEMO_EQUIPMEN
     try:
         with database.transaction() as connection:
             control = _lock_seed(connection)
-            for name in ("dependency_relation", "production_operation_equipment_assignment"):
-                expected = {
-                    next(iter(row.values())) for table, _, row, _ in fixtures if table == name
-                }
-                if identifiers(connection, name) - expected:
-                    raise SeedConflict("Graph demo seed is limited to an initial demo relation set")
-            equipment = _seed_equipment(connection, equipment_rows)
-            for equipment_id, code, _, _ in equipment_rows:
-                if not read_row(connection, "equipment", equipment_id)["active"]:
-                    raise SeedConflict(f"Demo Graph equipment is inactive: {code}")
-            inserted, retained = [], []
-            for table, label, row, identity in fixtures:
-                if insert_row(connection, table, row):
-                    inserted.append(label)
-                else:
-                    existing = read_row(connection, table, next(iter(row.values())))
-                    fields = identity or tuple(row)
-                    if existing is None or any(existing[field] != row[field] for field in fields):
-                        raise SeedConflict(f"Demo Graph identity or relation conflict: {label}")
-                    retained.append(label)
+            result = seed_graph_rows(connection, fixtures, equipment_rows)
+            inserted, equipment = result["inserted"], result["equipment"]
             if inserted or equipment["inserted"]:
                 if control["active_generation"] is not None:
                     raise SeedConflict(
                         "New demo rows require seeding before the first Graph Rebuild"
                     )
                 require_demo_rebuild(connection)
-            return {"equipment": equipment, "inserted": inserted, "retained": retained}
+            return result
     except UniqueViolation as error:
         raise SeedConflict("Demo Graph business identity is already in use") from error
+
+
+def seed_graph_rows(connection, fixtures, equipment_rows):
+    for name in ("dependency_relation", "production_operation_equipment_assignment"):
+        expected = {next(iter(row.values())) for table, _, row, _ in fixtures if table == name}
+        if identifiers(connection, name) - expected:
+            raise SeedConflict("Graph demo seed is limited to an initial demo relation set")
+    equipment = _seed_equipment(connection, equipment_rows)
+    for equipment_id, code, _, _ in equipment_rows:
+        if not read_row(connection, "equipment", equipment_id)["active"]:
+            raise SeedConflict(f"Demo Graph equipment is inactive: {code}")
+    inserted, retained = [], []
+    for table, label, row, identity in fixtures:
+        if insert_row(connection, table, row):
+            inserted.append(label)
+        else:
+            existing = read_row(connection, table, next(iter(row.values())))
+            fields = identity or tuple(row)
+            if existing is None or any(existing[field] != row[field] for field in fields):
+                raise SeedConflict(f"Demo Graph identity or relation conflict: {label}")
+            retained.append(label)
+    return {"equipment": equipment, "inserted": inserted, "retained": retained}

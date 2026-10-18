@@ -7,6 +7,7 @@ from uuid import uuid4
 from .canonical import normalize_timestamp, normalize_uuid
 from .cost_recovery import calculate as cost_recovery_calculation
 from .cost_recovery import normalize as normalize_recovery
+from .incident_loss import normalize_losses
 from .input_values import exact, quantity, text
 
 INPUT_FIELDS = {"input_code", "equipment_id", "payload"}
@@ -29,7 +30,7 @@ def normalize_payload(value):
     exact(
         value,
         PAYLOAD_FIELDS
-        | ({"cost_recovery"} if type(value) is dict and "cost_recovery" in value else set()),
+        | (set(value) & {"cost_recovery", "incident_losses"} if type(value) is dict else set()),
     )
     start, end = (
         normalize_timestamp(value["period_start"]),
@@ -110,6 +111,8 @@ def normalize_payload(value):
         "currency": "JPY",
         "options": sorted(normalized, key=lambda option: option["option"]),
     }
+    if "incident_losses" in value:
+        result["incident_losses"] = normalize_losses(value["incident_losses"])
     if "cost_recovery" in value:
         result["cost_recovery"] = normalize_recovery(
             value["cost_recovery"], operating_hours=hours, period_micros=micros

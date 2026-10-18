@@ -1,7 +1,13 @@
 """Opt-in two-machine incident fixture; never resets a running demo."""
 
-from .demo_graph_seed import END, FIXTURES, START, demo_id, endpoint, seed_graph_demo
-from .demo_seed import DEMO_EQUIPMENT
+from psycopg.errors import UniqueViolation
+
+from .demo_graph_seed import END, FIXTURES, START, demo_id, endpoint, seed_graph_rows
+from .demo_seed import DEMO_EQUIPMENT, SeedConflict, _lock_seed
+from .incident_demo_inputs import END as PERIOD_END
+from .incident_demo_inputs import START as PERIOD_START
+from .incident_demo_inputs import records
+from .persistence.core_demo_seed import require_demo_rebuild
 
 EQUIPMENT = tuple(
     (identifier, code, name, "STOPPED")
@@ -96,4 +102,42 @@ for source_type, source, target_type, target, kind, required in RELATIONS:
 
 def seed_incident_demo(database):
     """Bootstrap before first rebuild; retain existing names/states/versions."""
-    return seed_graph_demo(database, fixtures=FIXTURES, equipment_rows=EQUIPMENT)
+    try:
+        with database.transaction() as connection:
+            control = _lock_seed(connection)
+            result = seed_graph_rows(connection, FIXTURES, EQUIPMENT)
+            new_inputs, retained_inputs = [], []
+            for queries, target in records():
+                existing = queries.read(connection, target["target_id"], lock=True)
+                if existing is None:
+                    queries.write(connection, target)
+                    new_inputs.append(target["after"]["input_code"])
+                elif any(
+                    str(existing[key]) != str(target["after"][key])
+                    for key in ("input_code", "equipment_id")
+                ):
+                    raise SeedConflict("Incident input identity conflict")
+                else:
+                    retained_inputs.append(existing["input_code"])
+            if result["inserted"] or result["equipment"]["inserted"] or new_inputs:
+                if control["active_generation"] is not None:
+                    raise SeedConflict(
+                        "Incident fixtures must be installed before the first Graph Rebuild"
+                    )
+                require_demo_rebuild(connection)
+            return {
+                **result,
+                "registered_inputs": {"inserted": new_inputs, "retained": retained_inputs},
+                "investigation": {
+                    "equipment_ids": [str(row[0]) for row in EQUIPMENT],
+                    "economic_input_ids": [
+                        target["target_id"]
+                        for queries, target in records()
+                        if queries.INPUT.name == "economic_input"
+                    ],
+                    "period_start": PERIOD_START,
+                    "period_end": PERIOD_END,
+                },
+            }
+    except UniqueViolation as error:
+        raise SeedConflict("Incident input business identity conflict") from error
