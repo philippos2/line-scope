@@ -638,4 +638,4 @@ Dockerで追加36テスト成功、ruff check / format、git diff --check成功�
 
 - [シナリオ1への集中と改修計画](2026-10-18-scenario1-plan.md)
 
-- [シナリオ1 PR 1：JSON投入と非LLM検索](2026-10-18-scenario1-pr1.md)
+- [シナリオ1の実装工程1：JSON投入と非LLM検索](2026-10-18-scenario1-pr1.md)
