@@ -49,6 +49,7 @@ export function App() {
   const [graphResult, setGraphResult] = useState<Envelope | null>(null);
   const [inputTab, setInputTab] = useState("economic");
   const workspace = useRef<HTMLElement>(null);
+  const workspaceTabs = useRef<HTMLElement>(null);
   const [economicPrepared, setEconomicPrepared] = useState<
     string | undefined
   >();
@@ -100,6 +101,20 @@ export function App() {
     {},
   );
   const dirty = useRef(new Set<string>());
+  useEffect(() => {
+    const tabs = workspaceTabs.current;
+    if (!connected || !tabs) return;
+    const update = () =>
+      tabs.parentElement?.style.setProperty(
+        "--workspace-tabs-height",
+        `${tabs.getBoundingClientRect().height}px`,
+      );
+    update();
+    if (typeof ResizeObserver === "undefined") return;
+    const observer = new ResizeObserver(update);
+    observer.observe(tabs);
+    return () => observer.disconnect();
+  }, [connected]);
   useEffect(() => {
     documentRequest.current?.abort();
     setDocumentResult(null);
@@ -457,6 +472,7 @@ export function App() {
             <WorkspaceHeader
               tabs={
                 <nav
+                  ref={workspaceTabs}
                   className="context-tabs workspace-tabs"
                   aria-label="機能を選ぶ"
                   role="tablist"

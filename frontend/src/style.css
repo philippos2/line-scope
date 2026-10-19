@@ -1395,9 +1395,15 @@ summary {
 }
 .selected-node-panel {
   position: sticky;
-  top: 16px;
-  max-height: 90vh;
+  top: calc(var(--workspace-tabs-height, 64px) + 12px);
+  max-height: calc(100vh - var(--workspace-tabs-height, 64px) - 24px);
   overflow: auto;
+}
+.selected-node-panel > h2 {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: var(--panel);
 }
 .selected-node-panel button {
   display: block;

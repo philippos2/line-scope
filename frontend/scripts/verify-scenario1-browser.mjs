@@ -422,6 +422,26 @@ try {
       viewport,
     );
     expect(reads).toBe(0);
+    await page.evaluate(() => globalThis.scrollTo(0, 900));
+    const selectedTitle = page.getByRole("heading", {
+      name: "選択した項目",
+      exact: true,
+    });
+    await expect(selectedTitle).toBeInViewport();
+    const menuBox = await page.getByRole("tablist").boundingBox();
+    const titleBox = await selectedTitle.boundingBox();
+    expect(titleBox.y).toBeGreaterThan(menuBox.y + menuBox.height);
+    expect(
+      await selectedTitle.evaluate((el) => {
+        const r = el.getBoundingClientRect();
+        return el.contains(
+          globalThis.document.elementFromPoint(
+            r.x + r.width / 2,
+            r.y + r.height / 2,
+          ),
+        );
+      }),
+    ).toBe(true);
     await page.evaluate(() =>
       globalThis.scrollTo(0, globalThis.document.body.scrollHeight),
     );
