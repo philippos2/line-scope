@@ -333,7 +333,7 @@ try {
     ).toBeEnabled({ timeout: 30000 });
     await expect(
       page.locator('.registered-comparison [role="status"]'),
-    ).toContainText("安全条件：0件");
+    ).toContainText("安全条件・対応計画／履歴の登録データはありません。");
     await expect(
       page.locator('section[aria-label="比較に使う安全入力"]'),
     ).toContainText("安全条件の登録データはありません");
@@ -398,7 +398,7 @@ try {
     ).toBeEnabled();
     await expect(
       page.locator('.registered-comparison [role="status"]'),
-    ).toContainText("能力データ：1件");
+    ).toContainText("能力データの候補が1件見つかりました。");
     await expect(cap).toBeChecked();
     await page.route("**/api/safety-inputs/search", (route) =>
       route.fulfill({

@@ -281,16 +281,30 @@ export function RegisteredComparison({
       if (signal.aborted) return;
       setCandidates((old) => ({ ...old, ...data }));
       setCandidateFailures((old) => ({ ...old, ...failures }));
+      const empty = targetGroups.filter(
+        (group) =>
+          data[group] &&
+          (data[group]!.items as unknown[]).length === 0 &&
+          data[group]!.next_cursor == null,
+      );
+      const bothEmpty =
+        empty.includes("safety") && empty.includes("maintenance");
       const summary = targetGroups
-        .filter((group) => data[group])
-        .map(
-          (group) =>
-            `${captions[group]}：${(data[group]!.items as unknown[]).length}件${data[group]!.next_cursor != null ? "（続きあり）" : ""}`,
+        .filter(
+          (group) => data[group] && !(bothEmpty && group === "maintenance"),
         )
-        .join("、");
+        .map((group) => {
+          if (bothEmpty && group === "safety")
+            return "安全条件・対応計画／履歴の登録データはありません。";
+          const count = (data[group]!.items as unknown[]).length;
+          if (empty.includes(group))
+            return `${captions[group]}の登録データはありません。`;
+          return `${count ? `${captions[group]}の候補が${count}件見つかりました。` : `この取得範囲には${captions[group]}の候補がありません。`}${data[group]!.next_cursor != null ? "続きの候補があります。" : ""}`;
+        })
+        .join("");
       setCandidateNotice(
         summary
-          ? `候補の取得が完了しました。${summary}。${Object.keys(failures).length ? "取得できなかった分類は再試行してください。" : ""}`
+          ? `検索が完了しました。${summary}${Object.keys(failures).length ? "取得できなかった分類は再試行してください。" : ""}`
           : "候補を取得できませんでした。各欄の説明を確認してください。",
       );
     });
