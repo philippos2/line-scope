@@ -139,6 +139,17 @@ try {
       .getByRole("tab", { name: "入力を登録・訂正", exact: true })
       .click();
     await page.getByRole("button", { name: item.tab, exact: true }).click();
+    if (item.key === "safety") {
+      await page
+        .getByRole("button", { name: "登録済み安全入力を検索", exact: true })
+        .click();
+      await expect(page.locator(".safety-panel")).toContainText(
+        "検索が完了しました。該当する登録済みの安全入力はありません。",
+      );
+      await expect(
+        page.getByRole("button", { name: item.create, exact: true }),
+      ).toBeEnabled();
+    }
     await page.getByRole("button", { name: item.create, exact: true }).click();
     const editor = page.getByRole("region", { name: item.editor, exact: true });
     await editor

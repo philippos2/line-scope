@@ -53,6 +53,7 @@ export function SafetyPanel({
   useEffect(
     () => () => {
       active.current?.abort();
+      active.current = null;
       editorAbort.current?.abort();
     },
     [],
@@ -78,18 +79,35 @@ export function SafetyPanel({
     pending.current = true;
     setBusy(true);
     setError("");
+    let timedOut = false;
+    const timeout = window.setTimeout(() => {
+      timedOut = true;
+      controller.abort();
+    }, 15_000);
     try {
       await action(controller.signal);
     } catch (caught) {
-      if (!controller.signal.aborted)
-        setError(caught instanceof ApiError ? caught.code : "INVALID_RESPONSE");
+      if (active.current === controller)
+        setError(
+          timedOut
+            ? "REQUEST_TIMEOUT"
+            : caught instanceof ApiError
+              ? caught.code
+              : "INVALID_RESPONSE",
+        );
     } finally {
+      window.clearTimeout(timeout);
       pending.current = false;
-      if (!controller.signal.aborted) setBusy(false);
+      if (active.current === controller) {
+        active.current = null;
+        setBusy(false);
+      }
     }
   }
   function search(event?: FormEvent, next = false) {
     event?.preventDefault();
+    if (pending.current) return;
+    setSearched(false);
     closeEditor();
     setResult(null);
     const filter =
@@ -167,7 +185,9 @@ export function SafetyPanel({
       {busy && <p role="status">安全入力を取得中…</p>}
       {error && (
         <p role="alert">
-          {error}。登録値を取得できません。仮値による補完は行っていません。
+          {error === "REQUEST_TIMEOUT"
+            ? "安全入力の取得が15秒以内に完了しませんでした。もう一度検索してください。"
+            : "安全入力を取得できませんでした。接続を確認して、もう一度検索してください。"}
         </p>
       )}
       <section aria-label="安全入力の検索候補">
@@ -189,9 +209,9 @@ export function SafetyPanel({
         )}
       </section>
       {!busy && !error && rows.length === 0 && (
-        <p>
+        <p role="status">
           {searched
-            ? "該当する登録データはありません。条件を変えて検索するか、新規登録できます。"
+            ? "検索が完了しました。該当する登録済みの安全入力はありません。条件を変えて検索するか、新規登録してください。"
             : "まだ検索していません。条件を指定して登録データを検索してください。"}
         </p>
       )}
