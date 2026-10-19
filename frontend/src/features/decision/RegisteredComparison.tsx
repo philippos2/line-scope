@@ -38,6 +38,12 @@ const paths = {
   safety: "safety-inputs",
   maintenance: "maintenance-inputs",
 } as const;
+const captions: Record<Group, string> = {
+  economic: "算定データ",
+  capacity: "能力データ",
+  safety: "安全条件",
+  maintenance: "対応計画・履歴",
+};
 const blank = (): Record<Group, string[]> => ({
   economic: [],
   capacity: [],
@@ -81,7 +87,11 @@ export function RegisteredComparison({
     requestAnimationFrame(() => {
       if (ref.current?.getClientRects().length) ref.current.focus();
     });
-  const [loaded, setLoaded] = useState(false);
+  const loaded = Object.keys(candidates).length > 0;
+  const [candidateNotice, setCandidateNotice] = useState("");
+  const [candidateFailures, setCandidateFailures] = useState<
+    Partial<Record<Group, string>>
+  >({});
   useEffect(() => {
     const values = [...initialEconomic, ...initialCapacity];
     const map: Record<string, Envelope> = {};
@@ -110,11 +120,29 @@ export function RegisteredComparison({
       const listed = Array.isArray(candidates[group]?.items)
         ? (candidates[group]!.items as unknown[]).filter(object)
         : [];
-      const inherited = selected[group]
-        .filter((id) => !listed.some((row) => row[idKey] === id))
+      const inherited = (
+        group === "economic"
+          ? initialEconomic
+          : group === "capacity"
+            ? initialCapacity
+            : []
+      ).map(inputRecord);
+      const selectedRecords = selected[group]
         .map((id) => (records[id] ? inputRecord(records[id]) : null))
         .filter(object);
-      return [group, [...listed, ...inherited]];
+      const byId = new Map(
+        [...listed, ...inherited, ...selectedRecords].map((row) => [
+          String(row[idKey]),
+          row,
+        ]),
+      );
+      return [
+        group,
+        [...byId.values()].map((row) => {
+          const cached = records[String(row[idKey])];
+          return cached ? { ...row, ...inputRecord(cached) } : row;
+        }),
+      ];
     }),
   ) as Record<Group, JsonObject[]>;
   const selectedInputs = useMemo(
@@ -186,14 +214,29 @@ export function RegisteredComparison({
     );
     if (!signal.aborted) setRecords((old) => ({ ...old, ...cache }));
   }
-  function search() {
-    if (!equipment) return;
-    setResult(null);
-    onResult?.(null);
-    setDetails(null);
+  function search(requested?: Group[]) {
+    if (!equipment || pending.current) return;
+    const targetGroups =
+      requested ??
+      groups
+        .map(([group]) => group)
+        .filter(
+          (group) =>
+            group === "safety" ||
+            group === "maintenance" ||
+            (group === "economic"
+              ? !initialEconomic.length
+              : !initialCapacity.length),
+        );
+    setCandidateNotice("");
+    setCandidateFailures((old) => {
+      const next = { ...old };
+      for (const group of targetGroups) delete next[group];
+      return next;
+    });
     void run(async (signal) => {
-      const values = await Promise.all(
-        groups.map(async ([group]) => {
+      const outcomes = await Promise.allSettled(
+        targetGroups.map(async (group) => {
           const response = await request(
             "",
             `/${paths[group]}/search`,
@@ -215,12 +258,41 @@ export function RegisteredComparison({
           return [group, response.data] as const;
         }),
       );
-      const data = Object.fromEntries(values);
-      await readDetails(data, signal);
-      if (!signal.aborted) {
-        setCandidates(data);
-        setLoaded(true);
+      if (signal.aborted) return;
+      const data: Partial<Record<Group, JsonObject>> = {};
+      const failures: Partial<Record<Group, string>> = {};
+      for (const [index, outcome] of outcomes.entries()) {
+        if (signal.aborted) return;
+        if (outcome.status === "fulfilled") {
+          const [group, value] = outcome.value;
+          try {
+            await readDetails({ [group]: value }, signal);
+            data[group] = value;
+          } catch (caught) {
+            failures[group] =
+              caught instanceof ApiError ? caught.code : "INVALID_RESPONSE";
+          }
+        } else
+          failures[targetGroups[index]] =
+            outcome.reason instanceof ApiError
+              ? outcome.reason.code
+              : "INVALID_RESPONSE";
       }
+      if (signal.aborted) return;
+      setCandidates((old) => ({ ...old, ...data }));
+      setCandidateFailures((old) => ({ ...old, ...failures }));
+      const summary = targetGroups
+        .filter((group) => data[group])
+        .map(
+          (group) =>
+            `${captions[group]}：${(data[group]!.items as unknown[]).length}件${data[group]!.next_cursor != null ? "（続きあり）" : ""}`,
+        )
+        .join("、");
+      setCandidateNotice(
+        summary
+          ? `候補の取得が完了しました。${summary}。${Object.keys(failures).length ? "取得できなかった分類は再試行してください。" : ""}`
+          : "候補を取得できませんでした。各欄の説明を確認してください。",
+      );
     });
   }
   function nextPage(group: Group) {
@@ -364,6 +436,21 @@ export function RegisteredComparison({
     safety_input_ids: selected.safety,
     maintenance_input_ids: selected.maintenance,
   };
+  const conditionKey = JSON.stringify({
+    selection,
+    versions: groups.flatMap(
+      ([group]) => selectedInputs[group]?.map((row) => row.version) ?? [],
+    ),
+  });
+  const conditionRef = useRef(conditionKey);
+  conditionRef.current = conditionKey;
+  const previousCondition = useRef(conditionKey);
+  useEffect(() => {
+    if (previousCondition.current === conditionKey) return;
+    previousCondition.current = conditionKey;
+    setResult(null);
+    onResult?.(null);
+  }, [conditionKey, onResult]);
   function compare(event: FormEvent) {
     event.preventDefault();
     setResult(null);
@@ -375,7 +462,7 @@ export function RegisteredComparison({
         selection,
         signal,
       );
-      if (!signal.aborted) {
+      if (!signal.aborted && conditionRef.current === conditionKey) {
         setResult(response.data);
         onResult?.(response);
         setObservedEpoch(executionEpoch);
@@ -397,9 +484,13 @@ export function RegisteredComparison({
       <p>
         各入力の出典・期間を確認して選択します。未選択は不明です。能力は代替候補の設備を、安全は対象設備・代替設備の入力を選択します。条件に合う候補が1件で検索が完了した場合だけ事前選択します。選び直せます。選択は設備全体の安全や運転許可を意味しません。
       </p>
-      <button disabled={busy || !equipment} onClick={search}>
+      <p>
+        引継ぎ済みの算定・能力データはそのまま利用します。このボタンで安全条件・対応計画と、まだ引き継いでいない分類を取得します。別の算定・能力データは各欄から検索できます。
+      </p>
+      <button disabled={busy || !equipment} onClick={() => search()}>
         比較に使う正式入力の候補を取得
       </button>
+      {candidateNotice && !busy && <p role="status">{candidateNotice}</p>}
       {error && (
         <p role="alert">
           {explanation(error)} 入力・期間・対象を確認して再試行してください。
@@ -412,16 +503,46 @@ export function RegisteredComparison({
           {groups.map(([group, label, idKey]) => (
             <section key={group} aria-label={`比較に使う${label}`}>
               <h3>{label}</h3>
-              {!loaded && !visibleCandidates[group].length && (
-                <p>
-                  候補は未取得です。上の「比較に使う正式入力の候補を取得」で確認できます。
-                </p>
+              {(group === "economic" || group === "capacity") && (
+                <button
+                  type="button"
+                  disabled={busy}
+                  onClick={() => search([group])}
+                >
+                  別の{captions[group]}を検索
+                </button>
               )}
-              {loaded && visibleCandidates[group].length === 0 && (
-                <p className="muted">
-                  登録された候補がありません。「入力を登録・訂正」から登録できます。未選択の条件は不明として比較します。
-                </p>
+              {candidateFailures[group] && (
+                <div role="alert">
+                  <p>
+                    {captions[group]}の候補を取得できませんでした。
+                    {explanation(candidateFailures[group]!)}
+                  </p>
+                  <button
+                    type="button"
+                    disabled={busy}
+                    onClick={() => search([group])}
+                  >
+                    {captions[group]}の取得を再試行
+                  </button>
+                </div>
               )}
+              {!candidates[group] &&
+                !visibleCandidates[group].length &&
+                !candidateFailures[group] && (
+                  <p>
+                    候補は未取得です。上の「比較に使う正式入力の候補を取得」で確認できます。
+                  </p>
+                )}
+              {candidates[group] &&
+                !candidateFailures[group] &&
+                visibleCandidates[group].length === 0 && (
+                  <p className="muted">
+                    {candidates[group]?.next_cursor != null
+                      ? "この取得範囲には候補がありません。続きの候補を取得してください。"
+                      : `${captions[group]}の登録データはありません。未選択の条件は不明として比較します。`}
+                  </p>
+                )}
               {typeof candidates[group]?.next_cursor === "string" && (
                 <p className="notice">
                   未取得の候補があります。次の候補を取得してから選択できます。

@@ -313,6 +313,12 @@ try {
     await expect(page.locator(".registered-comparison")).toContainText(
       "第2加工機 · M-208",
     );
+    let redundantReads = 0;
+    const watchCandidates = (req) => {
+      if (/\/api\/(economic|capacity)-inputs\/search$/.test(req.url()))
+        redundantReads++;
+    };
+    page.on("request", watchCandidates);
     await page
       .getByRole("button", {
         name: "比較に使う正式入力の候補を取得",
@@ -325,6 +331,17 @@ try {
         exact: true,
       }),
     ).toBeEnabled({ timeout: 30000 });
+    await expect(
+      page.locator('.registered-comparison [role="status"]'),
+    ).toContainText("安全条件：0件");
+    await expect(
+      page.locator('section[aria-label="比較に使う安全入力"]'),
+    ).toContainText("安全条件の登録データはありません");
+    await expect(
+      page.locator('section[aria-label="比較に使う対応計画・履歴"]'),
+    ).toContainText("対応計画・履歴の登録データはありません");
+    expect(redundantReads).toBe(0);
+    page.off("request", watchCandidates);
     const cap = page.locator(
       'section[aria-label="比較に使う能力入力"] input[type="checkbox"]',
     );
@@ -358,6 +375,74 @@ try {
     await expect(page.locator(".registered-comparison .decision")).toBeVisible({
       timeout: 30000,
     });
+    await page
+      .getByRole("button", {
+        name: "比較に使う正式入力の候補を取得",
+        exact: true,
+      })
+      .click();
+    await expect(
+      page.getByRole("button", {
+        name: "比較に使う正式入力の候補を取得",
+        exact: true,
+      }),
+    ).toBeEnabled();
+    await expect(
+      page.locator(".registered-comparison .decision"),
+    ).toBeVisible();
+    await page
+      .getByRole("button", { name: "別の能力データを検索", exact: true })
+      .click();
+    await expect(
+      page.getByRole("button", { name: "別の能力データを検索", exact: true }),
+    ).toBeEnabled();
+    await expect(
+      page.locator('.registered-comparison [role="status"]'),
+    ).toContainText("能力データ：1件");
+    await expect(cap).toBeChecked();
+    await page.route("**/api/safety-inputs/search", (route) =>
+      route.fulfill({
+        status: 503,
+        json: {
+          request_id: "controlled-safety-candidates",
+          context_id: null,
+          status: "error",
+          answer: null,
+          data: {},
+          evidence: {},
+          warnings: [],
+          errors: [{ code: "DEPENDENCY_UNAVAILABLE" }],
+        },
+      }),
+    );
+    await page
+      .getByRole("button", {
+        name: "比較に使う正式入力の候補を取得",
+        exact: true,
+      })
+      .click();
+    await expect(
+      page.locator('section[aria-label="比較に使う安全入力"] [role="alert"]'),
+    ).toContainText("取得できませんでした");
+    await expect(
+      page.locator(".registered-comparison .decision"),
+    ).toBeVisible();
+    await expect(
+      page.locator('section[aria-label="比較に使う対応計画・履歴"]'),
+    ).toContainText("対応計画・履歴の登録データはありません");
+    await page.unroute("**/api/safety-inputs/search");
+    await page
+      .getByRole("button", { name: "安全条件の取得を再試行", exact: true })
+      .click();
+    await expect(
+      page.getByRole("button", {
+        name: "比較に使う正式入力の候補を取得",
+        exact: true,
+      }),
+    ).toBeEnabled();
+    await expect(
+      page.locator('section[aria-label="比較に使う安全入力"] [role="alert"]'),
+    ).toHaveCount(0);
     await visibleWords();
     expect(
       await page.locator(".registered-comparison .decision").innerText(),
