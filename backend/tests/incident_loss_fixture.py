@@ -1,9 +1,8 @@
-"""Registered administrative fixtures; all amounts are explicitly fictitious JPY estimates."""
+"""Regression-only loss inputs; not an installable demo."""
 
-from .demo_graph_seed import demo_id
-from .demo_seed import DEMO_EQUIPMENT
-from .domain import capacity, economics, maintenance_inputs, safety
-from .persistence import core_capacity, core_economics, core_maintenance_inputs, core_safety
+from linescope.demo_graph_seed import demo_id
+from linescope.demo_input_record import make_record
+from linescope.demo_seed import DEMO_EQUIPMENT
 
 START, END = "2026-10-18T00:00:00Z", "2026-10-19T00:00:00Z"
 SOURCE = "架空工場の共通損失台帳 v1（デモ仮定、実損害ではない）"
@@ -160,24 +159,3 @@ def records():
         )
     )
     return result
-
-
-def make_record(kind, code, equipment_id, payload, **extra):
-    module, queries = {
-        "economic": (economics, core_economics),
-        "capacity": (capacity, core_capacity),
-        "safety": (safety, core_safety),
-        "maintenance": (maintenance_inputs, core_maintenance_inputs),
-    }[kind]
-    key = "maintenance_input_id" if kind == "maintenance" else kind + "_input_id"
-    after = module.normalize_record(
-        {
-            key: str(demo_id(code)),
-            "input_code": code,
-            "equipment_id": equipment_id,
-            "payload": payload,
-            "version": 1,
-            **extra,
-        }
-    )
-    return queries, {"target_id": after[key], "operation_type": "CREATE", "after": after}

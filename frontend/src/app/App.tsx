@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import { ApiError, object, request, type Envelope } from "../api/client";
 import { ActionPanel } from "../features/actions/ActionPanel";
 import { MaintenancePanel } from "../features/maintenance/MaintenancePanel";
@@ -10,18 +10,14 @@ import { CapacityResult } from "../features/capacity/CapacityResult";
 import { EconomicPanel } from "../features/economics/EconomicPanel";
 import { EconomicResult } from "../features/economics/EconomicResult";
 import { RegisteredComparison } from "../features/decision/RegisteredComparison";
-import {
-  EquipmentCandidates,
-  type EquipmentCandidate,
-} from "../features/equipment/EquipmentCandidates";
+import type { EquipmentCandidate } from "../features/equipment/EquipmentCandidates";
 import { EvidencePanel } from "../features/evidence/EvidencePanel";
-import { GraphWorkspace } from "../features/graph/GraphWorkspace";
-import { detail, graphAnalyses, type NodeRef } from "../features/graph/model";
-import { IncidentWorkspace } from "../features/incidents/IncidentWorkspace";
+import { EquipmentInvestigation } from "../features/investigation/EquipmentInvestigation";
+import { graphAnalyses, type NodeRef } from "../features/graph/model";
 const panels = [
-  ["investigation", "調査・回答"],
+  ["investigation", "質問する"],
   ["comparison", "対応案を比べる"],
-  ["evidence", "根拠を確かめる"],
+  ["evidence", "出典と経路"],
   ["prepare", "入力を登録・訂正"],
   ["execution", "変更・承認・実行"],
 ] as const;
@@ -29,7 +25,8 @@ type Step = (typeof panels)[number][0];
 export function App() {
   const [actionDraftVersion, setActionDraftVersion] = useState(0);
   const [actionDraft, setActionDraft] = useState("");
-  const [incidentMode, setIncidentMode] = useState(true);
+  const [panelsOpen, setPanelsOpen] = useState(false);
+  const [stateChoice, setStateChoice] = useState("");
   const [step, setStep] = useState<Step>("investigation");
   const [graphEvidence, setGraphEvidence] = useState(false);
   const [comparisonResult, setComparisonResult] = useState<Envelope | null>(
@@ -39,11 +36,7 @@ export function App() {
   const [stateResult, setStateResult] = useState<Envelope | null>(null);
   const [comparisonStale, setComparisonStale] = useState(false);
   const [stateEpoch, setStateEpoch] = useState(0);
-  const [search, setSearch] = useState("");
-  const [searchResult, setSearchResult] = useState<Envelope | null>(null);
   const [graphResult, setGraphResult] = useState<Envelope | null>(null);
-  const [graphEpoch, setGraphEpoch] = useState(0);
-  const [nodeReads, setNodeReads] = useState<unknown[]>([]);
   const [inputTab, setInputTab] = useState("economic");
   const workspace = useRef<HTMLElement>(null);
   useEffect(() => {
@@ -88,7 +81,7 @@ export function App() {
   const [message, setMessage] = useState("");
   const [result, setResult] = useState<Envelope | null>(null);
   const [error, setError] = useState("");
-  const [selected, setSelected] = useState<NodeRef | null>(null);
+  const [, setSelected] = useState<NodeRef | null>(null);
   const [stale, setStale] = useState(false);
   const current = useRef(0);
   const abort = useRef<AbortController | null>(null);
@@ -117,15 +110,12 @@ export function App() {
     token.current = "";
     retry.current = null;
     setDraftToken("");
-    setSearch("");
     setComparisonStale(false);
     setEquipment(null);
     setDecisionEquipment(null);
     setComparisonResult(null);
     setDocumentResult(null);
-    setSearchResult(null);
     setGraphResult(null);
-    setNodeReads([]);
     setStateResult(null);
     setStep("investigation");
     setEconomicPrepared(undefined);
@@ -194,9 +184,7 @@ export function App() {
         setDecisionEquipment(null);
         setComparisonResult(null);
         setDocumentResult(null);
-        setSearchResult(null);
         setGraphResult(null);
-        setNodeReads([]);
         setStateResult(null);
         setStep("investigation");
         setEconomicPrepared(undefined);
@@ -241,30 +229,6 @@ export function App() {
         setResult(value);
         if (graphAnalyses(value).length) {
           setGraphResult(value);
-          setGraphEpoch(executionEpoch);
-        }
-        const packageData = value.data.decision_package;
-        if (object(packageData) && object(packageData.equipment))
-          setNodeReads((previous) => [
-            ...previous,
-            { tool: "get_equipment", data: packageData.equipment },
-          ]);
-        if (Array.isArray(value.data.tool_results)) {
-          if (
-            value.data.tool_results.some(
-              (row) => object(row) && row.tool === "search_equipment",
-            )
-          )
-            setSearchResult(value);
-          setNodeReads((previous) => [
-            ...previous,
-            ...(value.data.tool_results as unknown[]).filter(
-              (row) =>
-                object(row) &&
-                typeof row.tool === "string" &&
-                row.tool.startsWith("get_"),
-            ),
-          ]);
         }
         if (text.startsWith("文書検索：")) setDocumentResult(value);
         if (
@@ -286,27 +250,6 @@ export function App() {
     freshContext.current = true;
     setMessage(text);
     if (focus) messageInput.current?.focus();
-  }
-  function chooseEquipment(item: EquipmentCandidate) {
-    setIncidentMode(false);
-    if (busy) return;
-    setEquipment(item);
-    setEconomicPrepared(undefined);
-    setActionDraft("");
-    setDecisionEquipment(item);
-    setComparisonResult(null);
-    setDocumentResult(null);
-    setStateResult(null);
-    setGraphResult(null);
-    setNodeReads([]);
-    setResult(null);
-    setSelected(null);
-    setStale(false);
-    setStep("investigation");
-    freshContext.current = true;
-    void sendInvestigation(
-      `設備コード${item.equipment_code}の異常について影響・修理・交換・代替を比較して`,
-    );
   }
   const compared = Array.isArray(result?.data.tool_results)
     ? result.data.tool_results
@@ -332,54 +275,12 @@ export function App() {
           },
         }
       : result;
-  const graphDisplayResult = useMemo(
-    () =>
-      graphResult
-        ? {
-            ...graphResult,
-            data: {
-              ...graphResult.data,
-              tool_results: [
-                ...(Array.isArray(graphResult.data.tool_results)
-                  ? graphResult.data.tool_results
-                  : []),
-                ...nodeReads,
-              ],
-            },
-          }
-        : null,
-    [graphResult, nodeReads],
-  );
   const evidenceResult = graphEvidence
     ? graphResult
     : (comparisonResult ?? graphResult ?? analysisResult);
-  function useGraphEquipment(item: NodeRef) {
-    if (busy || !graphDisplayResult || item.entity_type !== "Equipment") return;
-    const record = detail(graphDisplayResult, item);
-    if (
-      record.equipment_id !== item.entity_id ||
-      typeof record.equipment_code !== "string" ||
-      typeof record.equipment_name !== "string"
-    )
-      return;
-    if (decisionEquipment?.equipment_id !== item.entity_id) {
-      setDecisionEquipment({
-        equipment_id: item.entity_id,
-        equipment_code: record.equipment_code,
-        equipment_name: record.equipment_name,
-      });
-      setComparisonResult(null);
-      setComparisonStale(false);
-      setDocumentResult(null);
-      setEconomicPrepared(undefined);
-      setActionDraft("");
-      setResult(null);
-    }
-    setGraphEvidence(false);
-    setStep("comparison");
-  }
   function prepareInput(id: string) {
     setActionDraft("");
+    setPanelsOpen(true);
     setEconomicPrepared(id);
     setStep("execution");
   }
@@ -395,7 +296,7 @@ export function App() {
       <header>
         <div className="brand-block">
           <strong>LineScope</strong>
-          <span className="muted">関係と影響の調査</span>
+          <span className="muted">設備調査</span>
         </div>
         <div className="connection-bar">
           <span className="badge">
@@ -446,165 +347,61 @@ export function App() {
           {error && <p role="alert">{error}</p>}
         </main>
       ) : (
-        <div className="ontology-layout">
-          <aside className="object-browser">
-            <h2>調査する設備を探す</h2>
-            <form
-              onSubmit={(event) => {
-                event.preventDefault();
-                investigateGraph(
-                  search.trim()
-                    ? `設備名またはコードに「${search.trim()}」を含む設備を検索して候補を表示して。変更要求は作成しないでください。`
-                    : "登録設備を検索して候補を表示して。検索条件は指定しません。変更要求は作成しないでください。",
-                );
-              }}
-            >
-              <label htmlFor="equipment-search">設備名・コード</label>
-              <input
-                id="equipment-search"
-                value={search}
-                onChange={(event) => setSearch(event.target.value)}
-                placeholder="名称やコードの一部"
-              />
-              <button className="primary" disabled={busy}>
-                設備を検索
-              </button>
-            </form>
-            {searchResult && graphResult ? (
-              <EquipmentCandidates
-                result={searchResult}
-                disabled={busy}
-                onSelect={chooseEquipment}
-              />
-            ) : (
-              <p className="muted">
-                候補を選ぶと、その設備を起点とした下流影響と上流依存を取得します。
-              </p>
-            )}
-            {equipment && (
-              <p className="muted">
-                Graph調査の起点：{equipment.equipment_name}（
-                {equipment.equipment_code}）
-              </p>
-            )}
-            {decisionEquipment && (
-              <div className="focus-object">
-                <span className="muted">比較・入力の対象設備</span>
-                <strong>{decisionEquipment.equipment_name}</strong>
-                <span>{decisionEquipment.equipment_code}</span>
-              </div>
-            )}
-            <p className="muted">
-              表示するのは取得した関係です。工場全体を網羅した一覧ではありません。
-            </p>
-          </aside>
+        <div className="scenario-shell">
           <main
             id="workspace"
             className="ontology-workspace"
             ref={workspace}
             tabIndex={-1}
           >
-            {error && (
-              <p className="notice" role="alert">
-                {error}
-              </p>
-            )}
-            {busy && (
-              <p className="notice" role="status">
-                調査中です。ローカルLLMを使う場合は最大120秒程度かかります。
-              </p>
-            )}
-            <nav className="context-tabs" aria-label="調査の種類">
-              <button
-                aria-pressed={incidentMode}
-                onClick={() => setIncidentMode(true)}
-              >
-                工場トラブルと被害額
-              </button>
-              <button
-                aria-pressed={!incidentMode}
-                onClick={() => setIncidentMode(false)}
-              >
-                設備単位の詳しい調査
-              </button>
-            </nav>
-            <div hidden={!incidentMode}>
-              <IncidentWorkspace
-                onPrepareState={(item, state) => {
-                  setDecisionEquipment(item);
+            <EquipmentInvestigation
+              executionEpoch={executionEpoch}
+              onRootChange={(item) => {
+                setEquipment(item);
+                setDecisionEquipment(null);
+                setComparisonResult(null);
+                setDocumentResult(null);
+                setEconomicPrepared(undefined);
+                setActionDraft("");
+                setStateChoice("");
+                setResult(null);
+                setGraphResult(null);
+                setPanelsOpen(false);
+                freshContext.current = true;
+                abort.current?.abort();
+                current.current += 1;
+                setBusy(false);
+              }}
+              onUseEquipment={(item) => {
+                if (decisionEquipment?.equipment_id !== item.equipment_id) {
                   setComparisonResult(null);
                   setDocumentResult(null);
-                  setResult(null);
                   setEconomicPrepared(undefined);
                   setActionDraft("");
-                  setActionDraftVersion((value) => value + 1);
-                  setActionDraft(
-                    `設備${item.equipment_code}の状態を${state}に変更する準備を作って`,
-                  );
-                  setStep("execution");
-                }}
-                executionEpoch={executionEpoch}
-                onUseEquipment={(item) => {
-                  if (decisionEquipment?.equipment_id !== item.equipment_id) {
-                    setDecisionEquipment(item);
-                    setComparisonResult(null);
-                    setComparisonStale(false);
-                    setDocumentResult(null);
-                    setEconomicPrepared(undefined);
-                    setActionDraft("");
-                    setResult(null);
-                  }
-                  setStep("comparison");
-                }}
-                onInvestigate={(text) => {
-                  setIncidentMode(false);
-                  investigateGraph(text);
-                }}
-              />
-            </div>
-            <div hidden={incidentMode}>
-              <GraphWorkspace
-                key={equipment?.equipment_id ?? "none"}
-                result={graphDisplayResult}
-                selected={selected}
-                busy={busy}
-                stale={graphResult !== null && graphEpoch !== executionEpoch}
-                onSelect={setSelected}
-                onUseEquipment={useGraphEquipment}
-                onInvestigate={investigateGraph}
-                onRefresh={() =>
-                  equipment &&
-                  investigateGraph(
-                    `設備コード${equipment.equipment_code}の異常について影響・修理・交換・代替を比較して`,
-                  )
+                  setResult(null);
                 }
-                onStart={() =>
-                  investigateGraph(
-                    "登録設備を検索して候補を表示して。検索条件は指定しません。変更要求は作成しないでください。",
-                  )
-                }
-                emptyContent={
-                  searchResult ? (
-                    <EquipmentCandidates
-                      result={searchResult}
-                      disabled={busy}
-                      onSelect={chooseEquipment}
-                    />
-                  ) : undefined
-                }
-                onEvidence={() => {
-                  setGraphEvidence(true);
-                  setStep("evidence");
-                }}
-              />
-            </div>
+                setDecisionEquipment(item);
+                setPanelsOpen(true);
+                setStep("comparison");
+              }}
+              onRegister={(item) => {
+                setDecisionEquipment(item);
+                setEconomicPrepared(undefined);
+                setActionDraft("");
+                setPanelsOpen(true);
+                setInputTab("economic");
+                setStep("prepare");
+              }}
+              onObservations={setGraphResult}
+            />
             <nav className="context-tabs" aria-label="調査に続く操作">
               {panels.map(([key, title]) => (
                 <button
                   key={key}
-                  aria-pressed={step === key}
+                  aria-pressed={panelsOpen && step === key}
                   onClick={() => {
                     setGraphEvidence(false);
+                    setPanelsOpen(true);
                     setStep(key);
                   }}
                 >
@@ -612,8 +409,21 @@ export function App() {
                 </button>
               ))}
             </nav>
-            <section hidden={step !== "investigation"} aria-label="調査と回答">
+            <section
+              hidden={!panelsOpen || step !== "investigation"}
+              aria-label="調査と回答"
+            >
               <div className="query-and-answer">
+                {busy && (
+                  <p role="status">
+                    質問を確認しています。応答に最大120秒程度かかる場合があります。
+                  </p>
+                )}
+                {error && (
+                  <p role="alert">
+                    情報を取得できませんでした。接続と質問内容を確認してください。
+                  </p>
+                )}
                 <form onSubmit={investigate}>
                   <label htmlFor="message">関係や影響について質問する</label>
                   <textarea
@@ -628,12 +438,12 @@ export function App() {
                     className="primary"
                     disabled={busy || !message.trim()}
                   >
-                    問い合わせを送信
+                    送信
                   </button>
                 </form>
                 {result && (
                   <section>
-                    <h2>調査の回答</h2>
+                    <h2>回答</h2>
                     {result.status === "partial" && (
                       <span className="badge warning">
                         一部の情報・評価が不足しています
@@ -651,18 +461,6 @@ export function App() {
                     <p className="notice">再取得前の状態です。</p>
                   )}
                 </details>
-              )}
-              {equipment && (
-                <button
-                  disabled={busy}
-                  onClick={() =>
-                    investigateGraph(
-                      `Equipment ID ${equipment.equipment_id} の現在のstate_codeとversionを正本から取得して。原因や安全性を推測しないでください。変更要求は作成しないでください。`,
-                    )
-                  }
-                >
-                  現在状態を確認
-                </button>
               )}
               {Array.isArray(result?.data.tool_results) &&
                 result.data.tool_results
@@ -698,7 +496,7 @@ export function App() {
                   )}
             </section>
             <section
-              hidden={step !== "comparison"}
+              hidden={!panelsOpen || step !== "comparison"}
               aria-label="対応案を比較する"
             >
               {!decisionEquipment && (
@@ -731,7 +529,10 @@ export function App() {
                 比較の根拠を確かめる
               </button>
             </section>
-            <section hidden={step !== "evidence"} aria-label="根拠と関連文書">
+            <section
+              hidden={!panelsOpen || step !== "evidence"}
+              aria-label="根拠と関連文書"
+            >
               {evidenceResult ? (
                 <>
                   <h2>
@@ -763,7 +564,7 @@ export function App() {
               {documentResult && <EvidencePanel result={documentResult} />}
             </section>
             <section
-              hidden={step !== "prepare"}
+              hidden={!panelsOpen || step !== "prepare"}
               aria-label="入力を登録・訂正する"
             >
               <p>
@@ -845,9 +646,41 @@ export function App() {
               </div>
             </section>
             <section
-              hidden={step !== "execution"}
+              hidden={!panelsOpen || step !== "execution"}
               aria-label="変更と承認・実行"
             >
+              {equipment && (
+                <div className="state-change-prepare">
+                  <h2>登録状態を変更する</h2>
+                  <p>
+                    {equipment.equipment_name}（{equipment.equipment_code}）
+                  </p>
+                  <label>
+                    変更後の登録状態
+                    <select
+                      value={stateChoice}
+                      onChange={(e) => setStateChoice(e.target.value)}
+                    >
+                      <option value="">選んでください</option>
+                      <option value="RUNNING">稼働中</option>
+                      <option value="STOPPED">停止中</option>
+                      <option value="UNDER_MAINTENANCE">保全中</option>
+                      <option value="UNKNOWN">不明</option>
+                    </select>
+                  </label>
+                  <button
+                    disabled={!stateChoice}
+                    onClick={() => {
+                      setActionDraftVersion((x) => x + 1);
+                      setActionDraft(
+                        `設備${equipment.equipment_code}の状態を${stateChoice}に変更する準備を作って`,
+                      );
+                    }}
+                  >
+                    変更の下書きを作る
+                  </button>
+                </div>
+              )}
               <ol className="approval-guide">
                 <li>依頼者：変更を準備し、変更要求IDを控える。</li>
                 <li>
@@ -857,7 +690,9 @@ export function App() {
               </ol>
               <ActionPanel
                 key={
-                  (decisionEquipment?.equipment_id ?? "none") +
+                  (decisionEquipment?.equipment_id ??
+                    equipment?.equipment_id ??
+                    "none") +
                   ":" +
                   actionDraftVersion +
                   ":" +
@@ -877,23 +712,9 @@ export function App() {
                     : undefined)
                 }
               />
-              <p>
-                実行後は関係・影響を再取得し、正式入力の比較をやり直してください。
-              </p>
-              <button
-                disabled={busy}
-                onClick={() => {
-                  setStep("investigation");
-                  if (equipment)
-                    investigateGraph(
-                      `設備コード${equipment.equipment_code}の異常について影響・修理・交換・代替を比較して`,
-                    );
-                }}
-              >
-                {equipment ? "関係・影響を再取得" : "調査する設備を選ぶ"}
-              </button>
+              <p>実行後は上の「再調査」で結果を更新してください。</p>
               <button onClick={() => setStep("comparison")}>
-                正式入力の比較へ戻る
+                対応案の比較へ戻る
               </button>
             </section>
             {result && (

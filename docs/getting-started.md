@@ -2,6 +2,8 @@
 
 通常の永続環境を起動し、調査・比較・承認付き変更をcurlで試す手順です。Docker Engine、Compose v2、ホストのPython 3、必要に応じてOllamaを使用します。ブラウザ画面でも調査・比較・根拠を確認できます。
 
+開発中の継続プレビューを確認するときは、先に[現在のブラウザ確認環境](demo/environments.md)を参照してください。以下の5173番は新規環境の既定値です。
+
 ## 最短で通し検証する
 
 clone後、永続環境を作らず最小経路を確認できます。
@@ -25,7 +27,7 @@ git clone https://github.com/philippos2/line-scope.git
 cd line-scope
 python3 scripts/create_demo_env.py
 docker compose up --build -d --wait api
-docker compose run --rm migrate linescope seed-demo-incident
+docker compose run --rm -v "$PWD/docs/demo/data:/data:ro" graph-admin linescope seed-demo-file --file /data/scenario1.json
 docker compose run --build --rm graph-admin linescope install-graph-schema
 docker compose run --build --rm graph-admin linescope rebuild-graph
 docker compose up -d projection
@@ -35,7 +37,7 @@ docker compose up -d projection
 
 PostgreSQLのmigration / role付与とNeo4jのhealth確認後にAPI・Projectionを起動します。APIは`127.0.0.1:8000`に公開し、DB portはホストへ公開しません。API portは`LINESCOPE_API_PORT`で変更できます。
 
-上記は新規環境向けの2台停止シナリオです。設備・Graph・正式入力11件を初期投入し、再実行で既存状態やversionをリセットしません。旧デモは `seed-demo-graph` を使います。構築済み環境へ追加する移行コマンドではありません。[デモデータと参考文書の投入](demo/incident-story.md)を参照し、Graph Rebuild後に利用します。未構築の間はGraph分析を利用できません。
+上記はM-204停止・M-208稼働中の新規環境向けデータです。値はJSONから読み込み、既存状態やversionを上書きしません。[データ投入手順](demo/scenario1.md)を参照し、Graph Rebuild後に利用します。構築済みの別シナリオ環境への追加・置換は行いません。
 
 ## ブラウザで操作する
 
@@ -47,18 +49,13 @@ docker compose -f compose.yaml -f compose.frontend.yaml --profile frontend up --
 
 `http://127.0.0.1:5173`を開きます。接続欄には私有`.env`の`LINESCOPE_USERS`に登録されたtokenの値だけを貼り付けます。管理・生産・保全ロールでGraph分析を利用できます。tokenを共有、Git登録、スクリーンショット掲載しないでください。初回接続後はHttpOnlyのセッションcookieでF5後も接続を復元します。接続切替・解除は上部の「接続設定」から行えます。セッションは固定8時間で、API再起動・期限切れ後は再接続が必要です。
 
-接続後は「工場トラブルと被害額」から進みます。
+接続後は「設備調査」から進みます。
 
-1. 「設備と損失根拠を確認する」で、経済入力のある設備の候補を取得します。工場全体の網羅一覧や自動異常検知ではありません。設備名・コードで絞れます。
-2. 対象と根拠を選び、最初の根拠から記入される共通期間を確認して「選択した設備の影響と被害額を調べる」を押します。
-3. Graphに隣接する「推定被害額」と内訳・出典・不足を確認します。設定欄は取得後に折りたたまれ、開いて対象や期間を変更できます。変更時に古い結果を消します。
-4. ノード選択で経路を強調し、属性・根拠を確認します。まとめ表示と設備別表示を切り替えられます。「複数の対象から関係を調べる」を開くと共通依存・代替・SPOFへ進めます。
-5. 設備カードから対応案比較へ進み、正式入力を選んで比較・文書引用を確認します。パネルを切り替えてもGraphは保持します。
-6. 「入力を登録・訂正」で必要な情報を準備します。状態変更は設備カードの「この設備の登録状態を変更する」を開き、状態を選んで準備画面へ渡します。まだ確定はしません。
-7. 保存Snapshotを別の承認者が承認し、元依頼者が実行します。別セッションを使うか、接続を切り替えて要求IDから読み直します。接続切替では前ユーザーの取得情報を引き継ぎません。
-8. 確定後は金額を未算出にして再取得を案内します。「影響と被害額を再取得する」を押して、最新の入力version・状態に基づく結果を確認します。
-
-「設備単位の詳しい調査」では、従来の設備検索から下流／上流の調査も利用できます。Graph到達・構造成立・登録状態の変更だけで、実停止・能力・安全や実復旧を認定しません。
+1. 設備名の一部、または大文字・小文字を区別する設備コード全体で検索します。検索前に固定設備は表示しません。
+2. M-204を選ぶと、登録状態「停止中」、下流の影響先、推定損害額200,000円／時間を取得します。上流の依存先にも切り替えられます。
+3. 稼働中のM-208が代替候補として自動表示されます。P-100の必要能力60・空き能力80と、安全・品質などの未確認条件を確認します。P-200は今回選択した能力入力では未評価です。
+4. M-208を調査対象にすると「稼働中」と表示し、停止損害の算定対象外という理由を示します。
+5. 下段の補助タブから、質問・比較・出典・入力の登録訂正・変更承認へ進めます。変更は明示準備、別の承認者による承認、元依頼者の実行を経て確定します。
 
 FrontendのproxyがAPIへ接続するため、ブラウザへDB資格情報を渡しません。Frontendはloopbackの5173番で、`LINESCOPE_FRONTEND_PORT`により変更できます。変更後は同じComposeファイルとprofileで再作成します。通常の停止でvolumeを削除しないでください。
 

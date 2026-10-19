@@ -1228,3 +1228,235 @@ summary {
   display: block;
   margin: 8px 0;
 }
+
+/* One equipment investigation: search, relationship diagram, two summaries, inspector. */
+.scenario-shell {
+  width: 100%;
+}
+.scenario-shell .ontology-workspace {
+  max-width: none;
+  padding: 22px;
+}
+.equipment-investigation {
+  display: grid;
+  grid-template-columns: 220px minmax(0, 1fr) 260px;
+  gap: 18px;
+  align-items: start;
+}
+.equipment-investigation > * {
+  min-width: 0;
+}
+.equipment-search-panel,
+.selected-node-panel,
+.relationship-panel,
+.loss-estimate,
+.alternative-proposal {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel);
+  padding: 18px;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.equipment-investigation h1 {
+  font-size: 23px;
+  margin: 0;
+}
+.equipment-investigation h2 {
+  font-size: 18px;
+  margin: 0 0 16px;
+}
+.equipment-investigation h3 {
+  font-size: 16px;
+}
+.equipment-investigation label,
+.equipment-investigation select,
+.equipment-investigation input {
+  display: block;
+  width: 100%;
+}
+.equipment-investigation input,
+.equipment-investigation select {
+  margin: 7px 0 12px;
+}
+.equipment-investigation button {
+  max-width: 100%;
+}
+.equipment-result {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  width: 100%;
+  margin-top: 12px;
+  text-align: left;
+}
+.equipment-result[aria-pressed="true"] {
+  border-color: var(--accent);
+  background: #193536;
+}
+.registered-state {
+  font-size: 12px;
+  color: var(--muted);
+}
+.state-STOPPED {
+  color: var(--warn);
+}
+.state-RUNNING {
+  color: var(--accent);
+}
+.selected-equipment {
+  margin-top: 22px;
+  padding-top: 14px;
+  border-top: 1px solid var(--line);
+}
+.section-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+.direction-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 16px 0;
+}
+.direction-tabs [aria-pressed="true"] {
+  background: #234747;
+  border-color: var(--accent);
+}
+.relationship-summary {
+  font-size: 13px;
+  color: var(--muted);
+}
+.investigation-center {
+  min-width: 0;
+}
+.equipment-investigation .relation-canvas {
+  height: 300px;
+  min-height: 0;
+}
+.equipment-investigation .react-flow__node.alternative-node {
+  border: 2px dashed #c2a1ed;
+  background: #292336;
+}
+.investigation-summaries {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 16px;
+  margin-top: 16px;
+}
+.loss-amount {
+  font-size: clamp(20px, 2vw, 30px);
+  font-weight: 650;
+  color: var(--warn);
+  line-height: 1.35;
+}
+.capacity-bars label {
+  margin-bottom: 10px;
+}
+.capacity-bars progress {
+  display: block;
+  width: 100%;
+  height: 12px;
+  accent-color: var(--accent);
+}
+.capacity-bars label:first-child progress {
+  accent-color: var(--warn);
+}
+.input-choice {
+  border-top: 1px solid var(--line);
+  margin-top: 16px;
+  padding-top: 12px;
+}
+.equipment-investigation dl {
+  font-size: 13px;
+}
+.equipment-investigation dt {
+  color: var(--muted);
+}
+.equipment-investigation dd {
+  margin: 0 0 8px;
+}
+.estimate-note {
+  font-size: 12px;
+  color: var(--muted);
+  margin-top: 18px;
+}
+.read-failure {
+  padding: 10px;
+  border-left: 3px solid var(--warn);
+  margin: 10px 0;
+}
+.selected-node-panel {
+  position: sticky;
+  top: 16px;
+  max-height: 90vh;
+  overflow: auto;
+}
+.selected-node-panel button {
+  display: block;
+  width: 100%;
+  margin-bottom: 10px;
+}
+.selected-node-panel ol {
+  padding-left: 20px;
+  font-size: 12px;
+}
+.scenario-shell .context-tabs {
+  margin-top: 24px;
+  font-size: 13px;
+}
+.scenario-shell .context-tabs button {
+  min-width: 0;
+}
+.state-change-prepare {
+  margin: 18px 0;
+  max-width: 520px;
+}
+@media (max-width: 1100px) {
+  .equipment-investigation {
+    grid-template-columns: 190px minmax(0, 1fr);
+  }
+  .selected-node-panel {
+    grid-column: 1/-1;
+    position: static;
+    max-height: none;
+  }
+}
+@media (max-width: 999px) {
+  .equipment-investigation {
+    display: flex;
+    flex-direction: column;
+  }
+  .equipment-investigation > * {
+    width: 100%;
+  }
+  .equipment-investigation .relation-canvas {
+    height: 350px;
+  }
+  .selected-node-panel {
+    order: 3;
+  }
+}
+@media (max-width: 600px) {
+  .investigation-summaries {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .scenario-shell .ontology-workspace {
+    padding: 12px;
+  }
+  .equipment-investigation .relation-canvas {
+    height: 310px;
+  }
+  .equipment-investigation h1 {
+    font-size: 20px;
+  }
+}
+
+.unconfirmed-candidate {
+  border: 1px dashed #d9b45e;
+  border-radius: 8px;
+  padding: 12px;
+  margin-top: 16px;
+}

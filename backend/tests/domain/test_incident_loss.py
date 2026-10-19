@@ -1,10 +1,10 @@
 from copy import deepcopy
 
 import pytest
+from incident_loss_fixture import END, START, records
 
 from linescope.demo_graph_seed import demo_id
 from linescope.domain.incident_loss import aggregate, normalize_losses
-from linescope.incident_demo_inputs import END, START, records
 
 
 def world():

@@ -1,35 +1,27 @@
 # LineScope Frontend
 
-React / TypeScript / Viteから実APIへ接続する画面です。「工場トラブルと被害額」で対象設備と正式な損失根拠を選ぶと、React Flowの影響Graphと円／時間の推定を同時に表示します。ノードと経路、金額の内訳・出典から、比較・引用・承認付き変更・再調査へ進みます。従来の設備単位の調査、共通依存・代替・SPOFも利用できます。
+React / TypeScript / Viteから実APIへ接続する設備調査画面です。設備を検索・選択すると、関係図、登録状態、推定損害額、代替候補を一画面で示します。比較・出典・入力訂正・承認付き変更は下段の補助機能です。
 
 ## 起動と検証
 
-全サービスの起動・私有設定・文書取込みは[起動ガイド](../docs/getting-started.md)を参照します。APIは同一originの `/api` 経由で呼び出し、認証tokenをbrowser storageへ保存しません。接続解除・切替で取得情報を消去します。
+現在の継続プレビューと比較用環境は[環境一覧](../docs/demo/environments.md)で確認します。全サービスの起動・私有設定・文書取込みは[起動ガイド](../docs/getting-started.md)を参照します。APIは同一originの `/api` 経由で呼び出し、認証tokenをbrowser storageへ保存しません。接続解除・切替で取得情報を消去します。
 
 ```sh
 docker build --target development -t linescope-frontend-check frontend
 docker run --rm linescope-frontend-check npm run check
 ```
 
-2台トラブルの通し確認は `scripts/verify-incident-browser.mjs` を使用します。**正式入力の損失率とM-208の登録状態をUIから訂正・別manager承認・実行します。** 成功時は同じ承認付きUIで初期値へ戻し、変更履歴は保持します。失敗時は途中の確定状態が残るため、reportで停止工程と要求IDを確認してください。初期値に戻すことでversion・監査まで巻き戻す試験ではありません。書き込みを許可した専用デモ環境でのみ実行します。
-
-私有のmode 0600のenvファイルへ以下を設定します。tokenは値だけを記載し、Git・URL・コマンド引数へ含めません。
-
-- `LINESCOPE_BROWSER_URL`：対象Frontend URL
-- `LINESCOPE_BROWSER_TOKEN`：依頼者のtoken
-- `LINESCOPE_BROWSER_APPROVER_TOKEN`：別の承認者のtoken
-- `LINESCOPE_BROWSER_OUTPUT`：container内の結果保存先（例 `/out/story`）
-- `LINESCOPE_BROWSER_REVISION`：対象実装のGit revision
+新UI用の読取検証は `scripts/verify-scenario1-browser.mjs` を使います。私有envに `LINESCOPE_BROWSER_URL` と `LINESCOPE_BROWSER_TOKEN`、必要に応じて `LINESCOPE_BROWSER_OUTPUT=/out` を設定します。
 
 ```sh
-docker build --target browser-check -t linescope-workflow-browser frontend
+docker build --target browser-check -t linescope-scenario1-browser frontend
 docker run --rm --network host --env-file /private/browser.env \
   -v /private/results:/out \
-  linescope-workflow-browser node scripts/verify-incident-browser.mjs
+  linescope-scenario1-browser node scripts/verify-scenario1-browser.mjs
 ```
 
-必要な事前条件は[2台トラブルの初期データ](../docs/demo/incident-story.md)、別のmanager 2名、設定済みLLM、実Embedding／Qdrantと取り込み済み参考文書です。調査・属性取得は明示操作を使い、自由生成の成功に依存させません。準備・承認・実行はAPIを裏から呼んで代行せず、実UIで操作します。画面・reportを保存し、未知／期間不一致、共有範囲の一回計上、Graph保持、更新後再取得、対象切替時の旧下書き消去、390／768／1600pxのoverflowを確認します。
+実APIの主経路3項目（表示幅・キーボード・遅延切替・全ノードと一覧の名称を含む）と、明示的な応答制御8項目（名称取得の失敗と再試行、能力入力0／複数、検索・下流・代替・比較・金額の失敗と再試行）の計11項目を確認します。全項目で横overflowと通常表示の禁止語（「名称を確認」「名前を確認」を含む）を検査します。登録データを書き換えず、制御した補助応答を実バックエンドの受入結果と混同しません。利用可能・不可・不明の表示と能力の組み合わせは `AlternativeAssessment.test.tsx` の8件、取得の同時実行・上限・重複・再試行・中断は`labelLoader.test.ts`の1件で確認します。
 
-設備単位の旧代表経路を確認する場合は `verify-workflow-browser.mjs` を使います。経済入力を1件登録・確定し、試験データは保持します。旧3ペイン向けの `verify_frontend_flow.py` は現行シナリオの受入と区別します。代表経路の成功から、全更新variant・全BS・任意自然文の成功を宣言しません。
+現行の確認対象は[M-204停止とM-208代替候補のシナリオ](../docs/demo/scenario1.md)です。旧シナリオでM-208を停止・復旧させるブラウザ試験は廃止しています。実APIを使い、設備検索、関係図、損害額、代替候補、評価範囲、設備切替を確認します。
 
 [画面設計](../docs/design/frontend-console.md)・[ロードマップ](../docs/roadmap.md)・[開発規則](../CONTRIBUTING.md)を参照してください。

@@ -124,7 +124,11 @@ it("keeps a parent Process distinct from an operation with the same process_id",
       tool_results: [
         {
           tool: "get_process",
-          data: { process_id: "process-1", process_name: "加工工程" },
+          data: {
+            process_id: "process-1",
+            process_name: "加工工程 P-10",
+            process_code: "P-10",
+          },
         },
         {
           tool: "get_production_operation",
@@ -138,6 +142,12 @@ it("keeps a parent Process distinct from an operation with the same process_id",
     },
   } as unknown as Envelope;
   expect(label(value, { entity_type: "Process", entity_id: "process-1" })).toBe(
-    "加工工程",
+    "加工工程 · P-10",
   );
+  expect(
+    label(value, {
+      entity_type: "ProductionOperation",
+      entity_id: "operation-1",
+    }),
+  ).toBe("OP-50");
 });

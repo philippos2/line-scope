@@ -364,8 +364,8 @@ Ollamaのコンテキスト枠はサーバ設定`LINESCOPE_LLM_CONTEXT_TOKENS`�
 
 Readのllm.call.completedには失敗時も取得できたproviderの数値内訳を保持する。llm_finish_reasonはSTOP／LENGTH／OTHERの固定enum、llm_content_chars／llm_thinking_charsは文字数だけを採用し、内容は記録しない。生成上限による不完全応答の拒否をdeadline超過と混同しない。
 
-## 2台トラブルの専用デモ初期投入
+## JSONによる専用デモ初期投入
 
-`seed-demo-incident`は初期Graph構築前の管理CLI。Graph・設備・正式業務入力の初期fixtureを単一PG transactionで投入し、Graph排他lockと構築世代の制約を維持する。失敗は全体をrollbackする。既存行は識別情報を照合し、利用者の名称・状態・version・正式入力payloadを上書きしない。初期fixtureに架空のApproval・監査・Outboxを作らず、以後の業務変更は通常の承認経路を使う。
+`seed-demo-file --file /data/scenario1.json`で、M-204停止・M-208稼働中のデータを初回Graph構築前に投入する。形式・参照の検証とdomain正規化を通し、全投入を単一PG transactionに収める。Graph排他lock・構築世代の制約を維持し、失敗時は全体をrollbackする。
 
-旧デモ・構築済み環境を初期状態へ移行するコマンドではない。新規専用project・資格情報・portを用意し、継続デモのvolumeを削除しない。構成と実行手順は[2台トラブルのデモ](../demo/incident-story.md)を参照する。
+既存の名称・状態・version・入力を上書きしない。構築済み環境を別シナリオへ変更する移行コマンドではない。新規専用projectと資格情報を用意する。[データ構成と投入手順](../demo/scenario1.md)を参照する。

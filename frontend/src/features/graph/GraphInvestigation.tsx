@@ -61,14 +61,14 @@ export function GraphInvestigation({
             ))}
           </ul>
         ) : (
-          <p className="muted">Graphでノードを選んで追加してください。</p>
+          <p className="muted">関係図で項目を選んで追加してください。</p>
         )}
       </section>
     );
   }
   return (
     <details className="graph-investigation" open={initiallyOpen}>
-      <summary>複数の対象から関係を調べる</summary>
+      <summary>詳しい分析</summary>
       <p>
         製品や生産作業を重要対象に追加し、依存先の共通点や、設備・インフラを失った場合の構造を調べます。
       </p>
@@ -83,9 +83,9 @@ export function GraphInvestigation({
               disabled={busy}
               onChange={(event) => setAutomatic(event.target.checked)}
             />
-            SPOF候補を必須上流から自動探索
+            単一障害点の候補を必須上流から自動探索
           </label>
-          {!automatic && group("SPOF候補", candidates, setCandidates)}
+          {!automatic && group("単一障害点の候補", candidates, setCandidates)}
         </div>
       </div>
       <div className="graph-analysis-actions">
@@ -121,7 +121,7 @@ export function GraphInvestigation({
         </button>
       </div>
       <p className="muted">
-        共通依存には重要対象が2件以上必要です。代替は除外対象をまとめて除外し、SPOFは候補を1件ずつ除外して評価します。構造成立は実運転・能力・安全の保証ではありません。
+        共通依存には重要対象が2件以上必要です。代替は除外対象をまとめて除外し、単一障害点は候補を1件ずつ除外して評価します。構造成立は実運転・能力・安全の保証ではありません。
       </p>
     </details>
   );

@@ -639,3 +639,15 @@ Dockerで追加36テスト成功、ruff check / format、git diff --check成功�
 - [シナリオ1への集中と改修計画](2026-10-18-scenario1-plan.md)
 
 - [シナリオ1の実装工程1：JSON投入と非LLM検索](2026-10-18-scenario1-pr1.md)
+
+- [旧2台停止デモの廃止と表示先の混在への対応](2026-10-18-retire-two-stopped-demo.md)
+
+- [シナリオ1のA案データ修正と実API再測定](2026-10-19-scenario1-availability.md)
+
+- [UIの利用可能性・インフラ名・ブラウザ環境の修正](2026-10-19-ui-availability-and-environments.md)
+
+- [関係図の全ノードの名称取得・表示](2026-10-19-all-graph-node-labels.md)
+
+- [代替提案の評価範囲・期間表示の修正](2026-10-19-alternative-evaluation-display.md)
+
+- [損害額の出典の重複表示修正](2026-10-19-loss-source-display.md)

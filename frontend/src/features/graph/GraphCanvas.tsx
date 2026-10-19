@@ -1,3 +1,4 @@
+import type { NodeLabelStates } from "./labelLoader";
 import { useEffect, useMemo } from "react";
 import {
   Background,
@@ -22,18 +23,28 @@ import {
   type NodeRef,
 } from "./model";
 
+const EMPTY_CANDIDATES: string[] = [];
+const EMPTY_LABELS: NodeLabelStates = {};
+const EMPTY_STATES: Record<string, string> = {};
+
 export function GraphCanvas({
   view,
   result,
   selected,
   onSelect,
   classification = "影響候補",
+  candidates = EMPTY_CANDIDATES,
+  registeredStates = EMPTY_STATES,
+  labelStates = EMPTY_LABELS,
 }: {
   view: GraphView;
   result: Envelope;
   selected: string | null;
   onSelect: (node: NodeRef) => void;
   classification?: string;
+  candidates?: string[];
+  registeredStates?: Record<string, string>;
+  labelStates?: NodeLabelStates;
 }) {
   const direct = useMemo(
     () =>
@@ -83,13 +94,13 @@ export function GraphCanvas({
     for (const [depth, items] of groups)
       items.forEach((item, index) => {
         const key = nodeKey(item),
-          name = label(result, item);
+          name = label(result, item, labelStates[nodeKey(item)]);
         nodes.push({
           id: key,
           position: { x: depth * 285, y: index * 140 },
           sourcePosition: Position.Right,
           targetPosition: Position.Left,
-          className: `entity-${item.entity_type}`,
+          className: `entity-${item.entity_type}${candidates.includes(key) ? " alternative-node" : ""}`,
           ariaLabel: `${typeLabel(item.entity_type)}：${name}`,
           data: {
             label: (
@@ -99,30 +110,60 @@ export function GraphCanvas({
                 </span>
                 <strong>{name}</strong>
                 <span className="node-classification">
-                  {direct.has(key)
-                    ? `直接${classification}`
-                    : indirect.has(key)
-                      ? `間接${classification}`
-                      : depth === 0
-                        ? "探索の起点・対象"
-                        : "関係先"}
+                  {candidates.includes(key)
+                    ? "代替候補"
+                    : direct.has(key)
+                      ? `直接${classification}`
+                      : indirect.has(key)
+                        ? `間接${classification}`
+                        : depth === 0
+                          ? "探索の起点・対象"
+                          : "関係先"}
                 </span>
+                {registeredStates[item.entity_id] && (
+                  <span>{registeredStates[item.entity_id]}</span>
+                )}
               </>
             ),
           },
         });
       });
     return nodes;
-  }, [view, result, direct, indirect, classification]);
+  }, [
+    view,
+    result,
+    direct,
+    indirect,
+    classification,
+    candidates,
+    registeredStates,
+    labelStates,
+  ]);
   const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
   useEffect(() => {
-    setNodes(initialNodes);
+    setNodes((old) =>
+      initialNodes.map((item) => ({
+        ...old.find((previous) => previous.id === item.id),
+        ...item,
+      })),
+    );
   }, [initialNodes, setNodes]);
   const edges: Edge[] = view.edges.map((edge, index) => ({
     id: `${edge.source}>${edge.target}:${edge.label}:${index}`,
     source: edge.source,
     target: edge.target,
-    label: edge.label,
+    label:
+      (
+        {
+          SUPPLIES: "供給",
+          PRODUCES: "生産",
+          PRECEDES: "先行",
+          USES: "使用",
+          DEPENDS_ON: "依存",
+          CAN_SUBSTITUTE: "代替関係",
+          CONTROLS: "制御",
+        } as Record<string, string>
+      )[edge.label] ?? "つながり",
     type: "smoothstep",
     className:
       selected && highlighted.has(`${edge.source}>${edge.target}:${edge.label}`)
@@ -144,7 +185,7 @@ export function GraphCanvas({
   }));
   return (
     <>
-      <div className="relation-canvas" aria-label="関係と影響範囲のGraph">
+      <div className="relation-canvas" aria-label="つながりと影響範囲の関係図">
         <ReactFlow
           nodes={nodes.map((item) => ({
             ...item,
@@ -163,8 +204,8 @@ export function GraphCanvas({
           minZoom={0.2}
           maxZoom={2.5}
           ariaLabelConfig={{
-            "controls.zoomIn.ariaLabel": "Graphを拡大",
-            "controls.zoomOut.ariaLabel": "Graphを縮小",
+            "controls.zoomIn.ariaLabel": "関係図を拡大",
+            "controls.zoomOut.ariaLabel": "関係図を縮小",
             "controls.fitView.ariaLabel": "全ノードを表示",
           }}
           colorMode="dark"
@@ -175,19 +216,19 @@ export function GraphCanvas({
         </ReactFlow>
       </div>
       <p className="graph-caption">
-        矢印はサーバが返した探索方向です。ノードを選ぶと、そのノードを含む代表経路を強調します。
+        項目を選ぶと、その項目を含む経路を強調します。
         {view.limited ? " 描画範囲に制限があります。" : ""}
       </p>
       <details className="graph-node-access">
-        <summary>Graphノードを一覧から選ぶ（{view.nodes.length}件）</summary>
-        <div className="node-list" aria-label="Graphノードの一覧">
+        <summary>項目を一覧から選ぶ（{view.nodes.length}件）</summary>
+        <div className="node-list" aria-label="関係図の項目一覧">
           {view.nodes.map((item) => (
             <button
               key={nodeKey(item)}
               aria-pressed={selected === nodeKey(item)}
               onClick={() => onSelect(item)}
             >
-              {label(result, item)}
+              {label(result, item, labelStates[nodeKey(item)])}
             </button>
           ))}
         </div>

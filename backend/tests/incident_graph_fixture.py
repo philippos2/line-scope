@@ -1,13 +1,13 @@
-"""Opt-in two-machine incident fixture; never resets a running demo."""
+"""Regression-only fixture; never exposed as a runnable demo."""
 
+from incident_loss_fixture import END as PERIOD_END
+from incident_loss_fixture import START as PERIOD_START
+from incident_loss_fixture import records
 from psycopg.errors import UniqueViolation
 
-from .demo_graph_seed import END, FIXTURES, START, demo_id, endpoint, seed_graph_rows
-from .demo_seed import DEMO_EQUIPMENT, SeedConflict, _lock_seed
-from .incident_demo_inputs import END as PERIOD_END
-from .incident_demo_inputs import START as PERIOD_START
-from .incident_demo_inputs import records
-from .persistence.core_demo_seed import require_demo_rebuild
+from linescope.demo_graph_seed import END, FIXTURES, START, demo_id, endpoint, seed_graph_rows
+from linescope.demo_seed import DEMO_EQUIPMENT, SeedConflict, _lock_seed
+from linescope.persistence.core_demo_seed import require_demo_rebuild
 
 EQUIPMENT = tuple(
     (identifier, code, name, "STOPPED")

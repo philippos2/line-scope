@@ -1,5 +1,5 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1400" height="540" viewBox="0 0 1400 540" role="img" aria-labelledby="title desc"><title id="title">シナリオ1：文書1 PRの後に実装2 PR</title><desc id="desc">設計承認後に非LLM検索とJSON投入、そのmerge後に単一画面UIと通し検証。最後に利用者確認。横軸は相対作業順。</desc><rect width="1400" height="540" fill="#f8fafc"/><g font-family="sans-serif" fill="#183247">
-<text x="28" y="40" font-size="26">シナリオ1：文書 #264 完了 → 残る実装 2 PR</text>
+<text x="28" y="40" font-size="26">シナリオ1：Backend完了 → データ再測定 → 残るUI改修 1 PR</text>
 <text x="28" y="73" font-size="17">設備検索 → 影響・依存関係と損害額 → 代替候補・能力・未確認条件</text>
 <path d="M430 125V452" stroke="#cbd5e1"/>
 <text x="442" y="113" font-size="16">設計承認</text>
@@ -19,22 +19,22 @@
 <text x="28" y="225" font-size="19">検索・JSON投入</text>
 <text x="28" y="247" font-size="14">実API・ガードの照合まで</text>
 <rect x="620" y="207" width="172" height="40" rx="5" fill="#31788b"/>
-<text x="706" y="233" text-anchor="middle" font-size="15" fill="white">実装工程1 再開</text>
+<text x="706" y="233" text-anchor="middle" font-size="15" fill="white">完了 #263</text>
 <path d="M792 227h8v61h10" fill="none" stroke="#64748b" stroke-width="2"/>
-<text x="28" y="286" font-size="19">PR 1 merge</text>
-<text x="28" y="308" font-size="14">依頼者によるmerge</text>
+<text x="28" y="286" font-size="19">A案データ再測定</text>
+<text x="28" y="308" font-size="14">利用可能性・額・能力の再照合</text>
 <rect x="805" y="268" width="172" height="40" rx="5" fill="#64748b"/>
-<text x="891" y="294" text-anchor="middle" font-size="15" fill="white">merge待ち</text>
+<text x="891" y="294" text-anchor="middle" font-size="15" fill="white">測定・承認完了</text>
 <path d="M977 288h8v61h10" fill="none" stroke="#64748b" stroke-width="2"/>
 <text x="28" y="347" font-size="19">単一画面UI・受入</text>
-<text x="28" y="369" font-size="14">実画面・CI・片付けまで</text>
+<text x="28" y="369" font-size="14">評価範囲・日時表示も修正</text>
 <rect x="990" y="329" width="172" height="40" rx="5" fill="#31788b"/>
-<text x="1076" y="355" text-anchor="middle" font-size="15" fill="white">未着手：1 PR</text>
+<text x="1076" y="355" text-anchor="middle" font-size="15" fill="white">ローカル検証済み</text>
 <path d="M1162 349h8v61h10" fill="none" stroke="#64748b" stroke-width="2"/>
 <text x="28" y="408" font-size="19">利用者確認</text>
 <text x="28" y="430" font-size="14">導線と意味を実際に確認</text>
 <rect x="1175" y="390" width="172" height="40" rx="5" fill="#64748b"/>
 <text x="1261" y="416" text-anchor="middle" font-size="15" fill="white">確認待ち</text>
-<text x="28" y="493" font-size="17">各PRで検証。文書PRの内容確認後、明示承認を受けて実装PR 1へ。PR 2は別承認。</text>
-<text x="28" y="522" font-size="15">横軸は相対的な工程順であり日付・人日ではない。実装は設計承認後。</text>
+<text x="28" y="493" font-size="17">同じDraft PRで進行。データ測定・報告・承認を経てUI修正と新UI検証。</text>
+<text x="28" y="522" font-size="15">横軸は相対的な工程順であり日付・人日ではない。最終のブラウザ確認と5173番切替の確認は別々に行う。</text>
 </g></svg>
