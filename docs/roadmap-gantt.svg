@@ -1,9 +1,9 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1600" height="800" viewBox="0 0 1600 800" role="img" aria-labelledby="title desc">
-<title id="title">画面修正の推奨案：実装2 PR、ドロワー採否待ち</title>
+<title id="title">画面修正の比較用ガント：(a)一体化案、分割採否待ち</title>
 <desc id="desc">実装Aはドロワーなし2.5〜3.5日、あり3〜4.5日。Bは2〜3日。図は採用案の最大7.5作業日枠であり、実装未着手。開発依頼者の採否判断と開始命令を待つ。</desc>
 <rect width="1600" height="800" fill="#f8fafc"/><g font-family="sans-serif" fill="#183247">
-<text x="26" y="40" font-size="25">UI改修：要約帯・選択統一を反映／ドロワーをAへ含める推奨案（採否未決）</text>
-<text x="26" y="73" font-size="17">基本2 PR、採用時5〜7.5作業日。旧4〜6日の見積もりは置換。実装は未着手。</text>
+<text x="26" y="40" font-size="25">UI改修の比較図：(a) Aへ一体化した場合／推奨(b) A1→A2→Bは採否未決</text>
+<text x="26" y="73" font-size="17">(a)は2 PR・5〜7.5日。(b)は3 PR・同じ本体工数＋分割手間0.25〜0.5日。実装は未着手。</text>
 
 <rect x="365" y="120" width="95" height="485" fill="#e2e8f0"/>
 <path d="M365 120V605" stroke="#cbd5e1"/><text x="412.5" y="111" font-size="14" text-anchor="middle">計画・採否</text>
@@ -31,12 +31,12 @@
 <rect x="1099" y="368" width="352" height="36" rx="5" fill="#31788b"/><text x="1275.0" y="392" text-anchor="middle" font-size="14" fill="white">B：2〜3日（検証・文書含む）</text>
 <text x="26" y="439" font-size="18">B：画面確認・merge</text><text x="26" y="460" font-size="13">Snapshotの対象・段階を確認</text>
 <rect x="1459" y="425" width="112" height="36" rx="5" fill="#64748b"/><text x="1515.0" y="449" text-anchor="middle" font-size="14" fill="white">確認</text>
-<text x="26" y="496" font-size="18">ドロワーを後続にする場合</text><text x="26" y="517" font-size="13">A/Bと別に1 PR。採否待ち</text>
-<rect x="464" y="482" width="987" height="36" rx="5" fill="white" stroke="#64748b" stroke-dasharray="6 4"/><text x="957.5" y="506" text-anchor="middle" font-size="14">A/Bは4.5〜6.5日 ＋ 後続ドロワー0.5〜1日</text>
+<text x="26" y="496" font-size="18">(b)(c) ドロワーを分割</text><text x="26" y="517" font-size="13">A1で共通化、A2で参照を追加</text>
+<rect x="464" y="482" width="987" height="36" rx="5" fill="white" stroke="#64748b" stroke-dasharray="6 4"/><text x="957.5" y="506" text-anchor="middle" font-size="14">(b)はA1→A2→B、(c)はA1→B→後続A2。状態共通化はA1だけへ計上</text>
 <text x="26" y="553" font-size="18">API不足等の条件付き追加C</text><text x="26" y="574" font-size="13">必要性・工数とも未確定</text>
 <rect x="464" y="539" width="987" height="36" rx="5" fill="white" stroke="#64748b" stroke-dasharray="6 4"/><text x="957.5" y="563" text-anchor="middle" font-size="14">ドロワーの分割とは別。判明時に報告・判断</text>
-<text x="26" y="658" font-size="16">横軸：ドロワー採用案の最大作業日枠。A単独は2.5〜3.5日、ドロワー追加は0.5〜1日。待ち時間は別。</text>
+<text x="26" y="658" font-size="16">横軸：(a)一体化案の最大作業日枠。A単独は2.5〜3.5日、ドロワー追加は0.5〜1日。待ち時間は別。</text>
 <text x="26" y="693" font-size="16">ドロワー採否とA全体の工数を開発依頼者が判断する。追加分だけを見て旧2〜3日に収まるとは説明しない。</text>
 <text x="26" y="728" font-size="16">各PRに必要な検証・実画面・CI・文書を含む。図・根拠の参照は取得済み情報を使い、新APIを増やさない。</text>
-<text x="26" y="763" font-size="16">詳細：docs/design/post265-ui-correction-plan.md §11。実装命令まで変更しない。5173番は変更しない。</text>
+<text x="26" y="763" font-size="16">分割内訳：docs/design/post265-ui-correction-plan.md §11.10。実装命令まで変更しない。5173番は変更しない。</text>
 </g></svg>
