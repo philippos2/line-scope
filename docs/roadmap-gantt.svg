@@ -1,9 +1,9 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1750" height="800" viewBox="0 0 1750 800" role="img" aria-labelledby="title desc">
 <title id="title">採用計画：A1→A2→Bの3 PR</title>
-<desc id="desc">計画文書266を先にmergeし、A1で共通状態と基本UI、A2で参照ドロワー、Bで入力と変更手続きを完成させる。各PRで確認とmergeを挟む。本体5〜7.5日、分割手間0.25〜0.5日、待ち時間別。A1：#267 merge済み。A2：実装・検証済み、利用者確認待ち。B：未着手。</desc>
+<desc id="desc">計画文書266を先にmergeし、A1で共通状態と基本UI、A2で参照ドロワー、Bで入力と変更手続きを完成させる。各PRで確認とmergeを挟む。本体5〜7.5日、分割手間0.25〜0.5日、待ち時間別。A1：#267 merge済み。A2：#268 merge済み。B：実装・検証済み、利用者確認待ち。</desc>
 <rect width="1750" height="800" fill="#f8fafc"/><g font-family="sans-serif" fill="#183247">
 <text x="26" y="40" font-size="26">採用計画：文書 #266 → A1（基本UI・共通状態）→ A2（ドロワー）→ B（入力・変更）</text>
-<text x="26" y="74" font-size="18">残りA2・Bの2 PR。本体5〜7.5作業日＋分割手間0.25〜0.5日程度。レビュー・CI等の待ち時間は別。A1：#267 merge済み。A2：実装・検証済み、利用者確認待ち。B：未着手。</text>
+<text x="26" y="74" font-size="18">残りBの1 PR。本体5〜7.5作業日＋分割手間0.25〜0.5日程度。レビュー・CI等の待ち時間は別。A1：#267 merge済み。A2：#268 merge済み。B：実装・検証済み、利用者確認待ち。</text>
 
 <rect x="365" y="120" width="95" height="485" fill="#e2e8f0"/>
 <path d="M365 120V605" stroke="#cbd5e1"/><text x="412.5" y="110" text-anchor="middle" font-size="14">計画承認</text>
@@ -28,11 +28,11 @@
 <text x="26" y="268" font-size="18">A1：画面確認・merge</text><text x="26" y="289" font-size="13">保持・対象・期間・事前選択を確認</text>
 <rect x="884" y="254" width="87" height="36" rx="5" fill="#34755a"/><text x="927.5" y="278" text-anchor="middle" font-size="14" fill="white">merge済</text>
 <text x="26" y="325" font-size="18">A2：参照ドロワー</text><text x="26" y="346" font-size="13">共通化を再計上せず表示と操作を追加</text>
-<rect x="979" y="311" width="112" height="36" rx="5" fill="#31788b"/><text x="1035.0" y="335" text-anchor="middle" font-size="14" fill="white">A2：確認待ち</text>
+<rect x="979" y="311" width="112" height="36" rx="5" fill="#31788b"/><text x="1035.0" y="335" text-anchor="middle" font-size="14" fill="white">A2：#268 merge済</text>
 <text x="26" y="382" font-size="18">A2：画面確認・merge</text><text x="26" y="403" font-size="13">再取得なし・対象整合・重ね表示</text>
-<rect x="1099" y="368" width="87" height="36" rx="5" fill="#64748b"/><text x="1142.5" y="392" text-anchor="middle" font-size="14" fill="white">確認</text>
+<rect x="1099" y="368" width="87" height="36" rx="5" fill="#34755a"/><text x="1142.5" y="392" text-anchor="middle" font-size="14" fill="white">merge済</text>
 <text x="26" y="439" font-size="18">B：入力・日時・変更</text><text x="26" y="460" font-size="13">候補入力→準備→別担当承認→実行</text>
-<rect x="1194" y="425" width="352" height="36" rx="5" fill="#31788b"/><text x="1370.0" y="449" text-anchor="middle" font-size="14" fill="white">B：2〜3日</text>
+<rect x="1194" y="425" width="352" height="36" rx="5" fill="#31788b"/><text x="1370.0" y="449" text-anchor="middle" font-size="14" fill="white">B：実装・検証済み</text>
 <text x="26" y="496" font-size="18">B：画面確認・merge</text><text x="26" y="517" font-size="13">保存内容と実行の受入</text>
 <rect x="1554" y="482" width="157" height="36" rx="5" fill="#64748b"/><text x="1632.5" y="506" text-anchor="middle" font-size="14" fill="white">確認</text>
 <text x="26" y="553" font-size="18">条件付き追加C</text><text x="26" y="574" font-size="13">API不足等が判明した場合のみ</text>
