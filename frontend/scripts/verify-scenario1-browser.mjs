@@ -209,6 +209,14 @@ try {
     );
     await page.getByText("能力データを確認・選び直す", { exact: true }).click();
     await proposal.getByText("判定の出典と条件", { exact: true }).click();
+    const economicChoice = page
+      .locator(".input-choice")
+      .filter({ hasText: "損害額の算定データを確認・選び直す" });
+    await economicChoice.locator("summary").first().click();
+    await expect(economicChoice.locator("dd ul li")).toHaveText([
+      "架空工場シナリオ1の登録条件（デモ仮定）",
+    ]);
+    await economicChoice.locator("summary").first().click();
 
     await expect(page.locator(".available-proposal")).toContainText(
       "吸収できる見込み",
@@ -360,6 +368,17 @@ try {
     await expect(page.locator(".selected-node-panel")).toContainText("M-204");
   });
   await check("controlled-names", async () => {
+    // Controlled source variation, retaining the real response shape and all persisted data.
+    await page.route("**/api/economic-inputs/*", async (route) => {
+      if (route.request().method() !== "GET") return route.continue();
+      const response = await route.fetch();
+      const data = await response.json();
+      data.data.input.payload.incident_losses.forEach((row, index) => {
+        row.source = `検証用出典${index + 1}`;
+      });
+      await route.fulfill({ response, json: data });
+    });
+
     await page.route("**/api/agent", async (route) => {
       const body = route.request().postDataJSON();
       if (body?.message?.includes('"get_process"'))
@@ -406,6 +425,14 @@ try {
       "読み込み中",
     );
     await expect(page.locator(".loss-amount")).toContainText("200,000");
+    const sources = page
+      .locator(".input-choice")
+      .filter({ hasText: "損害額の算定データを確認・選び直す" });
+    await sources.locator("summary").first().click();
+    await expect(sources.locator("dd ul li")).toHaveText([
+      "製品 · P-100：検証用出典1",
+      "製品 · P-200：検証用出典2",
+    ]);
   });
   for (const failure of [
     "capacity-0",

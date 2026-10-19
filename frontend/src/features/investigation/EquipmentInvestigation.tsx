@@ -17,6 +17,7 @@ import {
   candidates,
   displayGraph,
   errorCode,
+  lossSourceLines,
   explanation,
   generation,
   registeredState,
@@ -134,11 +135,17 @@ function InputChoice({
           <dd>{displayPeriod(p.period_start, p.period_end)}</dd>
           <dt>出典</dt>
           <dd>
-            {kind === "capacity"
-              ? String(p.source)
-              : rows(p.incident_losses)
-                  .map((x) => String(x.source))
-                  .join("、")}
+            {kind === "capacity" ? (
+              String(p.source)
+            ) : (
+              <ul>
+                {lossSourceLines(p.incident_losses, productTitle).map(
+                  (text) => (
+                    <li key={text}>{text}</li>
+                  ),
+                )}
+              </ul>
+            )}
           </dd>
           <dt>選択</dt>
           <dd>

@@ -2,6 +2,7 @@ import { afterEach, expect, it } from "vitest";
 import { cleanup, render, screen } from "@testing-library/react";
 import { AlternativeAssessment } from "./AlternativeAssessment";
 import { displayPeriod } from "./EquipmentInvestigation";
+import { lossSourceLines } from "./readModel";
 import { label } from "../graph/model";
 import type { Envelope, JsonObject } from "../../api/client";
 afterEach(cleanup);
@@ -121,6 +122,26 @@ it("does not draw a zero capacity bar for an unknown numeric value", () => {
   expect(screen.getByText(/空き能力：不明/)).toBeTruthy();
 });
 it("labels an infrastructure node with the resource fields returned by its own get tool", () => {
+  const products = (id: string) => `製品 · ${id}`;
+  expect(
+    lossSourceLines(
+      [
+        { product_id: "P-100", source: "共通出典" },
+        { product_id: "P-200", source: "共通出典" },
+      ],
+      products,
+    ),
+  ).toEqual(["共通出典"]);
+  expect(
+    lossSourceLines(
+      [
+        { product_id: "P-100", source: "出典A" },
+        { product_id: "P-200", source: "出典B" },
+      ],
+      products,
+    ),
+  ).toEqual(["製品 · P-100：出典A", "製品 · P-200：出典B"]);
+
   const result = {
     data: {
       tool_results: [

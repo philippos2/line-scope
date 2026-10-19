@@ -649,3 +649,5 @@ Dockerで追加36テスト成功、ruff check / format、git diff --check成功�
 - [関係図の全ノードの名称取得・表示](2026-10-19-all-graph-node-labels.md)
 
 - [代替提案の評価範囲・期間表示の修正](2026-10-19-alternative-evaluation-display.md)
+
+- [損害額の出典の重複表示修正](2026-10-19-loss-source-display.md)

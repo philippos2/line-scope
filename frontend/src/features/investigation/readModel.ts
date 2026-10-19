@@ -177,3 +177,22 @@ export function displayGraph(
   };
 }
 export const keyOf = nodeKey;
+
+export function lossSourceLines(
+  values: unknown,
+  productTitle: (id: string) => string,
+): string[] {
+  const groups = new Map<string, Set<string>>();
+  for (const row of rows(values)) {
+    const source =
+      typeof row.source === "string" && row.source.trim()
+        ? row.source
+        : "出典を取得できません";
+    const products = groups.get(source) ?? new Set<string>();
+    products.add(productTitle(String(row.product_id)));
+    groups.set(source, products);
+  }
+  return [...groups].map(([source, products]) =>
+    groups.size === 1 ? source : `${[...products].join("、")}：${source}`,
+  );
+}
