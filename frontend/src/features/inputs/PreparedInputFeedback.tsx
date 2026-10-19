@@ -142,14 +142,14 @@ export function PreparedInputNotice({
           ))}
         </details>
       ) : (
-        <p>保存内容は「保存内容を確認・承認へ進む」から確認できます。</p>
+        <p>保存内容は「保存した変更要求を開く」から確認できます。</p>
       )}
       <button
         className="primary"
         type="button"
         onClick={() => onOpen(prepared.id)}
       >
-        保存内容を確認・承認へ進む
+        保存した変更要求を開く
       </button>
     </section>
   );

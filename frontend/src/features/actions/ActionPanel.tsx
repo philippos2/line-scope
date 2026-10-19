@@ -20,10 +20,12 @@ export function ActionPanel({
   onSaved,
   initiallyOpen = false,
   actor = "",
+  actorRole = "",
   names = {},
 }: {
   requestedOpen?: { id: string } | null;
   actor?: string;
+  actorRole?: string;
   names?: Record<string, string>;
   initialMessage?: string;
   preparedId?: string;
@@ -233,6 +235,36 @@ export function ActionPanel({
           : !checked
             ? "承認された保存内容を確認し、確認欄にチェックしてください。"
             : "元の依頼者として実行します。サーバが期限・権限・版を再確認します。";
+  // 保存状態と依頼者との関係を表示し、操作権限はサーバで確認する。
+  const viewerRole =
+    {
+      manager: "工場管理者",
+      maintenance: "設備保全担当者",
+      production: "生産管理担当者",
+      floor: "製造現場担当者",
+    }[actorRole] ?? "職務権限は未取得";
+  const viewerRelation =
+    !actor || !requester
+      ? "依頼者との関係を確認できません"
+      : actor === requester
+        ? "この要求の依頼者"
+        : "この要求の依頼者とは別の利用者";
+  const nextActor = pendingApproval
+    ? inputCategory
+      ? "依頼者とは別の工場管理者"
+      : "この変更カテゴリの承認権限を持つ担当者（自己承認の可否はカテゴリ規則に従います）"
+    : approved
+      ? "元の依頼者（現在も対象の更新権限が必要です）"
+      : "保存状態を確認する担当者";
+  const waitingReason = pendingApproval
+    ? actor && actor === requester
+      ? "変更準備は保存済みですが、登録値はまだ変わっていません。次の担当者へ要求IDを渡し、保存内容の確認と承認を依頼してください。"
+      : "変更準備は保存済みですが、登録値はまだ変わっていません。承認を担当する利用者は、下の保存内容と操作条件を確認して承認してください。操作権限はサーバが確認します。"
+    : approved
+      ? "承認済みですが、登録値はまだ変わっていません。元の依頼者が保存内容を確認して実行してください。承認から実行までの有効期限は30分です。"
+      : data?.status === "COMPLETED"
+        ? "実行済みです。表示済みの調査結果は自動更新されません。必要な調査を再取得してください。"
+        : "この要求は承認待ち・有効な承認済みの状態ではありません。保存状態と操作できない理由を確認してください。";
   const stateName = (value: unknown) =>
     ({
       WAITING_APPROVAL: "承認待ち",
@@ -381,6 +413,26 @@ export function ActionPanel({
           <h2 ref={snapshotHeading} tabIndex={-1}>
             保存済みSnapshot
           </h2>
+          <section
+            className="operation-completion"
+            aria-label="現在の担当と次の操作"
+          >
+            <h3>現在の担当と次の操作</h3>
+            <p>
+              現在の利用者：{viewerRole} ／ {viewerRelation}
+            </p>
+            <p>現在の段階：{stateName(data.effective_status ?? data.status)}</p>
+            <p>次の担当者：{nextActor}</p>
+            <p>{waitingReason}</p>
+            {pendingApproval && (
+              <p>
+                承認後は元の依頼者が実行します。承認から実行までの有効期限は30分です。接続を切り替える前に下の要求IDをコピーしてください。
+              </p>
+            )}
+            <p>
+              実際の操作権限・自己承認の可否・承認期限はサーバが確認します。
+            </p>
+          </section>
           <p>変更要求ID：{requestId}</p>
           <button
             type="button"

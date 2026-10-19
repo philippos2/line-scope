@@ -82,12 +82,16 @@ export function App() {
   const [restoring, setRestoring] = useState(true);
   const [showConnection, setShowConnection] = useState(false);
   const [identity, setIdentity] = useState("");
+  const [actorRole, setActorRole] = useState("");
   useEffect(() => {
     const controller = new AbortController();
     request("", "/session", undefined, controller.signal)
       .then((value) => {
         if (!controller.signal.aborted) {
           setConnected(true);
+          setActorRole(
+            typeof value.data.role === "string" ? value.data.role : "",
+          );
           setIdentity(
             typeof value.data.user_id === "string"
               ? value.data.user_id
@@ -213,6 +217,7 @@ export function App() {
     freshContext.current = false;
     setConnected(false);
     setIdentity("");
+    setActorRole("");
     setShowConnection(false);
     setBusy(false);
     setResult(null);
@@ -261,6 +266,9 @@ export function App() {
         ),
       (session) => {
         token.current = "";
+        setActorRole(
+          typeof session.data.role === "string" ? session.data.role : "",
+        );
         setIdentity(
           typeof session.data.user_id === "string"
             ? session.data.user_id
@@ -1141,6 +1149,7 @@ export function App() {
                 <ActionPanel
                   requestedOpen={requestedOpen}
                   actor={identity}
+                  actorRole={actorRole}
                   names={entityNames}
                   onSaved={setSavedRequest}
                   initialMessage={actionDraft}

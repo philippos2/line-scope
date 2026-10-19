@@ -308,7 +308,14 @@ it("opens an explicitly requested saved request and keeps its ID when a read fai
     .mockRejectedValueOnce(new TypeError("network failure"))
     .mockResolvedValue(new Response(JSON.stringify(saved)));
   vi.stubGlobal("fetch", fetcher);
-  render(<ActionPanel initiallyOpen requestedOpen={{ id: requestId }} />);
+  render(
+    <ActionPanel
+      initiallyOpen
+      actor="owner"
+      actorRole="manager"
+      requestedOpen={{ id: requestId }}
+    />,
+  );
   await screen.findByRole("alert");
   expect((screen.getByLabelText("変更要求ID") as HTMLInputElement).value).toBe(
     requestId,
@@ -323,6 +330,12 @@ it("opens an explicitly requested saved request and keeps its ID when a read fai
   const user = userEvent.setup();
   await user.click(screen.getByRole("button", { name: "保存状態を再取得" }));
   await screen.findByRole("heading", { name: "保存済みSnapshot" });
+  expect(
+    screen.getByRole("region", { name: "現在の担当と次の操作" }).textContent,
+  ).toContain("この要求の依頼者");
+  expect(
+    screen.getByRole("region", { name: "現在の担当と次の操作" }).textContent,
+  ).toContain("工場管理者");
   expect(fetcher).toHaveBeenCalledTimes(2);
   expect(
     fetcher.mock.calls.every(

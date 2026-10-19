@@ -240,7 +240,7 @@ test("a prepared input remains visible, exposes its saved contents and copyable 
   fireEvent.click(screen.getByRole("button", { name: "変更要求IDをコピー" }));
   await waitFor(() => expect(copy).toHaveBeenCalledWith("saved-request"));
   fireEvent.click(
-    screen.getByRole("button", { name: "保存内容を確認・承認へ進む" }),
+    screen.getByRole("button", { name: "保存した変更要求を開く" }),
   );
   expect(opened).toHaveBeenCalledWith("saved-request");
   fireEvent.change(screen.getByLabelText("稼働時間"), {

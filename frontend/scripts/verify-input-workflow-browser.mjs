@@ -226,7 +226,7 @@ try {
       ).toBeDisabled();
       await editor
         .getByRole("button", {
-          name: "保存内容を確認・承認へ進む",
+          name: "保存した変更要求を開く",
           exact: true,
         })
         .click();
