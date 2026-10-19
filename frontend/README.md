@@ -25,3 +25,5 @@ docker run --rm --network host --env-file /private/browser.env \
 現行の確認対象は[M-204停止とM-208代替候補のシナリオ](../docs/demo/scenario1.md)です。旧シナリオでM-208を停止・復旧させるブラウザ試験は廃止しています。実APIを使い、設備検索、関係図、損害額、代替候補、評価範囲、設備切替を確認します。
 
 [画面設計](../docs/design/frontend-console.md)・[ロードマップ](../docs/roadmap.md)・[開発規則](../CONTRIBUTING.md)を参照してください。
+
+比較タブは主画面から引き継いだ入力を最初から表示し、候補取得前でも確認・変更できます。入力詳細は日本語表示、返却値の原文は技術情報です。`ComparisonPresentation.test.tsx`の4件で、既知0・未算定・代替ゲート・製品別出典・インフラ名称の意味を検査します。
