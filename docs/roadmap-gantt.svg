@@ -1,9 +1,9 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1750" height="800" viewBox="0 0 1750 800" role="img" aria-labelledby="title desc">
 <title id="title">採用計画：A1→A2→Bの3 PR</title>
-<desc id="desc">計画文書266を先にmergeし、A1で共通状態と基本UI、A2で参照ドロワー、Bで入力と変更手続きを完成させる。各PRで確認とmergeを挟む。本体5〜7.5日、分割手間0.25〜0.5日、待ち時間別。実装未着手。</desc>
+<desc id="desc">計画文書266を先にmergeし、A1で共通状態と基本UI、A2で参照ドロワー、Bで入力と変更手続きを完成させる。各PRで確認とmergeを挟む。本体5〜7.5日、分割手間0.25〜0.5日、待ち時間別。A1：実装・ローカル検証済み、利用者確認待ち。A2・B：未着手。</desc>
 <rect width="1750" height="800" fill="#f8fafc"/><g font-family="sans-serif" fill="#183247">
 <text x="26" y="40" font-size="26">採用計画：文書 #266 → A1（基本UI・共通状態）→ A2（ドロワー）→ B（入力・変更）</text>
-<text x="26" y="74" font-size="18">後続3 PR。本体5〜7.5作業日＋分割手間0.25〜0.5日程度。レビュー・CI等の待ち時間は別。実装未着手。</text>
+<text x="26" y="74" font-size="18">後続3 PR。本体5〜7.5作業日＋分割手間0.25〜0.5日程度。レビュー・CI等の待ち時間は別。A1：実装・ローカル検証済み、利用者確認待ち。A2・B：未着手。</text>
 
 <rect x="365" y="120" width="95" height="485" fill="#e2e8f0"/>
 <path d="M365 120V605" stroke="#cbd5e1"/><text x="412.5" y="110" text-anchor="middle" font-size="14">計画承認</text>
@@ -22,9 +22,9 @@
 <rect x="1550" y="120" width="165" height="485" fill="#e2e8f0"/>
 <path d="M1550 120V605" stroke="#cbd5e1"/><text x="1632.5" y="110" text-anchor="middle" font-size="14">確認</text>
 <text x="26" y="154" font-size="18">計画文書 #266</text><text x="26" y="175" font-size="13">文書のみ／実装より先にmerge</text>
-<rect x="369" y="140" width="87" height="36" rx="5" fill="#a66d18"/><text x="412.5" y="164" text-anchor="middle" font-size="14" fill="white">文書</text>
+<rect x="369" y="140" width="87" height="36" rx="5" fill="#34755a"/><text x="412.5" y="164" text-anchor="middle" font-size="14" fill="white">merge済</text>
 <text x="26" y="211" font-size="18">A1：基本UI・共通状態</text><text x="26" y="232" font-size="13">6タブ・要約・比較・質問・根拠</text>
-<rect x="464" y="197" width="412" height="36" rx="5" fill="#31788b"/><text x="670.0" y="221" text-anchor="middle" font-size="14" fill="white">A1：2.5〜3.5日</text>
+<rect x="464" y="197" width="412" height="36" rx="5" fill="#31788b"/><text x="670.0" y="221" text-anchor="middle" font-size="14" fill="white">A1：実装・検証済み</text>
 <text x="26" y="268" font-size="18">A1：画面確認・merge</text><text x="26" y="289" font-size="13">保持・対象・期間・事前選択を確認</text>
 <rect x="884" y="254" width="87" height="36" rx="5" fill="#64748b"/><text x="927.5" y="278" text-anchor="middle" font-size="14" fill="white">確認</text>
 <text x="26" y="325" font-size="18">A2：参照ドロワー</text><text x="26" y="346" font-size="13">共通化を再計上せず表示と操作を追加</text>
