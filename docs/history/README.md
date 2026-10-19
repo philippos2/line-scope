@@ -645,3 +645,5 @@ Dockerで追加36テスト成功、ruff check / format、git diff --check成功�
 - [シナリオ1のA案データ修正と実API再測定](2026-10-19-scenario1-availability.md)
 
 - [UIの利用可能性・インフラ名・ブラウザ環境の修正](2026-10-19-ui-availability-and-environments.md)
+
+- [関係図の全ノードの名称取得・表示](2026-10-19-all-graph-node-labels.md)
