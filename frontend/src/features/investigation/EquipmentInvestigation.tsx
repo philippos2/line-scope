@@ -224,7 +224,9 @@ export function EquipmentInvestigation({
   const stateOf = (id: string) =>
     observedStates.find((x) => x.equipment_id === id)?.state_code;
   const titleOf = (ref: { entity_type: string; entity_id: string }) =>
-    shown ? label(shown, ref) : typeLabel(ref.entity_type);
+    shown
+      ? label(shown, ref, model.labelStates[nodeKey(ref)])
+      : typeLabel(ref.entity_type);
   const selected = model.selected;
   const selectedData = shown && selected ? detail(shown, selected) : null;
   const selectedEquipment =
@@ -410,7 +412,27 @@ export function EquipmentInvestigation({
             <p role="status">つながりを調べています…</p>
           )}
           <Failure code={states[direction]?.error} retry={model.retry} />
-          <Failure code={model.inputErrors.names} retry={model.retry} />
+          <Failure
+            code={
+              Object.values(model.labelStates).find((s) => s.status === "error")
+                ?.code
+            }
+            retry={model.retryLabels}
+          />
+          {Object.values(model.labelStates).some(
+            (s) => s.status === "error",
+          ) && (
+            <p className="notice">
+              一部の名称を取得できませんでした。表示済みの関係と金額は保持しています。
+            </p>
+          )}
+          {Object.values(model.labelStates).some(
+            (s) => s.status === "limited",
+          ) && (
+            <p className="notice">
+              名称の取得は100件までです。調査範囲を絞って再調査してください。
+            </p>
+          )}
           {view && shown ? (
             <>
               <p className="relationship-summary">
@@ -452,6 +474,7 @@ export function EquipmentInvestigation({
                       : "関係先"
                 }
                 candidates={candidateRefs.map(nodeKey)}
+                labelStates={model.labelStates}
                 registeredStates={Object.fromEntries(
                   observedStates.map((s) => [
                     String(s.equipment_id),

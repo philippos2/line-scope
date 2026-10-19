@@ -20,6 +20,7 @@ const report = {
     "alternatives",
     "comparison",
     "loss",
+    "names",
   ],
 };
 let page;
@@ -71,7 +72,7 @@ async function noOverflow() {
 async function visibleWords() {
   const text = await page.locator("body").innerText();
   expect(text).not.toMatch(
-    /Graph|Envelope|\bTool\b|state_code|SPOF|CURRENT|INCOMPLETE_SEARCH|経済入力|被害額|損失根拠|正本|[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/,
+    /Graph|Envelope|\bTool\b|state_code|SPOF|CURRENT|INCOMPLETE_SEARCH|経済入力|被害額|損失根拠|正本|名称を確認|名前を確認|[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/,
   );
 }
 async function check(name, run) {
@@ -199,10 +200,41 @@ try {
     await expect(
       page.locator(".react-flow__node").filter({ hasText: "共通電源 · R-02" }),
     ).toBeVisible();
+    await expect(page.locator(".react-flow__node")).toHaveCount(2);
+    await expect(page.locator(".react-flow__node")).toHaveText([
+      /第1加工機 · M-204/,
+      /共通電源 · R-02/,
+    ]);
     await page.screenshot({ path: `${output}/upstream.png`, fullPage: true });
     await page
       .getByRole("button", { name: "止まると影響を受ける先", exact: true })
       .click();
+    const expected = [
+      "第1加工機 · M-204",
+      "第2加工機 · M-208",
+      "第1加工工程 · P-10",
+      "仕上工程 · P-20",
+      "OP-30",
+      "OP-40",
+      "製品 · P-100",
+      "製品 · P-200",
+    ];
+    await expect(page.locator(".react-flow__node")).toHaveCount(
+      expected.length,
+    );
+    for (const text of expected)
+      await expect(
+        page.locator(".react-flow__node").filter({ hasText: text }),
+      ).toBeVisible();
+    await page.locator(".graph-node-access summary").click();
+    const list = page.locator(".node-list button");
+    await expect(list).toHaveCount(expected.length);
+    for (const text of expected)
+      await expect(list.filter({ hasText: text })).toHaveCount(1);
+    await expect(page.locator(".relationship-panel")).not.toContainText(
+      "読み込み中",
+    );
+    await page.locator(".graph-node-access summary").click();
   });
   await check("switch-delayed-390", async () => {
     await search();
@@ -228,6 +260,18 @@ try {
         /* Aborted by equipment switch. */
       }
     });
+    await page.route("**/api/agent", async (route) => {
+      const body = route.request().postDataJSON();
+      if (body?.message?.includes('"get_process"')) {
+        const response = await route.fetch();
+        await gate;
+        try {
+          await route.fulfill({ response });
+        } catch {
+          /* Switched roots. */
+        }
+      } else await route.continue();
+    });
     await page.getByRole("button", { name: "再調査", exact: true }).click();
     await started;
     await expect(
@@ -235,6 +279,15 @@ try {
     ).toBeVisible();
     await page.locator(".discovered-candidates .equipment-result").click();
     release();
+    await expect(
+      page.locator(".react-flow__node").filter({ hasText: "OP-50" }),
+    ).toBeVisible();
+    await expect(page.locator(".relationship-panel")).not.toContainText(
+      "OP-30",
+    );
+    await expect(page.locator(".relationship-panel")).not.toContainText(
+      "第1加工工程",
+    );
     await expect(page.locator(".selected-equipment")).toContainText("M-208");
     await expect(page.locator(".loss-estimate")).toContainText("稼働中のため", {
       timeout: 15000,
@@ -273,6 +326,54 @@ try {
     await expect(page.locator(".node-list button").first()).toBeFocused();
     await page.keyboard.press("Enter");
     await expect(page.locator(".selected-node-panel")).toContainText("M-204");
+  });
+  await check("controlled-names", async () => {
+    await page.route("**/api/agent", async (route) => {
+      const body = route.request().postDataJSON();
+      if (body?.message?.includes('"get_process"'))
+        return route.fulfill({
+          status: 503,
+          json: {
+            request_id: "name-failure",
+            context_id: null,
+            status: "error",
+            answer: null,
+            data: {},
+            evidence: {},
+            warnings: [],
+            errors: [{ code: "DEPENDENCY_UNAVAILABLE" }],
+          },
+        });
+      await route.continue();
+    });
+    await search();
+    await choose();
+    await money();
+    await capacity();
+    await expect(
+      page.locator(".react-flow__node").filter({ hasText: "名称取得に失敗" }),
+    ).toHaveCount(2);
+    await page.locator(".graph-node-access summary").click();
+    await expect(
+      page.locator(".node-list button").filter({ hasText: "名称取得に失敗" }),
+    ).toHaveCount(2);
+    await page.unroute("**/api/agent");
+    await page
+      .locator(".relationship-panel .read-failure")
+      .getByRole("button", { name: "再試行" })
+      .click();
+    await expect(
+      page
+        .locator(".react-flow__node")
+        .filter({ hasText: "第1加工工程 · P-10" }),
+    ).toBeVisible();
+    await expect(page.locator(".relationship-panel")).not.toContainText(
+      "名称取得に失敗",
+    );
+    await expect(page.locator(".relationship-panel")).not.toContainText(
+      "読み込み中",
+    );
+    await expect(page.locator(".loss-amount")).toContainText("200,000");
   });
   for (const failure of [
     "capacity-0",

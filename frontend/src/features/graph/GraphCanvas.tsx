@@ -1,3 +1,4 @@
+import type { NodeLabelStates } from "./labelLoader";
 import { useEffect, useMemo } from "react";
 import {
   Background,
@@ -23,6 +24,7 @@ import {
 } from "./model";
 
 const EMPTY_CANDIDATES: string[] = [];
+const EMPTY_LABELS: NodeLabelStates = {};
 const EMPTY_STATES: Record<string, string> = {};
 
 export function GraphCanvas({
@@ -33,6 +35,7 @@ export function GraphCanvas({
   classification = "影響候補",
   candidates = EMPTY_CANDIDATES,
   registeredStates = EMPTY_STATES,
+  labelStates = EMPTY_LABELS,
 }: {
   view: GraphView;
   result: Envelope;
@@ -41,6 +44,7 @@ export function GraphCanvas({
   classification?: string;
   candidates?: string[];
   registeredStates?: Record<string, string>;
+  labelStates?: NodeLabelStates;
 }) {
   const direct = useMemo(
     () =>
@@ -90,7 +94,7 @@ export function GraphCanvas({
     for (const [depth, items] of groups)
       items.forEach((item, index) => {
         const key = nodeKey(item),
-          name = label(result, item);
+          name = label(result, item, labelStates[nodeKey(item)]);
         nodes.push({
           id: key,
           position: { x: depth * 285, y: index * 140 },
@@ -133,6 +137,7 @@ export function GraphCanvas({
     classification,
     candidates,
     registeredStates,
+    labelStates,
   ]);
   const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
   useEffect(() => {
@@ -223,7 +228,7 @@ export function GraphCanvas({
               aria-pressed={selected === nodeKey(item)}
               onClick={() => onSelect(item)}
             >
-              {label(result, item)}
+              {label(result, item, labelStates[nodeKey(item)])}
             </button>
           ))}
         </div>

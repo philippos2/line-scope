@@ -1,13 +1,16 @@
 import { useEffect, useRef, useState } from "react";
 import {
+  ApiError,
   object,
   request,
   type Envelope,
   type JsonObject,
 } from "../../api/client";
 import type { EquipmentCandidate } from "../equipment/EquipmentCandidates";
-import { node, nodeKey, type NodeRef } from "../graph/model";
+import { graphView, nodeKey, type NodeRef } from "../graph/model";
+import { createLabelLoader, type NodeLabelStates } from "../graph/labelLoader";
 import {
+  displayGraph,
   candidates,
   direct,
   errorCode,
@@ -27,6 +30,10 @@ export function useEquipmentInvestigation(
   const [refresh, setRefresh] = useState(0);
   const [states, setStates] = useState<Partial<Record<Channel, ReadState>>>({});
   const [metadata, setMetadata] = useState<unknown[]>([]);
+  const [labelStates, setLabelStates] = useState<NodeLabelStates>({});
+  const labelLoader = useRef<ReturnType<
+    typeof createLabelLoader<Envelope>
+  > | null>(null);
   const [economic, setEconomic] = useState<Envelope[]>([]),
     [capacity, setCapacity] = useState<Envelope[]>([]);
   const [economicId, setEconomicId] = useState(""),
@@ -52,6 +59,8 @@ export function useEquipmentInvestigation(
     const signal = controller.signal;
     setStates({});
     setMetadata(root ? [{ tool: "get_equipment", data: root }] : []);
+    setLabelStates({});
+    labelLoader.current = null;
     setEconomic([]);
     setCapacity([]);
     setCapacityOwner("");
@@ -67,47 +76,75 @@ export function useEquipmentInvestigation(
     function update(channel: Channel, state: ReadState) {
       if (!signal.aborted) setStates((old) => ({ ...old, [channel]: state }));
     }
-    const labelRequests = new Set<string>();
-    async function labels(subjects: NodeRef[]) {
-      // Names for the amount/proposal and upstream infrastructure; other node inspection is lazy.
-      for (const item of subjects) {
-        if (signal.aborted) return;
-        if (labelRequests.has(nodeKey(item))) continue;
-        labelRequests.add(nodeKey(item));
-        const field =
-          item.entity_type === "InfrastructureResource"
-            ? "infrastructure_resource"
-            : item.entity_type === "Product"
-              ? "product"
-              : "equipment";
-        try {
-          const response = await direct(
-            `get_${field}`,
-            {
-              [`${field}_id`]: item.entity_id,
-            },
-            signal,
-          );
-          if (!signal.aborted)
-            setMetadata((old) => [...old, ...rows(response.data.tool_results)]);
-          if (item.entity_type === "Equipment") {
-            const d = toolData(response);
-            if (
-              typeof d.equipment_id === "string" &&
-              typeof d.equipment_code === "string" &&
-              typeof d.equipment_name === "string" &&
-              !signal.aborted
-            )
-              setCandidateEquipment((old) => [
-                ...old.filter((x) => x.equipment_id !== item.entity_id),
-                d as unknown as EquipmentCandidate,
-              ]);
-          }
-        } catch (e) {
-          if (!signal.aborted)
-            setInputErrors((old) => ({ ...old, names: errorCode(e) }));
-        }
-      }
+    const labelResults = new Map<string, Envelope>();
+    const candidateIds = new Set<string>();
+    function registerCandidate(item: NodeRef, response: Envelope) {
+      if (
+        item.entity_type !== "Equipment" ||
+        !candidateIds.has(item.entity_id) ||
+        signal.aborted
+      )
+        return;
+      const d = toolData(response);
+      if (
+        typeof d.equipment_id === "string" &&
+        typeof d.equipment_code === "string" &&
+        typeof d.equipment_name === "string"
+      )
+        setCandidateEquipment((old) => [
+          ...old.filter((x) => x.equipment_id !== item.entity_id),
+          d as unknown as EquipmentCandidate,
+        ]);
+    }
+    const fields: Record<string, string> = {
+      Equipment: "equipment",
+      Process: "process",
+      ProductionOperation: "production_operation",
+      Product: "product",
+      InfrastructureResource: "infrastructure_resource",
+    };
+    const loader = createLabelLoader<Envelope>({
+      signal,
+      errorCode,
+      read: async (item, readSignal) => {
+        const field = fields[item.entity_type];
+        if (!field) throw new ApiError("INVALID_RESPONSE");
+        const response = await direct(
+          `get_${field}`,
+          { [`${field}_id`]: item.entity_id },
+          readSignal,
+        );
+        const record = toolData(response);
+        const code =
+          item.entity_type === "ProductionOperation"
+            ? "operation_code"
+            : item.entity_type === "InfrastructureResource"
+              ? "resource_code"
+              : `${field}_code`;
+        if (
+          record[`${field}_id`] !== item.entity_id ||
+          typeof record[code] !== "string"
+        )
+          throw new ApiError("INVALID_RESPONSE");
+        return response;
+      },
+      onResult: (item, response) => {
+        labelResults.set(nodeKey(item), response);
+        setMetadata((old) => [...old, ...rows(response.data.tool_results)]);
+        registerCandidate(item, response);
+      },
+      onState: (item, state) =>
+        setLabelStates((old) => ({ ...old, [nodeKey(item)]: state })),
+    });
+    labelLoader.current = loader;
+    function labels(subjects: NodeRef[]) {
+      loader.enqueue(
+        subjects.filter(
+          (item) =>
+            item.entity_type !== "Equipment" ||
+            item.entity_id !== root?.equipment_id,
+        ),
+      );
     }
     async function loadInputs(kind: "economic" | "capacity", ids: string[]) {
       setInputLoading((old) => ({ ...old, [kind]: true }));
@@ -146,16 +183,7 @@ export function useEquipmentInvestigation(
     void direct("trace_upstream_dependencies", { target }, signal)
       .then((value) => {
         update("up", { value });
-        if (!signal.aborted)
-          void labels(
-            rows(toolData(value).reached_nodes)
-              .filter(node)
-              .filter((n) => n.entity_type === "InfrastructureResource")
-              .map((n) => ({
-                entity_type: String(n.entity_type),
-                entity_id: String(n.entity_id),
-              })),
-          );
+        if (!signal.aborted) labels(graphView(value)?.nodes ?? []);
       })
       .catch((e) => update("up", { error: errorCode(e) }));
     void loadInputs("economic", [root.equipment_id]);
@@ -164,7 +192,7 @@ export function useEquipmentInvestigation(
         if (signal.aborted) return;
         update("down", { value });
         const targets = products(value);
-        void labels(targets);
+        labels(graphView(value)?.nodes ?? []);
         if (!targets.length) return;
         update("alternatives", { loading: true });
         try {
@@ -179,7 +207,12 @@ export function useEquipmentInvestigation(
           const found = candidates(result).filter(
             (x) => x.entity_type === "Equipment",
           );
-          void labels(found);
+          for (const item of found) {
+            candidateIds.add(item.entity_id);
+            const cached = labelResults.get(nodeKey(item));
+            if (cached) registerCandidate(item, cached);
+          }
+          labels(graphView(displayGraph(value, result, []))?.nodes ?? []);
           if (found.length)
             void loadInputs(
               "capacity",
@@ -322,7 +355,8 @@ export function useEquipmentInvestigation(
     setStates((old) => ({ ...old, extra: { loading: true } }));
     void direct(tool, args, controller.signal)
       .then((value) => {
-        if (!controller.signal.aborted)
+        if (!controller.signal.aborted) {
+          labelLoader.current?.enqueue(graphView(value)?.nodes ?? []);
           setStates((old) => ({
             ...old,
             extra:
@@ -330,6 +364,7 @@ export function useEquipmentInvestigation(
                 ? { value }
                 : { error: "GRAPH_NOT_CURRENT" },
           }));
+        }
       })
       .catch((e) => {
         if (!controller.signal.aborted)
@@ -347,6 +382,8 @@ export function useEquipmentInvestigation(
     states,
     analyze,
     metadata,
+    labelStates,
+    retryLabels: () => labelLoader.current?.retry(),
     economic,
     capacity,
     economicId,

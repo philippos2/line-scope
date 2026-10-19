@@ -1,3 +1,4 @@
+import type { NodeLabelState } from "./labelLoader";
 import { object, type Envelope, type JsonObject } from "../../api/client";
 export interface NodeRef {
   entity_type: string;
@@ -165,32 +166,33 @@ export function detail(result: Envelope, nodeRef: NodeRef): JsonObject {
     }
   return { entity_type: nodeRef.entity_type, entity_id: nodeRef.entity_id };
 }
-export function label(result: Envelope, item: NodeRef): string {
+export function label(
+  result: Envelope,
+  item: NodeRef,
+  state?: NodeLabelState,
+): string {
   const data = detail(result, item);
-  const prefix = fields[item.entity_type];
   if (
     item.entity_type === "ProductionOperation" &&
     typeof data.operation_code === "string"
   )
     return data.operation_code;
-  if (
-    item.entity_type === "Equipment" &&
-    typeof data.equipment_name === "string" &&
-    typeof data.equipment_code === "string"
-  )
-    return `${data.equipment_name} · ${data.equipment_code}`;
-  if (item.entity_type === "InfrastructureResource") {
-    if (
-      typeof data.resource_name === "string" &&
-      typeof data.resource_code === "string"
-    )
-      return `${data.resource_name} · ${data.resource_code}`;
-    if (typeof data.resource_name === "string") return data.resource_name;
-    if (typeof data.resource_code === "string") return data.resource_code;
+  const prefix =
+    item.entity_type === "InfrastructureResource"
+      ? "resource"
+      : fields[item.entity_type];
+  const name = data[`${prefix}_name`],
+    code = data[`${prefix}_code`];
+  if (typeof name === "string" && typeof code === "string") {
+    if (name === code) return code;
+    const displayName = name.endsWith(` ${code}`)
+      ? name.slice(0, -code.length).trimEnd()
+      : name;
+    return `${displayName} · ${code}`;
   }
-  for (const key of [`${prefix}_name`, `${prefix}_code`])
-    if (typeof data[key] === "string") return data[key];
-  return typeLabel(item.entity_type) + "（名称を確認）";
+  if (typeof code === "string") return code;
+  if (typeof name === "string") return name;
+  return `${typeLabel(item.entity_type)} · ${state?.status === "error" ? "名称取得に失敗" : state?.status === "limited" ? "名称取得の上限" : "読み込み中"}`;
 }
 
 export function typeLabel(kind: string): string {
