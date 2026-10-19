@@ -1,6 +1,12 @@
 import { registeredState } from "../investigation/readModel";
 import { ComparisonInputDetails } from "../decision/ComparisonInputDetails";
-import { useEffect, useRef, useState, type FormEvent } from "react";
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type FormEvent,
+} from "react";
 import { ApiError, object, request, type Envelope } from "../../api/client";
 
 const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -8,6 +14,7 @@ const text = (value: unknown) => (typeof value === "string" ? value : "未確認
 
 export function ActionPanel({
   preparedId,
+  requestedOpen,
   initialMessage = "",
   onExecution,
   onSaved,
@@ -15,6 +22,7 @@ export function ActionPanel({
   actor = "",
   names = {},
 }: {
+  requestedOpen?: { id: string } | null;
   actor?: string;
   names?: Record<string, string>;
   initialMessage?: string;
@@ -35,6 +43,7 @@ export function ActionPanel({
   const controller = useRef<AbortController | null>(null);
   const retry = useRef<{ message: string; key: string } | null>(null);
   const pending = useRef(false);
+  const handledOpen = useRef<typeof requestedOpen>(null);
   const snapshotHeading = useRef<HTMLHeadingElement>(null);
   const errorMessage = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -49,58 +58,61 @@ export function ActionPanel({
     onSaved?.(saved);
   }, [saved, onSaved]);
 
-  async function run(action: (signal: AbortSignal) => Promise<void>) {
-    if (pending.current) return;
-    pending.current = true;
-    const active = new AbortController();
-    controller.current = active;
-    setBusy(true);
-    setError("");
-    setDiagnostic("");
-    setChecked(false);
-    try {
-      await action(active.signal);
-    } catch (caught) {
-      if (!active.signal.aborted) {
-        setSaved(null);
-        const code =
-          caught instanceof ApiError ? caught.code : "REQUEST_FAILED";
-        const explanation =
-          (
-            {
-              AUTHORIZATION_DENIED:
-                "この操作の権限がありません。依頼者・承認者と接続中の利用者を確認してください。",
-              AUTHENTICATION_REQUIRED:
-                "接続が切れました。接続し直してください。",
-              VERSION_CONFLICT:
-                "登録内容が変更されています。最新の登録値を取得し、変更準備を作り直してください。",
-              APPROVAL_EXPIRED:
-                "承認期限を過ぎています。変更準備からやり直してください。",
-              SNAPSHOT_MISMATCH:
-                "保存内容が一致しません。保存状態を再取得して確認してください。",
-              CONNECTION_FAILED:
-                "応答を確認できませんでした。処理が確定している可能性があります。",
-              DEPENDENCY_UNAVAILABLE:
-                "接続先サービスを利用できません。接続設定を確認してください。",
-            } as Record<string, string>
-          )[code] ??
-          "処理を完了できませんでした。保存状態を再取得して確認してください。";
-        setDiagnostic(
-          code +
-            (caught instanceof ApiError && caught.requestId
-              ? ` / ${caught.requestId}`
-              : ""),
-        );
-        setError(
-          `${explanation} 要求IDが分かる場合は保存状態を再取得してください。Prepare応答が不明な場合は同じ指示のまま再送できます。書き込みは自動再送しません。`,
-        );
+  const run = useCallback(
+    async (action: (signal: AbortSignal) => Promise<void>) => {
+      if (pending.current) return;
+      pending.current = true;
+      const active = new AbortController();
+      controller.current = active;
+      setBusy(true);
+      setError("");
+      setDiagnostic("");
+      setChecked(false);
+      try {
+        await action(active.signal);
+      } catch (caught) {
+        if (!active.signal.aborted) {
+          setSaved(null);
+          const code =
+            caught instanceof ApiError ? caught.code : "REQUEST_FAILED";
+          const explanation =
+            (
+              {
+                AUTHORIZATION_DENIED:
+                  "この操作の権限がありません。依頼者・承認者と接続中の利用者を確認してください。",
+                AUTHENTICATION_REQUIRED:
+                  "接続が切れました。接続し直してください。",
+                VERSION_CONFLICT:
+                  "登録内容が変更されています。最新の登録値を取得し、変更準備を作り直してください。",
+                APPROVAL_EXPIRED:
+                  "承認期限を過ぎています。変更準備からやり直してください。",
+                SNAPSHOT_MISMATCH:
+                  "保存内容が一致しません。保存状態を再取得して確認してください。",
+                CONNECTION_FAILED:
+                  "応答を確認できませんでした。処理が確定している可能性があります。",
+                DEPENDENCY_UNAVAILABLE:
+                  "接続先サービスを利用できません。接続設定を確認してください。",
+              } as Record<string, string>
+            )[code] ??
+            "処理を完了できませんでした。保存状態を再取得して確認してください。";
+          setDiagnostic(
+            code +
+              (caught instanceof ApiError && caught.requestId
+                ? ` / ${caught.requestId}`
+                : ""),
+          );
+          setError(
+            `${explanation} 要求IDが分かる場合は保存状態を再取得してください。Prepare応答が不明な場合は同じ指示のまま再送できます。書き込みは自動再送しません。`,
+          );
+        }
+      } finally {
+        if (!active.signal.aborted) setBusy(false);
+        pending.current = false;
       }
-    } finally {
-      if (!active.signal.aborted) setBusy(false);
-      pending.current = false;
-    }
-  }
-  async function load(requestId: string, signal: AbortSignal) {
+    },
+    [],
+  );
+  const load = useCallback(async (requestId: string, signal: AbortSignal) => {
     setSaved(null);
     const value = await request(
       "",
@@ -109,14 +121,27 @@ export function ActionPanel({
       signal,
     );
     if (!signal.aborted) setSaved(value);
-  }
-  function open(requestId: string) {
-    if (!uuid.test(requestId)) return;
-    setId(requestId);
-    setCopied(false);
-    setExecution(null);
-    void run((signal) => load(requestId, signal));
-  }
+  }, []);
+  const open = useCallback(
+    (requestId: string) => {
+      if (!uuid.test(requestId)) return;
+      setId(requestId);
+      setCopied(false);
+      setExecution(null);
+      void run((signal) => load(requestId, signal));
+    },
+    [run, load],
+  );
+  useEffect(() => {
+    if (
+      !requestedOpen ||
+      handledOpen.current === requestedOpen ||
+      pending.current
+    )
+      return;
+    handledOpen.current = requestedOpen;
+    open(requestedOpen.id);
+  }, [requestedOpen, open, busy]);
   function prepare(event: FormEvent) {
     event.preventDefault();
     const command = message.trim();
@@ -269,7 +294,9 @@ export function ActionPanel({
           disabled={busy}
           placeholder="例：M-204の現在状態をRUNNINGに変更する準備を作って"
         />
-        <button disabled={busy || !message.trim()}>変更準備を作成</button>
+        <button disabled={busy || !message.trim()}>
+          変更指示から準備を作成
+        </button>
       </form>
       {!message.trim() && (
         <p className="notice">
@@ -302,13 +329,20 @@ export function ActionPanel({
             setChecked(false);
           }}
         />
-        <button disabled={busy || !uuid.test(id.trim())}>
+        <button
+          disabled={busy || !uuid.test(id.trim())}
+          aria-describedby="saved-request-reason"
+        >
           保存状態を再取得
         </button>
       </form>
-      {!uuid.test(id.trim()) && (
-        <p className="notice">
-          保存内容を開くには変更要求IDを入力してください。設備の選択は不要です。
+      {(busy || !uuid.test(id.trim())) && (
+        <p className="notice" id="saved-request-reason">
+          {busy
+            ? "処理中のため、保存状態の再取得はできません。"
+            : !id.trim()
+              ? "変更要求IDが空のため、保存状態を取得できません。IDを入力するか、直近の変更要求を開いてください。設備の選択は不要です。"
+              : "変更要求IDの形式を確認してください。有効なIDを入力すると保存状態を取得できます。"}
         </p>
       )}
       <p className="muted">

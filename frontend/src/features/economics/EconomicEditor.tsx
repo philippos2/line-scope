@@ -1,7 +1,8 @@
 import { DateTimeInput } from "../inputs/DateTimeInput";
 import { SuggestionScope, SuggestedInput } from "../inputs/InputAssistance";
-import { useRef, useState, type FormEvent } from "react";
-import { ApiError, request } from "../../api/client";
+import { useEffect, useRef, useState, type FormEvent } from "react";
+import { ComparisonInputDetails } from "../decision/ComparisonInputDetails";
+import { ApiError, object, request, type Envelope } from "../../api/client";
 import {
   blankItem,
   kindNames,
@@ -13,24 +14,62 @@ import {
 export function EconomicEditor({
   initial,
   onPrepared,
+  onOpenPrepared,
   signal,
   equipmentLabel = "登録データの対象設備",
 }: {
   equipmentLabel?: string;
   initial: EconomicInput;
   onPrepared: (id: string) => void;
+  onOpenPrepared?: (id: string) => void;
   signal: AbortSignal;
 }) {
   const [value, setValue] = useState(initial);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
-  const [savedId, setSavedId] = useState("");
+  const [prepared, setPrepared] = useState<{
+    id: string;
+    serialized: string;
+    response: Envelope;
+  } | null>(null);
+  const [copyNotice, setCopyNotice] = useState("");
+  const completionHeading = useRef<HTMLHeadingElement>(null);
+  useEffect(() => {
+    if (!prepared) return;
+    completionHeading.current?.focus({ preventScroll: true });
+    completionHeading.current?.scrollIntoView?.({ block: "center" });
+  }, [prepared]);
   const retry = useRef<{ serialized: string; key: string } | null>(null);
   const pending = useRef(false);
-  const heading = useRef<HTMLParagraphElement>(null);
+  const body = {
+    economic_input_id: value.economic_input_id || null,
+    input: prepareInput(value),
+    supersedes_update_request_id: null,
+  };
+  const serialized = JSON.stringify(body);
+  const alreadyPrepared = prepared?.serialized === serialized;
+  const snapshot = prepared?.response.data.canonical_snapshot;
+  const targets =
+    object(snapshot) && Array.isArray(snapshot.targets)
+      ? snapshot.targets.filter(object)
+      : [];
+  const savedInput = targets.find(
+    (target) => target.target_type === "EconomicInput",
+  )?.after;
+  async function copyRequestId() {
+    if (!prepared) return;
+    try {
+      await navigator.clipboard.writeText(prepared.id);
+      setCopyNotice("変更要求IDをコピーしました。");
+    } catch {
+      setCopyNotice(
+        "コピーできませんでした。表示された変更要求IDを選択してコピーしてください。",
+      );
+    }
+  }
   function patch(field: string, text: string) {
     setValue((previous) => ({ ...previous, [field]: text }));
-    setSavedId("");
+    setCopyNotice("");
   }
   function payload(field: string, text: string) {
     setValue((previous) => ({
@@ -65,7 +104,7 @@ export function EconomicEditor({
         [field]: text,
       },
     }));
-    setSavedId("");
+    setCopyNotice("");
   }
   function option(
     index: number,
@@ -80,24 +119,18 @@ export function EconomicEditor({
         ),
       },
     }));
-    setSavedId("");
+    setCopyNotice("");
   }
   async function submit(event: FormEvent) {
     event.preventDefault();
-    if (pending.current) return;
+    if (pending.current || alreadyPrepared) return;
     pending.current = true;
     setBusy(true);
     setError("");
-    setSavedId("");
-    const body = {
-      economic_input_id: value.economic_input_id || null,
-      input: prepareInput(value),
-      supersedes_update_request_id: null,
-    };
-    const serialized = JSON.stringify(body);
-    if (retry.current?.serialized !== serialized)
-      retry.current = { serialized, key: crypto.randomUUID() };
+    setCopyNotice("");
     try {
+      if (retry.current?.serialized !== serialized)
+        retry.current = { serialized, key: crypto.randomUUID() };
       const result = await request(
         "",
         "/economic-inputs/prepare",
@@ -107,7 +140,7 @@ export function EconomicEditor({
       if (signal.aborted) return;
       const id = result.data.update_request_id;
       if (typeof id !== "string") throw new ApiError("INVALID_RESPONSE");
-      setSavedId(id);
+      setPrepared({ id, serialized, response: result });
       onPrepared(id);
     } catch (caught) {
       if (!signal.aborted)
@@ -202,7 +235,7 @@ export function EconomicEditor({
                       : null,
                   },
                 }));
-                setSavedId("");
+                setCopyNotice("");
               }}
             />
             単純費用回収の条件を登録する
@@ -236,7 +269,7 @@ export function EconomicEditor({
                         },
                       },
                     }));
-                    setSavedId("");
+                    setCopyNotice("");
                   }}
                 />
               </label>
@@ -272,7 +305,7 @@ export function EconomicEditor({
                           },
                         },
                       }));
-                      setSavedId("");
+                      setCopyNotice("");
                     }}
                   >
                     <option value="UNKNOWN">不明</option>
@@ -301,7 +334,7 @@ export function EconomicEditor({
                         },
                       },
                     }));
-                    setSavedId("");
+                    setCopyNotice("");
                   }}
                 />
               </label>
@@ -322,7 +355,7 @@ export function EconomicEditor({
                         },
                       },
                     }));
-                    setSavedId("");
+                    setCopyNotice("");
                   }}
                 >
                   <option value="ESTIMATED">推定</option>
@@ -366,7 +399,7 @@ export function EconomicEditor({
                           ),
                         },
                       }));
-                      setSavedId("");
+                      setCopyNotice("");
                     }}
                   />
                 </label>
@@ -390,7 +423,7 @@ export function EconomicEditor({
                           ),
                         },
                       }));
-                      setSavedId("");
+                      setCopyNotice("");
                     }}
                   />
                 </label>
@@ -410,7 +443,7 @@ export function EconomicEditor({
                           ),
                         },
                       }));
-                      setSavedId("");
+                      setCopyNotice("");
                     }}
                   />
                   この損害を独立して加算できることを確認した
@@ -596,19 +629,59 @@ export function EconomicEditor({
             </label>
           </fieldset>
         ))}
-        <button className="primary" disabled={busy || !value.equipment_id}>
+        <button
+          className="primary"
+          disabled={busy || !value.equipment_id || alreadyPrepared}
+          aria-describedby="economic-prepare-status"
+        >
           {busy ? "変更準備中…" : "経済入力の変更準備を作成"}
         </button>
       </form>
       {error && <p role="alert">{error}</p>}
-      {savedId && (
-        <p ref={heading} role="status">
-          変更要求ID：{savedId}
-          。別の工場管理者が保存Snapshotを確認して承認し、元の要求者が実行してください。
-          <button onClick={() => onPrepared(savedId)}>
-            承認・実行画面へ渡す
+      <p id="economic-prepare-status" role="status">
+        {busy
+          ? "変更準備を作成しています。完了するまで再送できません。"
+          : alreadyPrepared
+            ? "この内容の変更準備は作成済みです。重複して作成できません。"
+            : !value.equipment_id
+              ? "変更準備には対象設備の選択が必要です。"
+              : prepared
+                ? "作成後に編集した内容は未保存です。"
+                : "変更準備だけでは登録値は変わりません。"}
+      </p>
+      {prepared && (
+        <section aria-label="作成済みの経済入力変更要求">
+          <h3 ref={completionHeading} tabIndex={-1}>
+            変更準備が完了しました
+          </h3>
+          <p>
+            次は別の工場管理者による承認です。変更要求IDを承認担当者へ渡してください。登録値はまだ変更されていません。
+          </p>
+          <p>
+            変更要求ID：<code>{prepared.id}</code>
+          </p>
+          <button type="button" onClick={() => void copyRequestId()}>
+            変更要求IDをコピー
           </button>
-        </p>
+          {copyNotice && <p role="status">{copyNotice}</p>}
+          {object(savedInput) ? (
+            <details>
+              <summary>保存した内容の要約</summary>
+              <ComparisonInputDetails
+                record={savedInput}
+                names={{ [value.equipment_id]: equipmentLabel }}
+              />
+            </details>
+          ) : (
+            <p>保存内容は「承認・実行の画面で開く」から確認できます。</p>
+          )}
+          <button
+            type="button"
+            onClick={() => (onOpenPrepared ?? onPrepared)(prepared.id)}
+          >
+            承認・実行の画面で開く
+          </button>
+        </section>
       )}
     </SuggestionScope>
   );

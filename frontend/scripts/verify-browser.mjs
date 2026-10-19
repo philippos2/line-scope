@@ -153,7 +153,7 @@ try {
     .getByLabel("明示的な変更指示")
     .fill("M-204の現在状態をRUNNINGに変更する準備を作って");
   await page
-    .getByRole("button", { name: "変更準備を作成", exact: true })
+    .getByRole("button", { name: "変更指示から準備を作成", exact: true })
     .click();
   await expect(
     page.getByRole("heading", { name: "保存済みSnapshot", exact: true }),
@@ -216,7 +216,7 @@ try {
   async function prepareAndReview(message, targetType, reject = false) {
     await page.getByLabel("明示的な変更指示").fill(message);
     await activate(
-      page.getByRole("button", { name: "変更準備を作成", exact: true }),
+      page.getByRole("button", { name: "変更指示から準備を作成", exact: true }),
     );
     await expect(page.getByText(/状態：WAITING_APPROVAL/)).toBeVisible();
     await expect(

@@ -68,6 +68,9 @@ export function App() {
   const [economicPrepared, setEconomicPrepared] = useState<
     string | undefined
   >();
+  const [requestedOpen, setRequestedOpen] = useState<{ id: string } | null>(
+    null,
+  );
   const [executionEpoch, setExecutionEpoch] = useState(0);
   const [draftToken, setDraftToken] = useState("");
   const token = useRef("");
@@ -207,6 +210,7 @@ export function App() {
     setStateResult(null);
     setStep("graph");
     setEconomicPrepared(undefined);
+    setRequestedOpen(null);
     setActionDraft("");
     freshContext.current = false;
     setConnected(false);
@@ -282,6 +286,7 @@ export function App() {
         setStateResult(null);
         setStep("graph");
         setEconomicPrepared(undefined);
+        setRequestedOpen(null);
         setActionDraft("");
         freshContext.current = false;
         setConnected(true);
@@ -451,11 +456,16 @@ export function App() {
       "（日本時間）"
     );
   }
-  function prepareInput(id: string) {
+  function prepareInput(id: string, navigate = true) {
     dirty.current.delete("prepare");
     setActionDraft("");
     setEconomicPrepared(id);
-    if (activeTab.current === "prepare") setStep("execution");
+    if (navigate && activeTab.current === "prepare") setStep("execution");
+  }
+  function openPrepared(id: string) {
+    setEconomicPrepared(id);
+    setRequestedOpen({ id });
+    setStep("execution");
   }
   async function searchDocuments() {
     if (documentBusy || !equipment) return;
@@ -652,7 +662,7 @@ export function App() {
                 </button>
               </div>
               {economicPrepared && step !== "execution" && (
-                <button onClick={() => setStep("execution")}>
+                <button onClick={() => openPrepared(economicPrepared)}>
                   保存した変更要求を開く
                 </button>
               )}
@@ -992,7 +1002,8 @@ export function App() {
                         (decisionEquipment?.equipment_id ?? "none")
                       }
                       equipment={decisionEquipment}
-                      onPrepared={prepareInput}
+                      onPrepared={(id) => prepareInput(id, false)}
+                      onOpenPrepared={openPrepared}
                       onInvestigate={(text) => {
                         draftInvestigation(text, false);
                         setStep("investigation");
@@ -1128,6 +1139,7 @@ export function App() {
                   <li>元の依頼者：再接続し、IDから読み直して実行する。</li>
                 </ol>
                 <ActionPanel
+                  requestedOpen={requestedOpen}
                   actor={identity}
                   names={entityNames}
                   onSaved={setSavedRequest}
