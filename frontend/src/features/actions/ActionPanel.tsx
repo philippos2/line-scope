@@ -8,11 +8,13 @@ export function ActionPanel({
   preparedId,
   initialMessage = "",
   onExecution,
+  onSaved,
   initiallyOpen = false,
 }: {
   initialMessage?: string;
   preparedId?: string;
   onExecution?: () => void;
+  onSaved?: (value: Envelope | null) => void;
   initiallyOpen?: boolean;
 }) {
   const [message, setMessage] = useState(initialMessage);
@@ -33,6 +35,9 @@ export function ActionPanel({
     else if (error) errorMessage.current?.focus();
   }, [saved, error]);
   useEffect(() => () => controller.current?.abort(), []);
+  useEffect(() => {
+    onSaved?.(saved);
+  }, [saved, onSaved]);
 
   async function run(action: (signal: AbortSignal) => Promise<void>) {
     if (pending.current) return;

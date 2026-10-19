@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { object, type Envelope } from "../../api/client";
 import type { EquipmentCandidate } from "../equipment/EquipmentCandidates";
 import { GraphInvestigation } from "../graph/GraphInvestigation";
@@ -172,7 +172,13 @@ export function EquipmentInvestigation({
   onUseEquipment,
   onRegister,
   onObservations,
+  direction,
+  onDirection,
+  referenceOnly = false,
 }: {
+  direction: "down" | "up" | "extra";
+  onDirection: (value: "down" | "up" | "extra") => void;
+  referenceOnly?: boolean;
   root: EquipmentCandidate | null;
   model: ReturnType<typeof useEquipmentInvestigation>;
   graphMemory: Record<string, GraphMemory>;
@@ -182,7 +188,7 @@ export function EquipmentInvestigation({
   onRegister: (v: EquipmentCandidate) => void;
   onObservations: (v: Envelope) => void;
 }) {
-  const [direction, setDirection] = useState<"down" | "up" | "extra">("down");
+  const setDirection = onDirection;
   const { states } = model;
   const choose = (item: EquipmentCandidate) => onRootChange(item);
   const base = states[direction]?.value;
@@ -288,152 +294,161 @@ export function EquipmentInvestigation({
   );
   const reported = useRef<string | undefined>(undefined);
   useEffect(() => {
-    if (shown && reported.current !== shown.request_id) {
+    if (!referenceOnly && shown && reported.current !== shown.request_id) {
       reported.current = shown.request_id;
       onObservations(shown);
     }
-  }, [shown, onObservations]);
+  }, [shown, onObservations, referenceOnly]);
   const info = (text: string) => <p className="muted">{text}</p>;
+  const relationship = (
+    <section className="relationship-panel" aria-label="接続及び影響範囲">
+      <div className="section-heading">
+        <h1>接続及び影響範囲</h1>
+        {root && !referenceOnly && (
+          <button onClick={model.retry}>再調査</button>
+        )}
+      </div>
+      <div className="direction-tabs">
+        {(["down", "up"] as const).map((d) => (
+          <button
+            key={d}
+            aria-pressed={direction === d}
+            onClick={() => setDirection(d)}
+          >
+            {d === "down" ? "止まると影響を受ける先" : "この設備が依存する先"}
+          </button>
+        ))}
+      </div>
+      {(states.extra?.value ||
+        states.extra?.loading ||
+        states.extra?.error) && (
+        <button
+          onClick={() => setDirection("extra")}
+          aria-pressed={direction === "extra"}
+        >
+          詳しい分析の結果
+        </button>
+      )}
+      {model.stale && (
+        <p className="notice">更新前の結果です。再調査してください。</p>
+      )}
+      {!root &&
+        info("設備名またはコードで検索し、調べる設備を選んでください。")}
+      {states[direction]?.loading && (
+        <p role="status">つながりを調べています…</p>
+      )}
+      {referenceOnly && states[direction]?.error && (
+        <p className="notice">
+          {explanation(states[direction]?.error)} 主画面で再調査してください。
+        </p>
+      )}
+      {!referenceOnly && (
+        <Failure code={states[direction]?.error} retry={model.retry} />
+      )}
+      {!referenceOnly && (
+        <Failure
+          code={
+            Object.values(model.labelStates).find((s) => s.status === "error")
+              ?.code
+          }
+          retry={model.retryLabels}
+        />
+      )}
+      {Object.values(model.labelStates).some((s) => s.status === "error") && (
+        <p className="notice">
+          一部の名称を取得できませんでした。表示済みの関係と金額は保持しています。
+        </p>
+      )}
+      {Object.values(model.labelStates).some((s) => s.status === "limited") && (
+        <p className="notice">
+          名称の取得は100件までです。調査範囲を絞って再調査してください。
+        </p>
+      )}
+      {view && shown ? (
+        <>
+          <p className="relationship-summary">
+            {direction === "down"
+              ? `直接 ${rows(down.direct_nodes).length}件・間接 ${rows(down.indirect_nodes).length}件`
+              : direction === "up"
+                ? `依存先 ${rows(view.data.reached_nodes).length}件`
+                : `表示する項目 ${view.nodes.length}件`}{" "}
+            ／ 調べた範囲：
+            {view.data.complete === true
+              ? "最後まで調べた"
+              : "途中まで（制限あり）"}
+          </p>
+          <div className="entity-legend">
+            {[
+              "Equipment",
+              "Process",
+              "ProductionOperation",
+              "Product",
+              "InfrastructureResource",
+            ].map((t) => (
+              <span key={t} className={`legend-${t}`}>
+                {typeLabel(t)}
+              </span>
+            ))}
+            <span>破線枠：代替候補</span>
+          </div>
+          <GraphCanvas
+            key={`${root?.equipment_id}:${direction}:${model.stale}:${view.nodes.length}`}
+            view={view}
+            memory={graphMemory[direction]}
+            onMemory={(value) => onGraphMemory(direction, value)}
+            result={shown}
+            selected={selected ? nodeKey(selected) : null}
+            onSelect={referenceOnly ? model.highlight : model.select}
+            classification={
+              direction === "down"
+                ? "影響を受ける先"
+                : direction === "up"
+                  ? "依存先"
+                  : "関係先"
+            }
+            candidates={candidateRefs.map(nodeKey)}
+            labelStates={model.labelStates}
+            registeredStates={Object.fromEntries(
+              observedStates.map((s) => [
+                String(s.equipment_id),
+                registeredState(s.state_code),
+              ]),
+            )}
+          />
+          {direction === "extra" && (
+            <GraphFindings
+              data={view.data}
+              result={shown}
+              onSelect={referenceOnly ? model.highlight : model.select}
+            />
+          )}
+          {!referenceOnly && (
+            <GraphInvestigation
+              key={root?.equipment_id}
+              result={shown}
+              selected={selected}
+              busy={states.extra?.loading === true}
+              initiallyOpen={false}
+              onAnalyze={(tool, args) => {
+                model.analyze(tool, args);
+                setDirection("extra");
+              }}
+            />
+          )}
+          <p className="muted">
+            つながりをたどった結果です。実際に止まるとは限りません
+          </p>
+        </>
+      ) : root && !states[direction]?.loading && !states[direction]?.error ? (
+        info("表示できる関係を取得していません。")
+      ) : null}
+    </section>
+  );
+  if (referenceOnly) return relationship;
   return (
     <section className="equipment-investigation" aria-label="設備調査">
       <div className="investigation-center">
-        <section className="relationship-panel" aria-label="接続及び影響範囲">
-          <div className="section-heading">
-            <h1>接続及び影響範囲</h1>
-            {root && <button onClick={model.retry}>再調査</button>}
-          </div>
-          <div className="direction-tabs">
-            {(["down", "up"] as const).map((d) => (
-              <button
-                key={d}
-                aria-pressed={direction === d}
-                onClick={() => setDirection(d)}
-              >
-                {d === "down"
-                  ? "止まると影響を受ける先"
-                  : "この設備が依存する先"}
-              </button>
-            ))}
-          </div>
-          {(states.extra?.value ||
-            states.extra?.loading ||
-            states.extra?.error) && (
-            <button
-              onClick={() => setDirection("extra")}
-              aria-pressed={direction === "extra"}
-            >
-              詳しい分析の結果
-            </button>
-          )}
-          {model.stale && (
-            <p className="notice">更新前の結果です。再調査してください。</p>
-          )}
-          {!root &&
-            info("設備名またはコードで検索し、調べる設備を選んでください。")}
-          {states[direction]?.loading && (
-            <p role="status">つながりを調べています…</p>
-          )}
-          <Failure code={states[direction]?.error} retry={model.retry} />
-          <Failure
-            code={
-              Object.values(model.labelStates).find((s) => s.status === "error")
-                ?.code
-            }
-            retry={model.retryLabels}
-          />
-          {Object.values(model.labelStates).some(
-            (s) => s.status === "error",
-          ) && (
-            <p className="notice">
-              一部の名称を取得できませんでした。表示済みの関係と金額は保持しています。
-            </p>
-          )}
-          {Object.values(model.labelStates).some(
-            (s) => s.status === "limited",
-          ) && (
-            <p className="notice">
-              名称の取得は100件までです。調査範囲を絞って再調査してください。
-            </p>
-          )}
-          {view && shown ? (
-            <>
-              <p className="relationship-summary">
-                {direction === "down"
-                  ? `直接 ${rows(down.direct_nodes).length}件・間接 ${rows(down.indirect_nodes).length}件`
-                  : direction === "up"
-                    ? `依存先 ${rows(view.data.reached_nodes).length}件`
-                    : `表示する項目 ${view.nodes.length}件`}{" "}
-                ／ 調べた範囲：
-                {view.data.complete === true
-                  ? "最後まで調べた"
-                  : "途中まで（制限あり）"}
-              </p>
-              <div className="entity-legend">
-                {[
-                  "Equipment",
-                  "Process",
-                  "ProductionOperation",
-                  "Product",
-                  "InfrastructureResource",
-                ].map((t) => (
-                  <span key={t} className={`legend-${t}`}>
-                    {typeLabel(t)}
-                  </span>
-                ))}
-                <span>破線枠：代替候補</span>
-              </div>
-              <GraphCanvas
-                key={`${root?.equipment_id}:${direction}:${model.stale}:${view.nodes.length}`}
-                view={view}
-                memory={graphMemory[direction]}
-                onMemory={(value) => onGraphMemory(direction, value)}
-                result={shown}
-                selected={selected ? nodeKey(selected) : null}
-                onSelect={model.select}
-                classification={
-                  direction === "down"
-                    ? "影響を受ける先"
-                    : direction === "up"
-                      ? "依存先"
-                      : "関係先"
-                }
-                candidates={candidateRefs.map(nodeKey)}
-                labelStates={model.labelStates}
-                registeredStates={Object.fromEntries(
-                  observedStates.map((s) => [
-                    String(s.equipment_id),
-                    registeredState(s.state_code),
-                  ]),
-                )}
-              />
-              {direction === "extra" && (
-                <GraphFindings
-                  data={view.data}
-                  result={shown}
-                  onSelect={model.select}
-                />
-              )}
-              <GraphInvestigation
-                key={root?.equipment_id}
-                result={shown}
-                selected={selected}
-                busy={states.extra?.loading === true}
-                initiallyOpen={false}
-                onAnalyze={(tool, args) => {
-                  model.analyze(tool, args);
-                  setDirection("extra");
-                }}
-              />
-              <p className="muted">
-                つながりをたどった結果です。実際に止まるとは限りません
-              </p>
-            </>
-          ) : root &&
-            !states[direction]?.loading &&
-            !states[direction]?.error ? (
-            info("表示できる関係を取得していません。")
-          ) : null}
-        </section>
+        {relationship}
         <div className="investigation-summaries">
           <section
             className="loss-estimate"

@@ -457,6 +457,7 @@ export function useEquipmentInvestigation(
     currentState: owned ? currentState : undefined,
     selected: owned ? selected : null,
     select,
+    highlight: setSelected,
     attributeError,
     stale: observedEpoch !== executionEpoch,
     retry: () => setRefresh((x) => x + 1),

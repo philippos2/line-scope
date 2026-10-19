@@ -657,3 +657,4 @@ Dockerで追加36テスト成功、ruff check / format、git diff --check成功�
 - [候補入力と変更操作の深掘り調査](2026-10-19-post265-deep-investigation.md)
 
 - [上部タブと共通調査状態の実装記録](2026-10-19-a1-workspace-tabs.md)
+- [参照ドロワーの実装・確認](2026-10-19-a2-reference-drawer.md)
