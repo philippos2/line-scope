@@ -22,13 +22,13 @@
 <rect x="375" y="140" width="90" height="35" rx="5" fill="#a66d18"/><text x="420.0" y="163" text-anchor="middle" fill="white" font-size="14">文書のみ</text>
 <text x="28" y="210" font-size="18">A：タブ・対象設備</text><text x="28" y="230" font-size="13">UI-01〜03・05／比較・文書検索</text>
 <rect x="475" y="196" width="380" height="35" rx="5" fill="#31788b"/><text x="665.0" y="219" text-anchor="middle" fill="white" font-size="14">実装A：2〜3作業日</text>
-<text x="28" y="266" font-size="18">A：日時・質問</text><text x="28" y="286" font-size="13">UI-04・Q-01〜02／検証・文書含む</text>
+<text x="28" y="266" font-size="18">A：比較期間・質問</text><text x="28" y="286" font-size="13">UI-04・Q-01〜02／検証・文書含む</text>
 <rect x="475" y="252" width="380" height="35" rx="5" fill="#31788b"/><text x="665.0" y="275" text-anchor="middle" fill="white" font-size="14">Aと同じPR</text>
 <text x="28" y="322" font-size="18">A：画面確認・merge</text><text x="28" y="342" font-size="13">5174番・開発依頼者が確認</text>
 <rect x="865" y="308" width="90" height="35" rx="5" fill="#64748b"/><text x="910.0" y="331" text-anchor="middle" fill="white" font-size="14">確認</text>
 <text x="28" y="378" font-size="18">B：候補取得元・無効条件</text><text x="28" y="398" font-size="13">冒頭で未調査部分を確定</text>
 <rect x="965" y="364" width="120" height="35" rx="5" fill="#31788b"/><text x="1025.0" y="387" text-anchor="middle" fill="white" font-size="14">調査</text>
-<text x="28" y="434" font-size="18">B：候補入力・変更手続き</text><text x="28" y="454" font-size="13">UI-06〜07／検証・文書含む</text>
+<text x="28" y="434" font-size="18">B：入力・日時・変更手続き</text><text x="28" y="454" font-size="13">UI-06〜07／検証・文書含む</text>
 <rect x="965" y="420" width="380" height="35" rx="5" fill="#31788b"/><text x="1155.0" y="443" text-anchor="middle" fill="white" font-size="14">実装B：調査込み2〜3作業日</text>
 <text x="28" y="490" font-size="18">B：画面確認・merge</text><text x="28" y="510" font-size="13">準備→別担当承認→依頼者実行</text>
 <rect x="1355" y="476" width="145" height="35" rx="5" fill="#64748b"/><text x="1427.5" y="499" text-anchor="middle" fill="white" font-size="14">確認</text>
