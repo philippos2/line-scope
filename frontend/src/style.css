@@ -1460,3 +1460,117 @@ summary {
   padding: 12px;
   margin-top: 16px;
 }
+
+/* Workspace tabs share one investigation; hiding a panel does not discard it. */
+.workspace-tabs {
+  position: relative;
+  margin: 0 0 1rem;
+  flex-wrap: wrap;
+}
+.workspace-tabs [role="tab"][aria-selected="true"] {
+  background: #31788b;
+  color: white;
+}
+.workspace-tabs [role="tab"]:nth-child(5) {
+  margin-left: 1rem;
+}
+.workspace-context {
+  border: 1px solid var(--border, #29424f);
+  border-radius: 10px;
+  padding: 1rem;
+  margin-bottom: 1rem;
+  background: #15232d;
+}
+.summary-grid {
+  display: grid;
+  grid-template-columns: 1.2fr 1fr 1.5fr 1fr;
+  gap: 1rem;
+}
+.summary-grid > div {
+  min-width: 0;
+}
+.summary-grid p {
+  margin: 0.4rem 0;
+}
+.summary-grid button {
+  text-align: left;
+  max-width: 100%;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+.workspace-context .equipment-search-panel {
+  margin-top: 1rem;
+  max-width: 720px;
+}
+.equipment-investigation {
+  grid-template-columns: minmax(0, 1fr) 260px;
+}
+[role="tabpanel"] {
+  min-width: 0;
+}
+[hidden] {
+  display: none !important;
+}
+@media (max-width: 1100px) {
+  .summary-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .equipment-investigation {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+@media (max-width: 767px) {
+  .workspace-tabs {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    max-width: 100%;
+  }
+  .workspace-tabs button {
+    flex: 0 0 auto;
+  }
+  .summary-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+.workspace-summary-toggle {
+  display: none;
+}
+@media (max-width: 767px) {
+  .workspace-summary-toggle {
+    display: inline-block;
+    margin-bottom: 0.5rem;
+  }
+  .summary-grid:not(.summary-expanded) > div:nth-child(n + 2) {
+    display: none;
+  }
+}
+
+/* Keep equipment search and candidates visible while switching workspace tabs. */
+.investigation-layout {
+  display: grid;
+  grid-template-columns: 240px minmax(0, 1fr);
+  gap: 18px;
+  align-items: start;
+}
+.investigation-main {
+  min-width: 0;
+}
+.investigation-layout > .equipment-search-panel {
+  position: sticky;
+  top: 12px;
+  max-height: calc(100vh - 24px);
+  overflow-y: auto;
+}
+.equipment-search-panel .equipment-result[aria-pressed="true"] {
+  border-color: #63becb;
+  background: #224450;
+}
+@media (max-width: 767px) {
+  .investigation-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .investigation-layout > .equipment-search-panel {
+    position: static;
+    max-height: none;
+  }
+}

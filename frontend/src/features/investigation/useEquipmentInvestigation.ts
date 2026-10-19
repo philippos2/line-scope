@@ -23,11 +23,16 @@ import {
 } from "./readModel";
 
 type Channel = "down" | "up" | "alternatives" | "loss" | "comparison" | "extra";
+const EMPTY_INPUTS: Envelope[] = [];
 export function useEquipmentInvestigation(
   root: EquipmentCandidate | null,
   executionEpoch: number,
 ) {
   const [refresh, setRefresh] = useState(0);
+  const manualCapacity = useRef(false);
+  const manualEconomic = useRef(false);
+  const lastRoot = useRef<string | null>(null);
+  const [dataOwner, setDataOwner] = useState("");
   const [states, setStates] = useState<Partial<Record<Channel, ReadState>>>({});
   const [metadata, setMetadata] = useState<unknown[]>([]);
   const [labelStates, setLabelStates] = useState<NodeLabelStates>({});
@@ -57,6 +62,13 @@ export function useEquipmentInvestigation(
     active.current = controller;
     attribute.current?.abort();
     const signal = controller.signal;
+    const rootChanged = lastRoot.current !== (root?.equipment_id ?? "");
+    lastRoot.current = root?.equipment_id ?? "";
+    if (rootChanged) {
+      manualCapacity.current = false;
+      manualEconomic.current = false;
+    }
+    setDataOwner(root?.equipment_id ?? "");
     setStates({});
     setMetadata(root ? [{ tool: "get_equipment", data: root }] : []);
     setLabelStates({});
@@ -64,8 +76,10 @@ export function useEquipmentInvestigation(
     setEconomic([]);
     setCapacity([]);
     setCapacityOwner("");
-    setEconomicId("");
-    setCapacityId("");
+    if (rootChanged) {
+      setEconomicId("");
+      setCapacityId("");
+    }
     setCandidateEquipment([]);
     setInputErrors({});
     setInputLoading({});
@@ -155,19 +169,18 @@ export function useEquipmentInvestigation(
         if (signal.aborted) return;
         if (kind === "economic") {
           setEconomic(replies);
-          setEconomicId(
-            replies.length === 1
-              ? String((replies[0].data.input as JsonObject).economic_input_id)
-              : "",
-          );
+          if (!manualEconomic.current)
+            setEconomicId(
+              replies.length === 1
+                ? String(
+                    (replies[0].data.input as JsonObject).economic_input_id,
+                  )
+                : "",
+            );
         } else {
           setCapacity(replies);
           setCapacityOwner(root?.equipment_id ?? "");
-          setCapacityId(
-            replies.length === 1
-              ? String((replies[0].data.input as JsonObject).capacity_input_id)
-              : "",
-          );
+          if (!manualCapacity.current) setCapacityId("");
         }
       } catch (e) {
         if (!signal.aborted)
@@ -371,6 +384,47 @@ export function useEquipmentInvestigation(
           setStates((old) => ({ ...old, extra: { error: errorCode(e) } }));
       });
   }
+  useEffect(() => {
+    if (
+      manualCapacity.current ||
+      capacityId ||
+      !root ||
+      capacityOwner !== root.equipment_id ||
+      capacity.length !== 1
+    )
+      return;
+    const record = capacity[0].data.input;
+    if (
+      !object(record) ||
+      !object(record.payload) ||
+      !products(states.down?.value).some(
+        (p) => p.entity_id === record.product_id,
+      ) ||
+      !record.payload.quantity_unit
+    )
+      return;
+    const econ = economic.find(
+      (value) =>
+        object(value.data.input) &&
+        value.data.input.economic_input_id === economicId,
+    )?.data.input;
+    if (
+      object(econ) &&
+      object(econ.payload) &&
+      (econ.payload.period_start !== record.payload.period_start ||
+        econ.payload.period_end !== record.payload.period_end)
+    )
+      return;
+    setCapacityId(String(record.capacity_input_id));
+  }, [
+    root,
+    capacityOwner,
+    capacity,
+    capacityId,
+    economic,
+    economicId,
+    states.down,
+  ]);
   const currentState =
     rows(
       rows(states.down?.value?.evidence.tool_results)[0]?.current_states,
@@ -378,23 +432,30 @@ export function useEquipmentInvestigation(
     rows(states.loss?.value?.data.impacts).find(
       (x) => x.equipment_id === root?.equipment_id,
     )?.state_code;
+  const owned = dataOwner === (root?.equipment_id ?? "");
   return {
-    states,
+    states: owned ? states : {},
     analyze,
     metadata,
     labelStates,
     retryLabels: () => labelLoader.current?.retry(),
-    economic,
-    capacity,
-    economicId,
-    capacityId,
-    setEconomicId,
-    setCapacityId,
+    economic: owned ? economic : EMPTY_INPUTS,
+    capacity: owned ? capacity : EMPTY_INPUTS,
+    economicId: owned ? economicId : "",
+    capacityId: owned ? capacityId : "",
+    setEconomicId: (id: string) => {
+      manualEconomic.current = true;
+      setEconomicId(id);
+    },
+    setCapacityId: (id: string) => {
+      manualCapacity.current = true;
+      setCapacityId(id);
+    },
     candidateEquipment,
     inputErrors,
     inputLoading,
-    currentState,
-    selected,
+    currentState: owned ? currentState : undefined,
+    selected: owned ? selected : null,
     select,
     attributeError,
     stale: observedEpoch !== executionEpoch,

@@ -32,10 +32,14 @@ async function open(width = 1600) {
   await page.getByLabel("Bearer token").fill(token);
   await page.getByRole("button", { name: "接続する", exact: true }).click();
   await expect(
-    page.getByRole("heading", { name: "設備を探す", exact: true }),
+    page.getByRole("tab", { name: "接続及び影響範囲", exact: true }),
   ).toBeVisible();
 }
 async function search(value = "第1") {
+  if (!(await page.getByLabel("設備名・コード", { exact: true }).isVisible()))
+    await page
+      .getByRole("button", { name: /^(設備を選ぶ|起点を変更)$/ })
+      .click();
   await page.getByLabel("設備名・コード", { exact: true }).fill(value);
   const start = Date.now();
   await page.getByRole("button", { name: "検索", exact: true }).click();
@@ -225,9 +229,7 @@ try {
     await expect(page.locator(".alternative-proposal")).toContainText(
       "利用可能",
     );
-    await expect(page.locator(".discovered-candidates")).toContainText(
-      "稼働中",
-    );
+    await expect(page.locator(".alternative-proposal")).toContainText("稼働中");
     await expect(
       page.locator(".react-flow__node").filter({ hasText: "M-204" }),
     ).toBeVisible();
@@ -276,6 +278,181 @@ try {
     );
     await page.locator(".graph-node-access summary").click();
   });
+  await check("workspace-tabs-1600", async () => {
+    await expect(page.getByRole("tab")).toHaveText([
+      "接続及び影響範囲",
+      "対応案を比べる",
+      "質問する",
+      "出典と経路",
+      "入力を登録・訂正",
+      "変更・承認・実行",
+    ]);
+    await page
+      .getByRole("tab", { name: "対応案を比べる", exact: true })
+      .click();
+    await search("M-204");
+    await choose();
+    await expect(
+      page.getByRole("tab", { name: "対応案を比べる", exact: true }),
+    ).toHaveAttribute("aria-selected", "true");
+    await expect(page.locator(".workspace-context")).toContainText("200,000", {
+      timeout: 30000,
+    });
+    await page
+      .getByRole("button", {
+        name: "比較に使う正式入力の候補を取得",
+        exact: true,
+      })
+      .click();
+    await expect(
+      page.getByRole("button", {
+        name: "選択した正式入力で比較する",
+        exact: true,
+      }),
+    ).toBeEnabled({ timeout: 30000 });
+    const cap = page.locator(
+      'section[aria-label="比較に使う能力入力"] input[type="checkbox"]',
+    );
+    await expect(
+      page.getByRole("complementary", { name: "起点設備の検索" }),
+    ).toBeVisible();
+    await expect(
+      page.locator(
+        '.equipment-search-panel .equipment-result[aria-pressed="true"]',
+      ),
+    ).toContainText("M-204");
+    await expect(cap).toBeChecked();
+    await cap.uncheck();
+    await page
+      .getByRole("button", {
+        name: "比較に使う正式入力の候補を取得",
+        exact: true,
+      })
+      .click();
+    await expect(
+      page.getByRole("button", {
+        name: "比較に使う正式入力の候補を取得",
+        exact: true,
+      }),
+    ).toBeEnabled();
+    await expect(cap).not.toBeChecked();
+    await cap.check();
+    await page
+      .getByRole("button", { name: "選択した正式入力で比較する", exact: true })
+      .click();
+    await expect(page.locator(".registered-comparison .decision")).toBeVisible({
+      timeout: 30000,
+    });
+    await page
+      .getByRole("button", { name: "比較の根拠を確かめる", exact: true })
+      .click();
+    await expect(page.locator("#panel-evidence")).toContainText(
+      "比較の出典と経路",
+    );
+    await page.getByRole("tab", { name: "質問する", exact: true }).click();
+    await page
+      .getByLabel("関係や影響について質問する")
+      .fill("この設備について確認したい");
+    await page
+      .getByRole("tab", { name: "接続及び影響範囲", exact: true })
+      .click();
+    await expect(page.locator(".react-flow__node")).toHaveCount(8);
+    const rootNode = page
+      .locator(".react-flow__node")
+      .filter({ hasText: "第1加工機 · M-204" });
+    const box = await rootNode.boundingBox();
+    await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+    await page.mouse.down();
+    await page.mouse.move(
+      box.x + box.width / 2 + 35,
+      box.y + box.height / 2 + 25,
+      { steps: 8 },
+    );
+    await page.mouse.up();
+    const position = await rootNode.getAttribute("style");
+    const viewport = await page
+      .locator(".react-flow__viewport")
+      .getAttribute("style");
+    const rectangles = await page
+      .locator(".react-flow__node")
+      .evaluateAll((nodes) =>
+        nodes.map((node) => {
+          const r = node.getBoundingClientRect();
+          return { x: r.x, y: r.y, w: r.width, h: r.height };
+        }),
+      );
+    for (let i = 0; i < rectangles.length; i++)
+      for (let j = i + 1; j < rectangles.length; j++) {
+        const a = rectangles[i],
+          b = rectangles[j];
+        expect(
+          a.x + a.w <= b.x ||
+            b.x + b.w <= a.x ||
+            a.y + a.h <= b.y ||
+            b.y + b.h <= a.y,
+        ).toBe(true);
+      }
+    let reads = 0;
+    page.on("request", (req) => {
+      if (
+        req.url().endsWith("/api/agent") &&
+        req.postData()?.includes("trace_downstream_impact")
+      )
+        reads++;
+    });
+    await page.getByRole("tab", { name: "質問する", exact: true }).click();
+    await expect(page.getByLabel("関係や影響について質問する")).toHaveValue(
+      "この設備について確認したい",
+    );
+    await page
+      .getByRole("tab", { name: "接続及び影響範囲", exact: true })
+      .click();
+    await expect(rootNode).toHaveAttribute("style", position);
+    await expect(page.locator(".react-flow__viewport")).toHaveAttribute(
+      "style",
+      viewport,
+    );
+    expect(reads).toBe(0);
+  });
+  await check("workspace-question-errors-768", async () => {
+    await search("M-204");
+    await choose();
+    await money();
+    let message = "";
+    await page.route("**/api/agent", async (route) => {
+      const body = route.request().postDataJSON();
+      if (body.message.startsWith("関係分析 ")) return route.continue();
+      message = body.message;
+      await route.fulfill({
+        status: 503,
+        json: {
+          request_id: "controlled-limit",
+          context_id: null,
+          status: "error",
+          answer: null,
+          data: {},
+          evidence: {},
+          warnings: [],
+          errors: [{ code: "AGENT_LIMIT_REACHED" }],
+        },
+      });
+    });
+    await page.getByRole("tab", { name: "質問する", exact: true }).click();
+    await page
+      .getByLabel("関係や影響について質問する")
+      .fill("この設備の状態は？");
+    await page.getByRole("button", { name: "送信", exact: true }).click();
+    await expect(
+      page.locator('#panel-investigation [role="alert"]'),
+    ).toContainText("制限時間");
+    expect(message).toContain("調査対象の設備コードはM-204");
+    await expect(page.getByLabel("関係や影響について質問する")).toHaveValue(
+      "この設備の状態は？",
+    );
+    await page
+      .getByRole("tab", { name: "接続及び影響範囲", exact: true })
+      .click();
+  });
   await check("switch-delayed-390", async () => {
     await search();
     await choose();
@@ -314,10 +491,8 @@ try {
     });
     await page.getByRole("button", { name: "再調査", exact: true }).click();
     await started;
-    await expect(
-      page.locator(".discovered-candidates .equipment-result"),
-    ).toBeVisible();
-    await page.locator(".discovered-candidates .equipment-result").click();
+    await search("M-208");
+    await choose();
     release();
     await expect(
       page.locator(".react-flow__node").filter({ hasText: "OP-50" }),
@@ -328,7 +503,7 @@ try {
     await expect(page.locator(".relationship-panel")).not.toContainText(
       "第1加工工程",
     );
-    await expect(page.locator(".selected-equipment")).toContainText("M-208");
+    await expect(page.locator(".workspace-context")).toContainText("M-208");
     await expect(page.locator(".loss-estimate")).toContainText("稼働中のため", {
       timeout: 15000,
     });
@@ -341,12 +516,13 @@ try {
     await page.getByLabel("Bearer token").fill(token);
     await page.getByRole("button", { name: "接続する", exact: true }).click();
     await expect(
-      page.getByRole("heading", { name: "設備を探す", exact: true }),
+      page.getByRole("tab", { name: "接続及び影響範囲", exact: true }),
     ).toBeVisible();
-    await expect(page.locator(".selected-equipment")).toHaveCount(0);
+    await expect(page.locator(".workspace-context")).not.toContainText("M-208");
     await expect(page.locator(".loss-amount")).toHaveCount(0);
   });
   await check("keyboard-768", async () => {
+    await page.getByRole("button", { name: "設備を選ぶ", exact: true }).click();
     await page.getByLabel("設備名・コード", { exact: true }).focus();
     await page.keyboard.type("M-204");
     await page.keyboard.press("Enter");
@@ -446,6 +622,9 @@ try {
     await check(`controlled-${failure}`, async () => {
       await control(failure);
       if (failure === "search") {
+        await page
+          .getByRole("button", { name: "設備を選ぶ", exact: true })
+          .click();
         await page.getByLabel("設備名・コード", { exact: true }).fill("第1");
         await page.getByRole("button", { name: "検索", exact: true }).click();
       } else {

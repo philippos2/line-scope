@@ -30,7 +30,14 @@ export function explanation(code: string) {
         GRAPH_NOT_CURRENT: "関係データの更新待ちです。",
         GRAPH_REBUILDING: "関係データを再構築中です。",
         CONNECTION_FAILED: "接続できませんでした。",
-        DEPENDENCY_UNAVAILABLE: "情報の取得先を利用できません。",
+        DEPENDENCY_UNAVAILABLE:
+          "LLMまたは参照先のサービスへ接続できません。管理者へ接続状態を確認してください。",
+        AGENT_LIMIT_REACHED:
+          "応答の制限時間に達しました。質問を絞って再試行してください。",
+        TARGET_NOT_FOUND:
+          "指定した対象が見つかりません。設備名・コードを確認してください。",
+        TARGET_AMBIGUOUS:
+          "対象が複数あります。設備名・コードを絞ってください。",
       } as Record<string, string>
     )[code] ?? "情報を取得できませんでした。"
   );
