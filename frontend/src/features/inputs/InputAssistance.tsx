@@ -383,18 +383,13 @@ export function EquipmentQueryInput(
         }}
       />
       <datalist id={id}>
-        {items.flatMap((item) => [
+        {items.map((item) => (
           <option
-            key={`${item.equipment_id}:name`}
-            value={item.equipment_name}
-            label={item.equipment_code}
-          />,
-          <option
-            key={`${item.equipment_id}:code`}
+            key={item.equipment_id}
             value={item.equipment_code}
             label={item.equipment_name}
-          />,
-        ])}
+          />
+        ))}
       </datalist>
       <small className="muted" id={`${id}-notice`}>
         {notice}
