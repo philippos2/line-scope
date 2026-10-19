@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { object, type Envelope } from "../../api/client";
 import type { EquipmentCandidate } from "../equipment/EquipmentCandidates";
 import { GraphInvestigation } from "../graph/GraphInvestigation";
@@ -16,14 +16,12 @@ import { money, lossReasons } from "../incidents/model";
 import {
   candidates,
   displayGraph,
-  errorCode,
   lossSourceLines,
   explanation,
   generation,
   registeredState,
   rows,
   products,
-  searchEquipment,
   toolData,
   type ReadState,
 } from "./readModel";
@@ -32,7 +30,8 @@ import {
   availabilityLabel,
   availabilityReason,
 } from "./AlternativeAssessment";
-import { useEquipmentInvestigation } from "./useEquipmentInvestigation";
+import type { useEquipmentInvestigation } from "./useEquipmentInvestigation";
+import type { GraphMemory } from "../graph/GraphCanvas";
 
 export function displayPeriod(start: unknown, end: unknown) {
   const formatter = new Intl.DateTimeFormat("ja-JP", {
@@ -165,57 +164,27 @@ function InputChoice({
   );
 }
 export function EquipmentInvestigation({
-  executionEpoch,
+  root,
+  model,
+  graphMemory,
+  onGraphMemory,
   onRootChange,
   onUseEquipment,
   onRegister,
   onObservations,
 }: {
-  executionEpoch: number;
+  root: EquipmentCandidate | null;
+  model: ReturnType<typeof useEquipmentInvestigation>;
+  graphMemory: Record<string, GraphMemory>;
+  onGraphMemory: (key: string, value: GraphMemory) => void;
   onRootChange: (v: EquipmentCandidate | null) => void;
   onUseEquipment: (v: EquipmentCandidate) => void;
   onRegister: (v: EquipmentCandidate) => void;
   onObservations: (v: Envelope) => void;
 }) {
-  const [query, setQuery] = useState(""),
-    [root, setRoot] = useState<EquipmentCandidate | null>(null);
-  const [found, setFound] = useState<EquipmentCandidate[]>([]),
-    [searched, setSearched] = useState(false),
-    [searchBusy, setSearchBusy] = useState(false),
-    [searchErrors, setSearchErrors] = useState<string[]>([]),
-    [more, setMore] = useState(false);
   const [direction, setDirection] = useState<"down" | "up" | "extra">("down");
-  const searchAbort = useRef<AbortController | null>(null);
-  useEffect(() => () => searchAbort.current?.abort(), []);
-  const model = useEquipmentInvestigation(root, executionEpoch);
   const { states } = model;
-  function choose(item: EquipmentCandidate) {
-    setRoot(item);
-    setDirection("down");
-    onRootChange(item);
-  }
-  async function search(event?: FormEvent) {
-    event?.preventDefault();
-    searchAbort.current?.abort();
-    const controller = new AbortController();
-    searchAbort.current = controller;
-    setSearchBusy(true);
-    setSearchErrors([]);
-    setSearched(false);
-    try {
-      const response = await searchEquipment(query, controller.signal);
-      if (!controller.signal.aborted) {
-        setFound(response.items);
-        setMore(response.more);
-        setSearchErrors(response.errors);
-        setSearched(true);
-      }
-    } catch (e) {
-      if (!controller.signal.aborted) setSearchErrors([errorCode(e)]);
-    } finally {
-      if (!controller.signal.aborted) setSearchBusy(false);
-    }
-  }
+  const choose = (item: EquipmentCandidate) => onRootChange(item);
   const base = states[direction]?.value;
   const shown = useMemo(
     () =>
@@ -327,91 +296,10 @@ export function EquipmentInvestigation({
   const info = (text: string) => <p className="muted">{text}</p>;
   return (
     <section className="equipment-investigation" aria-label="設備調査">
-      <aside className="equipment-search-panel">
-        <h2>設備を探す</h2>
-        <form onSubmit={search}>
-          <label htmlFor="equipment-search">設備名・コード</label>
-          <input
-            id="equipment-search"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="設備名の一部、またはコード"
-          />
-          <button className="primary" disabled={searchBusy}>
-            検索
-          </button>
-        </form>
-        {searchBusy && <p role="status">設備を探しています…</p>}
-        {searchErrors.map((code, i) => (
-          <Failure key={i} code={code} retry={() => void search()} />
-        ))}
-        {searched &&
-          !found.length &&
-          !searchErrors.length &&
-          info(
-            "該当する設備がありません。設備名の一部、またはコードの全体を入力してください。コードは大文字・小文字を区別します。",
-          )}
-        {found.map((item) => (
-          <button
-            className="equipment-result"
-            key={item.equipment_id}
-            aria-pressed={root?.equipment_id === item.equipment_id}
-            onClick={() => choose(item)}
-          >
-            <strong>{item.equipment_name}</strong>
-            <span>{item.equipment_code}</span>
-            <span
-              className={`registered-state state-${String(stateOf(item.equipment_id))}`}
-            >
-              登録上の状態：{registeredState(stateOf(item.equipment_id))}
-            </span>
-          </button>
-        ))}
-        {model.candidateEquipment.length > 0 && (
-          <section className="discovered-candidates">
-            <h3>調査で見つかった代替候補</h3>
-            {model.candidateEquipment.map((item) => (
-              <button
-                className="equipment-result"
-                key={item.equipment_id}
-                onClick={() => choose(item)}
-              >
-                <strong>{item.equipment_name}</strong>
-                <span>{item.equipment_code}</span>
-                <span className="registered-state">
-                  登録上の状態：{registeredState(stateOf(item.equipment_id))}
-                </span>
-              </button>
-            ))}
-          </section>
-        )}
-        {more &&
-          info("ほかにも設備があります。名前やコードで絞り込んでください。")}
-        {root && (
-          <div className="selected-equipment">
-            <strong>選択中：{root.equipment_name}</strong>
-            <p>
-              {root.equipment_code}・登録上の状態：
-              {registeredState(model.currentState)}
-            </p>
-            <button
-              onClick={() => {
-                setRoot(null);
-                onRootChange(null);
-              }}
-            >
-              選択を解除
-            </button>
-          </div>
-        )}
-      </aside>
       <div className="investigation-center">
-        <section
-          className="relationship-panel"
-          aria-label="つながりと影響の範囲"
-        >
+        <section className="relationship-panel" aria-label="接続及び影響範囲">
           <div className="section-heading">
-            <h1>つながりと影響の範囲</h1>
+            <h1>接続及び影響範囲</h1>
             {root && <button onClick={model.retry}>再調査</button>}
           </div>
           <div className="direction-tabs">
@@ -497,6 +385,8 @@ export function EquipmentInvestigation({
               <GraphCanvas
                 key={`${root?.equipment_id}:${direction}:${model.stale}:${view.nodes.length}`}
                 view={view}
+                memory={graphMemory[direction]}
+                onMemory={(value) => onGraphMemory(direction, value)}
                 result={shown}
                 selected={selected ? nodeKey(selected) : null}
                 onSelect={model.select}
@@ -545,7 +435,11 @@ export function EquipmentInvestigation({
           ) : null}
         </section>
         <div className="investigation-summaries">
-          <section className="loss-estimate" aria-label="推定損害額">
+          <section
+            className="loss-estimate"
+            id="workspace-loss"
+            aria-label="推定損害額"
+          >
             <h2>
               推定損害額<span className="muted">（円／時間）</span>
             </h2>
@@ -643,7 +537,11 @@ export function EquipmentInvestigation({
               登録された条件での見積もりです。実際の損害額ではありません。
             </p>
           </section>
-          <section className="alternative-proposal" aria-label="代替の提案">
+          <section
+            className="alternative-proposal"
+            id="workspace-alternative"
+            aria-label="代替の提案"
+          >
             <h2>代替の提案</h2>
             {!root ? info("設備を選ぶと候補を探します。") : null}
             {states.alternatives?.loading && (
@@ -821,8 +719,8 @@ export function EquipmentInvestigation({
                 <button onClick={() => choose(selectedEquipment)}>
                   この設備を調べる
                 </button>
-                <button onClick={() => onUseEquipment(selectedEquipment)}>
-                  この設備で対応案を比べる
+                <button onClick={() => root && onUseEquipment(root)}>
+                  {root?.equipment_code}への対応案を比べる
                 </button>
               </>
             )}
@@ -849,7 +747,7 @@ export function EquipmentInvestigation({
                 <p>{root.equipment_code}</p>
                 <p>登録上の状態：{registeredState(model.currentState)}</p>
                 <button onClick={() => onUseEquipment(root)}>
-                  この設備で対応案を比べる
+                  {root?.equipment_code}への対応案を比べる
                 </button>
               </>
             ) : (

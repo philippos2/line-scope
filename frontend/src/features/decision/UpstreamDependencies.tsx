@@ -1,6 +1,12 @@
 import { object, type JsonObject } from "../../api/client";
 
-export function UpstreamDependencies({ data }: { data: JsonObject }) {
+export function UpstreamDependencies({
+  data,
+  names = {},
+}: {
+  data: JsonObject;
+  names?: Record<string, string>;
+}) {
   const resources = Array.isArray(data.reached_nodes)
     ? data.reached_nodes
         .filter(object)
@@ -20,19 +26,22 @@ export function UpstreamDependencies({ data }: { data: JsonObject }) {
         </p>
       ) : (
         <p className="notice">
-          探索は不完全です（{String(data.limit_reason ?? "未確認")}
+          探索は不完全です（
+          {data.limit_reason
+            ? "取得範囲に制限があります"
+            : "理由は取得できません"}
           ）。依存インフラなしとは判断できません。
         </p>
       )}
       <ul>
         {resources.map((row) => (
           <li key={String(row.entity_id)}>
-            インフラ資源：{String(row.entity_id)}
+            {names[String(row.entity_id)] ?? "名称を取得できないインフラ資源"}
           </li>
         ))}
       </ul>
       <details>
-        <summary>上流依存の経路・探索範囲</summary>
+        <summary>技術情報：上流依存の経路・探索範囲</summary>
         <pre>{JSON.stringify(data, null, 2)}</pre>
       </details>
     </section>

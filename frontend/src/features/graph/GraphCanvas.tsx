@@ -9,6 +9,7 @@ import {
   Position,
   useNodesState,
   type Node,
+  type Viewport,
   type Edge,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
@@ -27,7 +28,14 @@ const EMPTY_CANDIDATES: string[] = [];
 const EMPTY_LABELS: NodeLabelStates = {};
 const EMPTY_STATES: Record<string, string> = {};
 
+export type GraphMemory = {
+  positions: Record<string, { x: number; y: number }>;
+  viewport?: Viewport;
+};
+
 export function GraphCanvas({
+  memory,
+  onMemory,
   view,
   result,
   selected,
@@ -37,6 +45,8 @@ export function GraphCanvas({
   registeredStates = EMPTY_STATES,
   labelStates = EMPTY_LABELS,
 }: {
+  memory?: GraphMemory;
+  onMemory?: (value: GraphMemory) => void;
   view: GraphView;
   result: Envelope;
   selected: string | null;
@@ -97,7 +107,10 @@ export function GraphCanvas({
           name = label(result, item, labelStates[nodeKey(item)]);
         nodes.push({
           id: key,
-          position: { x: depth * 285, y: index * 140 },
+          position: memory?.positions[key] ?? {
+            x: depth * 285,
+            y: index * 140,
+          },
           sourcePosition: Position.Right,
           targetPosition: Position.Left,
           className: `entity-${item.entity_type}${candidates.includes(key) ? " alternative-node" : ""}`,
@@ -130,6 +143,7 @@ export function GraphCanvas({
       });
     return nodes;
   }, [
+    memory,
     view,
     result,
     direct,
@@ -145,6 +159,7 @@ export function GraphCanvas({
       initialNodes.map((item) => ({
         ...old.find((previous) => previous.id === item.id),
         ...item,
+        position: item.position,
       })),
     );
   }, [initialNodes, setNodes]);
@@ -200,7 +215,20 @@ export function GraphCanvas({
           nodesConnectable={false}
           edgesReconnectable={false}
           deleteKeyCode={null}
-          fitView
+          fitView={!memory?.viewport}
+          defaultViewport={memory?.viewport}
+          onMoveEnd={(_, viewport) =>
+            onMemory?.({ positions: memory?.positions ?? {}, viewport })
+          }
+          onNodeDragStop={(_, dragged) =>
+            onMemory?.({
+              positions: {
+                ...memory?.positions,
+                [dragged.id]: dragged.position,
+              },
+              viewport: memory?.viewport,
+            })
+          }
           minZoom={0.2}
           maxZoom={2.5}
           ariaLabelConfig={{

@@ -1,19 +1,31 @@
 import { afterEach, expect, it, vi } from "vitest";
-import { cleanup, render, screen, waitFor } from "@testing-library/react";
+import {
+  cleanup,
+  render,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { App } from "./App";
 const target = {
   entity_type: "Equipment",
   entity_id: "11111111-1111-4111-8111-111111111111",
 };
+const equipment = {
+  equipment_id: target.entity_id,
+  equipment_code: "M-204",
+  equipment_name: "第1加工機",
+};
 vi.mock("../features/graph/GraphCanvas", () => ({
   GraphCanvas: ({ onSelect }: { onSelect: (value: typeof target) => void }) => (
     <button onClick={() => onSelect(target)}>設備ノードを選ぶ</button>
   ),
 }));
+// Exercise the UI's execution notification, not the approval/write backend.
 vi.mock("../features/actions/ActionPanel", () => ({
   ActionPanel: ({ onExecution }: { onExecution: () => void }) => (
-    <button onClick={onExecution}>更新試行を通知</button>
+    <button onClick={onExecution}>更新完了を通知</button>
   ),
 }));
 const envelope = (data: Record<string, unknown>) =>
@@ -24,90 +36,97 @@ const envelope = (data: Record<string, unknown>) =>
       status: "ok",
       answer: "取得済み",
       data,
-      evidence: {},
+      evidence: { graph_generation: "g1" },
       warnings: [],
       errors: [],
     }),
   );
-const graph = () =>
-  envelope({
-    tool_results: [
-      {
-        tool: "trace_downstream_impact",
-        data: {
-          target,
-          graph_sync_state: "CURRENT",
-          representative_paths: [],
-          complete: true,
-        },
-      },
-    ],
-  });
-const notice = "更新操作後の関係は未確認です。関係を再取得してください。";
 afterEach(() => {
   cleanup();
   vi.unstubAllGlobals();
 });
-it("marks only graphs predating an update and clears the warning only on graph retrieval", async () => {
-  let next: () => Promise<Response> = async () => graph();
-  vi.stubGlobal("fetch", (url: string) =>
-    url === "/api/session"
-      ? Promise.resolve(envelope({ user_id: "manager1" }))
-      : next(),
-  );
+it("marks graph, summaries, loss and alternatives as preceding execution until investigation is refreshed", async () => {
+  const fetcher = vi.fn(async (url: string, init?: RequestInit) => {
+    if (url === "/api/session") return envelope({ user_id: "manager1" });
+    if (url === "/api/economic-inputs/search")
+      return envelope({
+        items: [{ economic_input_id: "economic" }],
+        next_cursor: null,
+      });
+    if (url === "/api/economic-inputs/economic")
+      return envelope({
+        input: {
+          economic_input_id: "economic",
+          equipment_id: target.entity_id,
+          input_code: "registered-cost",
+          version: 1,
+          payload: {
+            period_start: "2026-10-18T00:00:00Z",
+            period_end: "2026-10-19T00:00:00Z",
+          },
+        },
+      });
+    if (url === "/api/incidents/investigate")
+      return envelope({
+        impacts: [{ equipment_id: target.entity_id, state_code: "STOPPED" }],
+        loss: { complete: true, loss_per_hour: "200000", items: [] },
+      });
+    if (url === "/api/agent") {
+      const { message } = JSON.parse(String(init?.body));
+      if (message.startsWith("関係分析 ")) {
+        const { tool } = JSON.parse(message.slice(5));
+        const data =
+          tool === "search_equipment"
+            ? { items: [equipment], next_cursor: null }
+            : tool === "get_equipment"
+              ? equipment
+              : {
+                  target,
+                  graph_sync_state: "CURRENT",
+                  complete: true,
+                  representative_paths: [],
+                  reached_nodes: [],
+                };
+        return envelope({ tool_results: [{ tool, data }] });
+      }
+    }
+    throw new Error(`Unexpected read: ${url}`);
+  });
+  vi.stubGlobal("fetch", fetcher);
   render(<App />);
   const user = userEvent.setup();
   await screen.findByRole("button", { name: "接続解除" });
-  const input = screen.getByLabelText("関係や影響について質問する");
-  await user.type(input, "調査");
-  const send = screen.getByRole("button", { name: "問い合わせを送信" });
-  await user.click(send);
+  await user.type(screen.getByLabelText("設備名・コード"), "M-204");
+  await user.click(screen.getByRole("button", { name: "検索" }));
+  await user.click(
+    await screen.findByRole("button", { name: /第1加工機.*M-204/ }),
+  );
   await screen.findByRole("button", { name: "設備ノードを選ぶ" });
-  expect(screen.queryByText(notice)).toBeNull();
-  let finish: (response: Response) => void = () => {};
-  next = () =>
-    new Promise((resolve) => {
-      finish = resolve;
-    });
-  await user.click(send);
-  expect(screen.queryByText(notice)).toBeNull();
-  finish(
-    envelope({
-      tool_results: [
-        { tool: "get_equipment", data: { equipment_id: target.entity_id } },
-      ],
-    }),
-  );
-  await waitFor(() => expect((send as HTMLButtonElement).disabled).toBe(false));
-  next = async () => {
-    throw new TypeError("network failure");
-  };
-  await user.click(send);
-  await screen.findByRole("alert");
-  expect(screen.queryByText(notice)).toBeNull();
-  await user.click(screen.getByRole("button", { name: "変更・承認・実行" }));
-  await user.click(screen.getByRole("button", { name: "更新試行を通知" }));
-  expect(screen.getByText(notice)).not.toBeNull();
+  await screen.findByText("200,000 円／時間");
+  const summary = screen.getByRole("region", { name: "調査の要約" });
+  const graph = screen.getByRole("tabpanel", { name: "接続及び影響範囲" });
+  expect(summary.textContent).not.toContain("更新前");
+  await user.click(screen.getByRole("tab", { name: "変更・承認・実行" }));
+  await user.click(screen.getByRole("button", { name: "更新完了を通知" }));
+  await user.click(screen.getByRole("tab", { name: "接続及び影響範囲" }));
+  expect(within(summary).getByText(/登録上.*更新前/)).toBeDefined();
+  expect(
+    within(summary).getByRole("button", { name: /200,000.*更新前/ }),
+  ).toBeDefined();
+  expect(within(summary).getByText(/未評価・提案なし.*更新前/)).toBeDefined();
+  expect(
+    within(graph).getByRole("region", { name: "推定損害額" }).textContent,
+  ).toContain("更新前");
+  expect(
+    within(graph).getByRole("region", { name: "代替の提案" }).textContent,
+  ).toContain("更新前");
+  expect(within(graph).getAllByText(/更新前の結果/).length).toBeGreaterThan(0);
+  const calls = fetcher.mock.calls.length;
   await user.click(screen.getByRole("button", { name: "設備ノードを選ぶ" }));
-  next = async () =>
-    envelope({
-      tool_results: [
-        { tool: "get_equipment", data: { equipment_id: target.entity_id } },
-      ],
-    });
-  await user.click(screen.getByRole("button", { name: "名称・属性を取得" }));
-  await waitFor(() =>
-    expect(
-      (
-        screen.getByRole("button", {
-          name: "名称・属性を取得",
-        }) as HTMLButtonElement
-      ).disabled,
-    ).toBe(false),
-  );
-  expect(screen.getByText(notice)).not.toBeNull();
-  next = async () => graph();
-  await user.click(screen.getByRole("button", { name: "調査・回答" }));
-  await user.click(send);
-  await waitFor(() => expect(screen.queryByText(notice)).toBeNull());
+  await waitFor(() => expect(fetcher.mock.calls.length).toBeGreaterThan(calls));
+  expect(summary.textContent).toContain("更新前");
+  await user.click(screen.getByRole("button", { name: "再調査" }));
+  await waitFor(() => expect(summary.textContent).not.toContain("更新前"));
+  await screen.findByText("200,000 円／時間");
+  expect(graph.textContent).not.toContain("更新前");
 });

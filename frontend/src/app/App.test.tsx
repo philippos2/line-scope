@@ -3,6 +3,9 @@ import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { App } from "./App";
 import type { Envelope } from "../api/client";
+vi.mock("../features/graph/GraphCanvas", () => ({
+  GraphCanvas: () => <div aria-label="関係図" />,
+}));
 const base: Envelope = {
   request_id: "r1",
   context_id: null,
@@ -40,6 +43,7 @@ async function connect() {
   await user.type(await screen.findByLabelText("Bearer token"), "secret");
   await user.click(screen.getByRole("button", { name: "接続する" }));
   await screen.findByRole("button", { name: "接続解除" });
+  await user.click(screen.getByRole("tab", { name: "質問する" }));
   return user;
 }
 it("connects and shows actual answer and server Evidence", async () => {
@@ -50,13 +54,9 @@ it("connects and shows actual answer and server Evidence", async () => {
     screen.getByLabelText("関係や影響について質問する"),
     "設備を調べる",
   );
-  await user.click(screen.getByRole("button", { name: "問い合わせを送信" }));
+  await user.click(screen.getByRole("button", { name: "送信" }));
   await screen.findByText("取得した回答");
-  await user.click(
-    screen
-      .getByRole("navigation", { name: "調査に続く操作" })
-      .querySelectorAll("button")[2],
-  );
+  await user.click(screen.getByRole("tab", { name: "出典と経路" }));
   expect(screen.getAllByText(/server/).length).toBeGreaterThan(0);
   expect(localStorage.length).toBe(0);
   expect(sessionStorage.length).toBe(0);
@@ -77,7 +77,7 @@ it("disconnects while a response is pending and never restores old results", asy
   render(<App />);
   const user = await connect();
   await user.type(screen.getByLabelText("関係や影響について質問する"), "調査");
-  await user.click(screen.getByRole("button", { name: "問い合わせを送信" }));
+  await user.click(screen.getByRole("button", { name: "送信" }));
   await user.click(screen.getByRole("button", { name: "接続解除" }));
   finish(reply());
   await waitFor(() => expect(screen.queryByText("取得した回答")).toBeNull());
@@ -97,7 +97,7 @@ it("renders untrusted answer text without executing HTML", async () => {
   render(<App />);
   const user = await connect();
   await user.type(screen.getByLabelText("関係や影響について質問する"), "調査");
-  await user.click(screen.getByRole("button", { name: "問い合わせを送信" }));
+  await user.click(screen.getByRole("button", { name: "送信" }));
   await screen.findByText("<img src=x onerror=alert(1)>");
   expect(document.querySelector("img")).toBeNull();
 });
@@ -113,53 +113,85 @@ it("passes server conversation context and clearly marks a partial result", asyn
   render(<App />);
   const user = await connect();
   await user.type(screen.getByLabelText("関係や影響について質問する"), "調査");
-  await user.click(screen.getByRole("button", { name: "問い合わせを送信" }));
+  await user.click(screen.getByRole("button", { name: "送信" }));
   await screen.findByText("一部の情報・評価が不足しています");
-  await user.click(screen.getByRole("button", { name: "問い合わせを送信" }));
+  await user.click(screen.getByRole("button", { name: "送信" }));
   await waitFor(() => expect(fetcher).toHaveBeenCalledTimes(3));
   expect(JSON.parse(fetcher.mock.calls[2][1].body)).toEqual({
     message: "調査",
     context_id: "c1",
   });
 });
-it("selects a named equipment and explicitly loads its relationships in a fresh context", async () => {
+it("selects equipment through the common search, loads relationships directly and grounds a fresh question", async () => {
+  const target = {
+    equipment_id: "20800000-0000-4000-8000-000000000001",
+    equipment_code: "M-208",
+    equipment_name: "予備加工機",
+  };
   const fetcher = vi
     .fn()
-    .mockResolvedValueOnce(reply())
-    .mockResolvedValueOnce(
-      reply({
-        ...base,
-        context_id: "old-search-context",
-        data: {
-          tool_results: [
-            {
-              tool: "search_equipment",
-              data: {
-                items: [
-                  {
-                    equipment_id: "20800000-0000-4000-8000-000000000001",
-                    equipment_code: "M-208",
-                    equipment_name: "予備加工機",
-                  },
-                ],
-                next_cursor: null,
-              },
-            },
-          ],
-        },
-      }),
-    )
-    .mockResolvedValueOnce(reply());
+    .mockImplementation((url: string, init: RequestInit) => {
+      if (url === "/api/session/login") return Promise.resolve(reply());
+      if (url.endsWith("/search"))
+        return Promise.resolve(
+          reply({ ...base, data: { items: [], next_cursor: null } }),
+        );
+      const body = JSON.parse(String(init.body));
+      if (body.message?.startsWith("関係分析 ")) {
+        const command = JSON.parse(body.message.slice(5));
+        const data =
+          command.tool === "search_equipment"
+            ? { items: [target], next_cursor: null }
+            : {
+                target: {
+                  entity_type: "Equipment",
+                  entity_id: target.equipment_id,
+                },
+                representative_paths: [],
+                reached_nodes: [],
+                graph_sync_state: "CURRENT",
+                complete: true,
+              };
+        return Promise.resolve(
+          reply({
+            ...base,
+            context_id: "read-only-context",
+            data: { tool_results: [{ tool: command.tool, data }] },
+          }),
+        );
+      }
+      return Promise.resolve(reply());
+    });
   stubFetch(fetcher);
   render(<App />);
   const user = await connect();
-  expect(fetcher).toHaveBeenCalledTimes(1);
-  await user.click(screen.getByRole("button", { name: "設備を検索" }));
-  await user.click(await screen.findByRole("button", { name: /予備加工機/ }));
-  await waitFor(() => expect(fetcher).toHaveBeenCalledTimes(3));
-  expect(
-    screen.getByRole("heading", { name: "何とつながり、どこまで影響するか" }),
-  ).toBeTruthy();
-  expect(JSON.parse(fetcher.mock.calls[2][1].body).message).toContain("M-208");
-  expect(JSON.parse(fetcher.mock.calls[2][1].body).context_id).toBeUndefined();
+  await user.click(screen.getByRole("button", { name: "設備を選ぶ" }));
+  await user.type(screen.getByLabelText("設備名・コード"), "M-208");
+  await user.click(screen.getByRole("button", { name: "検索" }));
+  await user.click(
+    await screen.findByRole("button", { name: /予備加工機.*M-208/ }),
+  );
+  await waitFor(() =>
+    expect(
+      fetcher.mock.calls.some(([, init]) =>
+        String(init.body).includes("trace_downstream_impact"),
+      ),
+    ).toBe(true),
+  );
+  await user.type(
+    screen.getByLabelText("関係や影響について質問する"),
+    "この設備の状態は？",
+  );
+  await user.click(screen.getByRole("button", { name: "送信" }));
+  await waitFor(() =>
+    expect(
+      fetcher.mock.calls.some(([, init]) =>
+        String(init.body).includes("調査対象の設備コードはM-208"),
+      ),
+    ).toBe(true),
+  );
+  const call = fetcher.mock.calls.find(([, init]) =>
+    String(init.body).includes("調査対象の設備コードはM-208"),
+  )!;
+  expect(JSON.parse(String(call[1].body)).context_id).toBeUndefined();
 });

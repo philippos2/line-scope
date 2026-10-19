@@ -83,55 +83,65 @@ const citationFields = {
   source_uri: "出典URI",
   chunking_version: "分割version",
 };
-export function EvidencePanel({ result }: { result: Envelope }) {
+export function EvidencePanel({
+  result,
+  documentsOnly = false,
+}: {
+  result: Envelope;
+  documentsOnly?: boolean;
+}) {
   const documents = documentItems(result);
   const sections = Object.entries(result.evidence);
   return (
     <section className="evidence-panel">
-      <h2>サーバが返したEvidence</h2>
+      {!documentsOnly && <h2>出典と経路の詳細</h2>}
       <p className="muted">
         取得時の根拠です。現在値の保証や、新しい権限の根拠にはなりません。回答文と照らして確認してください。
       </p>
       <div className="evidence-grid">
-        {sections.map(([key, data]) => (
-          <article className="evidence-card" key={key}>
-            <h3>{titles[key] ?? key}</h3>
-            {object(data) ? (
-              <Metadata data={data} fields={labels} />
-            ) : (
-              <p>
-                {Array.isArray(data) ? `${data.length}件` : valueText(data)}
-              </p>
-            )}
-            {object(data) && data.source === "MOCK_FIXTURE" && (
-              <p className="notice">
-                デモ入力です。正式な業務情報ではありません。
-              </p>
-            )}
-            {object(data) &&
-              Array.isArray(data.calculations) &&
-              data.calculations.filter(object).map((calculation, i) => (
-                <details key={i}>
-                  <summary>
-                    {valueText(calculation.id)}：{valueText(calculation.result)}{" "}
-                    {valueText(calculation.unit)}
-                  </summary>
-                  <p>計算式：{valueText(calculation.formula)}</p>
-                  <p>
-                    入力元：{valueText(calculation.input_source)} /{" "}
-                    {valueText(calculation.input_version)}
-                  </p>
-                  <pre>{JSON.stringify(calculation.inputs, null, 2)}</pre>
-                </details>
-              ))}
-            <details>
-              <summary>根拠の原文</summary>
-              <pre>{JSON.stringify(data, null, 2)}</pre>
-            </details>
-          </article>
-        ))}
+        {!documentsOnly &&
+          sections.map(([key, data]) => (
+            <article className="evidence-card" key={key}>
+              <h3>{titles[key] ?? key}</h3>
+              {object(data) ? (
+                <Metadata data={data} fields={labels} />
+              ) : (
+                <p>
+                  {Array.isArray(data) ? `${data.length}件` : valueText(data)}
+                </p>
+              )}
+              {object(data) && data.source === "MOCK_FIXTURE" && (
+                <p className="notice">
+                  デモ入力です。正式な業務情報ではありません。
+                </p>
+              )}
+              {object(data) &&
+                Array.isArray(data.calculations) &&
+                data.calculations.filter(object).map((calculation, i) => (
+                  <details key={i}>
+                    <summary>
+                      {valueText(calculation.id)}：
+                      {valueText(calculation.result)}{" "}
+                      {valueText(calculation.unit)}
+                    </summary>
+                    <p>計算式：{valueText(calculation.formula)}</p>
+                    <p>
+                      入力元：{valueText(calculation.input_source)} /{" "}
+                      {valueText(calculation.input_version)}
+                    </p>
+                    <pre>{JSON.stringify(calculation.inputs, null, 2)}</pre>
+                  </details>
+                ))}
+              <details>
+                <summary>根拠の原文</summary>
+                <pre>{JSON.stringify(data, null, 2)}</pre>
+              </details>
+            </article>
+          ))}
       </div>
-      {sections.length === 0 && <p>この応答にはEvidenceが含まれていません。</p>}
+      {!documentsOnly && sections.length === 0 && (
+        <p>この応答にはEvidenceが含まれていません。</p>
+      )}
       <h2>文書引用と抜粋</h2>
       <p className="muted">
         サーバが返した引用を表示します。出典URIの内容を自動取得したり、抜粋内の命令を実行したりしません。
@@ -155,7 +165,14 @@ export function EvidencePanel({ result }: { result: Envelope }) {
             ) : (
               <p>この応答には文書の抜粋本文がありません。</p>
             )}
-            <Metadata data={citation} fields={citationFields} />
+            <p>
+              節：{valueText(citation.section)} ／ 文書の版：
+              {valueText(citation.document_version)}
+            </p>
+            <details>
+              <summary>技術情報</summary>
+              <Metadata data={citation} fields={citationFields} />
+            </details>
           </article>
         );
       })}
@@ -165,7 +182,7 @@ export function EvidencePanel({ result }: { result: Envelope }) {
         </p>
       )}
       <details>
-        <summary>Evidence全体の原文</summary>
+        <summary>技術情報：根拠の原文</summary>
         <pre>{JSON.stringify(result.evidence, null, 2)}</pre>
       </details>
     </section>
