@@ -188,6 +188,7 @@ export function WorkspaceHeader({
                 {root
                   ? `${root.equipment_name} · ${root.equipment_code} ／登録上：${registeredState(model.currentState)}`
                   : "設備未選択"}
+                {model.stale ? "（更新前）" : ""}
               </p>
               <button
                 onClick={() =>
@@ -244,6 +245,7 @@ export function WorkspaceHeader({
               ) : (
                 <p>
                   {states.alternatives?.loading ? "調査中" : "未評価・提案なし"}
+                  {model.stale ? "（更新前）" : ""}
                 </p>
               )}
             </div>
