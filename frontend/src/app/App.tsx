@@ -19,6 +19,8 @@ import { RegisteredComparison } from "../features/decision/RegisteredComparison"
 import type { EquipmentCandidate } from "../features/equipment/EquipmentCandidates";
 import { EvidencePanel } from "../features/evidence/EvidencePanel";
 import { EquipmentInvestigation } from "../features/investigation/EquipmentInvestigation";
+import { ReferenceDrawer } from "../features/investigation/ReferenceDrawer";
+import { rows } from "../features/investigation/readModel";
 import { WorkspaceHeader } from "../features/investigation/WorkspaceHeader";
 import { useEquipmentInvestigation } from "../features/investigation/useEquipmentInvestigation";
 import { explanation, products } from "../features/investigation/readModel";
@@ -37,6 +39,11 @@ export function App() {
   const [actionDraftVersion, setActionDraftVersion] = useState(0);
   const [actionDraft, setActionDraft] = useState("");
   const [stateChoice, setStateChoice] = useState("");
+  const [direction, setDirection] = useState<"down" | "up" | "extra">("down");
+  const [reference, setReference] = useState<
+    "diagram" | "graph" | "comparison" | "documents" | "answer" | null
+  >(null);
+  const [savedRequest, setSavedRequest] = useState<Envelope | null>(null);
   const [step, setStep] = useState<Step>("graph");
   const [evidenceKind, setEvidenceKind] = useState<
     "graph" | "comparison" | "documents"
@@ -142,6 +149,9 @@ export function App() {
     setEquipment(item);
     setDecisionEquipment(item);
     setGraphMemory({});
+    setReference(null);
+    setDirection("down");
+    setSavedRequest(null);
     setComparisonResult(null);
     setDocumentResult(null);
     setEconomicPrepared(undefined);
@@ -186,6 +196,9 @@ export function App() {
     setDraftToken("");
     setComparisonStale(false);
     setGraphMemory({});
+    setReference(null);
+    setDirection("down");
+    setSavedRequest(null);
     dirty.current.clear();
     setEquipment(null);
     setDecisionEquipment(null);
@@ -258,6 +271,9 @@ export function App() {
         setShowConnection(false);
         setDraftToken("");
         setGraphMemory({});
+        setReference(null);
+        setDirection("down");
+        setSavedRequest(null);
         dirty.current.clear();
         setEquipment(null);
         setDecisionEquipment(null);
@@ -394,6 +410,48 @@ export function App() {
       : evidenceKind === "comparison"
         ? comparisonResult
         : (graphResult ?? model.states.down?.value ?? analysisResult);
+  const referenceResult =
+    reference === "comparison"
+      ? comparisonResult
+      : reference === "documents"
+        ? documentResult
+        : reference === "answer"
+          ? result
+          : model.states[direction]?.value;
+  const snapshot = object(savedRequest?.data.canonical_snapshot)
+    ? savedRequest.data.canonical_snapshot
+    : null;
+  const requestTargets = rows(snapshot?.targets);
+  const requestEquipment = requestTargets.map((target) =>
+    object(target.business_key) ? target.business_key.equipment_id : undefined,
+  );
+  const approvalReferenceWarning =
+    step !== "execution"
+      ? ""
+      : !requestTargets.length
+        ? "変更要求の対象をまだ確認していません。この要求対象の関係図は未取得です。"
+        : requestEquipment.some((id) => typeof id !== "string")
+          ? "変更要求の対象設備を特定できません。この要求対象の関係図は未取得です。"
+          : !equipment ||
+              requestEquipment.some((id) => id !== equipment.equipment_id)
+            ? "変更要求の対象と調査起点が一致しません。この要求対象の関係図は未取得です。"
+            : "";
+  function referenceTime(value: Envelope | null | undefined) {
+    const raw =
+      value?.evidence.observed_at ??
+      rows(value?.evidence.tool_results)[0]?.graph_observed_at;
+    if (typeof raw !== "string" || Number.isNaN(Date.parse(raw)))
+      return value ? "取得済み（時刻情報なし）" : "未取得";
+    return (
+      "取得時点：" +
+      new Intl.DateTimeFormat("ja-JP", {
+        timeZone: "Asia/Tokyo",
+        dateStyle: "short",
+        timeStyle: "medium",
+      }).format(new Date(raw)) +
+      "（日本時間）"
+    );
+  }
   function prepareInput(id: string) {
     dirty.current.delete("prepare");
     setActionDraft("");
@@ -572,6 +630,29 @@ export function App() {
               }}
             >
               <div
+                className="reference-toolbar"
+                aria-label="取得済みの情報を参照"
+              >
+                <button onClick={() => setReference("diagram")}>
+                  関係図を見る
+                </button>
+                <button
+                  onClick={() =>
+                    setReference(
+                      step === "comparison"
+                        ? "comparison"
+                        : step === "investigation"
+                          ? "answer"
+                          : step === "evidence"
+                            ? evidenceKind
+                            : "graph",
+                    )
+                  }
+                >
+                  根拠を見る
+                </button>
+              </div>
+              <div
                 id="panel-graph"
                 role="tabpanel"
                 aria-labelledby="tab-graph"
@@ -580,6 +661,8 @@ export function App() {
                 <EquipmentInvestigation
                   key={equipment?.equipment_id ?? "none"}
                   root={equipment}
+                  direction={direction}
+                  onDirection={setDirection}
                   model={model}
                   graphMemory={graphMemory}
                   onGraphMemory={(key, value) =>
@@ -599,8 +682,7 @@ export function App() {
                 />
                 <button
                   onClick={() => {
-                    setEvidenceKind("graph");
-                    setStep("evidence");
+                    setReference("graph");
                   }}
                 >
                   調査の根拠を見る
@@ -758,8 +840,7 @@ export function App() {
                 </button>
                 <button
                   onClick={() => {
-                    setEvidenceKind("comparison");
-                    setStep("evidence");
+                    setReference("comparison");
                   }}
                 >
                   比較の根拠を確かめる
@@ -1009,6 +1090,7 @@ export function App() {
                     ":" +
                     actionDraft
                   }
+                  onSaved={setSavedRequest}
                   initialMessage={actionDraft}
                   initiallyOpen
                   onExecution={() => {
@@ -1045,6 +1127,101 @@ export function App() {
                     )}
                   </pre>
                 </details>
+              )}
+              {reference && (
+                <ReferenceDrawer
+                  title={
+                    reference === "diagram"
+                      ? "関係図の参照"
+                      : reference === "graph"
+                        ? "調査の根拠の参照"
+                        : reference === "comparison"
+                          ? "比較の根拠の参照"
+                          : reference === "answer"
+                            ? "回答の根拠の参照"
+                            : "関連文書の参照"
+                  }
+                  onClose={() => setReference(null)}
+                >
+                  <p>
+                    調査起点：
+                    {equipment
+                      ? `${equipment.equipment_name} · ${equipment.equipment_code}`
+                      : "未選択"}
+                  </p>
+                  {reference === "diagram" ? (
+                    approvalReferenceWarning ? (
+                      <p className="notice">{approvalReferenceWarning}</p>
+                    ) : (
+                      <>
+                        <p>
+                          {referenceTime(model.states[direction]?.value)}
+                          {model.stale ? " ／ 更新前" : ""}
+                        </p>
+                        {step === "execution" && (
+                          <p className="notice">
+                            要求対象と一致する設備の参考図です。保存された変更内容の一部ではありません。
+                          </p>
+                        )}
+                        <EquipmentInvestigation
+                          root={equipment}
+                          model={model}
+                          direction={direction}
+                          onDirection={setDirection}
+                          graphMemory={graphMemory}
+                          onGraphMemory={(key, value) =>
+                            setGraphMemory((old) => ({ ...old, [key]: value }))
+                          }
+                          referenceOnly
+                          onRootChange={chooseRoot}
+                          onUseEquipment={() => {}}
+                          onRegister={() => {}}
+                          onObservations={setGraphResult}
+                        />
+                      </>
+                    )
+                  ) : (
+                    <>
+                      <p>
+                        対象結果：
+                        {reference === "graph"
+                          ? "調査"
+                          : reference === "comparison"
+                            ? "対応案の比較"
+                            : reference === "answer"
+                              ? "質問への回答"
+                              : "関連文書の検索"}
+                      </p>
+                      <p>
+                        {referenceTime(referenceResult)}
+                        {(
+                          reference === "comparison"
+                            ? comparisonStale
+                            : reference === "graph"
+                              ? model.stale
+                              : reference === "answer"
+                                ? stale
+                                : false
+                        )
+                          ? " ／ 更新前"
+                          : ""}
+                      </p>
+                      {step === "execution" && (
+                        <p className="notice">
+                          調査・比較の参考情報です。変更要求の保存内容の根拠ではありません。
+                        </p>
+                      )}
+                      {referenceResult ? (
+                        <EvidencePanel
+                          result={referenceResult}
+                          documentsOnly={reference === "documents"}
+                        />
+                      ) : (
+                        <p>この結果の根拠は未取得です。</p>
+                      )}
+                    </>
+                  )}
+                </ReferenceDrawer>
               )}
             </WorkspaceHeader>
           </main>

@@ -1,5 +1,5 @@
 import type { NodeLabelStates } from "./labelLoader";
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import {
   Background,
   Controls,
@@ -9,6 +9,7 @@ import {
   Position,
   useNodesState,
   type Node,
+  type ReactFlowInstance,
   type Viewport,
   type Edge,
 } from "@xyflow/react";
@@ -56,6 +57,18 @@ export function GraphCanvas({
   registeredStates?: Record<string, string>;
   labelStates?: NodeLabelStates;
 }) {
+  const flow = useRef<ReactFlowInstance<Node, Edge> | null>(null);
+  useEffect(() => {
+    if (!memory?.viewport || !flow.current) return;
+    const current = flow.current.getViewport();
+    const next = memory.viewport;
+    if (
+      current.x !== next.x ||
+      current.y !== next.y ||
+      current.zoom !== next.zoom
+    )
+      void flow.current.setViewport(next);
+  }, [memory?.viewport]);
   const direct = useMemo(
     () =>
       new Set(
@@ -201,7 +214,10 @@ export function GraphCanvas({
   return (
     <>
       <div className="relation-canvas" aria-label="つながりと影響範囲の関係図">
-        <ReactFlow
+        <ReactFlow<Node, Edge>
+          onInit={(instance) => {
+            flow.current = instance;
+          }}
           nodes={nodes.map((item) => ({
             ...item,
             selected: item.id === selected,
@@ -217,9 +233,16 @@ export function GraphCanvas({
           deleteKeyCode={null}
           fitView={!memory?.viewport}
           defaultViewport={memory?.viewport}
-          onMoveEnd={(_, viewport) =>
-            onMemory?.({ positions: memory?.positions ?? {}, viewport })
-          }
+          onMoveEnd={(_, viewport) => {
+            const previous = memory?.viewport;
+            if (
+              !previous ||
+              previous.x !== viewport.x ||
+              previous.y !== viewport.y ||
+              previous.zoom !== viewport.zoom
+            )
+              onMemory?.({ positions: memory?.positions ?? {}, viewport });
+          }}
           onNodeDragStop={(_, dragged) =>
             onMemory?.({
               positions: {
