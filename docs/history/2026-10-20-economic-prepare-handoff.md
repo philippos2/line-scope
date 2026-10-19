@@ -65,3 +65,11 @@
 - 今回の修正後の実Prepare→別担当者承認→元依頼者実行→調査の再取得は未実施。過去のBの隔離環境での成功記録とは分け、今回の現行版で通したとは説明しない。実施する場合は専用環境・認証の主体と権限・操作一覧を先に報告し、明示許可を得る。
 - 全画面の監査・他操作の統一・通信中断時の復旧・案B/C・自動再取得は未実装。Backend/API契約/シード/DB/Qdrant/volume/5173番は変更していない。5174番のFrontendだけを更新して確認先を維持する。
 - コミットとpush、Draft PR #270の本文更新後に停止し、次の明示指示を待つ。
+
+## MaintenanceInputの承認規則の再照合
+
+- Claudeから、MaintenanceInputまで別managerの承認とする案内と`ownRestrictedRequest`が正しいか、再確認を求められた。既存の「保全」の表だけで判断せず、access-controlの「対応計画・故障履歴の権限」まで確認した。
+- 経済・能力・安全の各入力はそれぞれの個別権限節、MaintenanceInputは「対応計画・故障履歴の権限」のApproval行に、要求者と異なるmanagerの承認が明記されている。4入力の現行案内と自己承認抑止は既存契約に合致するため、表示・条件は変更しない。
+- 一方、既存MAINTENANCE（MaintenancePlan／MaintenanceRecord）は§3の保全承認権限と§4によりmaintenance／managerが承認し、managerのみ自己承認可。追加入力の個別権限節にも、既存MaintenancePlan／MaintenanceRecordの権限を変更しないと明記されている。ActionPanelの入力4種の条件にはこれら既存Targetを含めておらず、一般的なカテゴリ規則の案内を維持する。
+- approval_policy.pyの承認職務・自己承認条件、execute_policy.pyの元requester・現在権限検証も読んで照合した。既存test_maintenance_inputs_api.pyに自己承認とmaintenance担当の承認を403とする試験があることを確認したが、今回は実行していない。
+- これは表示バグとは確認されず、既存保全と追加登録入力の区別をレビュー資料で明示する必要があると判断した。設計案§11.5へカテゴリ別の根拠表と、コードを変更しなかった理由を追記する。文書のみの変更で、ブラウザ・単体・Backend試験の再実行、実書込、環境変更は行わない。PR #270のDraftを維持する。

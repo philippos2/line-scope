@@ -349,6 +349,22 @@ R-01・02・05・06・07・09は実装A、R-03・04・08は実装Bを中心に�
 
 今回の改修案では要求IDの入口を採用する。承認待ち一覧・通知・そのための新APIは追加しない。一覧が必要なら、別の要望・権限・契約の変更として判断する。
 
+#### カテゴリ別の担当者案内の根拠
+
+「保全」という表示名だけで承認規則を決めない。既存の保全計画・保全記録と、追加の対応計画・故障履歴の登録入力は別カテゴリである。以下は既存契約の確認であり、権限の変更ではない。
+
+| 対象・カテゴリ | 承認担当者 | 自己承認 | 実行担当者 | access-control.mdの根拠 |
+|---|---|---|---|---|
+| 経済入力（ECONOMIC_INPUT） | manager | 不可 | 元requester、現在もmanager | 「経済情報の権限」 |
+| 能力入力（CAPACITY_INPUT） | manager | 不可 | 元requester、現在もmanager | 「能力情報の権限」 |
+| 安全入力（SAFETY_INPUT） | manager | 不可 | 元requester、現在もmanager | 「安全情報の権限」 |
+| 対応計画・故障履歴の登録入力（MAINTENANCE_INPUT／MaintenanceInput） | 要求者と異なるmanager | 不可 | 元requester、現在もmanager | 「対応計画・故障履歴の権限」のApproval／Execute行 |
+| 既存の保全（MAINTENANCE／MaintenancePlan・MaintenanceRecord） | maintenanceまたはmanager | managerのみ可 | 元requesterで現在の更新権限も必要 | §3「操作権限」、§4「自己承認」、§5「実行権限」。追加の入力権限は既存権限を変更しないと明記 |
+
+ActionPanelの`inputCategory`は上の入力4カテゴリのTarget種別だけを扱う。したがって、この4カテゴリに「依頼者とは別の工場管理者」と案内し、`ownRestrictedRequest`で依頼者本人の承認操作を抑止する現行条件は維持する。既存MaintenancePlan／MaintenanceRecordはその条件に含まれず、「この変更カテゴリの承認権限を持つ担当者（自己承認の可否はカテゴリ規則に従います）」の一般案内となる。一般案内を入力カテゴリのmanager限定規則で置き換えない。
+
+バックエンドの`application/approval_policy.py`も、MAINTENANCE_INPUTはmanager限定かつ自己承認不可、MAINTENANCEはmaintenance／managerかつmanagerのみ自己承認可、と区別している。`execute_policy.py`も元requesterと現在権限を再検証する。フロントの案内は操作権限の付与ではなく、最終判断はサーバが行う。未確認カテゴリに具体的な承認者を推測で割り当てない。
+
 #### 承認担当者への引き渡しと反映までの導線：案A採用・後続案は判断待ち
 
 **PR #270では案Aの最小版を採用する。案B・Cと実行後の再取得リンクは後続で、今回実装しない。** 共通の完了表示を追加しても、「保存内容を確認・承認へ進む」を押した依頼者が、その後に誰の操作を待ち、どう再開するかを理解しにくい。ボタン名は、同じ利用者がそのまま承認へ進める印象を与える。現在も説明文・要求IDコピー・無効理由はあるが、手順としての見せ方が十分ではない。
