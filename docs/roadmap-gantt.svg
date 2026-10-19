@@ -1,42 +1,44 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="800" viewBox="0 0 1600 800" role="img" aria-labelledby="title desc">
-<title id="title">画面修正の比較用ガント：(a)一体化案、分割採否待ち</title>
-<desc id="desc">実装Aはドロワーなし2.5〜3.5日、あり3〜4.5日。Bは2〜3日。図は採用案の最大7.5作業日枠であり、実装未着手。開発依頼者の採否判断と開始命令を待つ。</desc>
-<rect width="1600" height="800" fill="#f8fafc"/><g font-family="sans-serif" fill="#183247">
-<text x="26" y="40" font-size="25">UI改修の比較図：(a) Aへ一体化した場合／推奨(b) A1→A2→Bは採否未決</text>
-<text x="26" y="73" font-size="17">(a)は2 PR・5〜7.5日。(b)は3 PR・同じ本体工数＋分割手間0.25〜0.5日。実装は未着手。</text>
+<svg xmlns="http://www.w3.org/2000/svg" width="1750" height="800" viewBox="0 0 1750 800" role="img" aria-labelledby="title desc">
+<title id="title">採用計画：A1→A2→Bの3 PR</title>
+<desc id="desc">計画文書266を先にmergeし、A1で共通状態と基本UI、A2で参照ドロワー、Bで入力と変更手続きを完成させる。各PRで確認とmergeを挟む。本体5〜7.5日、分割手間0.25〜0.5日、待ち時間別。実装未着手。</desc>
+<rect width="1750" height="800" fill="#f8fafc"/><g font-family="sans-serif" fill="#183247">
+<text x="26" y="40" font-size="26">採用計画：文書 #266 → A1（基本UI・共通状態）→ A2（ドロワー）→ B（入力・変更）</text>
+<text x="26" y="74" font-size="18">後続3 PR。本体5〜7.5作業日＋分割手間0.25〜0.5日程度。レビュー・CI等の待ち時間は別。実装未着手。</text>
 
 <rect x="365" y="120" width="95" height="485" fill="#e2e8f0"/>
-<path d="M365 120V605" stroke="#cbd5e1"/><text x="412.5" y="111" font-size="14" text-anchor="middle">計画・採否</text>
-<path d="M460 120V605" stroke="#cbd5e1"/><text x="520.0" y="111" font-size="14" text-anchor="middle">1日</text>
-<path d="M580 120V605" stroke="#cbd5e1"/><text x="640.0" y="111" font-size="14" text-anchor="middle">2日</text>
-<path d="M700 120V605" stroke="#cbd5e1"/><text x="760.0" y="111" font-size="14" text-anchor="middle">3日</text>
-<path d="M820 120V605" stroke="#cbd5e1"/><text x="880.0" y="111" font-size="14" text-anchor="middle">4日</text>
-<path d="M940 120V605" stroke="#cbd5e1"/><text x="970.0" y="111" font-size="14" text-anchor="middle">4.5日</text>
-<rect x="1000" y="120" width="95" height="485" fill="#e2e8f0"/>
-<path d="M1000 120V605" stroke="#cbd5e1"/><text x="1047.5" y="111" font-size="14" text-anchor="middle">確認</text>
-<path d="M1095 120V605" stroke="#cbd5e1"/><text x="1155.0" y="111" font-size="14" text-anchor="middle">5.5日</text>
-<path d="M1215 120V605" stroke="#cbd5e1"/><text x="1275.0" y="111" font-size="14" text-anchor="middle">6.5日</text>
-<path d="M1335 120V605" stroke="#cbd5e1"/><text x="1395.0" y="111" font-size="14" text-anchor="middle">7.5日</text>
-<rect x="1455" y="120" width="120" height="485" fill="#e2e8f0"/>
-<path d="M1455 120V605" stroke="#cbd5e1"/><text x="1515.0" y="111" font-size="14" text-anchor="middle">確認</text>
-<text x="26" y="154" font-size="18">計画 #266</text><text x="26" y="175" font-size="13">採否・実装開始の明示命令</text>
-<rect x="369" y="140" width="87" height="36" rx="5" fill="#a66d18"/><text x="412.5" y="164" text-anchor="middle" font-size="14" fill="white">文書のみ</text>
-<text x="26" y="211" font-size="18">A：タブ・要約・対象</text><text x="26" y="232" font-size="13">事前選択・比較・質問・根拠</text>
-<rect x="464" y="197" width="532" height="36" rx="5" fill="#31788b"/><text x="730.0" y="221" text-anchor="middle" font-size="14" fill="white">ドロワー込みA全体：3〜4.5日</text>
-<text x="26" y="268" font-size="18">A：参照ドロワー追加分</text><text x="26" y="289" font-size="13">再取得なし・状態共有・操作検証</text>
-<rect x="884" y="254" width="112" height="36" rx="5" fill="white" stroke="#64748b" stroke-dasharray="6 4"/><text x="940.0" y="278" text-anchor="middle" font-size="12">追加0.5〜1日</text>
-<text x="26" y="325" font-size="18">A：画面確認・merge</text><text x="26" y="346" font-size="13">5174番、判断は開発依頼者</text>
-<rect x="1004" y="311" width="87" height="36" rx="5" fill="#64748b"/><text x="1047.5" y="335" text-anchor="middle" font-size="14" fill="white">確認</text>
-<text x="26" y="382" font-size="18">B：入力・日時・変更手続き</text><text x="26" y="403" font-size="13">候補入力→準備→承認→実行</text>
-<rect x="1099" y="368" width="352" height="36" rx="5" fill="#31788b"/><text x="1275.0" y="392" text-anchor="middle" font-size="14" fill="white">B：2〜3日（検証・文書含む）</text>
-<text x="26" y="439" font-size="18">B：画面確認・merge</text><text x="26" y="460" font-size="13">Snapshotの対象・段階を確認</text>
-<rect x="1459" y="425" width="112" height="36" rx="5" fill="#64748b"/><text x="1515.0" y="449" text-anchor="middle" font-size="14" fill="white">確認</text>
-<text x="26" y="496" font-size="18">(b)(c) ドロワーを分割</text><text x="26" y="517" font-size="13">A1で共通化、A2で参照を追加</text>
-<rect x="464" y="482" width="987" height="36" rx="5" fill="white" stroke="#64748b" stroke-dasharray="6 4"/><text x="957.5" y="506" text-anchor="middle" font-size="14">(b)はA1→A2→B、(c)はA1→B→後続A2。状態共通化はA1だけへ計上</text>
-<text x="26" y="553" font-size="18">API不足等の条件付き追加C</text><text x="26" y="574" font-size="13">必要性・工数とも未確定</text>
-<rect x="464" y="539" width="987" height="36" rx="5" fill="white" stroke="#64748b" stroke-dasharray="6 4"/><text x="957.5" y="563" text-anchor="middle" font-size="14">ドロワーの分割とは別。判明時に報告・判断</text>
-<text x="26" y="658" font-size="16">横軸：(a)一体化案の最大作業日枠。A単独は2.5〜3.5日、ドロワー追加は0.5〜1日。待ち時間は別。</text>
-<text x="26" y="693" font-size="16">ドロワー採否とA全体の工数を開発依頼者が判断する。追加分だけを見て旧2〜3日に収まるとは説明しない。</text>
-<text x="26" y="728" font-size="16">各PRに必要な検証・実画面・CI・文書を含む。図・根拠の参照は取得済み情報を使い、新APIを増やさない。</text>
-<text x="26" y="763" font-size="16">分割内訳：docs/design/post265-ui-correction-plan.md §11.10。実装命令まで変更しない。5173番は変更しない。</text>
+<path d="M365 120V605" stroke="#cbd5e1"/><text x="412.5" y="110" text-anchor="middle" font-size="14">計画承認</text>
+<path d="M460 120V605" stroke="#cbd5e1"/><text x="520.0" y="110" text-anchor="middle" font-size="14">1日</text>
+<path d="M580 120V605" stroke="#cbd5e1"/><text x="640.0" y="110" text-anchor="middle" font-size="14">2日</text>
+<path d="M700 120V605" stroke="#cbd5e1"/><text x="760.0" y="110" text-anchor="middle" font-size="14">3日</text>
+<path d="M820 120V605" stroke="#cbd5e1"/><text x="850.0" y="110" text-anchor="middle" font-size="14">3.5日</text>
+<rect x="880" y="120" width="95" height="485" fill="#e2e8f0"/>
+<path d="M880 120V605" stroke="#cbd5e1"/><text x="927.5" y="110" text-anchor="middle" font-size="14">確認</text>
+<path d="M975 120V605" stroke="#cbd5e1"/><text x="1035.0" y="110" text-anchor="middle" font-size="14">4.5日</text>
+<rect x="1095" y="120" width="95" height="485" fill="#e2e8f0"/>
+<path d="M1095 120V605" stroke="#cbd5e1"/><text x="1142.5" y="110" text-anchor="middle" font-size="14">確認</text>
+<path d="M1190 120V605" stroke="#cbd5e1"/><text x="1250.0" y="110" text-anchor="middle" font-size="14">5.5日</text>
+<path d="M1310 120V605" stroke="#cbd5e1"/><text x="1370.0" y="110" text-anchor="middle" font-size="14">6.5日</text>
+<path d="M1430 120V605" stroke="#cbd5e1"/><text x="1490.0" y="110" text-anchor="middle" font-size="14">7.5日</text>
+<rect x="1550" y="120" width="165" height="485" fill="#e2e8f0"/>
+<path d="M1550 120V605" stroke="#cbd5e1"/><text x="1632.5" y="110" text-anchor="middle" font-size="14">確認</text>
+<text x="26" y="154" font-size="18">計画文書 #266</text><text x="26" y="175" font-size="13">文書のみ／実装より先にmerge</text>
+<rect x="369" y="140" width="87" height="36" rx="5" fill="#a66d18"/><text x="412.5" y="164" text-anchor="middle" font-size="14" fill="white">文書</text>
+<text x="26" y="211" font-size="18">A1：基本UI・共通状態</text><text x="26" y="232" font-size="13">6タブ・要約・比較・質問・根拠</text>
+<rect x="464" y="197" width="412" height="36" rx="5" fill="#31788b"/><text x="670.0" y="221" text-anchor="middle" font-size="14" fill="white">A1：2.5〜3.5日</text>
+<text x="26" y="268" font-size="18">A1：画面確認・merge</text><text x="26" y="289" font-size="13">保持・対象・期間・事前選択を確認</text>
+<rect x="884" y="254" width="87" height="36" rx="5" fill="#64748b"/><text x="927.5" y="278" text-anchor="middle" font-size="14" fill="white">確認</text>
+<text x="26" y="325" font-size="18">A2：参照ドロワー</text><text x="26" y="346" font-size="13">共通化を再計上せず表示と操作を追加</text>
+<rect x="979" y="311" width="112" height="36" rx="5" fill="#31788b"/><text x="1035.0" y="335" text-anchor="middle" font-size="14" fill="white">A2：0.5〜1日</text>
+<text x="26" y="382" font-size="18">A2：画面確認・merge</text><text x="26" y="403" font-size="13">再取得なし・対象整合・重ね表示</text>
+<rect x="1099" y="368" width="87" height="36" rx="5" fill="#64748b"/><text x="1142.5" y="392" text-anchor="middle" font-size="14" fill="white">確認</text>
+<text x="26" y="439" font-size="18">B：入力・日時・変更</text><text x="26" y="460" font-size="13">候補入力→準備→別担当承認→実行</text>
+<rect x="1194" y="425" width="352" height="36" rx="5" fill="#31788b"/><text x="1370.0" y="449" text-anchor="middle" font-size="14" fill="white">B：2〜3日</text>
+<text x="26" y="496" font-size="18">B：画面確認・merge</text><text x="26" y="517" font-size="13">保存内容と実行の受入</text>
+<rect x="1554" y="482" width="157" height="36" rx="5" fill="#64748b"/><text x="1632.5" y="506" text-anchor="middle" font-size="14" fill="white">確認</text>
+<text x="26" y="553" font-size="18">条件付き追加C</text><text x="26" y="574" font-size="13">API不足等が判明した場合のみ</text>
+<rect x="464" y="539" width="1082" height="36" rx="5" fill="none" stroke="#64748b" stroke-dasharray="6 4"/><text x="1005.0" y="563" text-anchor="middle" font-size="15">必要性未確認・未承認。原因・工数を先に報告</text>
+<text x="26" y="658" font-size="17">横軸は本体の最大作業日枠。分割手間と確認待ちは別。実装・検証・文書更新を各PRに含める。</text>
+<text x="26" y="693" font-size="17">状態の共通化はA1で完成。A2はその状態への接続・表示・開閉・固有検証のみ。新APIは作らない。</text>
+<text x="26" y="728" font-size="17">検証計画は全体22〜30件の可能性。実装前に重複と展開数を確認し、20件超なら事前了承を得る。</text>
+<text x="26" y="763" font-size="17">計画本文：docs/design/post265-ui-correction-plan.md §11.10。5173番は変更しない。</text>
 </g></svg>
