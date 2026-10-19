@@ -19,12 +19,14 @@ import { blankInput, readInput, type CapacityInput } from "./model";
 export function CapacityPanel({
   equipment,
   onPrepared,
+  onOpenPrepared,
   onInvestigate,
   executionEpoch,
   initiallyOpen = false,
 }: {
   equipment: EquipmentCandidate | null;
   onPrepared: (id: string) => void;
+  onOpenPrepared?: (id: string) => void;
   onInvestigate: (message: string) => void;
   executionEpoch: number;
   initiallyOpen?: boolean;
@@ -288,6 +290,7 @@ export function CapacityPanel({
               productLabel={editor.productLabel}
               signal={editor.signal}
               onPrepared={onPrepared}
+              onOpenPrepared={onOpenPrepared}
             />
           </InputAssistance>
           <button onClick={closeEditor}>編集を閉じる</button>

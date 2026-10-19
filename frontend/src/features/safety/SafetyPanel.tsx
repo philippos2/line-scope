@@ -19,12 +19,14 @@ import { blankInput, readInput, type SafetyInput } from "./model";
 export function SafetyPanel({
   equipment,
   onPrepared,
+  onOpenPrepared,
   onInvestigate,
   executionEpoch,
   initiallyOpen = false,
 }: {
   equipment: EquipmentCandidate | null;
   onPrepared: (id: string) => void;
+  onOpenPrepared?: (id: string) => void;
   onInvestigate: (message: string) => void;
   executionEpoch: number;
   initiallyOpen?: boolean;
@@ -292,6 +294,7 @@ export function SafetyPanel({
               initial={editor.input}
               signal={editor.signal}
               onPrepared={onPrepared}
+              onOpenPrepared={onOpenPrepared}
             />
           </InputAssistance>
           <button onClick={closeEditor}>編集を閉じる</button>

@@ -1,3 +1,8 @@
+import {
+  PrepareInputButton,
+  PreparedInputNotice,
+  usePreparedInput,
+} from "../inputs/PreparedInputFeedback";
 import { DateTimeInput } from "../inputs/DateTimeInput";
 import {
   SuggestionScope,
@@ -10,6 +15,7 @@ import { rateFields, type CapacityInput } from "./model";
 export function CapacityEditor({
   initial,
   onPrepared,
+  onOpenPrepared,
   signal,
   equipmentLabel,
   productLabel,
@@ -18,6 +24,7 @@ export function CapacityEditor({
   equipmentLabel: string;
   productLabel: string;
   onPrepared: (id: string) => void;
+  onOpenPrepared?: (id: string) => void;
   signal: AbortSignal;
 }) {
   const [value, setValue] = useState(initial),
@@ -26,11 +33,23 @@ export function CapacityEditor({
     [productName, setProductName] = useState(productLabel),
     [cursor, setCursor] = useState<string | null>(null),
     [searched, setSearched] = useState("");
+  const [preparing, setPreparing] = useState(false);
   const [busy, setBusy] = useState(false),
-    [error, setError] = useState(""),
-    [saved, setSaved] = useState("");
+    [error, setError] = useState("");
   const pending = useRef(false),
     retry = useRef<{ serialized: string; key: string } | null>(null);
+  const body = {
+    capacity_input_id: value.capacity_input_id || null,
+    input: {
+      input_code: value.input_code,
+      equipment_id: value.equipment_id,
+      product_id: value.product_id,
+      payload: value.payload,
+    },
+    supersedes_update_request_id: null,
+  };
+  const preparation = usePreparedInput(body);
+  const { serialized, alreadyPrepared } = preparation;
   function patch(key: string, text: string) {
     setValue((previous) => ({
       ...previous,
@@ -45,7 +64,6 @@ export function CapacityEditor({
           }
         : {}),
     }));
-    setSaved("");
   }
   function payload(key: string, text: unknown) {
     setValue((previous) => ({
@@ -76,7 +94,6 @@ export function CapacityEditor({
         [key]: text,
       },
     }));
-    setSaved("");
   }
   function recovery(key: string, text: unknown) {
     setValue((previous) => ({
@@ -93,7 +110,6 @@ export function CapacityEditor({
         },
       },
     }));
-    setSaved("");
   }
   async function findProducts(next = false) {
     if (pending.current) return;
@@ -137,25 +153,14 @@ export function CapacityEditor({
   }
   async function submit(event: FormEvent) {
     event.preventDefault();
-    if (pending.current) return;
+    if (pending.current || alreadyPrepared) return;
     pending.current = true;
     setBusy(true);
+    setPreparing(true);
     setError("");
-    setSaved("");
-    const body = {
-      capacity_input_id: value.capacity_input_id || null,
-      input: {
-        input_code: value.input_code,
-        equipment_id: value.equipment_id,
-        product_id: value.product_id,
-        payload: value.payload,
-      },
-      supersedes_update_request_id: null,
-    };
-    const serialized = JSON.stringify(body);
-    if (retry.current?.serialized !== serialized)
-      retry.current = { serialized, key: crypto.randomUUID() };
     try {
+      if (retry.current?.serialized !== serialized)
+        retry.current = { serialized, key: crypto.randomUUID() };
       const result = await request(
         "",
         "/capacity-inputs/prepare",
@@ -165,7 +170,7 @@ export function CapacityEditor({
       if (signal.aborted) return;
       const id = result.data.update_request_id;
       if (typeof id !== "string") throw new ApiError("INVALID_RESPONSE");
-      setSaved(id);
+      preparation.remember(id, result);
       onPrepared(id);
     } catch (caught) {
       if (!signal.aborted)
@@ -174,7 +179,10 @@ export function CapacityEditor({
         );
     } finally {
       pending.current = false;
-      if (!signal.aborted) setBusy(false);
+      if (!signal.aborted) {
+        setBusy(false);
+        setPreparing(false);
+      }
     }
   }
   const p = value.payload,
@@ -418,17 +426,23 @@ export function CapacityEditor({
             </>
           )}
         </fieldset>
-        <button disabled={busy || !value.product_id}>
-          能力入力の変更準備を作成
-        </button>
+        <PrepareInputButton
+          preparation={preparation}
+          busy={busy}
+          preparing={preparing}
+          label="能力入力の変更準備を作成"
+          disabledReason={
+            !value.product_id ? "変更準備には対象製品の選択が必要です。" : ""
+          }
+        />
       </form>
-      {busy && <p role="status">処理中…</p>}
       {error && <p role="alert">{error}</p>}
-      {saved && (
-        <p role="status">
-          変更準備を保存しました。承認付きActionで保存Snapshotを確認してください。
-        </p>
-      )}
+      <PreparedInputNotice
+        preparation={preparation}
+        label="能力入力"
+        onOpen={onOpenPrepared ?? onPrepared}
+        equipmentLabel={equipmentLabel}
+      />
     </SuggestionScope>
   );
 }

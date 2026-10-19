@@ -45,8 +45,6 @@ export function App() {
   >(null);
   const [savedRequest, setSavedRequest] = useState<Envelope | null>(null);
   const [step, setStep] = useState<Step>("graph");
-  const activeTab = useRef(step);
-  activeTab.current = step;
   const [evidenceKind, setEvidenceKind] = useState<
     "graph" | "comparison" | "documents"
   >("graph");
@@ -68,6 +66,9 @@ export function App() {
   const [economicPrepared, setEconomicPrepared] = useState<
     string | undefined
   >();
+  const [requestedOpen, setRequestedOpen] = useState<{ id: string } | null>(
+    null,
+  );
   const [executionEpoch, setExecutionEpoch] = useState(0);
   const [draftToken, setDraftToken] = useState("");
   const token = useRef("");
@@ -81,12 +82,16 @@ export function App() {
   const [restoring, setRestoring] = useState(true);
   const [showConnection, setShowConnection] = useState(false);
   const [identity, setIdentity] = useState("");
+  const [actorRole, setActorRole] = useState("");
   useEffect(() => {
     const controller = new AbortController();
     request("", "/session", undefined, controller.signal)
       .then((value) => {
         if (!controller.signal.aborted) {
           setConnected(true);
+          setActorRole(
+            typeof value.data.role === "string" ? value.data.role : "",
+          );
           setIdentity(
             typeof value.data.user_id === "string"
               ? value.data.user_id
@@ -207,10 +212,12 @@ export function App() {
     setStateResult(null);
     setStep("graph");
     setEconomicPrepared(undefined);
+    setRequestedOpen(null);
     setActionDraft("");
     freshContext.current = false;
     setConnected(false);
     setIdentity("");
+    setActorRole("");
     setShowConnection(false);
     setBusy(false);
     setResult(null);
@@ -259,6 +266,9 @@ export function App() {
         ),
       (session) => {
         token.current = "";
+        setActorRole(
+          typeof session.data.role === "string" ? session.data.role : "",
+        );
         setIdentity(
           typeof session.data.user_id === "string"
             ? session.data.user_id
@@ -282,6 +292,7 @@ export function App() {
         setStateResult(null);
         setStep("graph");
         setEconomicPrepared(undefined);
+        setRequestedOpen(null);
         setActionDraft("");
         freshContext.current = false;
         setConnected(true);
@@ -455,7 +466,11 @@ export function App() {
     dirty.current.delete("prepare");
     setActionDraft("");
     setEconomicPrepared(id);
-    if (activeTab.current === "prepare") setStep("execution");
+  }
+  function openPrepared(id: string) {
+    setEconomicPrepared(id);
+    setRequestedOpen({ id });
+    setStep("execution");
   }
   async function searchDocuments() {
     if (documentBusy || !equipment) return;
@@ -652,7 +667,7 @@ export function App() {
                 </button>
               </div>
               {economicPrepared && step !== "execution" && (
-                <button onClick={() => setStep("execution")}>
+                <button onClick={() => openPrepared(economicPrepared)}>
                   保存した変更要求を開く
                 </button>
               )}
@@ -993,6 +1008,7 @@ export function App() {
                       }
                       equipment={decisionEquipment}
                       onPrepared={prepareInput}
+                      onOpenPrepared={openPrepared}
                       onInvestigate={(text) => {
                         draftInvestigation(text, false);
                         setStep("investigation");
@@ -1018,6 +1034,7 @@ export function App() {
                       }
                       equipment={decisionEquipment}
                       onPrepared={prepareInput}
+                      onOpenPrepared={openPrepared}
                       onInvestigate={(text) => {
                         draftInvestigation(text, false);
                         setStep("investigation");
@@ -1042,6 +1059,7 @@ export function App() {
                       }
                       equipment={decisionEquipment}
                       onPrepared={prepareInput}
+                      onOpenPrepared={openPrepared}
                       onInvestigate={(text) => {
                         draftInvestigation(text, false);
                         setStep("investigation");
@@ -1068,6 +1086,7 @@ export function App() {
                       }
                       equipment={decisionEquipment}
                       onPrepared={prepareInput}
+                      onOpenPrepared={openPrepared}
                       onInvestigate={(text) => {
                         draftInvestigation(text, false);
                         setStep("investigation");
@@ -1128,7 +1147,9 @@ export function App() {
                   <li>元の依頼者：再接続し、IDから読み直して実行する。</li>
                 </ol>
                 <ActionPanel
+                  requestedOpen={requestedOpen}
                   actor={identity}
+                  actorRole={actorRole}
                   names={entityNames}
                   onSaved={setSavedRequest}
                   initialMessage={actionDraft}

@@ -1,6 +1,12 @@
 import { registeredState } from "../investigation/readModel";
 import { ComparisonInputDetails } from "../decision/ComparisonInputDetails";
-import { useEffect, useRef, useState, type FormEvent } from "react";
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type FormEvent,
+} from "react";
 import { ApiError, object, request, type Envelope } from "../../api/client";
 
 const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -8,14 +14,18 @@ const text = (value: unknown) => (typeof value === "string" ? value : "未確認
 
 export function ActionPanel({
   preparedId,
+  requestedOpen,
   initialMessage = "",
   onExecution,
   onSaved,
   initiallyOpen = false,
   actor = "",
+  actorRole = "",
   names = {},
 }: {
+  requestedOpen?: { id: string } | null;
   actor?: string;
+  actorRole?: string;
   names?: Record<string, string>;
   initialMessage?: string;
   preparedId?: string;
@@ -24,6 +34,7 @@ export function ActionPanel({
   initiallyOpen?: boolean;
 }) {
   const [message, setMessage] = useState(initialMessage);
+  const [preparedMessage, setPreparedMessage] = useState("");
   const [id, setId] = useState("");
   const [saved, setSaved] = useState<Envelope | null>(null);
   const [execution, setExecution] = useState<Envelope | null>(null);
@@ -35,6 +46,7 @@ export function ActionPanel({
   const controller = useRef<AbortController | null>(null);
   const retry = useRef<{ message: string; key: string } | null>(null);
   const pending = useRef(false);
+  const handledOpen = useRef<typeof requestedOpen>(null);
   const snapshotHeading = useRef<HTMLHeadingElement>(null);
   const errorMessage = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -49,58 +61,61 @@ export function ActionPanel({
     onSaved?.(saved);
   }, [saved, onSaved]);
 
-  async function run(action: (signal: AbortSignal) => Promise<void>) {
-    if (pending.current) return;
-    pending.current = true;
-    const active = new AbortController();
-    controller.current = active;
-    setBusy(true);
-    setError("");
-    setDiagnostic("");
-    setChecked(false);
-    try {
-      await action(active.signal);
-    } catch (caught) {
-      if (!active.signal.aborted) {
-        setSaved(null);
-        const code =
-          caught instanceof ApiError ? caught.code : "REQUEST_FAILED";
-        const explanation =
-          (
-            {
-              AUTHORIZATION_DENIED:
-                "この操作の権限がありません。依頼者・承認者と接続中の利用者を確認してください。",
-              AUTHENTICATION_REQUIRED:
-                "接続が切れました。接続し直してください。",
-              VERSION_CONFLICT:
-                "登録内容が変更されています。最新の登録値を取得し、変更準備を作り直してください。",
-              APPROVAL_EXPIRED:
-                "承認期限を過ぎています。変更準備からやり直してください。",
-              SNAPSHOT_MISMATCH:
-                "保存内容が一致しません。保存状態を再取得して確認してください。",
-              CONNECTION_FAILED:
-                "応答を確認できませんでした。処理が確定している可能性があります。",
-              DEPENDENCY_UNAVAILABLE:
-                "接続先サービスを利用できません。接続設定を確認してください。",
-            } as Record<string, string>
-          )[code] ??
-          "処理を完了できませんでした。保存状態を再取得して確認してください。";
-        setDiagnostic(
-          code +
-            (caught instanceof ApiError && caught.requestId
-              ? ` / ${caught.requestId}`
-              : ""),
-        );
-        setError(
-          `${explanation} 要求IDが分かる場合は保存状態を再取得してください。Prepare応答が不明な場合は同じ指示のまま再送できます。書き込みは自動再送しません。`,
-        );
+  const run = useCallback(
+    async (action: (signal: AbortSignal) => Promise<void>) => {
+      if (pending.current) return;
+      pending.current = true;
+      const active = new AbortController();
+      controller.current = active;
+      setBusy(true);
+      setError("");
+      setDiagnostic("");
+      setChecked(false);
+      try {
+        await action(active.signal);
+      } catch (caught) {
+        if (!active.signal.aborted) {
+          setSaved(null);
+          const code =
+            caught instanceof ApiError ? caught.code : "REQUEST_FAILED";
+          const explanation =
+            (
+              {
+                AUTHORIZATION_DENIED:
+                  "この操作の権限がありません。依頼者・承認者と接続中の利用者を確認してください。",
+                AUTHENTICATION_REQUIRED:
+                  "接続が切れました。接続し直してください。",
+                VERSION_CONFLICT:
+                  "登録内容が変更されています。最新の登録値を取得し、変更準備を作り直してください。",
+                APPROVAL_EXPIRED:
+                  "承認期限を過ぎています。変更準備からやり直してください。",
+                SNAPSHOT_MISMATCH:
+                  "保存内容が一致しません。保存状態を再取得して確認してください。",
+                CONNECTION_FAILED:
+                  "応答を確認できませんでした。処理が確定している可能性があります。",
+                DEPENDENCY_UNAVAILABLE:
+                  "接続先サービスを利用できません。接続設定を確認してください。",
+              } as Record<string, string>
+            )[code] ??
+            "処理を完了できませんでした。保存状態を再取得して確認してください。";
+          setDiagnostic(
+            code +
+              (caught instanceof ApiError && caught.requestId
+                ? ` / ${caught.requestId}`
+                : ""),
+          );
+          setError(
+            `${explanation} 要求IDが分かる場合は保存状態を再取得してください。Prepare応答が不明な場合は同じ指示のまま再送できます。書き込みは自動再送しません。`,
+          );
+        }
+      } finally {
+        if (!active.signal.aborted) setBusy(false);
+        pending.current = false;
       }
-    } finally {
-      if (!active.signal.aborted) setBusy(false);
-      pending.current = false;
-    }
-  }
-  async function load(requestId: string, signal: AbortSignal) {
+    },
+    [],
+  );
+  const load = useCallback(async (requestId: string, signal: AbortSignal) => {
     setSaved(null);
     const value = await request(
       "",
@@ -109,18 +124,33 @@ export function ActionPanel({
       signal,
     );
     if (!signal.aborted) setSaved(value);
-  }
-  function open(requestId: string) {
-    if (!uuid.test(requestId)) return;
-    setId(requestId);
-    setCopied(false);
-    setExecution(null);
-    void run((signal) => load(requestId, signal));
-  }
+  }, []);
+  const open = useCallback(
+    (requestId: string) => {
+      if (!uuid.test(requestId)) return;
+      setId(requestId);
+      setCopied(false);
+      setExecution(null);
+      void run((signal) => load(requestId, signal));
+    },
+    [run, load],
+  );
+  useEffect(() => {
+    if (
+      !requestedOpen ||
+      handledOpen.current === requestedOpen ||
+      pending.current
+    )
+      return;
+    handledOpen.current = requestedOpen;
+    open(requestedOpen.id);
+  }, [requestedOpen, open, busy]);
+  const alreadyPrepared =
+    Boolean(message.trim()) && preparedMessage === message.trim();
   function prepare(event: FormEvent) {
     event.preventDefault();
     const command = message.trim();
-    if (!command) return;
+    if (!command || pending.current || alreadyPrepared) return;
     if (retry.current?.message !== command)
       retry.current = { message: command, key: crypto.randomUUID() };
     setId("");
@@ -144,6 +174,7 @@ export function ActionPanel({
         return;
       }
       setId(requestId);
+      setPreparedMessage(command);
       await load(requestId, signal);
     });
   }
@@ -204,6 +235,36 @@ export function ActionPanel({
           : !checked
             ? "承認された保存内容を確認し、確認欄にチェックしてください。"
             : "元の依頼者として実行します。サーバが期限・権限・版を再確認します。";
+  // 保存状態と依頼者との関係を表示し、操作権限はサーバで確認する。
+  const viewerRole =
+    {
+      manager: "工場管理者",
+      maintenance: "設備保全担当者",
+      production: "生産管理担当者",
+      floor: "製造現場担当者",
+    }[actorRole] ?? "職務権限は未取得";
+  const viewerRelation =
+    !actor || !requester
+      ? "依頼者との関係を確認できません"
+      : actor === requester
+        ? "この要求の依頼者"
+        : "この要求の依頼者とは別の利用者";
+  const nextActor = pendingApproval
+    ? inputCategory
+      ? "依頼者とは別の工場管理者"
+      : "この変更カテゴリの承認権限を持つ担当者（自己承認の可否はカテゴリ規則に従います）"
+    : approved
+      ? "元の依頼者（現在も対象の更新権限が必要です）"
+      : "保存状態を確認する担当者";
+  const waitingReason = pendingApproval
+    ? actor && actor === requester
+      ? "変更準備は保存済みですが、登録値はまだ変わっていません。次の担当者へ要求IDを渡し、保存内容の確認と承認を依頼してください。"
+      : "変更準備は保存済みですが、登録値はまだ変わっていません。承認を担当する利用者は、下の保存内容と操作条件を確認して承認してください。操作権限はサーバが確認します。"
+    : approved
+      ? "承認済みですが、登録値はまだ変わっていません。元の依頼者が保存内容を確認して実行してください。承認から実行までの有効期限は30分です。"
+      : data?.status === "COMPLETED"
+        ? "実行済みです。表示済みの調査結果は自動更新されません。必要な調査を再取得してください。"
+        : "この要求は承認待ち・有効な承認済みの状態ではありません。保存状態と操作できない理由を確認してください。";
   const stateName = (value: unknown) =>
     ({
       WAITING_APPROVAL: "承認待ち",
@@ -269,7 +330,21 @@ export function ActionPanel({
           disabled={busy}
           placeholder="例：M-204の現在状態をRUNNINGに変更する準備を作って"
         />
-        <button disabled={busy || !message.trim()}>変更準備を作成</button>
+        <button
+          disabled={busy || !message.trim() || alreadyPrepared}
+          aria-describedby="action-prepare-reason"
+        >
+          {alreadyPrepared ? "変更準備を作成済み" : "変更指示から準備を作成"}
+        </button>
+        <p id="action-prepare-reason" role="status">
+          {busy
+            ? "処理が完了するまで操作できません。"
+            : alreadyPrepared
+              ? "この指示の変更準備は作成済みです。保存内容と承認状態を確認してください。"
+              : !message.trim()
+                ? "変更準備には対象と変更内容の入力が必要です。"
+                : "変更準備だけでは登録値は変わりません。"}
+        </p>
       </form>
       {!message.trim() && (
         <p className="notice">
@@ -302,13 +377,20 @@ export function ActionPanel({
             setChecked(false);
           }}
         />
-        <button disabled={busy || !uuid.test(id.trim())}>
+        <button
+          disabled={busy || !uuid.test(id.trim())}
+          aria-describedby="saved-request-reason"
+        >
           保存状態を再取得
         </button>
       </form>
-      {!uuid.test(id.trim()) && (
-        <p className="notice">
-          保存内容を開くには変更要求IDを入力してください。設備の選択は不要です。
+      {(busy || !uuid.test(id.trim())) && (
+        <p className="notice" id="saved-request-reason">
+          {busy
+            ? "処理中のため、保存状態の再取得はできません。"
+            : !id.trim()
+              ? "変更要求IDが空のため、保存状態を取得できません。IDを入力するか、直近の変更要求を開いてください。設備の選択は不要です。"
+              : "変更要求IDの形式を確認してください。有効なIDを入力すると保存状態を取得できます。"}
         </p>
       )}
       <p className="muted">
@@ -331,6 +413,26 @@ export function ActionPanel({
           <h2 ref={snapshotHeading} tabIndex={-1}>
             保存済みSnapshot
           </h2>
+          <section
+            className="operation-completion"
+            aria-label="現在の担当と次の操作"
+          >
+            <h3>現在の担当と次の操作</h3>
+            <p>
+              現在の利用者：{viewerRole} ／ {viewerRelation}
+            </p>
+            <p>現在の段階：{stateName(data.effective_status ?? data.status)}</p>
+            <p>次の担当者：{nextActor}</p>
+            <p>{waitingReason}</p>
+            {pendingApproval && (
+              <p>
+                承認後は元の依頼者が実行します。承認から実行までの有効期限は30分です。接続を切り替える前に下の要求IDをコピーしてください。
+              </p>
+            )}
+            <p>
+              実際の操作権限・自己承認の可否・承認期限はサーバが確認します。
+            </p>
+          </section>
           <p>変更要求ID：{requestId}</p>
           <button
             type="button"

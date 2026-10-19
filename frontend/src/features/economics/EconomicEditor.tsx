@@ -1,3 +1,8 @@
+import {
+  PrepareInputButton,
+  PreparedInputNotice,
+  usePreparedInput,
+} from "../inputs/PreparedInputFeedback";
 import { DateTimeInput } from "../inputs/DateTimeInput";
 import { SuggestionScope, SuggestedInput } from "../inputs/InputAssistance";
 import { useRef, useState, type FormEvent } from "react";
@@ -13,24 +18,30 @@ import {
 export function EconomicEditor({
   initial,
   onPrepared,
+  onOpenPrepared,
   signal,
   equipmentLabel = "登録データの対象設備",
 }: {
   equipmentLabel?: string;
   initial: EconomicInput;
   onPrepared: (id: string) => void;
+  onOpenPrepared?: (id: string) => void;
   signal: AbortSignal;
 }) {
   const [value, setValue] = useState(initial);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
-  const [savedId, setSavedId] = useState("");
   const retry = useRef<{ serialized: string; key: string } | null>(null);
   const pending = useRef(false);
-  const heading = useRef<HTMLParagraphElement>(null);
+  const body = {
+    economic_input_id: value.economic_input_id || null,
+    input: prepareInput(value),
+    supersedes_update_request_id: null,
+  };
+  const preparation = usePreparedInput(body);
+  const { serialized, alreadyPrepared } = preparation;
   function patch(field: string, text: string) {
     setValue((previous) => ({ ...previous, [field]: text }));
-    setSavedId("");
   }
   function payload(field: string, text: string) {
     setValue((previous) => ({
@@ -65,7 +76,6 @@ export function EconomicEditor({
         [field]: text,
       },
     }));
-    setSavedId("");
   }
   function option(
     index: number,
@@ -80,24 +90,16 @@ export function EconomicEditor({
         ),
       },
     }));
-    setSavedId("");
   }
   async function submit(event: FormEvent) {
     event.preventDefault();
-    if (pending.current) return;
+    if (pending.current || alreadyPrepared) return;
     pending.current = true;
     setBusy(true);
     setError("");
-    setSavedId("");
-    const body = {
-      economic_input_id: value.economic_input_id || null,
-      input: prepareInput(value),
-      supersedes_update_request_id: null,
-    };
-    const serialized = JSON.stringify(body);
-    if (retry.current?.serialized !== serialized)
-      retry.current = { serialized, key: crypto.randomUUID() };
     try {
+      if (retry.current?.serialized !== serialized)
+        retry.current = { serialized, key: crypto.randomUUID() };
       const result = await request(
         "",
         "/economic-inputs/prepare",
@@ -107,7 +109,7 @@ export function EconomicEditor({
       if (signal.aborted) return;
       const id = result.data.update_request_id;
       if (typeof id !== "string") throw new ApiError("INVALID_RESPONSE");
-      setSavedId(id);
+      preparation.remember(id, result);
       onPrepared(id);
     } catch (caught) {
       if (!signal.aborted)
@@ -202,7 +204,6 @@ export function EconomicEditor({
                       : null,
                   },
                 }));
-                setSavedId("");
               }}
             />
             単純費用回収の条件を登録する
@@ -236,7 +237,6 @@ export function EconomicEditor({
                         },
                       },
                     }));
-                    setSavedId("");
                   }}
                 />
               </label>
@@ -272,7 +272,6 @@ export function EconomicEditor({
                           },
                         },
                       }));
-                      setSavedId("");
                     }}
                   >
                     <option value="UNKNOWN">不明</option>
@@ -301,7 +300,6 @@ export function EconomicEditor({
                         },
                       },
                     }));
-                    setSavedId("");
                   }}
                 />
               </label>
@@ -322,7 +320,6 @@ export function EconomicEditor({
                         },
                       },
                     }));
-                    setSavedId("");
                   }}
                 >
                   <option value="ESTIMATED">推定</option>
@@ -366,7 +363,6 @@ export function EconomicEditor({
                           ),
                         },
                       }));
-                      setSavedId("");
                     }}
                   />
                 </label>
@@ -390,7 +386,6 @@ export function EconomicEditor({
                           ),
                         },
                       }));
-                      setSavedId("");
                     }}
                   />
                 </label>
@@ -410,7 +405,6 @@ export function EconomicEditor({
                           ),
                         },
                       }));
-                      setSavedId("");
                     }}
                   />
                   この損害を独立して加算できることを確認した
@@ -596,20 +590,22 @@ export function EconomicEditor({
             </label>
           </fieldset>
         ))}
-        <button className="primary" disabled={busy || !value.equipment_id}>
-          {busy ? "変更準備中…" : "経済入力の変更準備を作成"}
-        </button>
+        <PrepareInputButton
+          preparation={preparation}
+          busy={busy}
+          label="経済入力の変更準備を作成"
+          disabledReason={
+            !value.equipment_id ? "変更準備には対象設備の選択が必要です。" : ""
+          }
+        />
       </form>
       {error && <p role="alert">{error}</p>}
-      {savedId && (
-        <p ref={heading} role="status">
-          変更要求ID：{savedId}
-          。別の工場管理者が保存Snapshotを確認して承認し、元の要求者が実行してください。
-          <button onClick={() => onPrepared(savedId)}>
-            承認・実行画面へ渡す
-          </button>
-        </p>
-      )}
+      <PreparedInputNotice
+        preparation={preparation}
+        label="経済入力"
+        equipmentLabel={equipmentLabel}
+        onOpen={onOpenPrepared ?? onPrepared}
+      />
     </SuggestionScope>
   );
 }

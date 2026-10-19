@@ -217,6 +217,20 @@ try {
       throw new Error(
         `${item.key} prepare failed: ${JSON.stringify((await response.json()).errors)}`,
       );
+    {
+      await expect(
+        page.getByRole("tab", { name: "入力を登録・訂正", exact: true }),
+      ).toHaveAttribute("aria-selected", "true");
+      await expect(
+        editor.getByRole("button", { name: "変更準備を作成済み", exact: true }),
+      ).toBeDisabled();
+      await editor
+        .getByRole("button", {
+          name: "保存した変更要求を開く",
+          exact: true,
+        })
+        .click();
+    }
     await expect(
       page.getByRole("tab", { name: "変更・承認・実行", exact: true }),
     ).toHaveAttribute("aria-selected", "true");

@@ -1,3 +1,8 @@
+import {
+  PrepareInputButton,
+  PreparedInputNotice,
+  usePreparedInput,
+} from "../inputs/PreparedInputFeedback";
 import { displayPeriod } from "../investigation/EquipmentInvestigation";
 import { DateTimeInput } from "../inputs/DateTimeInput";
 import {
@@ -11,16 +16,17 @@ import { kinds, fields, type MaintenanceInput } from "./model";
 export function MaintenanceEditor({
   initial,
   onPrepared,
+  onOpenPrepared,
   signal,
 }: {
   initial: MaintenanceInput;
   onPrepared: (id: string) => void;
+  onOpenPrepared?: (id: string) => void;
   signal: AbortSignal;
 }) {
   const [value, setValue] = useState(initial),
     [busy, setBusy] = useState(false),
-    [error, setError] = useState(""),
-    [saved, setSaved] = useState("");
+    [error, setError] = useState("");
   const [plans, setPlans] = useState<JsonObject | null>(null);
   const [plansError, setPlansError] = useState("");
   useEffect(() => {
@@ -42,9 +48,19 @@ export function MaintenanceEditor({
   }, [initial.equipment_id, signal]);
   const retry = useRef<{ serialized: string; key: string } | null>(null),
     pending = useRef(false);
+  const body = {
+    maintenance_input_id: value.maintenance_input_id || null,
+    input: {
+      input_code: value.input_code,
+      equipment_id: value.equipment_id,
+      payload: value.payload,
+    },
+    supersedes_update_request_id: null,
+  };
+  const preparation = usePreparedInput(body);
+  const { serialized, alreadyPrepared } = preparation;
   function patch(key: string, text: string) {
     setValue((previous) => ({ ...previous, [key]: text }));
-    setSaved("");
   }
   function payload(key: string, text: unknown) {
     setValue((previous) => ({
@@ -55,28 +71,16 @@ export function MaintenanceEditor({
         [key]: text,
       },
     }));
-    setSaved("");
   }
   async function submit(event: FormEvent) {
     event.preventDefault();
-    if (pending.current) return;
+    if (pending.current || alreadyPrepared) return;
     pending.current = true;
     setBusy(true);
     setError("");
-    setSaved("");
-    const body = {
-      maintenance_input_id: value.maintenance_input_id || null,
-      input: {
-        input_code: value.input_code,
-        equipment_id: value.equipment_id,
-        payload: value.payload,
-      },
-      supersedes_update_request_id: null,
-    };
-    const serialized = JSON.stringify(body);
-    if (retry.current?.serialized !== serialized)
-      retry.current = { serialized, key: crypto.randomUUID() };
     try {
+      if (retry.current?.serialized !== serialized)
+        retry.current = { serialized, key: crypto.randomUUID() };
       const result = await request(
         "",
         "/maintenance-inputs/prepare",
@@ -86,7 +90,7 @@ export function MaintenanceEditor({
       if (signal.aborted) return;
       const id = result.data.update_request_id;
       if (typeof id !== "string") throw new ApiError("INVALID_RESPONSE");
-      setSaved(id);
+      preparation.remember(id, result);
       onPrepared(id);
     } catch (caught) {
       if (!signal.aborted)
@@ -269,15 +273,21 @@ export function MaintenanceEditor({
             onValue={(text) => payload("source", text)}
           />
         </fieldset>
-        <button disabled={busy}>対応計画・故障履歴の変更準備を作成</button>
+        <PrepareInputButton
+          preparation={preparation}
+          busy={busy}
+          label="対応計画・故障履歴の変更準備を作成"
+          disabledReason={
+            !value.equipment_id ? "変更準備には対象設備の選択が必要です。" : ""
+          }
+        />
       </form>
-      {busy && <p role="status">処理中…</p>}
       {error && <p role="alert">{error}</p>}
-      {saved && (
-        <p role="status">
-          変更準備を保存しました。承認付きActionで保存Snapshotを確認してください。
-        </p>
-      )}
+      <PreparedInputNotice
+        preparation={preparation}
+        label="対応計画・故障履歴"
+        onOpen={onOpenPrepared ?? onPrepared}
+      />
     </SuggestionScope>
   );
 }

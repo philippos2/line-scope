@@ -93,7 +93,9 @@ it("aborts pending work when the connection view unmounts and ignores a late Pre
     screen.getByLabelText("明示的な変更指示"),
     "M-204の状態をRUNNINGに変更して",
   );
-  await user.click(screen.getByRole("button", { name: "変更準備を作成" }));
+  await user.click(
+    screen.getByRole("button", { name: "変更指示から準備を作成" }),
+  );
   await waitFor(() => expect(fetcher).toHaveBeenCalledTimes(1));
   const signal = fetcher.mock.calls[0][1].signal as AbortSignal;
   mounted.unmount();
@@ -121,15 +123,31 @@ it("clears a previous request ID on uncertain Prepare and reuses the same retry 
     screen.getByLabelText("明示的な変更指示"),
     "M-204の状態をRUNNINGに変更して",
   );
-  await user.click(screen.getByRole("button", { name: "変更準備を作成" }));
+  await user.click(
+    screen.getByRole("button", { name: "変更指示から準備を作成" }),
+  );
   await screen.findByRole("alert");
   expect((screen.getByLabelText("変更要求ID") as HTMLInputElement).value).toBe(
     "",
   );
   expect(fetcher).toHaveBeenCalledTimes(2);
-  await user.click(screen.getByRole("button", { name: "変更準備を作成" }));
+  await user.click(
+    screen.getByRole("button", { name: "変更指示から準備を作成" }),
+  );
   await screen.findByRole("heading", { name: "保存済みSnapshot" });
   expect(fetcher).toHaveBeenCalledTimes(4);
+  expect(
+    (
+      screen.getByRole("button", {
+        name: "変更準備を作成済み",
+      }) as HTMLButtonElement
+    ).disabled,
+  ).toBe(true);
+  expect(
+    screen.getByText(
+      "この指示の変更準備は作成済みです。保存内容と承認状態を確認してください。",
+    ),
+  ).toBeTruthy();
   const original = fetcher.mock.calls[1][1].headers["Idempotency-Key"];
   expect(original).toBeTruthy();
   expect(fetcher.mock.calls[2][1].headers["Idempotency-Key"]).toBe(original);
@@ -282,4 +300,47 @@ it("preserves confirmed execution when current observation and the follow-up GET
   expect(fetcher.mock.calls[1][0]).toBe(
     `/api/update-requests/${requestId}/execute`,
   );
+});
+
+it("opens an explicitly requested saved request and keeps its ID when a read fails", async () => {
+  const fetcher = vi
+    .fn()
+    .mockRejectedValueOnce(new TypeError("network failure"))
+    .mockResolvedValue(new Response(JSON.stringify(saved)));
+  vi.stubGlobal("fetch", fetcher);
+  render(
+    <ActionPanel
+      initiallyOpen
+      actor="owner"
+      actorRole="manager"
+      requestedOpen={{ id: requestId }}
+    />,
+  );
+  await screen.findByRole("alert");
+  expect((screen.getByLabelText("変更要求ID") as HTMLInputElement).value).toBe(
+    requestId,
+  );
+  expect(
+    (
+      screen.getByRole("button", {
+        name: "保存状態を再取得",
+      }) as HTMLButtonElement
+    ).disabled,
+  ).toBe(false);
+  const user = userEvent.setup();
+  await user.click(screen.getByRole("button", { name: "保存状態を再取得" }));
+  await screen.findByRole("heading", { name: "保存済みSnapshot" });
+  expect(
+    screen.getByRole("region", { name: "現在の担当と次の操作" }).textContent,
+  ).toContain("この要求の依頼者");
+  expect(
+    screen.getByRole("region", { name: "現在の担当と次の操作" }).textContent,
+  ).toContain("工場管理者");
+  expect(fetcher).toHaveBeenCalledTimes(2);
+  expect(
+    fetcher.mock.calls.every(
+      ([url, init]) =>
+        url === `/api/update-requests/${requestId}` && init.method === "GET",
+    ),
+  ).toBe(true);
 });

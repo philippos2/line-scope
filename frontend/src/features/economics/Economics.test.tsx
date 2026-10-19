@@ -19,6 +19,7 @@ vi.mock("../../api/client", async (importOriginal) => ({
 afterEach(() => {
   cleanup();
   vi.resetAllMocks();
+  Reflect.deleteProperty(navigator, "clipboard");
 });
 function response(data: Record<string, unknown>): Envelope {
   return {
@@ -192,4 +193,59 @@ test("a malformed registered payload is rejected before opening an editor", () =
       payload: { options: [null] },
     }),
   ).toThrow("INVALID_RESPONSE");
+});
+
+test("a prepared input remains visible, exposes its saved contents and copyable ID, and blocks a duplicate prepare", async () => {
+  const input = initial();
+  const copy = vi.fn().mockResolvedValue(undefined);
+  Object.defineProperty(navigator, "clipboard", {
+    configurable: true,
+    value: { writeText: copy },
+  });
+  const opened = vi.fn();
+  vi.mocked(request).mockResolvedValue(
+    response({
+      update_request_id: "saved-request",
+      canonical_snapshot: {
+        targets: [
+          { target_type: "EconomicInput", after: { ...input, version: 1 } },
+        ],
+      },
+    }),
+  );
+  render(
+    <EconomicEditor
+      initial={input}
+      onPrepared={vi.fn()}
+      onOpenPrepared={opened}
+      signal={new AbortController().signal}
+    />,
+  );
+  const button = screen.getByRole("button", {
+    name: "経済入力の変更準備を作成",
+  });
+  fireEvent.click(button);
+  await screen.findByRole("heading", { name: "変更準備が完了しました" });
+  await waitFor(() =>
+    expect((button as HTMLButtonElement).disabled).toBe(true),
+  );
+  expect(button.textContent).toBe("変更準備を作成済み");
+  expect(button.getAttribute("aria-busy")).toBe("false");
+  fireEvent.submit(button.closest("form")!);
+  expect(request).toHaveBeenCalledTimes(1);
+  expect(opened).not.toHaveBeenCalled();
+  expect(screen.getByText(/次は別の工場管理者による承認/)).toBeTruthy();
+  expect(screen.getByText("saved-request")).toBeTruthy();
+  expect(screen.getByRole("region", { name: "選択入力の内容" })).toBeTruthy();
+  fireEvent.click(screen.getByRole("button", { name: "変更要求IDをコピー" }));
+  await waitFor(() => expect(copy).toHaveBeenCalledWith("saved-request"));
+  fireEvent.click(
+    screen.getByRole("button", { name: "保存した変更要求を開く" }),
+  );
+  expect(opened).toHaveBeenCalledWith("saved-request");
+  fireEvent.change(screen.getByLabelText("稼働時間"), {
+    target: { value: "18" },
+  });
+  expect((button as HTMLButtonElement).disabled).toBe(false);
+  expect(screen.getByText("作成後に編集した内容は未保存です。")).toBeTruthy();
 });
