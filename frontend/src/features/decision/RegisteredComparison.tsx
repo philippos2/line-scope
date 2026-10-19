@@ -15,6 +15,8 @@ import {
 } from "../../api/client";
 import type { EquipmentCandidate } from "../equipment/EquipmentCandidates";
 import { UpstreamDependencies } from "./UpstreamDependencies";
+import { ComparisonInputDetails } from "./ComparisonInputDetails";
+import { explanation } from "../investigation/readModel";
 import { DecisionComparison } from "./DecisionComparison";
 import {
   comparisonPeriod,
@@ -24,7 +26,7 @@ import {
 import { displayPeriod } from "../investigation/EquipmentInvestigation";
 
 const groups = [
-  ["economic", "経済入力", "economic_input_id"],
+  ["economic", "損害額・費用の算定データ", "economic_input_id"],
   ["capacity", "能力入力", "capacity_input_id"],
   ["safety", "安全入力", "safety_input_id"],
   ["maintenance", "対応計画・履歴", "maintenance_input_id"],
@@ -53,7 +55,9 @@ export function RegisteredComparison({
   initialCapacityId,
   candidateIds,
   productIds,
+  names,
 }: {
+  names: Record<string, string>;
   initialEconomic: Envelope[];
   initialCapacity: Envelope[];
   initialEconomicId: string;
@@ -62,7 +66,7 @@ export function RegisteredComparison({
   productIds: string[];
   equipment: EquipmentCandidate | null;
   executionEpoch: number;
-  onInvestigate: (message: string) => void;
+  onInvestigate: (message: string, selection?: JsonObject) => void;
   onResult?: (result: Envelope | null) => void;
 }) {
   const [candidates, setCandidates] = useState<
@@ -71,6 +75,12 @@ export function RegisteredComparison({
   const [selected, setSelected] = useState(blank);
   const [records, setRecords] = useState<Record<string, Envelope>>({});
   const touched = useRef(new Set<Group>());
+  const detailsHeading = useRef<HTMLElement>(null);
+  const resultHeading = useRef<HTMLDivElement>(null);
+  const focusVisible = (ref: { current: HTMLElement | null }) =>
+    requestAnimationFrame(() => {
+      if (ref.current?.getClientRects().length) ref.current.focus();
+    });
   const [loaded, setLoaded] = useState(false);
   useEffect(() => {
     const values = [...initialEconomic, ...initialCapacity];
@@ -95,6 +105,18 @@ export function RegisteredComparison({
           : old.capacity,
     }));
   }, [initialEconomic, initialCapacity, initialEconomicId, initialCapacityId]);
+  const visibleCandidates = Object.fromEntries(
+    groups.map(([group, , idKey]) => {
+      const listed = Array.isArray(candidates[group]?.items)
+        ? (candidates[group]!.items as unknown[]).filter(object)
+        : [];
+      const inherited = selected[group]
+        .filter((id) => !listed.some((row) => row[idKey] === id))
+        .map((id) => (records[id] ? inputRecord(records[id]) : null))
+        .filter(object);
+      return [group, [...listed, ...inherited]];
+    }),
+  ) as Record<Group, JsonObject[]>;
   const selectedInputs = useMemo(
     () =>
       Object.fromEntries(
@@ -249,6 +271,7 @@ export function RegisteredComparison({
       );
       if (signal.aborted) return;
       setDetails(response.data);
+      focusVisible(detailsHeading);
     });
   }
   const eligible = useCallback(
@@ -356,6 +379,7 @@ export function RegisteredComparison({
         setResult(response.data);
         onResult?.(response);
         setObservedEpoch(executionEpoch);
+        focusVisible(resultHeading);
       }
     });
   }
@@ -378,7 +402,7 @@ export function RegisteredComparison({
       </button>
       {error && (
         <p role="alert">
-          {error}。比較結果は未取得です。入力・期間・対象を確認してください。
+          {explanation(error)} 入力・期間・対象を確認して再試行してください。
         </p>
       )}
       {busy && <p role="status">正式入力を確認中…</p>}
@@ -388,12 +412,16 @@ export function RegisteredComparison({
           {groups.map(([group, label, idKey]) => (
             <section key={group} aria-label={`比較に使う${label}`}>
               <h3>{label}</h3>
-              {Array.isArray(candidates[group]?.items) &&
-                candidates[group]?.items.length === 0 && (
-                  <p className="muted">
-                    登録された候補がありません。「入力を登録・訂正」から登録できます。未選択の条件は不明として比較します。
-                  </p>
-                )}
+              {!loaded && !visibleCandidates[group].length && (
+                <p>
+                  候補は未取得です。上の「比較に使う正式入力の候補を取得」で確認できます。
+                </p>
+              )}
+              {loaded && visibleCandidates[group].length === 0 && (
+                <p className="muted">
+                  登録された候補がありません。「入力を登録・訂正」から登録できます。未選択の条件は不明として比較します。
+                </p>
+              )}
               {typeof candidates[group]?.next_cursor === "string" && (
                 <p className="notice">
                   未取得の候補があります。次の候補を取得してから選択できます。
@@ -408,51 +436,52 @@ export function RegisteredComparison({
                   次の{label}候補を取得
                 </button>
               )}
-              {Array.isArray(candidates[group]?.items) &&
-                (candidates[group]?.items as unknown[])
-                  .filter(object)
-                  .map((row) => (
-                    <div key={String(row[idKey])}>
-                      <label>
-                        <input
-                          type="checkbox"
-                          checked={selected[group].includes(String(row[idKey]))}
-                          onChange={(event) => {
-                            const id = String(row[idKey]);
-                            touched.current.add(group);
-                            setResult(null);
-                            onResult?.(null);
-                            setSelected((previous) => ({
-                              ...previous,
-                              [group]: event.target.checked
-                                ? group === "economic"
-                                  ? [id]
-                                  : [...previous[group], id]
-                                : previous[group].filter(
-                                    (value) => value !== id,
-                                  ),
-                            }));
-                          }}
-                        />
-                        {String(row.equipment_name ?? row.equipment_code)} · 第
-                        {String(row.version)}版
-                        {selected[group].includes(String(row[idKey])) &&
-                        !touched.current.has(group)
-                          ? "（事前選択・変更できます）"
-                          : ""}
-                        {records[String(row[idKey])] &&
-                        inputPeriod(inputRecord(records[String(row[idKey])]))
-                          ? ` · ${displayPeriod(inputPeriod(inputRecord(records[String(row[idKey])]))!.start, inputPeriod(inputRecord(records[String(row[idKey])]))!.end)}`
-                          : ""}
-                      </label>
-                      <button
-                        type="button"
-                        onClick={() => inspect(group, String(row[idKey]))}
-                      >
-                        入力・出典を確認：第{String(row.version)}版
-                      </button>
-                    </div>
-                  ))}
+              {visibleCandidates[group].map((row) => (
+                <div key={String(row[idKey])}>
+                  <label>
+                    <input
+                      type="checkbox"
+                      checked={selected[group].includes(String(row[idKey]))}
+                      onChange={(event) => {
+                        const id = String(row[idKey]);
+                        touched.current.add(group);
+                        setResult(null);
+                        onResult?.(null);
+                        setSelected((previous) => ({
+                          ...previous,
+                          [group]: event.target.checked
+                            ? group === "economic"
+                              ? [id]
+                              : [...previous[group], id]
+                            : previous[group].filter((value) => value !== id),
+                        }));
+                      }}
+                    />
+                    {names[String(row.equipment_id)] ??
+                      String(
+                        row.equipment_name ?? row.equipment_code ?? "対象設備",
+                      )}
+                    {row.product_id
+                      ? ` ／ ${names[String(row.product_id)] ?? "対象製品"}`
+                      : ""}{" "}
+                    · 第{String(row.version)}版
+                    {selected[group].includes(String(row[idKey])) &&
+                    !touched.current.has(group)
+                      ? "（事前選択・変更できます）"
+                      : ""}
+                    {records[String(row[idKey])] &&
+                    inputPeriod(inputRecord(records[String(row[idKey])]))
+                      ? ` · ${displayPeriod(inputPeriod(inputRecord(records[String(row[idKey])]))!.start, inputPeriod(inputRecord(records[String(row[idKey])]))!.end)}`
+                      : ""}
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => inspect(group, String(row[idKey]))}
+                  >
+                    入力・出典を確認：第{String(row.version)}版
+                  </button>
+                </div>
+              ))}
             </section>
           ))}
           <h3>共通比較期間（選択した入力から設定・読み取り専用）</h3>
@@ -461,7 +490,11 @@ export function RegisteredComparison({
             .flatMap(([group]) => selectedInputs[group] ?? [])
             .map((r, i) => (
               <p key={i}>
-                第{String(r.version)}版：
+                {names[String(r.equipment_id)] ?? "対象設備"}
+                {r.product_id
+                  ? ` ／ ${names[String(r.product_id)] ?? "対象製品"}`
+                  : ""}
+                ・第{String(r.version)}版：
                 {displayPeriod(inputPeriod(r)?.start, inputPeriod(r)?.end)}
               </p>
             ))}
@@ -473,35 +506,54 @@ export function RegisteredComparison({
             type="button"
             disabled={!timing.period}
             onClick={() =>
-              onInvestigate(`登録入力で比較 ${JSON.stringify(selection)}`)
+              onInvestigate(
+                `${equipment?.equipment_code}について、選択した登録入力で対応案を比較する。`,
+                selection,
+              )
             }
           >
-            この選択をAgentへの問い合わせに使う
+            この条件を質問欄へ引き継ぐ
           </button>
         </fieldset>
       </form>
       {details && (
         <details open>
-          <summary>確認中の入力・出典・期間</summary>
-          <pre>{JSON.stringify(details, null, 2)}</pre>
+          <summary ref={detailsHeading} tabIndex={-1}>
+            確認中の入力・出典・期間
+          </summary>
+          <ComparisonInputDetails
+            record={object(details.input) ? details.input : details}
+            names={names}
+          />
         </details>
       )}
       {pkg && object(pkg.comparison) && (
-        <>
+        <div
+          ref={resultHeading}
+          tabIndex={-1}
+          aria-label="選択した条件の比較結果"
+        >
           {observedEpoch !== executionEpoch && (
             <p className="notice">
               確定操作前の結果です。入力と比較を再取得してください。
             </p>
           )}
-          <DecisionComparison comparison={pkg.comparison} />
+          <DecisionComparison
+            comparison={pkg.comparison}
+            names={names}
+            productIds={productIds}
+          />
           {object(pkg.upstream_dependencies) && (
-            <UpstreamDependencies data={pkg.upstream_dependencies} />
+            <UpstreamDependencies
+              data={pkg.upstream_dependencies}
+              names={names}
+            />
           )}
           <details>
-            <summary>比較期間・選択入力・Graph・Evidence</summary>
+            <summary>技術情報：比較期間・選択入力・返却値</summary>
             <pre>{JSON.stringify(result, null, 2)}</pre>
           </details>
-        </>
+        </div>
       )}
     </details>
   );

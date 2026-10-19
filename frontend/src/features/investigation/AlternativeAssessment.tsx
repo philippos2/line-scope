@@ -134,7 +134,11 @@ export function AlternativeAssessment({
         <dt>安全</dt>
         <dd>
           {assessment.safety === "UNKNOWN"
-            ? "今回の評価では安全条件の入力を選択していません。"
+            ? object(option.safety_basis) &&
+              Array.isArray(option.safety_basis.declarations) &&
+              option.safety_basis.declarations.length
+              ? "選択した安全条件だけでは判断できません。"
+              : "今回の評価では安全条件の入力を選択していません。"
             : assessmentLabel(assessment.safety)}
         </dd>
       </dl>

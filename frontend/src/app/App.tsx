@@ -1,5 +1,11 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
-import { ApiError, object, request, type Envelope } from "../api/client";
+import {
+  ApiError,
+  object,
+  request,
+  type Envelope,
+  type JsonObject,
+} from "../api/client";
 import { ActionPanel } from "../features/actions/ActionPanel";
 import { MaintenancePanel } from "../features/maintenance/MaintenancePanel";
 import { MaintenanceResult } from "../features/maintenance/MaintenanceResult";
@@ -87,6 +93,9 @@ export function App() {
   }, []);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
+  const [questionSelection, setQuestionSelection] = useState<JsonObject | null>(
+    null,
+  );
   const [result, setResult] = useState<Envelope | null>(null);
   const [error, setError] = useState("");
   const [, setSelected] = useState<NodeRef | null>(null);
@@ -142,6 +151,7 @@ export function App() {
     setResult(null);
     setGraphResult(null);
     setMessage("");
+    setQuestionSelection(null);
     setError("");
     freshContext.current = true;
     abort.current?.abort();
@@ -194,6 +204,7 @@ export function App() {
     setResult(null);
     setSelected(null);
     setMessage("");
+    setQuestionSelection(null);
     setError("");
     setStale(false);
   }
@@ -266,18 +277,22 @@ export function App() {
     event.preventDefault();
     if (!connected || !message.trim()) return;
     setStale(true);
-    await sendInvestigation(message);
+    await sendInvestigation(message, questionSelection);
   }
-  async function sendInvestigation(text: string) {
+  async function sendInvestigation(
+    text: string,
+    selection: JsonObject | null = null,
+  ) {
     if (!connected || busy || !text.trim()) return;
     if (!text.startsWith("関係分析 ")) setMessage(text);
     setStale(true);
     const body = {
-      message:
-        equipment &&
-        !text.startsWith("関係分析 ") &&
-        !text.startsWith("文書検索：") &&
-        !text.startsWith("登録入力で比較 ")
+      message: selection
+        ? `登録入力で比較 ${JSON.stringify(selection)}`
+        : equipment &&
+            !text.startsWith("関係分析 ") &&
+            !text.startsWith("文書検索：") &&
+            !text.startsWith("登録入力で比較 ")
           ? `調査対象の設備コードは${equipment.equipment_code}です。\n${text}`
           : text,
       ...(!text.startsWith("関係分析 ") &&
@@ -320,6 +335,7 @@ export function App() {
   }
   function draftInvestigation(text: string, focus = true) {
     freshContext.current = true;
+    setQuestionSelection(null);
     setMessage(text);
     if (focus) messageInput.current?.focus();
   }
@@ -347,6 +363,31 @@ export function App() {
           },
         }
       : result;
+  const entityNames: Record<string, string> = {};
+  for (const row of model.metadata) {
+    if (!object(row) || !object(row.data)) continue;
+    for (const kind of ["equipment", "product", "process", "resource"]) {
+      const id =
+          row.data[
+            kind === "resource" ? "infrastructure_resource_id" : `${kind}_id`
+          ],
+        name = row.data[`${kind}_name`],
+        code = row.data[`${kind}_code`];
+      if (typeof id === "string" && typeof code === "string")
+        entityNames[id] =
+          typeof name === "string"
+            ? name.includes(code)
+              ? name
+              : `${name} · ${code}`
+            : code;
+    }
+  }
+  for (const item of [
+    ...model.candidateEquipment,
+    ...(equipment ? [equipment] : []),
+  ])
+    entityNames[item.equipment_id] =
+      `${item.equipment_name} · ${item.equipment_code}`;
   const evidenceResult =
     evidenceKind === "documents"
       ? documentResult
@@ -580,6 +621,11 @@ export function App() {
                         ? `${equipment.equipment_name} · ${equipment.equipment_code}`
                         : "未選択（設備名・コードを質問に含めるか、上の「設備を選ぶ」を使ってください）"}
                     </p>
+                    {questionSelection && (
+                      <p>
+                        比較タブで選択した登録入力と期間を引き継いでいます。送信すると同じ条件で再比較します。質問文を編集すると通常の質問に切り替わります。
+                      </p>
+                    )}
                     <form onSubmit={investigate}>
                       <label htmlFor="message">
                         関係や影響について質問する
@@ -588,7 +634,10 @@ export function App() {
                         id="message"
                         ref={messageInput}
                         value={message}
-                        onChange={(event) => setMessage(event.target.value)}
+                        onChange={(event) => {
+                          setMessage(event.target.value);
+                          setQuestionSelection(null);
+                        }}
                         placeholder="例：この設備が止まったとき、影響する工程と製品は？"
                         rows={3}
                       />
@@ -682,6 +731,7 @@ export function App() {
                 <RegisteredComparison
                   key={decisionEquipment?.equipment_id ?? "none"}
                   equipment={decisionEquipment}
+                  names={entityNames}
                   executionEpoch={executionEpoch}
                   initialEconomic={model.economic}
                   initialCapacity={model.capacity}
@@ -697,8 +747,9 @@ export function App() {
                     setComparisonResult(value);
                     setComparisonStale(false);
                   }}
-                  onInvestigate={(text) => {
+                  onInvestigate={(text, selection) => {
                     draftInvestigation(text, false);
+                    setQuestionSelection(selection ?? null);
                     setStep("investigation");
                   }}
                 />

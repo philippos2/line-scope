@@ -307,6 +307,12 @@ try {
     await expect(page.locator(".workspace-context")).toContainText("200,000", {
       timeout: 30000,
     });
+    await expect(
+      page.locator(".registered-comparison input:checked"),
+    ).toHaveCount(2);
+    await expect(page.locator(".registered-comparison")).toContainText(
+      "第2加工機 · M-208",
+    );
     await page
       .getByRole("button", {
         name: "比較に使う正式入力の候補を取得",
@@ -352,6 +358,63 @@ try {
     await expect(page.locator(".registered-comparison .decision")).toBeVisible({
       timeout: 30000,
     });
+    await visibleWords();
+    expect(
+      await page.locator(".registered-comparison .decision").innerText(),
+    ).not.toMatch(/AVAILABLE|SUFFICIENT/);
+    await expect(
+      page.locator(".registered-comparison .decision"),
+    ).toContainText("品質・残るリスクは、この版では評価対象外");
+    await expect(
+      page.locator('[aria-label="設備が依存する上流インフラ"]'),
+    ).toContainText("共通電源 · R-02");
+    await page
+      .getByRole("button", { name: "入力・出典を確認：第1版", exact: true })
+      .first()
+      .click();
+    await expect(page.locator('[aria-label="選択入力の内容"]')).toContainText(
+      "第1加工機 · M-204",
+    );
+    await expect(page.locator('[aria-label="選択入力の内容"]')).toContainText(
+      "架空工場シナリオ1の登録条件",
+    );
+    await page
+      .getByRole("button", {
+        name: "この条件を質問欄へ引き継ぐ",
+        exact: true,
+      })
+      .click();
+    const draft = page.getByLabel("関係や影響について質問する");
+    await expect(draft).not.toHaveValue(/登録入力で比較|economic_input_id|\{/);
+    let carried;
+    await page.route("**/api/agent", async (route) => {
+      const msg = route.request().postDataJSON()?.message;
+      if (!msg?.startsWith("登録入力で比較 ")) return route.continue();
+      carried = JSON.parse(msg.slice("登録入力で比較 ".length));
+      await route.fulfill({
+        status: 200,
+        json: {
+          request_id: "controlled-comparison-handoff",
+          context_id: null,
+          status: "ok",
+          answer: "選択条件を受け取りました。",
+          data: {},
+          evidence: {},
+          warnings: [],
+          errors: [],
+        },
+      });
+    });
+    await page.getByRole("button", { name: "送信", exact: true }).click();
+    await expect(page.locator(".answer")).toHaveText(
+      "選択条件を受け取りました。",
+    );
+    expect(carried.capacity_input_ids).toHaveLength(1);
+    expect(carried.economic_input_id).toBeTruthy();
+    await page.unroute("**/api/agent");
+    await page
+      .getByRole("tab", { name: "対応案を比べる", exact: true })
+      .click();
     await page
       .getByRole("button", { name: "比較の根拠を確かめる", exact: true })
       .click();
