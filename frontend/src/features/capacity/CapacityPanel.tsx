@@ -1,3 +1,8 @@
+import {
+  EquipmentQueryInput,
+  SuggestedInput,
+  InputAssistance,
+} from "../inputs/InputAssistance";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import {
   ApiError,
@@ -24,6 +29,7 @@ export function CapacityPanel({
   executionEpoch: number;
   initiallyOpen?: boolean;
 }) {
+  const [searched, setSearched] = useState(false);
   const [query, setQuery] = useState("");
   const [code, setCode] = useState("");
   const [rows, setRows] = useState<JsonObject[]>([]);
@@ -119,6 +125,7 @@ export function CapacityPanel({
       if (!Array.isArray(value.data.items) || !value.data.items.every(object))
         throw new ApiError("INVALID_RESPONSE");
       setRows(value.data.items);
+      setSearched(true);
       if (typeof value.data.next_cursor === "string")
         setPage({ cursor: value.data.next_cursor, filter });
     });
@@ -149,7 +156,8 @@ export function CapacityPanel({
       <form onSubmit={search}>
         <label>
           能力入力の設備名・コード
-          <input
+          <EquipmentQueryInput
+            aria-label="能力入力の設備名・コード"
             value={query}
             maxLength={100}
             disabled={busy}
@@ -158,7 +166,8 @@ export function CapacityPanel({
         </label>
         <label>
           能力入力コード
-          <input
+          <SuggestedInput
+            field="input_code"
             value={code}
             maxLength={100}
             disabled={busy}
@@ -193,7 +202,9 @@ export function CapacityPanel({
       </section>
       {!busy && !error && rows.length === 0 && (
         <p>
-          候補は未取得、または該当する登録がありません。別期間の入力を勝手に合算・選択しません。
+          {searched
+            ? "該当する登録データはありません。条件を変えて検索するか、新規登録できます。"
+            : "まだ検索していません。条件を指定して登録データを検索してください。"}
         </p>
       )}
       {result && selected && (
@@ -242,14 +253,43 @@ export function CapacityPanel({
       </button>
       {editor && (
         <>
-          <CapacityEditor
+          <InputAssistance
+            executionEpoch={executionEpoch}
+            kind="capacity"
             key={editor.key}
-            initial={editor.input}
-            equipmentLabel={editor.equipmentLabel}
-            productLabel={editor.productLabel}
-            signal={editor.signal}
-            onPrepared={onPrepared}
-          />
+            equipment={{
+              equipment_id: editor.input.equipment_id,
+              equipment_code:
+                equipment?.equipment_id === editor.input.equipment_id
+                  ? equipment.equipment_code
+                  : String(
+                      rows.find(
+                        (row) =>
+                          row.capacity_input_id ===
+                          editor.input.capacity_input_id,
+                      )?.equipment_code ?? "",
+                    ),
+              equipment_name:
+                equipment?.equipment_id === editor.input.equipment_id
+                  ? equipment.equipment_name
+                  : String(
+                      rows.find(
+                        (row) =>
+                          row.capacity_input_id ===
+                          editor.input.capacity_input_id,
+                      )?.equipment_name ?? "登録データの対象設備",
+                    ),
+            }}
+          >
+            <CapacityEditor
+              key={editor.key}
+              initial={editor.input}
+              equipmentLabel={editor.equipmentLabel}
+              productLabel={editor.productLabel}
+              signal={editor.signal}
+              onPrepared={onPrepared}
+            />
+          </InputAssistance>
           <button onClick={closeEditor}>編集を閉じる</button>
         </>
       )}

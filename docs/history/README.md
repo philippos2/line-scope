@@ -658,3 +658,4 @@ Dockerで追加36テスト成功、ruff check / format、git diff --check成功�
 
 - [上部タブと共通調査状態の実装記録](2026-10-19-a1-workspace-tabs.md)
 - [参照ドロワーの実装・確認](2026-10-19-a2-reference-drawer.md)
+- [候補付き入力・日時選択・変更手続き](2026-10-19-b-input-and-approval-workflow.md)

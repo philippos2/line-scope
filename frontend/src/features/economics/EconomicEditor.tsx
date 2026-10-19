@@ -1,3 +1,5 @@
+import { DateTimeInput } from "../inputs/DateTimeInput";
+import { SuggestionScope, SuggestedInput } from "../inputs/InputAssistance";
 import { useRef, useState, type FormEvent } from "react";
 import { ApiError, request } from "../../api/client";
 import {
@@ -12,7 +14,9 @@ export function EconomicEditor({
   initial,
   onPrepared,
   signal,
+  equipmentLabel = "登録データの対象設備",
 }: {
+  equipmentLabel?: string;
   initial: EconomicInput;
   onPrepared: (id: string) => void;
   signal: AbortSignal;
@@ -31,7 +35,35 @@ export function EconomicEditor({
   function payload(field: string, text: string) {
     setValue((previous) => ({
       ...previous,
-      payload: { ...previous.payload, [field]: text },
+      payload: {
+        ...previous.payload,
+        cost_recovery: previous.payload.cost_recovery
+          ? {
+              ...previous.payload.cost_recovery,
+              source: "",
+              certainty: "ESTIMATED",
+              constant_daily_operation: null,
+              replacement_removes_degradation: null,
+            }
+          : previous.payload.cost_recovery,
+        options: previous.payload.options.map((option) => ({
+          ...option,
+          complete: false,
+          items: option.items.map((item) => ({
+            ...item,
+            source: "",
+            certainty: "ESTIMATED",
+            independent: false,
+          })),
+        })),
+        incident_losses: previous.payload.incident_losses?.map((item) => ({
+          ...item,
+          source: "",
+          certainty: "ESTIMATED",
+          independent: false,
+        })),
+        [field]: text,
+      },
     }));
     setSavedId("");
   }
@@ -88,22 +120,27 @@ export function EconomicEditor({
     }
   }
   return (
-    <section aria-label="経済入力の登録・訂正">
+    <SuggestionScope
+      label="経済入力の登録・訂正"
+      value={{ equipment_id: value.equipment_id, payload: value.payload }}
+    >
       <h2>
         {value.economic_input_id ? "経済入力を訂正する" : "経済入力を登録する"}
       </h2>
+      <p>設備：{equipmentLabel}</p>
       <p>
-        設備：{value.equipment_id || "未選択。設備候補から選択してください。"}
+        共通期間は日本時間で選択し、時間と金額は十進文字列です。空欄の金額・損失時間は不明で、0とは区別します。項目の適用期間が空欄なら、入力した共通期間を使用します。
       </p>
-      <p>
-        共通期間はtimezone付き日時、時間と金額は十進文字列です。空欄の金額・損失時間は不明で、0とは区別します。項目の適用期間が空欄なら、入力した共通期間を使用します。
+      <p className="muted">
+        値を編集した場合は、出典と確認済みの扱いを引き継ぎません。変更内容に合う出典・確度を確認してください。
       </p>
       <form onSubmit={submit}>
         <fieldset disabled={busy}>
           <legend>共通比較条件</legend>
           <label>
             入力コード
-            <input
+            <SuggestedInput
+              field="input_code"
               required
               value={value.input_code}
               maxLength={100}
@@ -113,25 +150,26 @@ export function EconomicEditor({
           </label>
           <label>
             比較開始
-            <input
+            <DateTimeInput
               required
               placeholder="2026-10-01T00:00:00+09:00"
               value={value.payload.period_start}
-              onChange={(event) => payload("period_start", event.target.value)}
+              onChange={(text) => payload("period_start", text)}
             />
           </label>
           <label>
             比較終了
-            <input
+            <DateTimeInput
               required
               placeholder="2026-10-02T00:00:00+09:00"
               value={value.payload.period_end}
-              onChange={(event) => payload("period_end", event.target.value)}
+              onChange={(text) => payload("period_end", text)}
             />
           </label>
           <label>
             稼働時間
-            <input
+            <SuggestedInput
+              field="payload.operating_hours"
               required
               inputMode="decimal"
               value={value.payload.operating_hours}
@@ -176,7 +214,8 @@ export function EconomicEditor({
             <>
               <label>
                 1日稼働時間
-                <input
+                <SuggestedInput
+                  field="payload.cost_recovery.daily_operating_hours"
                   inputMode="decimal"
                   value={
                     value.payload.cost_recovery.daily_operating_hours ?? ""
@@ -189,6 +228,10 @@ export function EconomicEditor({
                         ...previous.payload,
                         cost_recovery: {
                           ...previous.payload.cost_recovery!,
+                          source: "",
+                          certainty: "ESTIMATED",
+                          constant_daily_operation: null,
+                          replacement_removes_degradation: null,
                           daily_operating_hours: daily || null,
                         },
                       },
@@ -223,6 +266,8 @@ export function EconomicEditor({
                           ...previous.payload,
                           cost_recovery: {
                             ...previous.payload.cost_recovery!,
+                            source: "",
+                            certainty: "ESTIMATED",
                             [key]: next === "UNKNOWN" ? null : next === "true",
                           },
                         },
@@ -238,7 +283,8 @@ export function EconomicEditor({
               ))}
               <label>
                 費用回収条件の出典
-                <input
+                <SuggestedInput
+                  field="payload.cost_recovery.source"
                   required
                   maxLength={1000}
                   value={value.payload.cost_recovery.source}
@@ -251,6 +297,7 @@ export function EconomicEditor({
                         cost_recovery: {
                           ...previous.payload.cost_recovery!,
                           source: next,
+                          certainty: "ESTIMATED",
                         },
                       },
                     }));
@@ -293,12 +340,12 @@ export function EconomicEditor({
             </p>
             {value.payload.incident_losses.map((row, index) => (
               <section key={row.scope_key}>
-                <p>
-                  {row.scope_key} ／ 製品ID：{row.product_id}
-                </p>
+                <p>計上範囲：{row.scope_key}</p>
                 <label>
                   時間当たり損失：{row.scope_key}
-                  <input
+                  <SuggestedInput
+                    field={`loss.${row.product_id}.loss_per_hour`}
+                    inputMode="decimal"
                     value={row.loss_per_hour ?? ""}
                     onChange={(e) => {
                       setValue((old) => ({
@@ -311,6 +358,9 @@ export function EconomicEditor({
                                 ? {
                                     ...item,
                                     loss_per_hour: e.target.value || null,
+                                    source: "",
+                                    certainty: "ESTIMATED",
+                                    independent: false,
                                   }
                                 : item,
                           ),
@@ -320,10 +370,51 @@ export function EconomicEditor({
                     }}
                   />
                 </label>
-                <p>
-                  出典：{row.source} ／{" "}
-                  {row.independent ? "独立加算可能と登録" : "独立性は未確認"}
-                </p>
+                <label>
+                  損害額の出典：{row.scope_key}
+                  <SuggestedInput
+                    field={`loss.${row.product_id}.source`}
+                    required
+                    value={row.source}
+                    onChange={(event) => {
+                      const source = event.target.value;
+                      setValue((old) => ({
+                        ...old,
+                        payload: {
+                          ...old.payload,
+                          incident_losses: old.payload.incident_losses?.map(
+                            (item, i) =>
+                              i === index
+                                ? { ...item, source, certainty: "ESTIMATED" }
+                                : item,
+                          ),
+                        },
+                      }));
+                      setSavedId("");
+                    }}
+                  />
+                </label>
+                <label>
+                  <input
+                    type="checkbox"
+                    checked={row.independent}
+                    onChange={(event) => {
+                      const independent = event.target.checked;
+                      setValue((old) => ({
+                        ...old,
+                        payload: {
+                          ...old.payload,
+                          incident_losses: old.payload.incident_losses?.map(
+                            (item, i) =>
+                              i === index ? { ...item, independent } : item,
+                          ),
+                        },
+                      }));
+                      setSavedId("");
+                    }}
+                  />
+                  この損害を独立して加算できることを確認した
+                </label>
               </section>
             ))}
           </fieldset>
@@ -333,18 +424,44 @@ export function EconomicEditor({
             <legend>{optionNames[choice.option] ?? choice.option}</legend>
             {choice.items.map((item, itemIndex) => {
               function change(change: Partial<typeof item>) {
+                const changedFact = Object.keys(change).some(
+                  (key) =>
+                    !["source", "certainty", "independent"].includes(key),
+                );
                 option(index, {
+                  complete: false,
                   items: choice.items.map((entry, i) =>
-                    i === itemIndex ? { ...entry, ...change } : entry,
+                    i === itemIndex
+                      ? {
+                          ...entry,
+                          ...(changedFact
+                            ? {
+                                source: "",
+                                certainty: "ESTIMATED",
+                                independent: false,
+                              }
+                            : {}),
+                          ...change,
+                        }
+                      : entry,
                   ),
                 });
               }
               return (
-                <fieldset key={itemIndex}>
+                <SuggestionScope
+                  key={itemIndex}
+                  fieldset
+                  value={{
+                    payload: value.payload,
+                    option: choice.option,
+                    cost_kind: item.kind,
+                  }}
+                >
                   <legend>費用項目 {itemIndex + 1}</legend>
                   <label>
                     項目キー
-                    <input
+                    <SuggestedInput
+                      field="cost.key"
                       required
                       maxLength={100}
                       value={item.key}
@@ -370,7 +487,8 @@ export function EconomicEditor({
                     {item.kind === "DIRECT"
                       ? "直接費（JPY）"
                       : "損失率（JPY/hour）"}
-                    <input
+                    <SuggestedInput
+                      field="cost.amount"
                       inputMode="decimal"
                       value={item.amount ?? ""}
                       placeholder="空欄は不明"
@@ -382,7 +500,8 @@ export function EconomicEditor({
                   {item.kind !== "DIRECT" && (
                     <label>
                       損失時間
-                      <input
+                      <SuggestedInput
+                        field="cost.hours"
                         inputMode="decimal"
                         value={item.hours ?? ""}
                         placeholder="空欄は不明"
@@ -394,7 +513,8 @@ export function EconomicEditor({
                   )}
                   <label>
                     出典
-                    <input
+                    <SuggestedInput
+                      field="cost.source"
                       required
                       maxLength={1000}
                       value={item.source}
@@ -417,22 +537,18 @@ export function EconomicEditor({
                   </label>
                   <label>
                     適用開始
-                    <input
+                    <DateTimeInput
                       value={item.valid_from}
                       placeholder="空欄は共通比較開始"
-                      onChange={(event) =>
-                        change({ valid_from: event.target.value })
-                      }
+                      onChange={(text) => change({ valid_from: text })}
                     />
                   </label>
                   <label>
                     適用終了
-                    <input
+                    <DateTimeInput
                       value={item.valid_to}
                       placeholder="空欄は共通比較終了"
-                      onChange={(event) =>
-                        change({ valid_to: event.target.value })
-                      }
+                      onChange={(text) => change({ valid_to: text })}
                     />
                   </label>
                   <label>
@@ -456,7 +572,7 @@ export function EconomicEditor({
                   >
                     この項目を削除
                   </button>
-                </fieldset>
+                </SuggestionScope>
               );
             })}
             <button
@@ -494,6 +610,6 @@ export function EconomicEditor({
           </button>
         </p>
       )}
-    </section>
+    </SuggestionScope>
   );
 }

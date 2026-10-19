@@ -1,3 +1,8 @@
+import {
+  EquipmentQueryInput,
+  SuggestedInput,
+  InputAssistance,
+} from "../inputs/InputAssistance";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import {
   ApiError,
@@ -24,6 +29,7 @@ export function SafetyPanel({
   executionEpoch: number;
   initiallyOpen?: boolean;
 }) {
+  const [searched, setSearched] = useState(false);
   const [query, setQuery] = useState("");
   const [code, setCode] = useState("");
   const [rows, setRows] = useState<JsonObject[]>([]);
@@ -47,6 +53,7 @@ export function SafetyPanel({
   useEffect(
     () => () => {
       active.current?.abort();
+      active.current = null;
       editorAbort.current?.abort();
     },
     [],
@@ -72,18 +79,35 @@ export function SafetyPanel({
     pending.current = true;
     setBusy(true);
     setError("");
+    let timedOut = false;
+    const timeout = window.setTimeout(() => {
+      timedOut = true;
+      controller.abort();
+    }, 15_000);
     try {
       await action(controller.signal);
     } catch (caught) {
-      if (!controller.signal.aborted)
-        setError(caught instanceof ApiError ? caught.code : "INVALID_RESPONSE");
+      if (active.current === controller)
+        setError(
+          timedOut
+            ? "REQUEST_TIMEOUT"
+            : caught instanceof ApiError
+              ? caught.code
+              : "INVALID_RESPONSE",
+        );
     } finally {
+      window.clearTimeout(timeout);
       pending.current = false;
-      if (!controller.signal.aborted) setBusy(false);
+      if (active.current === controller) {
+        active.current = null;
+        setBusy(false);
+      }
     }
   }
   function search(event?: FormEvent, next = false) {
     event?.preventDefault();
+    if (pending.current) return;
+    setSearched(false);
     closeEditor();
     setResult(null);
     const filter =
@@ -107,6 +131,7 @@ export function SafetyPanel({
       if (!Array.isArray(value.data.items) || !value.data.items.every(object))
         throw new ApiError("INVALID_RESPONSE");
       setRows(value.data.items);
+      setSearched(true);
       if (typeof value.data.next_cursor === "string")
         setPage({ cursor: value.data.next_cursor, filter });
     });
@@ -137,7 +162,8 @@ export function SafetyPanel({
       <form onSubmit={search}>
         <label>
           安全入力の設備名・コード
-          <input
+          <EquipmentQueryInput
+            aria-label="安全入力の設備名・コード"
             value={query}
             maxLength={100}
             disabled={busy}
@@ -146,7 +172,8 @@ export function SafetyPanel({
         </label>
         <label>
           安全入力コード
-          <input
+          <SuggestedInput
+            field="input_code"
             value={code}
             maxLength={100}
             disabled={busy}
@@ -158,7 +185,9 @@ export function SafetyPanel({
       {busy && <p role="status">安全入力を取得中…</p>}
       {error && (
         <p role="alert">
-          {error}。登録値を取得できません。仮値による補完は行っていません。
+          {error === "REQUEST_TIMEOUT"
+            ? "安全入力の取得が15秒以内に完了しませんでした。もう一度検索してください。"
+            : "安全入力を取得できませんでした。接続を確認して、もう一度検索してください。"}
         </p>
       )}
       <section aria-label="安全入力の検索候補">
@@ -180,8 +209,10 @@ export function SafetyPanel({
         )}
       </section>
       {!busy && !error && rows.length === 0 && (
-        <p>
-          候補は未取得、または該当する登録がありません。別期間の入力を勝手に合算・選択しません。
+        <p role="status">
+          {searched
+            ? "検索が完了しました。該当する登録済みの安全入力はありません。条件を変えて検索するか、新規登録してください。"
+            : "まだ検索していません。条件を指定して登録データを検索してください。"}
         </p>
       )}
       {result && selected && (
@@ -230,12 +261,39 @@ export function SafetyPanel({
       </button>
       {editor && (
         <>
-          <SafetyEditor
+          <InputAssistance
+            executionEpoch={executionEpoch}
+            kind="safety"
             key={editor.key}
-            initial={editor.input}
-            signal={editor.signal}
-            onPrepared={onPrepared}
-          />
+            equipment={{
+              equipment_id: editor.input.equipment_id,
+              equipment_code:
+                equipment?.equipment_id === editor.input.equipment_id
+                  ? equipment.equipment_code
+                  : String(
+                      rows.find(
+                        (row) =>
+                          row.safety_input_id === editor.input.safety_input_id,
+                      )?.equipment_code ?? "",
+                    ),
+              equipment_name:
+                equipment?.equipment_id === editor.input.equipment_id
+                  ? equipment.equipment_name
+                  : String(
+                      rows.find(
+                        (row) =>
+                          row.safety_input_id === editor.input.safety_input_id,
+                      )?.equipment_name ?? "登録データの対象設備",
+                    ),
+            }}
+          >
+            <SafetyEditor
+              key={editor.key}
+              initial={editor.input}
+              signal={editor.signal}
+              onPrepared={onPrepared}
+            />
+          </InputAssistance>
           <button onClick={closeEditor}>編集を閉じる</button>
         </>
       )}

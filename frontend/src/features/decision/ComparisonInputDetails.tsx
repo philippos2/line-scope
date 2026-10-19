@@ -3,6 +3,20 @@ import { displayPeriod } from "../investigation/EquipmentInvestigation";
 import { inputPeriod } from "../investigation/workspaceModel";
 
 const labels: Record<string, string> = {
+  details: "計画・事象の内容",
+  direct_cost_jpy: "交換費を除く直接費（円）",
+  replacement_cost_jpy: "交換費（円）",
+  past_loss_jpy: "過去停止損失（円）",
+  include_replacement_cost: "交換費を評価期間に含める",
+  interim_until: "暫定対応の終了日時",
+  buffer: "利用可能な在庫・余力",
+  stopped_at: "停止開始日時",
+  constant_flow: "需要と供給が一定",
+  no_other_allocations: "他用途への引当なし",
+  recovery_meets_demand: "復旧後に必要量を満たす",
+  daily_operating_hours: "1日の稼働時間",
+  constant_daily_operation: "一定の日次稼働",
+  replacement_removes_degradation: "交換で劣化損失が解消",
   source: "出典",
   certainty: "確度",
   quantity_unit: "数量単位",
@@ -117,6 +131,19 @@ export function ComparisonInputDetails({
                     .map((item, j) => <Fields key={j} payload={item} />)}
               </div>
             ))}
+          </section>
+        ) : null,
+      )}
+      {(
+        [
+          ["recovery", "復旧条件"],
+          ["cost_recovery", "費用回収の条件"],
+        ] as const
+      ).map(([key, title]) =>
+        object(payload[key]) ? (
+          <section key={key}>
+            <h4>{title}</h4>
+            <Fields payload={payload[key]} />
           </section>
         ) : null,
       )}

@@ -110,6 +110,11 @@ test("prepare is explicit and retry identity is retained until input changes", a
   fireEvent.change(screen.getByLabelText("稼働時間"), {
     target: { value: "18" },
   });
+  // Editing a fact invalidates the copied provenance; the user must state it again.
+  for (const source of screen.getAllByLabelText("出典", { exact: true })) {
+    expect((source as HTMLInputElement).value).toBe("");
+    fireEvent.change(source, { target: { value: "変更内容の出典" } });
+  }
   fireEvent.click(
     screen.getByRole("button", { name: "経済入力の変更準備を作成" }),
   );

@@ -29,3 +29,7 @@ docker run --rm --network host --env-file /private/browser.env \
 比較タブは主画面から引き継いだ入力を最初から表示し、候補取得前でも確認・変更できます。入力詳細は日本語表示、返却値の原文は技術情報です。`ComparisonPresentation.test.tsx`の4件で、既知0・未算定・代替ゲート・製品別出典・インフラ名称の意味を検査します。
 
 A2の参照ドロワーは、タブ下の「関係図を見る」「根拠を見る」から開きます。広い画面は右固定、1280px未満は全面の重ね表示です。取得済み情報を使い、開閉で再検索しません。確認用の `scripts/verify-reference-drawer-browser.mjs` は、上記と同じ私有envで実行します。実APIの読取を使う3項目で、要求対象の検査だけは明示した制御応答を使用し、登録データは変更しません。
+
+工程Bでは、4カテゴリの検索・登録・訂正に登録済みの候補と日本時間の日時選択を追加しています。候補は参考値で、手入力を保持します。変更タブには無効理由と次の操作を表示し、起点を変えても保存要求は保持します。
+
+書込を含む `scripts/verify-input-workflow-browser.mjs` は検証専用環境でのみ実行します。`LINESCOPE_BROWSER_APPROVER` と `LINESCOPE_BROWSER_ALLOW_WRITES=isolated-verification` が必要です。継続プレビューの5173・5174番への実行は拒否します。4カテゴリの変更準備・別担当者承認・元依頼者実行と、候補・待機中の操作の6項目を確認します。

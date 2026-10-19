@@ -1,3 +1,4 @@
+import { InputAssistance } from "../features/inputs/InputAssistance";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import {
   ApiError,
@@ -36,7 +37,6 @@ const panels = [
 ] as const;
 type Step = (typeof panels)[number][0];
 export function App() {
-  const [actionDraftVersion, setActionDraftVersion] = useState(0);
   const [actionDraft, setActionDraft] = useState("");
   const [stateChoice, setStateChoice] = useState("");
   const [direction, setDirection] = useState<"down" | "up" | "extra">("down");
@@ -45,6 +45,8 @@ export function App() {
   >(null);
   const [savedRequest, setSavedRequest] = useState<Envelope | null>(null);
   const [step, setStep] = useState<Step>("graph");
+  const activeTab = useRef(step);
+  activeTab.current = step;
   const [evidenceKind, setEvidenceKind] = useState<
     "graph" | "comparison" | "documents"
   >("graph");
@@ -151,12 +153,9 @@ export function App() {
     setGraphMemory({});
     setReference(null);
     setDirection("down");
-    setSavedRequest(null);
     setComparisonResult(null);
     setDocumentResult(null);
-    setEconomicPrepared(undefined);
     setActionDraft("");
-    setActionDraftVersion((x) => x + 1);
     setStateChoice("");
     setResult(null);
     setGraphResult(null);
@@ -456,7 +455,7 @@ export function App() {
     dirty.current.delete("prepare");
     setActionDraft("");
     setEconomicPrepared(id);
-    setStep("execution");
+    if (activeTab.current === "prepare") setStep("execution");
   }
   async function searchDocuments() {
     if (documentBusy || !equipment) return;
@@ -562,7 +561,7 @@ export function App() {
             onChangeCapture={(event) => {
               if (
                 (event.target as HTMLElement).closest(
-                  "#panel-prepare, #panel-execution, #panel-comparison",
+                  "[data-input-editor], #action-message, .state-change-prepare, #panel-comparison",
                 )
               )
                 dirty.current.add(step);
@@ -652,6 +651,11 @@ export function App() {
                   根拠を見る
                 </button>
               </div>
+              {economicPrepared && step !== "execution" && (
+                <button onClick={() => setStep("execution")}>
+                  保存した変更要求を開く
+                </button>
+              )}
               <div
                 id="panel-graph"
                 role="tabpanel"
@@ -973,65 +977,104 @@ export function App() {
                   ))}
                 </nav>
                 <div hidden={inputTab !== "economic"}>
-                  <EconomicPanel
-                    initiallyOpen
+                  <InputAssistance
+                    executionEpoch={executionEpoch}
                     key={
                       "economic:" + (decisionEquipment?.equipment_id ?? "none")
                     }
+                    kind="economic"
                     equipment={decisionEquipment}
-                    onPrepared={prepareInput}
-                    onInvestigate={(text) => {
-                      draftInvestigation(text, false);
-                      setStep("investigation");
-                    }}
-                    executionEpoch={executionEpoch}
-                  />
+                  >
+                    <EconomicPanel
+                      initiallyOpen
+                      key={
+                        "economic:" +
+                        (decisionEquipment?.equipment_id ?? "none")
+                      }
+                      equipment={decisionEquipment}
+                      onPrepared={prepareInput}
+                      onInvestigate={(text) => {
+                        draftInvestigation(text, false);
+                        setStep("investigation");
+                      }}
+                      executionEpoch={executionEpoch}
+                    />
+                  </InputAssistance>
                 </div>
                 <div hidden={inputTab !== "capacity"}>
-                  <CapacityPanel
-                    initiallyOpen
+                  <InputAssistance
+                    executionEpoch={executionEpoch}
                     key={
                       "capacity:" + (decisionEquipment?.equipment_id ?? "none")
                     }
+                    kind="capacity"
                     equipment={decisionEquipment}
-                    onPrepared={prepareInput}
-                    onInvestigate={(text) => {
-                      draftInvestigation(text, false);
-                      setStep("investigation");
-                    }}
-                    executionEpoch={executionEpoch}
-                  />
+                  >
+                    <CapacityPanel
+                      initiallyOpen
+                      key={
+                        "capacity:" +
+                        (decisionEquipment?.equipment_id ?? "none")
+                      }
+                      equipment={decisionEquipment}
+                      onPrepared={prepareInput}
+                      onInvestigate={(text) => {
+                        draftInvestigation(text, false);
+                        setStep("investigation");
+                      }}
+                      executionEpoch={executionEpoch}
+                    />
+                  </InputAssistance>
                 </div>
                 <div hidden={inputTab !== "safety"}>
-                  <SafetyPanel
-                    initiallyOpen
+                  <InputAssistance
+                    executionEpoch={executionEpoch}
                     key={
                       "safety:" + (decisionEquipment?.equipment_id ?? "none")
                     }
+                    kind="safety"
                     equipment={decisionEquipment}
-                    onPrepared={prepareInput}
-                    onInvestigate={(text) => {
-                      draftInvestigation(text, false);
-                      setStep("investigation");
-                    }}
-                    executionEpoch={executionEpoch}
-                  />
+                  >
+                    <SafetyPanel
+                      initiallyOpen
+                      key={
+                        "safety:" + (decisionEquipment?.equipment_id ?? "none")
+                      }
+                      equipment={decisionEquipment}
+                      onPrepared={prepareInput}
+                      onInvestigate={(text) => {
+                        draftInvestigation(text, false);
+                        setStep("investigation");
+                      }}
+                      executionEpoch={executionEpoch}
+                    />
+                  </InputAssistance>
                 </div>
                 <div hidden={inputTab !== "maintenance"}>
-                  <MaintenancePanel
-                    initiallyOpen
+                  <InputAssistance
+                    executionEpoch={executionEpoch}
                     key={
                       "maintenance:" +
                       (decisionEquipment?.equipment_id ?? "none")
                     }
+                    kind="maintenance"
                     equipment={decisionEquipment}
-                    onPrepared={prepareInput}
-                    onInvestigate={(text) => {
-                      draftInvestigation(text, false);
-                      setStep("investigation");
-                    }}
-                    executionEpoch={executionEpoch}
-                  />
+                  >
+                    <MaintenancePanel
+                      initiallyOpen
+                      key={
+                        "maintenance:" +
+                        (decisionEquipment?.equipment_id ?? "none")
+                      }
+                      equipment={decisionEquipment}
+                      onPrepared={prepareInput}
+                      onInvestigate={(text) => {
+                        draftInvestigation(text, false);
+                        setStep("investigation");
+                      }}
+                      executionEpoch={executionEpoch}
+                    />
+                  </InputAssistance>
                 </div>
               </section>
               <section
@@ -1060,10 +1103,14 @@ export function App() {
                         <option value="UNKNOWN">不明</option>
                       </select>
                     </label>
+                    {!stateChoice && (
+                      <p className="notice">
+                        変更後の登録状態を選ぶと、変更指示の下書きを作れます。
+                      </p>
+                    )}
                     <button
                       disabled={!stateChoice}
                       onClick={() => {
-                        setActionDraftVersion((x) => x + 1);
                         setActionDraft(
                           `設備${equipment.equipment_code}の状態を${stateChoice}に変更する準備を作って`,
                         );
@@ -1081,15 +1128,8 @@ export function App() {
                   <li>元の依頼者：再接続し、IDから読み直して実行する。</li>
                 </ol>
                 <ActionPanel
-                  key={
-                    (decisionEquipment?.equipment_id ??
-                      equipment?.equipment_id ??
-                      "none") +
-                    ":" +
-                    actionDraftVersion +
-                    ":" +
-                    actionDraft
-                  }
+                  actor={identity}
+                  names={entityNames}
                   onSaved={setSavedRequest}
                   initialMessage={actionDraft}
                   initiallyOpen
