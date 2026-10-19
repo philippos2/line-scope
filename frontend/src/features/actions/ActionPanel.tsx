@@ -1,3 +1,5 @@
+import { registeredState } from "../investigation/readModel";
+import { ComparisonInputDetails } from "../decision/ComparisonInputDetails";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { ApiError, object, request, type Envelope } from "../../api/client";
 
@@ -10,7 +12,11 @@ export function ActionPanel({
   onExecution,
   onSaved,
   initiallyOpen = false,
+  actor = "",
+  names = {},
 }: {
+  actor?: string;
+  names?: Record<string, string>;
   initialMessage?: string;
   preparedId?: string;
   onExecution?: () => void;
@@ -24,17 +30,21 @@ export function ActionPanel({
   const [checked, setChecked] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const [diagnostic, setDiagnostic] = useState("");
   const [copied, setCopied] = useState(false);
   const controller = useRef<AbortController | null>(null);
   const retry = useRef<{ message: string; key: string } | null>(null);
   const pending = useRef(false);
   const snapshotHeading = useRef<HTMLHeadingElement>(null);
-  const errorMessage = useRef<HTMLParagraphElement>(null);
+  const errorMessage = useRef<HTMLDivElement>(null);
   useEffect(() => {
     if (saved) snapshotHeading.current?.focus();
     else if (error) errorMessage.current?.focus();
   }, [saved, error]);
   useEffect(() => () => controller.current?.abort(), []);
+  useEffect(() => {
+    setMessage(initialMessage);
+  }, [initialMessage]);
   useEffect(() => {
     onSaved?.(saved);
   }, [saved, onSaved]);
@@ -46,14 +56,43 @@ export function ActionPanel({
     controller.current = active;
     setBusy(true);
     setError("");
+    setDiagnostic("");
     setChecked(false);
     try {
       await action(active.signal);
     } catch (caught) {
       if (!active.signal.aborted) {
         setSaved(null);
+        const code =
+          caught instanceof ApiError ? caught.code : "REQUEST_FAILED";
+        const explanation =
+          (
+            {
+              AUTHORIZATION_DENIED:
+                "この操作の権限がありません。依頼者・承認者と接続中の利用者を確認してください。",
+              AUTHENTICATION_REQUIRED:
+                "接続が切れました。接続し直してください。",
+              VERSION_CONFLICT:
+                "登録内容が変更されています。最新の登録値を取得し、変更準備を作り直してください。",
+              APPROVAL_EXPIRED:
+                "承認期限を過ぎています。変更準備からやり直してください。",
+              SNAPSHOT_MISMATCH:
+                "保存内容が一致しません。保存状態を再取得して確認してください。",
+              CONNECTION_FAILED:
+                "応答を確認できませんでした。処理が確定している可能性があります。",
+              DEPENDENCY_UNAVAILABLE:
+                "接続先サービスを利用できません。接続設定を確認してください。",
+            } as Record<string, string>
+          )[code] ??
+          "処理を完了できませんでした。保存状態を再取得して確認してください。";
+        setDiagnostic(
+          code +
+            (caught instanceof ApiError && caught.requestId
+              ? ` / ${caught.requestId}`
+              : ""),
+        );
         setError(
-          `${caught instanceof ApiError ? caught.code + (caught.requestId ? " / " + caught.requestId : "") : "REQUEST_FAILED"}。要求IDが分かる場合は保存状態を再取得してください。Prepare応答が不明な場合は同じ指示のまま再送できます。書き込みは自動再送しません。`,
+          `${explanation} 要求IDが分かる場合は保存状態を再取得してください。Prepare応答が不明な場合は同じ指示のまま再送できます。書き込みは自動再送しません。`,
         );
       }
     } finally {
@@ -129,8 +168,64 @@ export function ActionPanel({
   const approved =
     data?.effective_status === "APPROVED" &&
     data.approval_status === "APPROVED";
+  const requester =
+    typeof snapshot?.requester_id === "string" ? snapshot.requester_id : "";
+  const inputCategory = targets.some((target) =>
+    [
+      "EconomicInput",
+      "CapacityInput",
+      "SafetyInput",
+      "MaintenanceInput",
+    ].includes(String(target.target_type)),
+  );
+  const ownRestrictedRequest = Boolean(
+    actor && actor === requester && inputCategory,
+  );
+  const otherRequester = Boolean(actor && requester && actor !== requester);
+  const approvalReason = busy
+    ? "処理が終わるまでお待ちください。"
+    : !valid
+      ? "保存状態を再取得してください。"
+      : !pendingApproval
+        ? "この要求は承認待ちではありません。保存状態を確認してください。"
+        : ownRestrictedRequest
+          ? "この入力の依頼者は承認できません。別の工場管理者で接続してください。"
+          : !checked
+            ? "保存内容と操作内容を確認し、確認欄にチェックしてください。"
+            : "サーバが操作権限を確認して承認します。";
+  const executeReason = busy
+    ? "処理が終わるまでお待ちください。"
+    : !valid
+      ? "保存状態を再取得してください。"
+      : !approved
+        ? "実行には有効な承認が必要です。承認後に保存状態を再取得してください。"
+        : otherRequester
+          ? "実行できるのは元の依頼者です。依頼者で接続し直してください。"
+          : !checked
+            ? "承認された保存内容を確認し、確認欄にチェックしてください。"
+            : "元の依頼者として実行します。サーバが期限・権限・版を再確認します。";
+  const stateName = (value: unknown) =>
+    ({
+      WAITING_APPROVAL: "承認待ち",
+      APPROVED: "承認済み",
+      COMPLETED: "実行済み",
+      EXPIRED: "期限切れ",
+      REJECTED: "拒否済み",
+      INVALIDATED: "無効",
+      SUPERSEDED: "置換済み",
+      FAILED: "実行失敗",
+      PENDING: "承認待ち",
+      CONSUMED: "承認使用済み",
+    })[String(value)] ?? "状態を確認できません";
   function mutate(operation: "approve" | "reject" | "execute") {
-    if (!valid || !checked) return;
+    if (
+      !valid ||
+      !checked ||
+      (operation === "execute"
+        ? otherRequester || !approved
+        : ownRestrictedRequest || !pendingApproval)
+    )
+      return;
     const hash = data!.snapshot_hash;
     setSaved(null);
     setExecution(null);
@@ -176,6 +271,11 @@ export function ActionPanel({
         />
         <button disabled={busy || !message.trim()}>変更準備を作成</button>
       </form>
+      {!message.trim() && (
+        <p className="notice">
+          変更準備には、対象と変更内容を入力するか、上の登録状態から下書きを作ってください。
+        </p>
+      )}
       <p className="muted">
         Prepareでは業務値を変更しません。同じ指示の再送には同じ再送キーを使用します。
       </p>
@@ -206,14 +306,25 @@ export function ActionPanel({
           保存状態を再取得
         </button>
       </form>
+      {!uuid.test(id.trim()) && (
+        <p className="notice">
+          保存内容を開くには変更要求IDを入力してください。設備の選択は不要です。
+        </p>
+      )}
       <p className="muted">
         承認者には変更要求IDを渡してください。上部の接続設定で接続解除し、別の承認者で接続してIDから読み直します。実行時は元requesterで接続し直してください。
       </p>
       {busy && <p role="status">サーバへ確認中…</p>}
       {error && (
-        <p role="alert" ref={errorMessage} tabIndex={-1}>
-          {error}
-        </p>
+        <div role="alert" ref={errorMessage} tabIndex={-1}>
+          <p>{error}</p>
+          {diagnostic && (
+            <details>
+              <summary>技術情報</summary>
+              <code>{diagnostic}</code>
+            </details>
+          )}
+        </div>
       )}
       {data && (
         <section>
@@ -239,29 +350,61 @@ export function ActionPanel({
               : "承認者へ渡す変更要求IDをコピー"}
           </button>
           <p>
-            状態：{text(data.status)} / 実効状態：{text(data.effective_status)}{" "}
-            / 承認：{text(data.approval_status)}
+            状態：{stateName(data.effective_status ?? data.status)} / 承認：
+            {stateName(data.approval_status)}
           </p>
-          <p>requester：{text(snapshot?.requester_id)}</p>
+          <p>
+            依頼者：{requester || "取得できません"}
+            {actor === requester ? "（接続中の利用者）" : ""}
+          </p>
           <p>
             承認日時：{text(data.approved_at)} / 承認期限：
             {text(data.expires_at)}
           </p>
-          <p className="muted">Snapshot hash：{text(data.snapshot_hash)}</p>
+
           {targets.map((target, index) => (
             <section key={index} className="evidence-card">
               <h3>
-                {text(target.target_type)} / {text(target.target_id)} /{" "}
-                {text(target.operation_type)}
+                変更対象 {index + 1}：
+                {names[
+                  String(
+                    object(target.business_key)
+                      ? target.business_key.equipment_id
+                      : "",
+                  )
+                ] ?? (inputCategory ? "登録入力" : "設備・運用データ")}
               </h3>
-              <h4>変更前（before）</h4>
-              <pre>{JSON.stringify(target.before, null, 2)}</pre>
-              <h4>変更予定（proposed）</h4>
-              <pre>{JSON.stringify(target.after, null, 2)}</pre>
+              {(
+                [
+                  ["before", "変更前"],
+                  ["after", "変更予定"],
+                ] as const
+              ).map(([key, title]) => {
+                const value = object(target[key]) ? target[key] : null;
+                return (
+                  <section key={key}>
+                    <h4>{title}</h4>
+                    {!value ? (
+                      <p>新規登録（変更前の登録なし）</p>
+                    ) : object(value.payload) ? (
+                      <ComparisonInputDetails record={value} names={names} />
+                    ) : (
+                      <p>
+                        {typeof value.state_code === "string"
+                          ? `登録状態：${registeredState(value.state_code)}`
+                          : "詳細は保存内容の技術情報で確認してください。"}
+                        {typeof value.version === "number"
+                          ? ` ／ 第${value.version}版`
+                          : ""}
+                      </p>
+                    )}
+                  </section>
+                );
+              })}
             </section>
           ))}
           <details>
-            <summary>canonical Snapshot全文</summary>
+            <summary>技術情報：保存内容の原文</summary>
             <pre>{JSON.stringify(snapshot, null, 2)}</pre>
           </details>
           <label>
@@ -275,24 +418,43 @@ export function ActionPanel({
           </label>
           <div className="presets">
             <button
-              disabled={busy || !checked || !valid || !pendingApproval}
+              disabled={
+                busy ||
+                !checked ||
+                !valid ||
+                !pendingApproval ||
+                ownRestrictedRequest
+              }
+              aria-describedby="approval-reason"
               onClick={() => mutate("approve")}
             >
               Snapshotを承認
             </button>
             <button
-              disabled={busy || !checked || !valid || !pendingApproval}
+              disabled={
+                busy ||
+                !checked ||
+                !valid ||
+                !pendingApproval ||
+                ownRestrictedRequest
+              }
+              aria-describedby="approval-reason"
               onClick={() => mutate("reject")}
             >
               変更要求を拒否
             </button>
             <button
-              disabled={busy || !checked || !valid || !approved}
+              disabled={
+                busy || !checked || !valid || !approved || otherRequester
+              }
+              aria-describedby="execute-reason"
               onClick={() => mutate("execute")}
             >
               承認済み変更を実行
             </button>
           </div>
+          <p id="approval-reason">承認・拒否：{approvalReason}</p>
+          <p id="execute-reason">実行：{executeReason}</p>
           {data.execution_result != null && (
             <section>
               <h3>保存された確定結果（after）</h3>

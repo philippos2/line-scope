@@ -1,3 +1,9 @@
+import { DateTimeInput } from "../inputs/DateTimeInput";
+import {
+  SuggestionScope,
+  SuggestedInput,
+  SuggestedText,
+} from "../inputs/InputAssistance";
 import { useRef, useState, type FormEvent } from "react";
 import { ApiError, object, request, type JsonObject } from "../../api/client";
 import { rateFields, type CapacityInput } from "./model";
@@ -26,13 +32,49 @@ export function CapacityEditor({
   const pending = useRef(false),
     retry = useRef<{ serialized: string; key: string } | null>(null);
   function patch(key: string, text: string) {
-    setValue((previous) => ({ ...previous, [key]: text }));
+    setValue((previous) => ({
+      ...previous,
+      [key]: text,
+      ...(key === "product_id"
+        ? {
+            payload: {
+              ...previous.payload,
+              source: "",
+              certainty: "ESTIMATED",
+            },
+          }
+        : {}),
+    }));
     setSaved("");
   }
   function payload(key: string, text: unknown) {
     setValue((previous) => ({
       ...previous,
-      payload: { ...previous.payload, [key]: text },
+      payload: {
+        ...previous.payload,
+        ...(key !== "source" && key !== "certainty"
+          ? {
+              source: "",
+              certainty: "ESTIMATED",
+              ...([
+                "period_start",
+                "period_end",
+                "quantity_unit",
+                "required_rate",
+                "normal_rate",
+                "used_rate",
+                "reserved_rate",
+              ].includes(key)
+                ? {
+                    loads_independent: false,
+                    loads_complete: false,
+                    compatible: null,
+                  }
+                : {}),
+            }
+          : {}),
+        [key]: text,
+      },
     }));
     setSaved("");
   }
@@ -41,6 +83,8 @@ export function CapacityEditor({
       ...previous,
       payload: {
         ...previous.payload,
+        source: "",
+        certainty: "ESTIMATED",
         recovery: {
           ...(object(previous.payload.recovery)
             ? previous.payload.recovery
@@ -136,20 +180,31 @@ export function CapacityEditor({
   const p = value.payload,
     r = object(p.recovery) ? p.recovery : null;
   return (
-    <section aria-label="能力入力の登録・訂正">
+    <SuggestionScope
+      label="能力入力の登録・訂正"
+      value={{
+        equipment_id: value.equipment_id,
+        product_id: value.product_id,
+        payload: value.payload,
+      }}
+    >
       <h2>
         {value.capacity_input_id ? "能力入力を訂正する" : "能力入力を登録する"}
       </h2>
       <p>
-        同一製品・数量単位・期間の毎時率を入力します。空欄は不明、0は既知のゼロです。日時にはtimezoneを付けてください。
+        同一製品・数量単位・期間の毎時率を入力します。空欄は不明、0は既知のゼロです。日時は日本時間で選択します。
       </p>
       <p>対象設備：{equipmentLabel}</p>
+      <p className="muted">
+        値を編集した場合は、出典と確認済みの扱いを引き継ぎません。変更内容に合う出典・確度を確認してください。
+      </p>
       <form onSubmit={submit}>
         <fieldset disabled={busy}>
           <legend>対象と評価期間</legend>
           <label>
             能力入力の入力コード
-            <input
+            <SuggestedInput
+              field="input_code"
               required
               maxLength={100}
               disabled={Boolean(value.capacity_input_id)}
@@ -200,23 +255,24 @@ export function CapacityEditor({
           </p>
           <label>
             能力評価開始
-            <input
+            <DateTimeInput
               required
               value={String(p.period_start)}
-              onChange={(event) => payload("period_start", event.target.value)}
+              onChange={(text) => payload("period_start", text)}
             />
           </label>
           <label>
             能力評価終了
-            <input
+            <DateTimeInput
               required
               value={String(p.period_end)}
-              onChange={(event) => payload("period_end", event.target.value)}
+              onChange={(text) => payload("period_end", text)}
             />
           </label>
           <label>
             数量単位
-            <input
+            <SuggestedInput
+              field="payload.quantity_unit"
               required
               maxLength={40}
               placeholder="例：個"
@@ -230,7 +286,8 @@ export function CapacityEditor({
           {Object.entries(rateFields).map(([key, label]) => (
             <label key={key}>
               {label}
-              <input
+              <SuggestedInput
+                field={`payload.${key}`}
                 inputMode="decimal"
                 value={typeof p[key] === "string" ? p[key] : ""}
                 onChange={(event) => payload(key, event.target.value || null)}
@@ -281,15 +338,14 @@ export function CapacityEditor({
               <option value="no">非互換</option>
             </select>
           </label>
-          <label>
-            能力入力の出典
-            <textarea
-              required
-              maxLength={1000}
-              value={String(p.source)}
-              onChange={(event) => payload("source", event.target.value)}
-            />
-          </label>
+          <SuggestedText
+            label="能力入力の出典"
+            field="payload.source"
+            required
+            maxLength={1000}
+            value={String(p.source)}
+            onValue={(text) => payload("source", text)}
+          />
           <label>
             能力入力の確度
             <select
@@ -328,7 +384,8 @@ export function CapacityEditor({
             <>
               <label>
                 利用可能buffer
-                <input
+                <SuggestedInput
+                  field="payload.recovery.buffer"
                   inputMode="decimal"
                   value={typeof r.buffer === "string" ? r.buffer : ""}
                   onChange={(event) =>
@@ -338,12 +395,10 @@ export function CapacityEditor({
               </label>
               <label>
                 停止開始日時
-                <input
+                <DateTimeInput
                   required
                   value={String(r.stopped_at)}
-                  onChange={(event) =>
-                    recovery("stopped_at", event.target.value)
-                  }
+                  onChange={(text) => recovery("stopped_at", text)}
                 />
               </label>
               {Object.entries({
@@ -374,6 +429,6 @@ export function CapacityEditor({
           変更準備を保存しました。承認付きActionで保存Snapshotを確認してください。
         </p>
       )}
-    </section>
+    </SuggestionScope>
   );
 }

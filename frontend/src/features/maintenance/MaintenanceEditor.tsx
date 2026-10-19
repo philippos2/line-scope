@@ -1,3 +1,10 @@
+import { displayPeriod } from "../investigation/EquipmentInvestigation";
+import { DateTimeInput } from "../inputs/DateTimeInput";
+import {
+  SuggestionScope,
+  SuggestedInput,
+  SuggestedText,
+} from "../inputs/InputAssistance";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { ApiError, request, object, type JsonObject } from "../../api/client";
 import { kinds, fields, type MaintenanceInput } from "./model";
@@ -42,7 +49,11 @@ export function MaintenanceEditor({
   function payload(key: string, text: unknown) {
     setValue((previous) => ({
       ...previous,
-      payload: { ...previous.payload, [key]: text },
+      payload: {
+        ...previous.payload,
+        ...(key !== "source" ? { source: "" } : {}),
+        [key]: text,
+      },
     }));
     setSaved("");
   }
@@ -89,7 +100,14 @@ export function MaintenanceEditor({
   }
   const p = value.payload;
   return (
-    <section aria-label="対応計画・故障履歴の登録・訂正">
+    <SuggestionScope
+      label="対応計画・故障履歴の登録・訂正"
+      value={{
+        equipment_id: value.equipment_id,
+        payload: value.payload,
+        kind: value.payload.kind,
+      }}
+    >
       <h2>
         {value.maintenance_input_id
           ? "対応計画・故障履歴を訂正する"
@@ -98,12 +116,16 @@ export function MaintenanceEditor({
       <p>
         出典のある計画・実績を登録します。空欄は不明です。調達待ち・作業・停止時間を分けます。過去損失から将来故障率を生成しません。
       </p>
+      <p className="muted">
+        値を編集した場合は、出典と確認済みの扱いを引き継ぎません。変更内容に合う出典・確度を確認してください。
+      </p>
       <form onSubmit={submit}>
         <fieldset disabled={busy}>
           <legend>計画・実績の記録</legend>
           <label>
             対応計画・故障履歴の入力コード
-            <input
+            <SuggestedInput
+              field="input_code"
               required
               maxLength={100}
               disabled={Boolean(value.maintenance_input_id)}
@@ -113,25 +135,38 @@ export function MaintenanceEditor({
           </label>
           <label>
             評価・記録の期間開始
-            <input
+            <DateTimeInput
               required
               value={String(p.period_start)}
-              onChange={(event) => payload("period_start", event.target.value)}
+              onChange={(text) => payload("period_start", text)}
             />
           </label>
           <label>
             評価・記録の期間終了
-            <input
+            <DateTimeInput
               required
               value={String(p.period_end)}
-              onChange={(event) => payload("period_end", event.target.value)}
+              onChange={(text) => payload("period_end", text)}
             />
           </label>
           <p>
-            日時にはtimezoneを付けてください。計画の期間は共通の費用評価期間、履歴では過去の事象期間です。期間外費用を自動で加除しません。
+            日時は日本時間で選択します。計画の期間は共通の費用評価期間、履歴では過去の事象期間です。期間外費用を自動で加除しません。
           </p>
           <section aria-label="次回保全の選択">
             <h3>次回保全の候補</h3>
+            <p>
+              {p.maintenance_plan_id
+                ? "登録済みの保全予定を関連付けています。"
+                : "保全予定は未選択です。"}
+            </p>
+            {p.maintenance_plan_id != null && (
+              <button
+                type="button"
+                onClick={() => payload("maintenance_plan_id", null)}
+              >
+                保全予定の関連付けを外す
+              </button>
+            )}
             {plansError && <p role="alert">{plansError}</p>}
             {plans && (
               <>
@@ -151,7 +186,8 @@ export function MaintenanceEditor({
                         payload("maintenance_plan_id", row.maintenance_plan_id)
                       }
                     >
-                      {String(row.plan_code)} / {String(row.planned_start)}{" "}
+                      {String(row.plan_code)} /{" "}
+                      {displayPeriod(row.planned_start, row.planned_start)}{" "}
                       を関連付ける
                     </button>
                   ))}
@@ -171,17 +207,34 @@ export function MaintenanceEditor({
               ))}
             </select>
           </label>
-          {Object.entries(fields).map(([key, label]) => (
-            <label key={key}>
-              {label}
-              <input
-                maxLength={1000}
-                required={key === "details"}
-                value={typeof p[key] === "string" ? p[key] : ""}
-                onChange={(event) => payload(key, event.target.value || null)}
-              />
-            </label>
-          ))}
+          {Object.entries(fields)
+            .filter(([key]) => key !== "maintenance_plan_id")
+            .map(([key, label]) => (
+              <label key={key}>
+                {label}
+                {key === "interim_until" ? (
+                  <DateTimeInput
+                    value={typeof p[key] === "string" ? p[key] : ""}
+                    onChange={(text) => payload(key, text || null)}
+                  />
+                ) : (
+                  <SuggestedInput
+                    field={`payload.${key}`}
+                    inputMode={
+                      key.endsWith("_hours") || key.endsWith("_jpy")
+                        ? "decimal"
+                        : undefined
+                    }
+                    maxLength={1000}
+                    required={key === "details"}
+                    value={typeof p[key] === "string" ? p[key] : ""}
+                    onChange={(event) =>
+                      payload(key, event.target.value || null)
+                    }
+                  />
+                )}
+              </label>
+            ))}
           <label>
             交換費を評価期間の費用へ含める
             <select
@@ -207,15 +260,14 @@ export function MaintenanceEditor({
           <p>
             履歴の期間は過去の事象期間です。履歴には調達待ち・暫定終了・交換費の算入を入力しません。過去損失は履歴だけに入力します。次回保全で停止する場合は保全予定を別途登録・承認し、そのIDを関連付けてください。設備状態の自動変更は行いません。
           </p>
-          <label>
-            計画・実績の出典
-            <textarea
-              required
-              maxLength={1000}
-              value={String(p.source)}
-              onChange={(event) => payload("source", event.target.value)}
-            />
-          </label>
+          <SuggestedText
+            label="計画・実績の出典"
+            field="payload.source"
+            required
+            maxLength={1000}
+            value={String(p.source)}
+            onValue={(text) => payload("source", text)}
+          />
         </fieldset>
         <button disabled={busy}>対応計画・故障履歴の変更準備を作成</button>
       </form>
@@ -226,6 +278,6 @@ export function MaintenanceEditor({
           変更準備を保存しました。承認付きActionで保存Snapshotを確認してください。
         </p>
       )}
-    </section>
+    </SuggestionScope>
   );
 }

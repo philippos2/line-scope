@@ -1,3 +1,9 @@
+import { DateTimeInput } from "../inputs/DateTimeInput";
+import {
+  EquipmentQueryInput,
+  SuggestedInput,
+  InputAssistance,
+} from "../inputs/InputAssistance";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import {
   ApiError,
@@ -27,6 +33,7 @@ export function MaintenancePanel({
   const [kind, setKind] = useState("");
   const [periodStart, setPeriodStart] = useState("");
   const [periodEnd, setPeriodEnd] = useState("");
+  const [searched, setSearched] = useState(false);
   const [query, setQuery] = useState("");
   const [code, setCode] = useState("");
   const [rows, setRows] = useState<JsonObject[]>([]);
@@ -113,6 +120,7 @@ export function MaintenancePanel({
       if (!Array.isArray(value.data.items) || !value.data.items.every(object))
         throw new ApiError("INVALID_RESPONSE");
       setRows(value.data.items);
+      setSearched(true);
       if (typeof value.data.next_cursor === "string")
         setPage({ cursor: value.data.next_cursor, filter });
     });
@@ -143,7 +151,8 @@ export function MaintenancePanel({
       <form onSubmit={search}>
         <label>
           対応計画・故障履歴の設備名・コード
-          <input
+          <EquipmentQueryInput
+            aria-label="対応計画・故障履歴の設備名・コード"
             value={query}
             maxLength={100}
             disabled={busy}
@@ -152,7 +161,8 @@ export function MaintenancePanel({
         </label>
         <label>
           対応計画・故障履歴コード
-          <input
+          <SuggestedInput
+            field="input_code"
             value={code}
             maxLength={100}
             disabled={busy}
@@ -176,23 +186,21 @@ export function MaintenancePanel({
         </label>
         <label>
           記録検索の期間開始
-          <input
+          <DateTimeInput
             value={periodStart}
             disabled={busy}
-            onChange={(event) => setPeriodStart(event.target.value)}
+            onChange={setPeriodStart}
           />
         </label>
         <label>
           記録検索の期間終了
-          <input
+          <DateTimeInput
             value={periodEnd}
             disabled={busy}
-            onChange={(event) => setPeriodEnd(event.target.value)}
+            onChange={setPeriodEnd}
           />
         </label>
-        <p>
-          任意のtimezone付き日時を指定すると、評価・事象期間と重なる記録を取得します。
-        </p>
+        <p>日本時間で期間を選ぶと、評価・事象期間と重なる記録を取得します。</p>
         <button disabled={busy}>登録済み対応計画・故障履歴を検索</button>
       </form>
       {busy && <p role="status">対応計画・故障履歴を取得中…</p>}
@@ -221,7 +229,9 @@ export function MaintenancePanel({
       </section>
       {!busy && !error && rows.length === 0 && (
         <p>
-          候補は未取得、または該当する登録がありません。別期間の入力を勝手に合算・選択しません。
+          {searched
+            ? "該当する登録データはありません。条件を変えて検索するか、新規登録できます。"
+            : "まだ検索していません。条件を指定して登録データを検索してください。"}
         </p>
       )}
       {result && selected && (
@@ -270,12 +280,41 @@ export function MaintenancePanel({
       </button>
       {editor && (
         <>
-          <MaintenanceEditor
+          <InputAssistance
+            executionEpoch={executionEpoch}
+            kind="maintenance"
             key={editor.key}
-            initial={editor.input}
-            signal={editor.signal}
-            onPrepared={onPrepared}
-          />
+            equipment={{
+              equipment_id: editor.input.equipment_id,
+              equipment_code:
+                equipment?.equipment_id === editor.input.equipment_id
+                  ? equipment.equipment_code
+                  : String(
+                      rows.find(
+                        (row) =>
+                          row.maintenance_input_id ===
+                          editor.input.maintenance_input_id,
+                      )?.equipment_code ?? "",
+                    ),
+              equipment_name:
+                equipment?.equipment_id === editor.input.equipment_id
+                  ? equipment.equipment_name
+                  : String(
+                      rows.find(
+                        (row) =>
+                          row.maintenance_input_id ===
+                          editor.input.maintenance_input_id,
+                      )?.equipment_name ?? "登録データの対象設備",
+                    ),
+            }}
+          >
+            <MaintenanceEditor
+              key={editor.key}
+              initial={editor.input}
+              signal={editor.signal}
+              onPrepared={onPrepared}
+            />
+          </InputAssistance>
           <button onClick={closeEditor}>編集を閉じる</button>
         </>
       )}

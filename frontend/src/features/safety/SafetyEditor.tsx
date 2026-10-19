@@ -1,3 +1,9 @@
+import { DateTimeInput } from "../inputs/DateTimeInput";
+import {
+  SuggestionScope,
+  SuggestedInput,
+  SuggestedText,
+} from "../inputs/InputAssistance";
 import { useRef, useState, type FormEvent } from "react";
 import { ApiError, request } from "../../api/client";
 import { decisions, textFields, type SafetyInput } from "./model";
@@ -23,7 +29,13 @@ export function SafetyEditor({
   function payload(key: string, text: unknown) {
     setValue((previous) => ({
       ...previous,
-      payload: { ...previous.payload, [key]: text },
+      payload: {
+        ...previous.payload,
+        ...(key !== "source" && key !== "certainty"
+          ? { source: "", certainty: "ESTIMATED" }
+          : {}),
+        [key]: text,
+      },
     }));
     setSaved("");
   }
@@ -70,19 +82,26 @@ export function SafetyEditor({
   }
   const p = value.payload;
   return (
-    <section aria-label="安全入力の登録・訂正">
+    <SuggestionScope
+      label="安全入力の登録・訂正"
+      value={{ equipment_id: value.equipment_id, payload: value.payload }}
+    >
       <h2>
         {value.safety_input_id ? "安全入力を訂正する" : "安全入力を登録する"}
       </h2>
       <p>
         出典のある観測・基準・判断を登録します。空欄は不明です。数値基準や故障確率をこの画面で生成しません。
       </p>
+      <p className="muted">
+        値を編集した場合は、出典と確認済みの扱いを引き継ぎません。変更内容に合う出典・確度を確認してください。
+      </p>
       <form onSubmit={submit}>
         <fieldset disabled={busy}>
           <legend>安全判断の記録</legend>
           <label>
             安全入力の入力コード
-            <input
+            <SuggestedInput
+              field="input_code"
               required
               maxLength={100}
               disabled={Boolean(value.safety_input_id)}
@@ -92,42 +111,41 @@ export function SafetyEditor({
           </label>
           <label>
             安全情報の適用開始
-            <input
+            <DateTimeInput
               required
               value={String(p.period_start)}
-              onChange={(event) => payload("period_start", event.target.value)}
+              onChange={(text) => payload("period_start", text)}
             />
           </label>
           <label>
             安全情報の適用終了
-            <input
+            <DateTimeInput
               required
               value={String(p.period_end)}
-              onChange={(event) => payload("period_end", event.target.value)}
+              onChange={(text) => payload("period_end", text)}
             />
           </label>
           <p>
-            日時にはtimezoneを付けてください。適用期間外は安全判定不明として表示します。
+            日時は日本時間で選択します。適用期間外は安全判定不明として表示します。
           </p>
           {Object.entries(textFields).map(([key, label]) => (
-            <label key={key}>
-              {label}
-              <textarea
-                maxLength={1000}
-                value={typeof p[key] === "string" ? p[key] : ""}
-                onChange={(event) => payload(key, event.target.value || null)}
-              />
-            </label>
-          ))}
-          <label>
-            安全判断の出典
-            <textarea
-              required
+            <SuggestedText
+              key={key}
+              label={label}
+              field={`payload.${key}`}
               maxLength={1000}
-              value={String(p.source)}
-              onChange={(event) => payload("source", event.target.value)}
+              value={typeof p[key] === "string" ? p[key] : ""}
+              onValue={(text) => payload(key, text || null)}
             />
-          </label>
+          ))}
+          <SuggestedText
+            label="安全判断の出典"
+            field="payload.source"
+            required
+            maxLength={1000}
+            value={String(p.source)}
+            onValue={(text) => payload("source", text)}
+          />
           <label>
             安全判定
             <select
@@ -161,6 +179,6 @@ export function SafetyEditor({
           変更準備を保存しました。承認付きActionで保存Snapshotを確認してください。
         </p>
       )}
-    </section>
+    </SuggestionScope>
   );
 }

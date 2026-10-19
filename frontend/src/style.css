@@ -1662,3 +1662,17 @@ body:has(.reference-drawer:modal) {
     grid-template-columns: minmax(0, 1fr);
   }
 }
+
+.input-assistance {
+  margin: 16px 0;
+}
+.suggested-text > label {
+  display: block;
+  margin-bottom: 8px;
+}
+:is(.economic-panel, .capacity-panel, .safety-panel, .maintenance-panel)
+  label
+  > small {
+  display: block;
+  margin: 4px 0 10px;
+}

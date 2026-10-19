@@ -503,6 +503,15 @@ try {
     await page
       .getByRole("button", { name: "比較の根拠を確かめる", exact: true })
       .click();
+    await expect(page.getByRole("dialog")).toContainText(
+      "対象結果：対応案の比較",
+    );
+    await page.keyboard.press("Escape");
+    await page.getByRole("tab", { name: "出典と経路", exact: true }).click();
+    await page
+      .locator("#panel-evidence")
+      .getByRole("button", { name: "比較", exact: true })
+      .click();
     await expect(page.locator("#panel-evidence")).toContainText(
       "比較の出典と経路",
     );

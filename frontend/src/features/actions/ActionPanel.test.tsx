@@ -198,7 +198,7 @@ it("reads the saved rejection after a deliberate reject and disables further app
     screen.getByLabelText("保存Snapshotと操作内容を確認しました"),
   );
   await user.click(screen.getByRole("button", { name: "変更要求を拒否" }));
-  await screen.findByText(/状態：REJECTED/);
+  await screen.findByText(/状態：拒否済み/);
   expect(fetcher.mock.calls[1][0]).toBe(`/api/approvals/${approvalId}/reject`);
   expect(fetcher.mock.calls[1][1].body).toBeUndefined();
   expect(fetcher.mock.calls[2][1].method).toBe("GET");
