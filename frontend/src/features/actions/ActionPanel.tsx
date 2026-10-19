@@ -32,6 +32,7 @@ export function ActionPanel({
   initiallyOpen?: boolean;
 }) {
   const [message, setMessage] = useState(initialMessage);
+  const [preparedMessage, setPreparedMessage] = useState("");
   const [id, setId] = useState("");
   const [saved, setSaved] = useState<Envelope | null>(null);
   const [execution, setExecution] = useState<Envelope | null>(null);
@@ -142,10 +143,12 @@ export function ActionPanel({
     handledOpen.current = requestedOpen;
     open(requestedOpen.id);
   }, [requestedOpen, open, busy]);
+  const alreadyPrepared =
+    Boolean(message.trim()) && preparedMessage === message.trim();
   function prepare(event: FormEvent) {
     event.preventDefault();
     const command = message.trim();
-    if (!command) return;
+    if (!command || pending.current || alreadyPrepared) return;
     if (retry.current?.message !== command)
       retry.current = { message: command, key: crypto.randomUUID() };
     setId("");
@@ -169,6 +172,7 @@ export function ActionPanel({
         return;
       }
       setId(requestId);
+      setPreparedMessage(command);
       await load(requestId, signal);
     });
   }
@@ -294,9 +298,21 @@ export function ActionPanel({
           disabled={busy}
           placeholder="例：M-204の現在状態をRUNNINGに変更する準備を作って"
         />
-        <button disabled={busy || !message.trim()}>
-          変更指示から準備を作成
+        <button
+          disabled={busy || !message.trim() || alreadyPrepared}
+          aria-describedby="action-prepare-reason"
+        >
+          {alreadyPrepared ? "変更準備を作成済み" : "変更指示から準備を作成"}
         </button>
+        <p id="action-prepare-reason" role="status">
+          {busy
+            ? "処理が完了するまで操作できません。"
+            : alreadyPrepared
+              ? "この指示の変更準備は作成済みです。保存内容と承認状態を確認してください。"
+              : !message.trim()
+                ? "変更準備には対象と変更内容の入力が必要です。"
+                : "変更準備だけでは登録値は変わりません。"}
+        </p>
       </form>
       {!message.trim() && (
         <p className="notice">

@@ -336,7 +336,7 @@ button {
 }
 button:disabled {
   opacity: 0.6;
-  cursor: wait;
+  cursor: default;
 }
 button[aria-pressed="true"] {
   border-color: var(--accent);
@@ -1675,4 +1675,39 @@ body:has(.reference-drawer:modal) {
   > small {
   display: block;
   margin: 4px 0 10px;
+}
+
+/* Preparation success is a completed state, not a pending request. */
+.operation-submit:disabled {
+  cursor: default;
+}
+.operation-submit[aria-busy="true"],
+button[aria-busy="true"] {
+  cursor: wait;
+}
+.operation-submit[data-state="prepared"] {
+  opacity: 1;
+  background: var(--panel);
+  color: var(--text);
+}
+.operation-completion {
+  margin-top: 20px;
+  padding: 20px;
+  border: 2px solid var(--accent);
+  border-radius: 8px;
+  background: var(--panel);
+  scroll-margin-top: 90px;
+}
+.operation-completion h3 {
+  color: var(--text);
+  font-size: 20px;
+  font-weight: 700;
+  margin-bottom: 12px;
+}
+.operation-completion code {
+  font-size: 16px;
+  overflow-wrap: anywhere;
+}
+.operation-completion > details {
+  margin: 16px 0;
 }

@@ -20,12 +20,14 @@ import { blankInput, readInput, kinds, type MaintenanceInput } from "./model";
 export function MaintenancePanel({
   equipment,
   onPrepared,
+  onOpenPrepared,
   onInvestigate,
   executionEpoch,
   initiallyOpen = false,
 }: {
   equipment: EquipmentCandidate | null;
   onPrepared: (id: string) => void;
+  onOpenPrepared?: (id: string) => void;
   onInvestigate: (message: string) => void;
   executionEpoch: number;
   initiallyOpen?: boolean;
@@ -313,6 +315,7 @@ export function MaintenancePanel({
               initial={editor.input}
               signal={editor.signal}
               onPrepared={onPrepared}
+              onOpenPrepared={onOpenPrepared}
             />
           </InputAssistance>
           <button onClick={closeEditor}>編集を閉じる</button>

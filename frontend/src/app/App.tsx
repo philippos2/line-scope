@@ -45,8 +45,6 @@ export function App() {
   >(null);
   const [savedRequest, setSavedRequest] = useState<Envelope | null>(null);
   const [step, setStep] = useState<Step>("graph");
-  const activeTab = useRef(step);
-  activeTab.current = step;
   const [evidenceKind, setEvidenceKind] = useState<
     "graph" | "comparison" | "documents"
   >("graph");
@@ -456,11 +454,10 @@ export function App() {
       "（日本時間）"
     );
   }
-  function prepareInput(id: string, navigate = true) {
+  function prepareInput(id: string) {
     dirty.current.delete("prepare");
     setActionDraft("");
     setEconomicPrepared(id);
-    if (navigate && activeTab.current === "prepare") setStep("execution");
   }
   function openPrepared(id: string) {
     setEconomicPrepared(id);
@@ -1002,7 +999,7 @@ export function App() {
                         (decisionEquipment?.equipment_id ?? "none")
                       }
                       equipment={decisionEquipment}
-                      onPrepared={(id) => prepareInput(id, false)}
+                      onPrepared={prepareInput}
                       onOpenPrepared={openPrepared}
                       onInvestigate={(text) => {
                         draftInvestigation(text, false);
@@ -1029,6 +1026,7 @@ export function App() {
                       }
                       equipment={decisionEquipment}
                       onPrepared={prepareInput}
+                      onOpenPrepared={openPrepared}
                       onInvestigate={(text) => {
                         draftInvestigation(text, false);
                         setStep("investigation");
@@ -1053,6 +1051,7 @@ export function App() {
                       }
                       equipment={decisionEquipment}
                       onPrepared={prepareInput}
+                      onOpenPrepared={openPrepared}
                       onInvestigate={(text) => {
                         draftInvestigation(text, false);
                         setStep("investigation");
@@ -1079,6 +1078,7 @@ export function App() {
                       }
                       equipment={decisionEquipment}
                       onPrepared={prepareInput}
+                      onOpenPrepared={openPrepared}
                       onInvestigate={(text) => {
                         draftInvestigation(text, false);
                         setStep("investigation");

@@ -229,6 +229,8 @@ test("a prepared input remains visible, exposes its saved contents and copyable 
   await waitFor(() =>
     expect((button as HTMLButtonElement).disabled).toBe(true),
   );
+  expect(button.textContent).toBe("変更準備を作成済み");
+  expect(button.getAttribute("aria-busy")).toBe("false");
   fireEvent.submit(button.closest("form")!);
   expect(request).toHaveBeenCalledTimes(1);
   expect(opened).not.toHaveBeenCalled();
@@ -238,7 +240,7 @@ test("a prepared input remains visible, exposes its saved contents and copyable 
   fireEvent.click(screen.getByRole("button", { name: "変更要求IDをコピー" }));
   await waitFor(() => expect(copy).toHaveBeenCalledWith("saved-request"));
   fireEvent.click(
-    screen.getByRole("button", { name: "承認・実行の画面で開く" }),
+    screen.getByRole("button", { name: "保存内容を確認・承認へ進む" }),
   );
   expect(opened).toHaveBeenCalledWith("saved-request");
   fireEvent.change(screen.getByLabelText("稼働時間"), {

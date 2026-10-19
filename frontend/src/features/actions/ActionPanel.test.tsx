@@ -136,6 +136,18 @@ it("clears a previous request ID on uncertain Prepare and reuses the same retry 
   );
   await screen.findByRole("heading", { name: "保存済みSnapshot" });
   expect(fetcher).toHaveBeenCalledTimes(4);
+  expect(
+    (
+      screen.getByRole("button", {
+        name: "変更準備を作成済み",
+      }) as HTMLButtonElement
+    ).disabled,
+  ).toBe(true);
+  expect(
+    screen.getByText(
+      "この指示の変更準備は作成済みです。保存内容と承認状態を確認してください。",
+    ),
+  ).toBeTruthy();
   const original = fetcher.mock.calls[1][1].headers["Idempotency-Key"];
   expect(original).toBeTruthy();
   expect(fetcher.mock.calls[2][1].headers["Idempotency-Key"]).toBe(original);
