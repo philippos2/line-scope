@@ -178,6 +178,38 @@ try {
     await money();
     await capacity();
     report.timings_ms.selected_to_results = Date.now() - start;
+    const proposal = page.locator(".capacity-assessment");
+    await expect(proposal).toContainText(
+      "品質・残るリスクは、この版では評価対象外です。",
+    );
+    await expect(proposal).toContainText(
+      "今回の評価では安全条件の入力を選択していません。",
+    );
+    expect(await proposal.locator("dt").allTextContents()).not.toContain(
+      "品質",
+    );
+    expect(await proposal.locator("dt").allTextContents()).not.toContain(
+      "残るリスク",
+    );
+    await proposal.getByText("判定の出典と条件", { exact: true }).click();
+    await expect(proposal).toContainText(
+      "この版では、代替運転の費用を比較結果に含めていません。",
+    );
+    await expect(proposal).not.toContainText("確認条件を確認");
+    await page.getByText("能力データを確認・選び直す", { exact: true }).click();
+    const choice = page
+      .locator(".input-choice")
+      .filter({ hasText: "能力データを確認・選び直す" });
+    await expect(choice).toContainText(
+      "2026/10/18 09:00〜2026/10/19 09:00（日本時間）",
+    );
+    await expect(choice.locator("select")).toContainText("P-100");
+    expect(await choice.locator("select").innerText()).not.toMatch(
+      /S1-CAPACITY|T00:00:00/,
+    );
+    await page.getByText("能力データを確認・選び直す", { exact: true }).click();
+    await proposal.getByText("判定の出典と条件", { exact: true }).click();
+
     await expect(page.locator(".available-proposal")).toContainText(
       "吸収できる見込み",
     );

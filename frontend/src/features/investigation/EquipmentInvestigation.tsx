@@ -33,6 +33,24 @@ import {
 } from "./AlternativeAssessment";
 import { useEquipmentInvestigation } from "./useEquipmentInvestigation";
 
+export function displayPeriod(start: unknown, end: unknown) {
+  const formatter = new Intl.DateTimeFormat("ja-JP", {
+    timeZone: "Asia/Tokyo",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23",
+  });
+  const format = (value: unknown) => {
+    const date = new Date(String(value));
+    return Number.isNaN(date.getTime())
+      ? "日時を取得できません"
+      : formatter.format(date);
+  };
+  return `${format(start)}〜${format(end)}（日本時間）`;
+}
 function Failure({ code, retry }: { code?: string; retry: () => void }) {
   return code ? (
     <div className="read-failure" role="alert">
@@ -57,7 +75,9 @@ function InputChoice({
   loading,
   error,
   retry,
+  productTitle,
 }: {
+  productTitle: (id: string) => string;
   kind: "economic" | "capacity";
   values: Envelope[];
   value: string;
@@ -97,8 +117,11 @@ function InputChoice({
                   key={String(r[`${kind}_input_id`])}
                   value={String(r[`${kind}_input_id`])}
                 >
-                  {String(r.input_code)}・第{String(r.version)}版・
-                  {String(payload.period_start)}〜{String(payload.period_end)}
+                  {kind === "capacity"
+                    ? productTitle(String(r.product_id))
+                    : "損害額の算定データ"}
+                  ・第{String(r.version)}版・
+                  {displayPeriod(payload.period_start, payload.period_end)}
                 </option>
               );
             })}
@@ -108,9 +131,7 @@ function InputChoice({
       {p && (
         <dl>
           <dt>評価期間（読み取り専用）</dt>
-          <dd>
-            {String(p.period_start)}〜{String(p.period_end)}
-          </dd>
+          <dd>{displayPeriod(p.period_start, p.period_end)}</dd>
           <dt>出典</dt>
           <dd>
             {kind === "capacity"
@@ -126,6 +147,12 @@ function InputChoice({
               : "選択した登録データを使用しています。"}
           </dd>
         </dl>
+      )}
+      {object(record) && (
+        <details>
+          <summary>技術情報</summary>
+          <pre>{String(record.input_code)}</pre>
+        </details>
       )}
     </details>
   );
@@ -594,6 +621,9 @@ export function EquipmentInvestigation({
             )}
             {root && (
               <InputChoice
+                productTitle={(id) =>
+                  titleOf({ entity_type: "Product", entity_id: id })
+                }
                 kind="economic"
                 values={model.economic}
                 value={model.economicId}
@@ -651,12 +681,16 @@ export function EquipmentInvestigation({
                         登録上の状態：
                         {registeredState(stateOf(candidate.entity_id))}
                       </p>
-                      <p>
-                        利用可能性：
-                        {availabilityLabel(
-                          alternativesUsable ? fact?.availability : "UNKNOWN",
-                        )}
-                      </p>
+                      {!options.some(
+                        (option) => option.equipment_id === candidate.entity_id,
+                      ) && (
+                        <p>
+                          利用可能性：
+                          {availabilityLabel(
+                            alternativesUsable ? fact?.availability : "UNKNOWN",
+                          )}
+                        </p>
+                      )}
                       {!available && <p>{availabilityReason(fact)}</p>}
                       {equipment && (
                         <button onClick={() => choose(equipment)}>
@@ -705,6 +739,9 @@ export function EquipmentInvestigation({
             ) : null}
             {candidateRefs.length > 0 && (
               <InputChoice
+                productTitle={(id) =>
+                  titleOf({ entity_type: "Product", entity_id: id })
+                }
                 kind="capacity"
                 values={model.capacity}
                 value={model.capacityId}

@@ -32,14 +32,25 @@ function assessmentLabel(value: unknown) {
   };
   return labels[String(value)] ?? "判定を確認できません";
 }
-const missingLabels: Record<string, string> = {
-  economic_input: "代替案の費用データ",
-  confirmed_continued_operation_conditions: "運転継続の確認条件",
-  operational_feasibility: "運用上の実現条件",
-  residual_risk: "残るリスク",
-  structural_substitution: "代替候補の利用条件",
-  operational_safety: "運転時の安全条件",
-};
+function missingExplanation(key: unknown, safety: unknown) {
+  const messages: Record<string, string> = {
+    economic_input: "この版では、代替運転の費用を比較結果に含めていません。",
+    confirmed_continued_operation_conditions:
+      safety === "STOP_REQUIRED"
+        ? "選択した安全条件では停止が必要と判定されています。"
+        : safety === "CONDITIONAL"
+          ? "選択した安全条件の適用範囲と条件文に従う必要があります。"
+          : "今回の評価では、運転を続けるための安全条件は確認できていません。",
+    operational_feasibility:
+      "今回の評価では、運用上の実現条件を確認できていません。",
+    residual_risk: "この版では、残るリスクは評価対象外です。",
+    structural_substitution:
+      "今回の評価では、代替候補の利用条件を確認できていません。",
+    operational_safety:
+      "今回の評価では、運転時の安全条件を確認できていません。",
+  };
+  return messages[String(key)] ?? "今回の評価に含まれない確認条件があります。";
+}
 export function AlternativeAssessment({
   option,
   candidate,
@@ -121,12 +132,13 @@ export function AlternativeAssessment({
         <dt>能力（{product}）</dt>
         <dd>{assessmentLabel(option.capacity_status)}</dd>
         <dt>安全</dt>
-        <dd>{assessmentLabel(assessment.safety)}</dd>
-        <dt>品質</dt>
-        <dd>{assessmentLabel(assessment.quality)}</dd>
-        <dt>残るリスク</dt>
-        <dd>{assessmentLabel(option.residual_risk)}</dd>
+        <dd>
+          {assessment.safety === "UNKNOWN"
+            ? "今回の評価では安全条件の入力を選択していません。"
+            : assessmentLabel(assessment.safety)}
+        </dd>
       </dl>
+      <p className="muted">品質・残るリスクは、この版では評価対象外です。</p>
       <p className="muted">
         利用可能性と能力の評価は、運転許可を意味しません。
       </p>
@@ -134,17 +146,15 @@ export function AlternativeAssessment({
         <summary>判定の出典と条件</summary>
         <ul>
           {missing.map((value, i) => (
-            <li key={i}>
-              {missingLabels[String(value)] ?? "追加の確認条件"}
-              を確認してください。
-            </li>
+            <li key={i}>{missingExplanation(value, assessment.safety)}</li>
           ))}
         </ul>
-        <p>
-          {assessment.operational_permission === false
-            ? "この評価は運転許可を出していません。"
-            : "運転許可は別途確認してください。"}
-        </p>
+        {assessment.quality !== "UNKNOWN" && assessment.quality != null && (
+          <p>品質の返却値：{assessmentLabel(assessment.quality)}</p>
+        )}
+        {option.residual_risk !== "UNKNOWN" && option.residual_risk != null && (
+          <p>残るリスクの返却値：{assessmentLabel(option.residual_risk)}</p>
+        )}
         <details>
           <summary>技術情報</summary>
           <pre>{JSON.stringify({ option, candidate }, null, 2)}</pre>
