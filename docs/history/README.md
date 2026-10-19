@@ -651,3 +651,5 @@ Dockerで追加36テスト成功、ruff check / format、git diff --check成功�
 - [代替提案の評価範囲・期間表示の修正](2026-10-19-alternative-evaluation-display.md)
 
 - [損害額の出典の重複表示修正](2026-10-19-loss-source-display.md)
+
+- [PR #265後のブラウザ指摘と文書化](2026-10-19-post265-ui-findings.md)
