@@ -422,6 +422,12 @@ try {
       viewport,
     );
     expect(reads).toBe(0);
+    await page.evaluate(() =>
+      globalThis.scrollTo(0, globalThis.document.body.scrollHeight),
+    );
+    const pinned = await page.getByRole("tablist").boundingBox();
+    expect(pinned.y).toBeGreaterThanOrEqual(0);
+    expect(pinned.y).toBeLessThan(2);
   });
   await check("workspace-question-layout-1600", async () => {
     await search("M-204");
@@ -490,6 +496,63 @@ try {
     await page
       .getByRole("tab", { name: "接続及び影響範囲", exact: true })
       .click();
+  });
+  await check("documents-1600", async () => {
+    await search("M-204");
+    await choose();
+    await money();
+    await page.getByRole("tab", { name: "出典と経路", exact: true }).click();
+    const panel = page.locator("#panel-evidence");
+    await panel.getByRole("button", { name: "比較", exact: true }).click();
+    await expect(panel).toContainText("比較の根拠は未取得");
+    await expect(
+      panel.getByRole("button", {
+        name: "選択設備の関連文書を検索",
+        exact: true,
+      }),
+    ).toHaveCount(0);
+    await panel.getByRole("button", { name: "関連文書", exact: true }).click();
+    await expect(panel).toContainText("まだ文書を検索していません");
+    await panel
+      .getByRole("button", { name: "選択設備の関連文書を検索", exact: true })
+      .click();
+    await expect(panel.locator(".document-citation")).toHaveCount(1, {
+      timeout: 45000,
+    });
+    await expect(panel.locator("blockquote")).toContainText("M-204");
+    await expect(
+      panel.getByRole("heading", { name: "関連文書の検索結果", exact: true }),
+    ).toBeFocused();
+    await page.route("**/api/agent", async (route) => {
+      if (!route.request().postDataJSON()?.message.startsWith("文書検索："))
+        return route.continue();
+      await route.fulfill({
+        status: 503,
+        json: {
+          request_id: "controlled-documents",
+          context_id: null,
+          status: "error",
+          answer: null,
+          data: {},
+          evidence: {},
+          warnings: [],
+          errors: [{ code: "DEPENDENCY_UNAVAILABLE" }],
+        },
+      });
+    });
+    await panel
+      .getByRole("button", { name: "選択設備の関連文書を検索", exact: true })
+      .click();
+    await expect(panel.locator('[role="alert"]')).toContainText("接続");
+    await expect(panel.locator("blockquote")).toContainText("M-204");
+    await page.unroute("**/api/agent");
+    await panel
+      .getByRole("button", { name: "文書検索を再試行", exact: true })
+      .click();
+    await expect(panel.locator('[role="alert"]')).toHaveCount(0);
+    await expect(
+      panel.getByRole("heading", { name: "関連文書の検索結果", exact: true }),
+    ).toBeFocused();
   });
   await check("switch-delayed-390", async () => {
     await search();

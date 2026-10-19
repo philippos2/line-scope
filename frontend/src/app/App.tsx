@@ -39,6 +39,10 @@ export function App() {
     null,
   );
   const [documentResult, setDocumentResult] = useState<Envelope | null>(null);
+  const [documentBusy, setDocumentBusy] = useState(false);
+  const [documentError, setDocumentError] = useState("");
+  const documentRequest = useRef<AbortController | null>(null);
+  const documentHeading = useRef<HTMLHeadingElement>(null);
   const [stateResult, setStateResult] = useState<Envelope | null>(null);
   const [comparisonStale, setComparisonStale] = useState(false);
   const [stateEpoch, setStateEpoch] = useState(0);
@@ -96,6 +100,13 @@ export function App() {
     {},
   );
   const dirty = useRef(new Set<string>());
+  useEffect(() => {
+    documentRequest.current?.abort();
+    setDocumentResult(null);
+    setDocumentError("");
+    setDocumentBusy(false);
+    return () => documentRequest.current?.abort();
+  }, [connected, equipment?.equipment_id]);
   function chooseRoot(item: EquipmentCandidate | null) {
     if (item?.equipment_id === equipment?.equipment_id) return true;
     if (
@@ -326,26 +337,49 @@ export function App() {
       ? documentResult
       : evidenceKind === "comparison"
         ? comparisonResult
-        : (graphResult ?? analysisResult);
+        : (graphResult ?? model.states.down?.value ?? analysisResult);
   function prepareInput(id: string) {
     dirty.current.delete("prepare");
     setActionDraft("");
     setEconomicPrepared(id);
     setStep("execution");
   }
-  function investigateGraph(text: string) {
-    if (busy || !equipment) return;
-    const owner = equipment.equipment_id;
-    void perform(
-      () => request("", "/agent", { message: text }, abort.current?.signal),
-      (value) => {
-        if (owner === equipment.equipment_id) {
-          setDocumentResult(value);
-          setEvidenceKind("documents");
-        }
-      },
-    );
+  async function searchDocuments() {
+    if (documentBusy || !equipment) return;
+    documentRequest.current?.abort();
+    const controller = new AbortController();
+    documentRequest.current = controller;
+    setDocumentBusy(true);
+    setDocumentError("");
+    setEvidenceKind("documents");
+    try {
+      const value = await request(
+        "",
+        "/agent",
+        {
+          message: `文書検索：${equipment.equipment_code}の保全調査`,
+        },
+        controller.signal,
+      );
+      if (!controller.signal.aborted) {
+        setDocumentResult(value);
+        requestAnimationFrame(() => {
+          if (documentHeading.current?.getClientRects().length)
+            documentHeading.current.focus();
+        });
+      }
+    } catch (caught) {
+      if (!controller.signal.aborted)
+        setDocumentError(
+          explanation(
+            caught instanceof ApiError ? caught.code : "REQUEST_FAILED",
+          ),
+        );
+    } finally {
+      if (!controller.signal.aborted) setDocumentBusy(false);
+    }
   }
+
   return (
     <>
       <a className="skip-link" href="#workspace">
@@ -688,42 +722,78 @@ export function App() {
                     </button>
                   ))}
                 </nav>
-                <h2>
+                {evidenceKind === "documents" && (
+                  <section aria-label="関連文書の検索">
+                    <h2>関連文書を検索する</h2>
+                    <p>
+                      検索対象：
+                      {equipment
+                        ? `${equipment.equipment_name} · ${equipment.equipment_code}`
+                        : "左の検索から設備を選んでください。"}
+                    </p>
+                    <button
+                      disabled={documentBusy || !equipment}
+                      onClick={() => void searchDocuments()}
+                    >
+                      選択設備の関連文書を検索
+                    </button>
+                    {documentBusy && (
+                      <p role="status">関連文書を検索しています…</p>
+                    )}
+                    {documentError && (
+                      <div role="alert">
+                        <p>{documentError}</p>
+                        <button
+                          onClick={() => void searchDocuments()}
+                          disabled={documentBusy}
+                        >
+                          文書検索を再試行
+                        </button>
+                      </div>
+                    )}
+                  </section>
+                )}
+                <h2 ref={documentHeading} tabIndex={-1}>
                   {evidenceKind === "graph"
-                    ? "調査"
+                    ? "調査の出典と経路"
                     : evidenceKind === "comparison"
-                      ? "比較"
-                      : "関連文書"}
-                  の出典と経路
+                      ? "比較の出典と経路"
+                      : "関連文書の検索結果"}
                 </h2>
                 {evidenceResult ? (
                   <>
-                    <h2>
-                      {evidenceKind === "comparison"
-                        ? "対応案比較の根拠"
-                        : "関係と影響の調査根拠"}
-                    </h2>
-                    {(stale || comparisonStale) && (
+                    {(evidenceKind === "comparison"
+                      ? comparisonStale
+                      : evidenceKind === "graph"
+                        ? stale || model.stale
+                        : false) && (
                       <p className="notice">
-                        変更前の取得結果を含みます。再調査・再比較してください。
+                        更新前の取得結果です。対象の情報を再取得してください。
                       </p>
                     )}
-                    <EvidencePanel result={evidenceResult} />
+                    {evidenceKind === "documents" && (
+                      <p>
+                        検索で得た文書抜粋です。安全性や費用の確定判断ではありません。
+                      </p>
+                    )}
+                    <EvidencePanel
+                      result={evidenceResult}
+                      documentsOnly={evidenceKind === "documents"}
+                    />
                   </>
                 ) : (
-                  <p>調査すると、経路や登録情報の根拠を確認できます。</p>
+                  <p>
+                    {evidenceKind === "graph"
+                      ? "調査の根拠は未取得です。左から設備を選び、接続及び影響範囲を取得してください。"
+                      : evidenceKind === "comparison"
+                        ? "比較の根拠は未取得です。対応案を比べるタブで比較を実行してください。"
+                        : documentBusy
+                          ? "検索結果を待っています。"
+                          : documentError
+                            ? "検索に失敗しました。上の説明を確認し、再試行してください。"
+                            : "まだ文書を検索していません。上のボタンから検索してください。"}
+                  </p>
                 )}
-                <h2>関連文書を検索する</h2>
-                <button
-                  disabled={busy || !equipment}
-                  onClick={() =>
-                    investigateGraph(
-                      `文書検索：${equipment?.equipment_code}の保全調査`,
-                    )
-                  }
-                >
-                  選択設備の関連文書を検索
-                </button>
               </section>
               <section
                 hidden={step !== "prepare"}

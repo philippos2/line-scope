@@ -1468,7 +1468,11 @@ summary {
 
 /* Workspace tabs share one investigation; hiding a panel does not discard it. */
 .scenario-shell .workspace-tabs {
-  position: relative;
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  background: var(--bg);
+  padding-top: 8px;
   margin: 0 0 1rem;
   flex-wrap: wrap;
 }
@@ -1525,7 +1529,7 @@ summary {
   }
 }
 @media (max-width: 767px) {
-  .workspace-tabs {
+  .scenario-shell .workspace-tabs {
     flex-wrap: nowrap;
     overflow-x: auto;
     max-width: 100%;
@@ -1578,4 +1582,11 @@ summary {
     position: static;
     max-height: none;
   }
+}
+
+.investigation-main {
+  overflow: visible;
+}
+.investigation-main [tabindex="-1"] {
+  scroll-margin-top: 120px;
 }
