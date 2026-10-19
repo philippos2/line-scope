@@ -279,6 +279,15 @@ try {
     await page.locator(".graph-node-access summary").click();
   });
   await check("workspace-tabs-1600", async () => {
+    const sidebar = await page
+      .getByRole("complementary", { name: "起点設備の検索" })
+      .boundingBox();
+    const tabs = await page.getByRole("tablist").boundingBox();
+    const main = await page.locator(".investigation-main").boundingBox();
+    expect(tabs.x).toBe(main.x);
+    expect(tabs.x).toBeGreaterThan(sidebar.x + sidebar.width);
+    expect(Math.abs(tabs.y - sidebar.y)).toBeLessThan(2);
+
     await expect(page.getByRole("tab")).toHaveText([
       "接続及び影響範囲",
       "対応案を比べる",
@@ -414,26 +423,32 @@ try {
     );
     expect(reads).toBe(0);
   });
-  await check("workspace-question-errors-768", async () => {
+  await check("workspace-question-layout-1600", async () => {
     await search("M-204");
     await choose();
     await money();
     let message = "";
+    let release;
+    let gate = new Promise((resolve) => {
+      release = resolve;
+    });
+    let succeeds = false;
     await page.route("**/api/agent", async (route) => {
       const body = route.request().postDataJSON();
       if (body.message.startsWith("関係分析 ")) return route.continue();
       message = body.message;
+      await gate;
       await route.fulfill({
-        status: 503,
+        status: succeeds ? 200 : 503,
         json: {
           request_id: "controlled-limit",
           context_id: null,
-          status: "error",
-          answer: null,
+          status: succeeds ? "ok" : "error",
+          answer: succeeds ? "表示位置の検証用の回答です。" : null,
           data: {},
           evidence: {},
           warnings: [],
-          errors: [{ code: "AGENT_LIMIT_REACHED" }],
+          errors: succeeds ? [] : [{ code: "AGENT_LIMIT_REACHED" }],
         },
       });
     });
@@ -441,11 +456,34 @@ try {
     await page
       .getByLabel("関係や影響について質問する")
       .fill("この設備の状態は？");
+    const field = page.getByLabel("関係や影響について質問する");
+    const before = await field.boundingBox();
     await page.getByRole("button", { name: "送信", exact: true }).click();
+    await expect(
+      page.locator('#panel-investigation [role="status"]'),
+    ).toBeVisible();
+    expect(await field.boundingBox()).toEqual(before);
+    release();
     await expect(
       page.locator('#panel-investigation [role="alert"]'),
     ).toContainText("制限時間");
     expect(message).toContain("調査対象の設備コードはM-204");
+    expect(await field.boundingBox()).toEqual(before);
+    succeeds = true;
+    gate = new Promise((resolve) => {
+      release = resolve;
+    });
+    await page.getByRole("button", { name: "送信", exact: true }).click();
+    await expect(
+      page.locator('#panel-investigation [role="status"]'),
+    ).toBeVisible();
+    expect(await field.boundingBox()).toEqual(before);
+    release();
+    await expect(page.locator(".answer")).toHaveText(
+      "表示位置の検証用の回答です。",
+    );
+    expect(await field.boundingBox()).toEqual(before);
+
     await expect(page.getByLabel("関係や影響について質問する")).toHaveValue(
       "この設備の状態は？",
     );

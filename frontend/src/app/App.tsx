@@ -420,48 +420,50 @@ export function App() {
                 dirty.current.add(step);
             }}
           >
-            <nav
-              className="context-tabs workspace-tabs"
-              aria-label="機能を選ぶ"
-              role="tablist"
-            >
-              {panels.map(([key, title], index) => (
-                <button
-                  key={key}
-                  role="tab"
-                  id={`tab-${key}`}
-                  aria-controls={`panel-${key}`}
-                  aria-selected={step === key}
-                  tabIndex={step === key ? 0 : -1}
-                  onKeyDown={(event) => {
-                    if (
-                      ["ArrowLeft", "ArrowRight", "Home", "End"].includes(
-                        event.key,
-                      )
-                    ) {
-                      event.preventDefault();
-                      const next =
-                        event.key === "Home"
-                          ? 0
-                          : event.key === "End"
-                            ? panels.length - 1
-                            : (index +
-                                (event.key === "ArrowRight" ? 1 : -1) +
-                                panels.length) %
-                              panels.length;
-                      setStep(panels[next][0]);
-                      document
-                        .getElementById(`tab-${panels[next][0]}`)
-                        ?.focus();
-                    }
-                  }}
-                  onClick={() => setStep(key)}
-                >
-                  {title}
-                </button>
-              ))}
-            </nav>
             <WorkspaceHeader
+              tabs={
+                <nav
+                  className="context-tabs workspace-tabs"
+                  aria-label="機能を選ぶ"
+                  role="tablist"
+                >
+                  {panels.map(([key, title], index) => (
+                    <button
+                      key={key}
+                      role="tab"
+                      id={`tab-${key}`}
+                      aria-controls={`panel-${key}`}
+                      aria-selected={step === key}
+                      tabIndex={step === key ? 0 : -1}
+                      onKeyDown={(event) => {
+                        if (
+                          ["ArrowLeft", "ArrowRight", "Home", "End"].includes(
+                            event.key,
+                          )
+                        ) {
+                          event.preventDefault();
+                          const next =
+                            event.key === "Home"
+                              ? 0
+                              : event.key === "End"
+                                ? panels.length - 1
+                                : (index +
+                                    (event.key === "ArrowRight" ? 1 : -1) +
+                                    panels.length) %
+                                  panels.length;
+                          setStep(panels[next][0]);
+                          document
+                            .getElementById(`tab-${panels[next][0]}`)
+                            ?.focus();
+                        }
+                      }}
+                      onClick={() => setStep(key)}
+                    >
+                      {title}
+                    </button>
+                  ))}
+                </nav>
+              }
               root={equipment}
               model={model}
               onChoose={chooseRoot}
@@ -521,51 +523,57 @@ export function App() {
                 aria-label="調査と回答"
               >
                 <div className="query-and-answer">
-                  {busy && (
-                    <p role="status">
-                      質問を確認しています。応答に最大120秒程度かかる場合があります。
+                  <div className="question-input">
+                    <p>
+                      質問の対象：
+                      {equipment
+                        ? `${equipment.equipment_name} · ${equipment.equipment_code}`
+                        : "未選択（設備名・コードを質問に含めるか、上の「設備を選ぶ」を使ってください）"}
                     </p>
-                  )}
-                  {error && (
-                    <p role="alert">
-                      {explanation(error.split(" / ")[0])}{" "}
-                      質問を保ったまま再試行できます。
-                    </p>
-                  )}
-                  <p>
-                    質問の対象：
-                    {equipment
-                      ? `${equipment.equipment_name} · ${equipment.equipment_code}`
-                      : "未選択（設備名・コードを質問に含めるか、上の「設備を選ぶ」を使ってください）"}
-                  </p>
-                  <form onSubmit={investigate}>
-                    <label htmlFor="message">関係や影響について質問する</label>
-                    <textarea
-                      id="message"
-                      ref={messageInput}
-                      value={message}
-                      onChange={(event) => setMessage(event.target.value)}
-                      placeholder="例：この設備が止まったとき、影響する工程と製品は？"
-                      rows={3}
-                    />
-                    <button
-                      className="primary"
-                      disabled={busy || !message.trim()}
-                    >
-                      送信
-                    </button>
-                  </form>
-                  {result && (
-                    <section>
-                      <h2>回答</h2>
-                      {result.status === "partial" && (
-                        <span className="badge warning">
-                          一部の情報・評価が不足しています
-                        </span>
-                      )}
-                      <p className="answer">{result.answer}</p>
-                    </section>
-                  )}
+                    <form onSubmit={investigate}>
+                      <label htmlFor="message">
+                        関係や影響について質問する
+                      </label>
+                      <textarea
+                        id="message"
+                        ref={messageInput}
+                        value={message}
+                        onChange={(event) => setMessage(event.target.value)}
+                        placeholder="例：この設備が止まったとき、影響する工程と製品は？"
+                        rows={3}
+                      />
+                      <button
+                        className="primary"
+                        disabled={busy || !message.trim()}
+                      >
+                        送信
+                      </button>
+                    </form>
+                  </div>
+                  <div className="question-response">
+                    {busy && (
+                      <p role="status">
+                        質問を確認しています。応答に最大120秒程度かかる場合があります。
+                      </p>
+                    )}
+                    {error && (
+                      <p role="alert">
+                        {explanation(error.split(" / ")[0])}{" "}
+                        質問を保ったまま再試行できます。
+                      </p>
+                    )}
+                    {result && (
+                      <section>
+                        <h2>回答</h2>
+                        {result.status === "partial" && (
+                          <span className="badge warning">
+                            一部の情報・評価が不足しています
+                          </span>
+                        )}
+                        <p className="answer">{result.answer}</p>
+                      </section>
+                    )}
+                  </div>
                 </div>
                 {stateResult && (
                   <details>

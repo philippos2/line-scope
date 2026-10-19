@@ -937,8 +937,13 @@ aside > button {
 }
 .query-and-answer {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 24px;
+  align-items: start;
+}
+.question-input,
+.question-response {
+  min-width: 0;
 }
 .query-and-answer h2 {
   margin-top: 0;
@@ -1462,7 +1467,7 @@ summary {
 }
 
 /* Workspace tabs share one investigation; hiding a panel does not discard it. */
-.workspace-tabs {
+.scenario-shell .workspace-tabs {
   position: relative;
   margin: 0 0 1rem;
   flex-wrap: wrap;

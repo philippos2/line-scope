@@ -29,8 +29,10 @@ export function WorkspaceHeader({
   onChoose,
   onInspect,
   children,
+  tabs,
 }: {
   children: ReactNode;
+  tabs: ReactNode;
   root: EquipmentCandidate | null;
   model: Model;
   onChoose: (item: EquipmentCandidate | null) => boolean;
@@ -166,6 +168,7 @@ export function WorkspaceHeader({
         )}
       </aside>
       <div className="investigation-main">
+        {tabs}
         <section className="workspace-context" aria-label="調査の要約">
           <button
             className="workspace-summary-toggle"
