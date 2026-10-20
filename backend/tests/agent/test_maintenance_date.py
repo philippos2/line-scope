@@ -122,4 +122,7 @@ def test_mixed_question_retains_the_general_read_flow(registry):
     )
     assert len(llm.requests) == 3 and len(llm.requests[1][1]) > 1
     assert result.answer == "実施内容はこの記録から判断できません。"
-    assert len(dispatcher.calls) == 1
+    assert dispatcher.calls == [
+        ("search_equipment", {"filter": {"name": name}})
+        for name in ("第1加工機", "第一加工機", "第１加工機")
+    ]
