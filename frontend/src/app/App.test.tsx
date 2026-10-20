@@ -194,6 +194,16 @@ it("selects equipment through the common search, loads relationships directly an
     String(init.body).includes("調査対象の設備コードはM-208"),
   )!;
   expect(JSON.parse(String(call[1].body)).context_id).toBeUndefined();
+  await user.click(screen.getByRole("tab", { name: "接続及び影響範囲" }));
+  expect(screen.getByText(/比較画面で対応計画などの登録状況/)).toBeDefined();
+  await user.click(
+    screen.getByRole("button", { name: "M-208の比較用入力を確認する" }),
+  );
+  expect(
+    screen
+      .getByRole("tab", { name: "対応案を比べる" })
+      .getAttribute("aria-selected"),
+  ).toBe("true");
 });
 it("retains a previous answer as previous when a subsequent question fails, then recovers explicitly", async () => {
   stubFetch(
