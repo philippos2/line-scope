@@ -30,5 +30,5 @@
 <rect x="28" y="505" width="1442" height="72" rx="7" fill="#fff7ed" stroke="#ea580c"/>
 <text x="43" y="534" font-size="17">別枠・経済入力で確認済み：実Prepare → 別担当者承認 → 元依頼者実行 → 調査再取得</text>
 <text x="43" y="559" font-size="16">明示許可後に実切断2箇所も確認し、専用環境を削除。他3入力の実書込と元の発火条件は未確認。</text>
-<text x="28" y="606" font-size="14">判断待ち・原因調査・未検証の一覧はroadmap.mdへ集約。全項目を終える総PR数は未確定。</text>
+<text x="28" y="606" font-size="14">追加後続：F1 名称で質問 → F2 M-208電源依存（暫定2 PR・日数未見積もり）。他の残項目はroadmap.md。</text>
 </g></svg>
