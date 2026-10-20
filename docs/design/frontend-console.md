@@ -258,3 +258,46 @@ PR #265後に確認された対象設備の受渡し・ボタン無効・日時�
 ## 操作状態の監査と適用範囲
 
 共通状態の規約は[UI改修計画§11.2](post265-ui-correction-plan.md)に、操作ごとの現状・分類・後続順序・状態の確認手順は[UI操作状態の監査](ui-operation-audit.md)に維持する。コードを共通部品にしたことや静的なOKを、全UIの動作確認の代わりにしない。権限・更新の確定・再送の契約は文書入口が示す業務正本に従う。
+
+## 書き込み結果の確認と失敗表示（W1・直結W2）
+
+入力4カテゴリの変更準備と、保存要求画面の準備・承認・拒否・実行は、`OperationFeedback`の同じ表示を使う。通信状態の管理はその専用hookで行い、APIの実行・入力と再送キーの固定・成功応答の解釈は各操作へ維持する。新APIや書き込みの自動再送は加えない。
+
+- 書込の応答喪失・不正な応答・中断等で成否を確認できない場合は「処理結果を確認できません」と表示する。未作成・未実行とは断定しない。明示的な権限拒否等とは分け、コードと診断用IDは技術情報へ置く。
+- 変更要求IDが分かる場合は、そのIDを表示し「この変更要求の保存状態を確認」からGETする。書込の再送ではない。ID不明なら直近の別要求を今回の結果と表示しない。
+- 4入力の結果不明後は、送信時と同じ入力・同じ保持済みキーの明示再送だけを許す。入力が変わった場合は理由を示して再送を無効にする。自然文の準備も同じ指示・同じキーを使用する。結果不明の承認・拒否・実行は先に保存状態を確認する。
+- 成功応答を受けて要求IDを確認した後、保存状態のGETだけに失敗した場合は、操作の完了と取得失敗を分けて表示する。特に実行応答を消して未実行扱いにせず、同じ要求IDのGETを案内する。
+- 存続中の画面で中断が発生した場合は、処理中を解除して結果不明等へ移る。閉じた画面・認証解除後へ遅い応答を反映しない。親の対象／接続用signalが既に中断済みなら、そのEditorから再送しない。
+- 入力と再送キーの保持は画面のメモリ内だけであり、接続・対象変更や画面を閉じた後の保持を約束しない。認証情報を保存せず、この変更で永続的な復旧機能や承認一覧を追加しない。
+
+この適用範囲は書込と、その保存要求の取得。検索・比較・質問など全UIの失敗表示まで統一済みとはしない。実書込は、明示許可を得た専用環境で経済入力の1フローと実通信の応答喪失2箇所を確認した。他3カテゴリ等を検証済みとは扱わず、[実施結果と未確認範囲](../history/2026-10-20-pr272-live-verification-plan.md#6-許可後の実施結果)を参照する。
+
+### 明示拒否コードの根拠と副作用の境界
+
+`OperationFeedback`の`failed`は、**今回の試行が要求どおりに成立したとは扱わず、明示された拒否理由を表示する**分類である。「DBが不変」「要求が未保存」「過去にも未実行」を意味しない。要求・承認の失効や監査の保存は起こり得る。成功応答と要求IDを確認した後のGET失敗は、コードにかかわらず`confirmed-read-failed`を優先する。
+
+当初の説明表にあった12コードを、今回の対象経路（4入力Prepare、自然文Prepare、承認・拒否・実行、保存要求GET）で静的に照合した。以下は実DBで再検証した結果ではない。
+
+| コード | 確認した発生箇所・意味 | 残り得る記録・注意点 | 表示分類 |
+|---|---|---|---|
+| AUTHENTICATION_REQUIRED | `http_logging`の認証入口、各serviceのTrusted Context検証 | 当該handlerの更新前に拒否。アクセスログ等まで無いとはしない | 明示拒否 |
+| AUTHORIZATION_DENIED | `approval_policy`の職務・自己承認、`execute`のowner・閲覧権限、入力Prepareのrequire | 今回の対象操作を許可しない。失敗監査等が残り得る。既存の要求の不存在を意味しない | 明示拒否 |
+| INVALID_ARGUMENT | 入力Prepareの正規化、AgentInput、承認hash・ID形式検証等。Execute途中の例外も主transactionからrollbackする | 失敗監査が残り得る。自然文Prepare後の読取失敗は`AgentService._prepared`がIDを保持した準備結果へ変換する | 明示拒否 |
+| INVALID_TOKEN_FORMAT | Frontend `api/client.request`のHeaders作成失敗 | サーバ由来ではなくfetch実行前のclientエラー。この試行では送信していない | 送信前の失敗 |
+| VERSION_CONFLICT | `approvals._conflict_code`、各入力Approval、`execute`の対象version検証 | 承認側はINVALIDATEDと監査をcommitしてから409。Execute側は主更新をrollback後、別transactionで失効・監査を保存し得る | 明示拒否。DB無変更とはしない |
+| APPROVAL_EXPIRED | `execute_policy.validate_new_execute`と承認消費直前の期限検証 | 主更新rollback後、`execute._retire`がEXPIREDと監査を保存し得る | 明示拒否。期限切れ状態を確認する |
+| APPROVAL_INVALIDATED | `execute_policy`の現在権限・自己承認・保存hash検証 | 主更新rollback後、`_retire`がINVALIDATEDと監査を保存し得る | 明示拒否。失効状態を確認する |
+| INVALID_UPDATE_STATE | `approval_policy`の承認待ち条件、`execute_policy`の有効承認条件、`proposals.save`の置換可否 | 今回の試行の状態条件が不成立。以前の要求が既に保存・承認・実行済みの場合もあり、過去の成功は否定しない | 明示拒否 |
+| APPROVAL_MISMATCH | `approval_policy.validate_approve`のSnapshot hash不一致 | 承認成立前に拒否。失敗監査が残り得る | 明示拒否 |
+| DUPLICATE_REQUEST | `proposals._saved`の入力hash不一致 | 同じキーの既存要求を保持したまま異なる入力の再送を拒否する。既存要求が保存・実行済みである可能性を否定しない | 明示拒否。元の入力と保存状態を確認する |
+| SNAPSHOT_MISMATCH | 現行バックエンドに発生箇所なし。実在するhash不一致はAPPROVAL_MISMATCH等 | 拒否の根拠が確認できないため、明示拒否一覧から除く | 書込では結果不明 |
+| RESOURCE_NOT_FOUND | 現行バックエンドに発生箇所なし。対象不存在ではTARGET_NOT_FOUND等を使用 | 拒否の根拠が確認できないため、明示拒否一覧から除く。代わりのコードを今回新たに一覧へ追加しない | 書込では結果不明 |
+
+根拠コード：
+
+- [HTTP認証入口](../../backend/src/linescope/interfaces/http_logging.py)、[Frontend client](../../frontend/src/api/client.ts)。
+- [承認ポリシー](../../backend/src/linescope/application/approval_policy.py)、[承認transaction](../../backend/src/linescope/application/approvals.py)。
+- [実行ポリシー](../../backend/src/linescope/application/execute_policy.py)、[主実行と失効保存](../../backend/src/linescope/application/execute.py)。
+- [保存・再送照合](../../backend/src/linescope/application/proposals.py)、[失敗監査](../../backend/src/linescope/application/audit.py)、[Agentの準備後読取](../../backend/src/linescope/application/agent_service.py)。
+
+明示拒否の一覧は通常の表示文言集ではなく、確認済みの拒否経路の一覧として扱う。コードを加える場合は発生箇所とcommit／rollback境界を再照合する。未分類の書込エラーは結果不明とする。失効・監査保存後の通信失敗も、成功したエラー応答を受信していない限り明示拒否とは判定しない。

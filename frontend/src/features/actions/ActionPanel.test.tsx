@@ -132,7 +132,7 @@ it("clears a previous request ID on uncertain Prepare and reuses the same retry 
   );
   expect(fetcher).toHaveBeenCalledTimes(2);
   await user.click(
-    screen.getByRole("button", { name: "変更指示から準備を作成" }),
+    screen.getByRole("button", { name: "同じ指示を再送して結果を確認" }),
   );
   await screen.findByRole("heading", { name: "保存済みSnapshot" });
   expect(fetcher).toHaveBeenCalledTimes(4);
@@ -300,6 +300,15 @@ it("preserves confirmed execution when current observation and the follow-up GET
   expect(fetcher.mock.calls[1][0]).toBe(
     `/api/update-requests/${requestId}/execute`,
   );
+  await user.click(
+    screen.getByRole("button", { name: "この変更要求の保存状態を確認" }),
+  );
+  await screen.findByRole("heading", { name: "保存状態を取得できません" });
+  expect(
+    screen.getByRole("heading", { name: "実行応答・実行後の現在値" }),
+  ).toBeTruthy();
+  expect(fetcher).toHaveBeenCalledTimes(4);
+  expect(fetcher.mock.calls[3][0]).toBe(`/api/update-requests/${requestId}`);
 });
 
 it("opens an explicitly requested saved request and keeps its ID when a read fails", async () => {

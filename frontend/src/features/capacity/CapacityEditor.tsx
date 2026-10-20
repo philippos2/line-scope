@@ -1,4 +1,8 @@
 import {
+  OperationFeedback,
+  useOperationFeedback,
+} from "../inputs/OperationFeedback";
+import {
   PrepareInputButton,
   PreparedInputNotice,
   usePreparedInput,
@@ -33,8 +37,7 @@ export function CapacityEditor({
     [productName, setProductName] = useState(productLabel),
     [cursor, setCursor] = useState<string | null>(null),
     [searched, setSearched] = useState("");
-  const [preparing, setPreparing] = useState(false);
-  const [busy, setBusy] = useState(false),
+  const [productBusy, setBusy] = useState(false),
     [error, setError] = useState("");
   const pending = useRef(false),
     retry = useRef<{ serialized: string; key: string } | null>(null);
@@ -48,6 +51,9 @@ export function CapacityEditor({
     },
     supersedes_update_request_id: null,
   };
+  const operation = useOperationFeedback();
+  const busy = productBusy || operation.busy;
+  const uncertain = operation.problem?.kind === "unknown";
   const preparation = usePreparedInput(body);
   const { serialized, alreadyPrepared } = preparation;
   function patch(key: string, text: string) {
@@ -151,39 +157,34 @@ export function CapacityEditor({
       if (!signal.aborted) setBusy(false);
     }
   }
-  async function submit(event: FormEvent) {
+  function submit(event: FormEvent) {
     event.preventDefault();
-    if (pending.current || alreadyPrepared) return;
-    pending.current = true;
-    setBusy(true);
-    setPreparing(true);
-    setError("");
-    try {
-      if (retry.current?.serialized !== serialized)
-        retry.current = { serialized, key: crypto.randomUUID() };
-      const result = await request(
-        "",
-        "/capacity-inputs/prepare",
-        { ...body, retry_key: retry.current.key },
-        signal,
-      );
-      if (signal.aborted) return;
-      const id = result.data.update_request_id;
-      if (typeof id !== "string") throw new ApiError("INVALID_RESPONSE");
-      preparation.remember(id, result);
-      onPrepared(id);
-    } catch (caught) {
-      if (!signal.aborted)
-        setError(
-          `${caught instanceof ApiError ? caught.code : "REQUEST_FAILED"}。この画面では確定しません。応答不明時は内容を変えず再送できます。`,
+    if (
+      busy ||
+      operation.isPending() ||
+      alreadyPrepared ||
+      signal.aborted ||
+      (uncertain && retry.current?.serialized !== serialized)
+    )
+      return;
+    if (retry.current?.serialized !== serialized)
+      retry.current = { serialized, key: crypto.randomUUID() };
+    void operation.run(
+      async (active) => {
+        const result = await request(
+          "",
+          "/capacity-inputs/prepare",
+          { ...body, retry_key: retry.current!.key },
+          active,
         );
-    } finally {
-      pending.current = false;
-      if (!signal.aborted) {
-        setBusy(false);
-        setPreparing(false);
-      }
-    }
+        if (active.aborted) return;
+        const id = result.data.update_request_id;
+        if (typeof id !== "string") throw new ApiError("INVALID_RESPONSE");
+        preparation.remember(id, result);
+        onPrepared(id);
+      },
+      { operation: "prepare", signal },
+    );
   }
   const p = value.payload,
     r = object(p.recovery) ? p.recovery : null;
@@ -429,14 +430,28 @@ export function CapacityEditor({
         <PrepareInputButton
           preparation={preparation}
           busy={busy}
-          preparing={preparing}
-          label="能力入力の変更準備を作成"
+          preparing={operation.busy}
+          label={
+            uncertain
+              ? "同じ内容を再送して結果を確認"
+              : "能力入力の変更準備を作成"
+          }
           disabledReason={
-            !value.product_id ? "変更準備には対象製品の選択が必要です。" : ""
+            signal.aborted
+              ? "接続または対象が変わったため、この編集画面からは送信できません。保存状態や登録内容を確認してください。"
+              : uncertain && retry.current?.serialized !== serialized
+                ? "送信時と入力が異なるため再送できません。元の内容へ戻してください。"
+                : !value.product_id
+                  ? "変更準備には対象製品の選択が必要です。"
+                  : ""
           }
         />
       </form>
       {error && <p role="alert">{error}</p>}
+      <OperationFeedback
+        problem={operation.problem}
+        onRead={onOpenPrepared ?? onPrepared}
+      />
       <PreparedInputNotice
         preparation={preparation}
         label="能力入力"

@@ -1,4 +1,8 @@
 import {
+  OperationFeedback,
+  useOperationFeedback,
+} from "../inputs/OperationFeedback";
+import {
   PrepareInputButton,
   PreparedInputNotice,
   usePreparedInput,
@@ -29,15 +33,15 @@ export function EconomicEditor({
   signal: AbortSignal;
 }) {
   const [value, setValue] = useState(initial);
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState("");
   const retry = useRef<{ serialized: string; key: string } | null>(null);
-  const pending = useRef(false);
   const body = {
     economic_input_id: value.economic_input_id || null,
     input: prepareInput(value),
     supersedes_update_request_id: null,
   };
+  const operation = useOperationFeedback();
+  const busy = operation.busy;
+  const uncertain = operation.problem?.kind === "unknown";
   const preparation = usePreparedInput(body);
   const { serialized, alreadyPrepared } = preparation;
   function patch(field: string, text: string) {
@@ -91,35 +95,34 @@ export function EconomicEditor({
       },
     }));
   }
-  async function submit(event: FormEvent) {
+  function submit(event: FormEvent) {
     event.preventDefault();
-    if (pending.current || alreadyPrepared) return;
-    pending.current = true;
-    setBusy(true);
-    setError("");
-    try {
-      if (retry.current?.serialized !== serialized)
-        retry.current = { serialized, key: crypto.randomUUID() };
-      const result = await request(
-        "",
-        "/economic-inputs/prepare",
-        { ...body, retry_key: retry.current.key },
-        signal,
-      );
-      if (signal.aborted) return;
-      const id = result.data.update_request_id;
-      if (typeof id !== "string") throw new ApiError("INVALID_RESPONSE");
-      preparation.remember(id, result);
-      onPrepared(id);
-    } catch (caught) {
-      if (!signal.aborted)
-        setError(
-          `${caught instanceof ApiError ? caught.code : "REQUEST_FAILED"}。業務値はこの画面では確定しません。応答不明時は内容を変えず再送できます。書き込みは自動再送しません。`,
+    if (
+      busy ||
+      operation.isPending() ||
+      alreadyPrepared ||
+      signal.aborted ||
+      (uncertain && retry.current?.serialized !== serialized)
+    )
+      return;
+    if (retry.current?.serialized !== serialized)
+      retry.current = { serialized, key: crypto.randomUUID() };
+    void operation.run(
+      async (active) => {
+        const result = await request(
+          "",
+          "/economic-inputs/prepare",
+          { ...body, retry_key: retry.current!.key },
+          active,
         );
-    } finally {
-      pending.current = false;
-      if (!signal.aborted) setBusy(false);
-    }
+        if (active.aborted) return;
+        const id = result.data.update_request_id;
+        if (typeof id !== "string") throw new ApiError("INVALID_RESPONSE");
+        preparation.remember(id, result);
+        onPrepared(id);
+      },
+      { operation: "prepare", signal },
+    );
   }
   return (
     <SuggestionScope
@@ -593,13 +596,26 @@ export function EconomicEditor({
         <PrepareInputButton
           preparation={preparation}
           busy={busy}
-          label="経済入力の変更準備を作成"
+          label={
+            uncertain
+              ? "同じ内容を再送して結果を確認"
+              : "経済入力の変更準備を作成"
+          }
           disabledReason={
-            !value.equipment_id ? "変更準備には対象設備の選択が必要です。" : ""
+            signal.aborted
+              ? "接続または対象が変わったため、この編集画面からは送信できません。保存状態や登録内容を確認してください。"
+              : uncertain && retry.current?.serialized !== serialized
+                ? "送信時と入力が異なるため再送できません。元の内容へ戻してください。"
+                : !value.equipment_id
+                  ? "変更準備には対象設備の選択が必要です。"
+                  : ""
           }
         />
       </form>
-      {error && <p role="alert">{error}</p>}
+      <OperationFeedback
+        problem={operation.problem}
+        onRead={onOpenPrepared ?? onPrepared}
+      />
       <PreparedInputNotice
         preparation={preparation}
         label="経済入力"
