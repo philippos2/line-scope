@@ -14,11 +14,13 @@ lint・型・整形・buildは既存のdevelopment imageで`npm run check`を実
 
 | script | 用途と実行条件 |
 |---|---|
-| `scripts/verify-scenario1-browser.mjs` | 常設の読取主経路1本。実APIで検索→関係図と名称→損害額200,000円／時間→M-208の代替能力60／80→比較→M-208への切替と入力確認の案内を確認。LLM・応答mock・環境作成・データ書込は使わない |
+| `scripts/verify-scenario1-browser.mjs` | 常設の読取主経路1本。実APIで検索→関係図と名称→損害額200,000円／時間→M-208の代替能力60／80→比較→文書検索の取得状態→M-208への切替と入力確認の案内を確認。通常モードはLLM生成・応答mock・環境作成・データ書込を使わない |
 | `scripts/verify-reference-drawer-browser.mjs` | 関連変更時の補助確認。参照の開閉・位置・フォーカス等。常設主経路の代わりではない。要求対象だけ制御応答を使う |
 | `scripts/verify-input-workflow-browser.mjs` | 許可した専用環境だけの補助確認。実Prepare→別manager承認→元requester実行。`LINESCOPE_BROWSER_APPROVER`と`LINESCOPE_BROWSER_ALLOW_WRITES=isolated-verification`が必要。5173・5174番は拒否する。実行前に環境・認証・操作を提示し明示許可を得る |
 
 主経路の入力データは[シナリオ1](../docs/demo/scenario1.md)です。別の値へ更新した環境では、初期値の期待値を無断で書き換えず、専用環境か既存プレビューのデータ状態を確認します。実APIの成功を、実LLMの成功・全UIの受入・他カテゴリの実書込の成功へ拡大して報告しません。
+
+読取の失敗案内を変更した際は、同じ主シナリオに`LINESCOPE_BROWSER_READ_FAILURES=1`を渡すと、接続・入力4種・文書再検索の失敗を制御応答で確認します。明示再試行は実APIへ送り、書込は行いません。通常モードの実応答確認と区別して記録します。共有サービスを停止する方法ではありません。
 
 私有env（0600）に`LINESCOPE_BROWSER_URL`・`LINESCOPE_BROWSER_TOKEN`・必要なら`LINESCOPE_BROWSER_OUTPUT=/out`を設定します。既存のbrowser-check imageを使い、**変更後のscriptを明示mount**します。
 

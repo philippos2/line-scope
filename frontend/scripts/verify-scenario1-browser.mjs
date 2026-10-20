@@ -5,12 +5,14 @@ import { mkdir, writeFile } from "node:fs/promises";
 const base = process.env.LINESCOPE_BROWSER_URL;
 const token = process.env.LINESCOPE_BROWSER_TOKEN;
 if (!base || !token) throw new Error("Browser URL and private token required");
+const verifyReadFailures = process.env.LINESCOPE_BROWSER_READ_FAILURES === "1";
 const output = process.env.LINESCOPE_BROWSER_OUTPUT ?? "/out";
 await mkdir(output, { recursive: true });
 const report = {
   scenario: "scenario1",
   result: "RUNNING",
   real_api: true,
+  controlled_read_failures: verifyReadFailures,
   blocked: [],
   page_errors: [],
   timings_ms: {},
@@ -37,7 +39,8 @@ await page.route("**/api/**", async (route) => {
     req.method() === "POST" &&
     (readPaths.includes(path) ||
       (path === "/api/agent" &&
-        req.postDataJSON()?.message?.startsWith("関係分析 ")))
+        (req.postDataJSON()?.message?.startsWith("関係分析 ") ||
+          req.postDataJSON()?.message?.startsWith("文書検索："))))
   )
     return route.continue();
   report.blocked.push({ method: req.method(), path });
@@ -58,6 +61,29 @@ try {
   await page.goto(base);
   await expect(page.locator(".equipment-search-panel")).toHaveCount(0);
   await page.getByLabel("Bearer token").fill(token);
+  if (verifyReadFailures) {
+    await page.route("**/api/session/login", (route) =>
+      route.fulfill({
+        status: 401,
+        json: {
+          request_id: "read-login-error",
+          context_id: null,
+          status: "error",
+          answer: "",
+          data: {},
+          evidence: {},
+          warnings: [],
+          errors: [{ code: "AUTHENTICATION_REQUIRED" }],
+        },
+      }),
+    );
+    await page.getByRole("button", { name: "接続する", exact: true }).click();
+    await expect(page.locator(".read-failure")).toBeVisible();
+    expect(await page.locator(".read-failure").innerText()).not.toContain(
+      "AUTHENTICATION_REQUIRED",
+    );
+    await page.unroute("**/api/session/login");
+  }
   await page.getByRole("button", { name: "接続する", exact: true }).click();
   await expect(
     page.getByRole("tab", { name: "接続及び影響範囲", exact: true }),
@@ -65,6 +91,60 @@ try {
   await expect(
     page.locator(".equipment-search-panel > .equipment-result"),
   ).toHaveCount(0);
+  if (verifyReadFailures) {
+    await page
+      .getByRole("tab", { name: "入力を登録・訂正", exact: true })
+      .click();
+    for (const [kind, tab, title] of [
+      ["economic", "費用・経済", "経済入力"],
+      ["capacity", "生産能力", "能力入力"],
+      ["safety", "安全条件", "安全入力"],
+      ["maintenance", "対応計画・故障履歴", "対応計画・故障履歴"],
+    ]) {
+      await page.getByRole("button", { name: tab, exact: true }).click();
+      const panel = page.locator(`.${kind}-panel`);
+      let fail = true;
+      const pattern = `**/api/${kind}-inputs/search`;
+      await page.route(pattern, (route) => {
+        if (!fail) return route.fallback();
+        fail = false;
+        return route.fulfill({
+          status: 503,
+          json: {
+            request_id: "read-error",
+            context_id: null,
+            status: "error",
+            answer: "",
+            data: {},
+            evidence: {},
+            warnings: [],
+            errors: [{ code: "DEPENDENCY_UNAVAILABLE" }],
+          },
+        });
+      });
+      await panel
+        .getByRole("button", { name: `登録済み${title}を検索`, exact: true })
+        .click();
+      await expect(panel.locator(".read-failure")).toBeVisible();
+      expect(await panel.locator(".read-failure").innerText()).not.toContain(
+        "DEPENDENCY_UNAVAILABLE",
+      );
+      await panel
+        .getByRole("button", { name: `${title}の取得を再試行`, exact: true })
+        .click();
+      await expect(panel.locator(".read-failure")).toHaveCount(0);
+      await expect(
+        panel.getByRole("button", {
+          name: `登録済み${title}を検索`,
+          exact: true,
+        }),
+      ).toBeEnabled();
+      await page.unroute(pattern);
+    }
+    await page
+      .getByRole("tab", { name: "接続及び影響範囲", exact: true })
+      .click();
+  }
   await search("M-204");
   const loss = page.getByRole("region", { name: "推定損害額", exact: true });
   const alternative = page.getByRole("region", {
@@ -127,6 +207,60 @@ try {
   await expect(comparison).not.toContainText(
     "登録費用と対応計画の選択内容を確認してください",
   );
+  await page.getByRole("tab", { name: "出典と経路", exact: true }).click();
+  await page.getByRole("button", { name: "関連文書", exact: true }).click();
+  await page
+    .getByRole("button", { name: "選択設備の関連文書を検索", exact: true })
+    .click();
+  await expect(
+    page.getByRole("region", { name: "文書検索の取得状態", exact: true }),
+  ).toContainText("M-204");
+  await expect(
+    page.getByRole("region", { name: "文書検索の取得状態", exact: true }),
+  ).toContainText("日本時間");
+  if (verifyReadFailures) {
+    let fail = true;
+    await page.route("**/api/agent", (route) => {
+      if (
+        !fail ||
+        !route.request().postDataJSON()?.message?.startsWith("文書検索：")
+      )
+        return route.fallback();
+      fail = false;
+      return route.fulfill({
+        status: 503,
+        json: {
+          request_id: "document-read-error",
+          context_id: null,
+          status: "error",
+          answer: "",
+          data: {},
+          evidence: {},
+          warnings: [],
+          errors: [{ code: "DEPENDENCY_UNAVAILABLE" }],
+        },
+      });
+    });
+    await page
+      .getByRole("button", { name: "選択設備の関連文書を検索", exact: true })
+      .click();
+    await expect(
+      page.getByText(
+        "前回取得した検索結果です。今回の再検索は完了していません。",
+        { exact: true },
+      ),
+    ).toBeVisible();
+    await page
+      .getByRole("button", { name: "文書検索を再試行", exact: true })
+      .click();
+    await expect(
+      page.getByText(
+        "前回取得した検索結果です。今回の再検索は完了していません。",
+        { exact: true },
+      ),
+    ).toHaveCount(0);
+    await page.unroute("**/api/agent");
+  }
   await page
     .getByRole("tab", { name: "接続及び影響範囲", exact: true })
     .click();

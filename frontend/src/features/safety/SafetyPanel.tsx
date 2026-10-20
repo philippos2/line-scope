@@ -1,4 +1,9 @@
 import {
+  ReadFeedback,
+  readProblem,
+  type ReadProblem,
+} from "../inputs/ReadFeedback";
+import {
   EquipmentQueryInput,
   SuggestedInput,
   InputAssistance,
@@ -46,7 +51,8 @@ export function SafetyPanel({
     filter: JsonObject;
   } | null>(null);
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState("");
+  const [error, setError] = useState<ReadProblem | null>(null);
+  const retryRead = useRef<(() => void) | null>(null);
   const [observedEpoch, setObservedEpoch] = useState(executionEpoch);
   const editorSequence = useRef(0);
   const active = useRef<AbortController | null>(null);
@@ -76,11 +82,12 @@ export function SafetyPanel({
   }
   async function run(action: (signal: AbortSignal) => Promise<void>) {
     if (pending.current) return;
+    retryRead.current = () => void run(action);
     const controller = new AbortController();
     active.current = controller;
     pending.current = true;
     setBusy(true);
-    setError("");
+    setError(null);
     let timedOut = false;
     const timeout = window.setTimeout(() => {
       timedOut = true;
@@ -90,13 +97,7 @@ export function SafetyPanel({
       await action(controller.signal);
     } catch (caught) {
       if (active.current === controller)
-        setError(
-          timedOut
-            ? "REQUEST_TIMEOUT"
-            : caught instanceof ApiError
-              ? caught.code
-              : "INVALID_RESPONSE",
-        );
+        setError(timedOut ? { code: "REQUEST_TIMEOUT" } : readProblem(caught));
     } finally {
       window.clearTimeout(timeout);
       pending.current = false;
@@ -182,16 +183,20 @@ export function SafetyPanel({
             onChange={(event) => setCode(event.target.value)}
           />
         </label>
-        <button disabled={busy}>登録済み安全入力を検索</button>
+        <button disabled={busy} aria-busy={busy}>
+          登録済み安全入力を検索
+        </button>
       </form>
-      {busy && <p role="status">安全入力を取得中…</p>}
-      {error && (
-        <p role="alert">
-          {error === "REQUEST_TIMEOUT"
-            ? "安全入力の取得が15秒以内に完了しませんでした。もう一度検索してください。"
-            : "安全入力を取得できませんでした。接続を確認して、もう一度検索してください。"}
+      {busy && (
+        <p role="status">
+          安全入力を取得中です。完了まで、この欄の検索・登録操作はできません。
         </p>
       )}
+      <ReadFeedback
+        problem={error}
+        operation="安全入力の取得"
+        onRetry={() => retryRead.current?.()}
+      />
       <section aria-label="安全入力の検索候補">
         {rows.map((row, index) => (
           <button

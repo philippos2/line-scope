@@ -1,3 +1,12 @@
+import {
+  ReadFeedback,
+  readProblem,
+  type ReadProblem,
+} from "../features/inputs/ReadFeedback";
+import {
+  DocumentSearchStatus,
+  type DocumentObservation,
+} from "../features/evidence/DocumentSearchStatus";
 import { InputAssistance } from "../features/inputs/InputAssistance";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import {
@@ -53,7 +62,20 @@ export function App() {
   );
   const [documentResult, setDocumentResult] = useState<Envelope | null>(null);
   const [documentBusy, setDocumentBusy] = useState(false);
-  const [documentError, setDocumentError] = useState("");
+  const [documentError, setDocumentError] = useState<ReadProblem | null>(null);
+  const [documentObservation, setDocumentObservation] =
+    useState<DocumentObservation | null>(null);
+  const [connectionError, setConnectionError] = useState<ReadProblem | null>(
+    null,
+  );
+  const [connectionOperation, setConnectionOperation] = useState<
+    "login" | "logout"
+  >("login");
+  const [disconnectBusy, setDisconnectBusy] = useState(false);
+  const disconnectPending = useRef(false);
+  const [activeOperation, setActiveOperation] = useState<
+    "connection" | "question" | null
+  >(null);
   const documentRequest = useRef<AbortController | null>(null);
   const documentHeading = useRef<HTMLHeadingElement>(null);
   const [stateResult, setStateResult] = useState<Envelope | null>(null);
@@ -142,7 +164,8 @@ export function App() {
   useEffect(() => {
     documentRequest.current?.abort();
     setDocumentResult(null);
-    setDocumentError("");
+    setDocumentObservation(null);
+    setDocumentError(null);
     setDocumentBusy(false);
     return () => documentRequest.current?.abort();
   }, [connected, equipment?.equipment_id]);
@@ -175,6 +198,11 @@ export function App() {
     return true;
   }
   async function disconnect() {
+    if (disconnectPending.current) return;
+    disconnectPending.current = true;
+    setDisconnectBusy(true);
+    setConnectionOperation("logout");
+    setConnectionError(null);
     try {
       await request(
         "",
@@ -188,11 +216,12 @@ export function App() {
       if (!(
         caught instanceof ApiError && caught.code === "AUTHENTICATION_REQUIRED"
       )) {
-        setError(
-          "接続解除を確認できません。通信を確認して再度解除してください。",
-        );
+        setConnectionError(readProblem(caught));
         return;
       }
+    } finally {
+      disconnectPending.current = false;
+      setDisconnectBusy(false);
     }
     current.current++;
     abort.current?.abort();
@@ -231,30 +260,41 @@ export function App() {
   async function perform(
     action: () => Promise<Envelope>,
     onSuccess: (value: Envelope) => void,
+    operation: "connection" | "question" = "question",
   ) {
     const id = ++current.current;
     abort.current?.abort();
     abort.current = new AbortController();
     setBusy(true);
-    setError("");
+    setActiveOperation(operation);
+    if (operation === "connection") setConnectionError(null);
+    else setError("");
     try {
       const value = await action();
       if (id === current.current) onSuccess(value);
     } catch (caught) {
-      if (id === current.current)
-        setError(
-          caught instanceof ApiError
-            ? `${caught.code === "INVALID_TOKEN_FORMAT" ? "tokenの形式が不正です。tokenファイルの値だけを貼り付けてください。" : caught.code === "CONNECTION_FAILED" ? "APIへ接続できません。ブラウザの通信制限や接続先を確認してください。" : caught.code}${caught.requestId ? " / " + caught.requestId : ""}`
-            : "REQUEST_FAILED",
-        );
+      if (id === current.current) {
+        if (operation === "connection") setConnectionError(readProblem(caught));
+        else
+          setError(
+            caught instanceof ApiError
+              ? `${caught.code}${caught.requestId ? " / " + caught.requestId : ""}`
+              : "REQUEST_FAILED",
+          );
+      }
     } finally {
-      if (id === current.current) setBusy(false);
+      if (id === current.current) {
+        setBusy(false);
+        setActiveOperation(null);
+      }
     }
   }
+
   async function connect(event: FormEvent) {
     event.preventDefault();
     const value = draftToken.trim();
-    if (!value) return;
+    if (!value || busy || disconnectPending.current) return;
+    setConnectionOperation("login");
     await perform(
       () =>
         request(
@@ -298,6 +338,7 @@ export function App() {
         freshContext.current = false;
         setConnected(true);
       },
+      "connection",
     );
   }
   async function investigate(event: FormEvent) {
@@ -347,7 +388,10 @@ export function App() {
         if (graphAnalyses(value).length) {
           setGraphResult(value);
         }
-        if (text.startsWith("文書検索：")) setDocumentResult(value);
+        if (text.startsWith("文書検索：")) {
+          setDocumentResult(value);
+          setDocumentObservation(null);
+        }
         if (
           Array.isArray(value.data.tool_results) &&
           value.data.tool_results.some(
@@ -480,8 +524,10 @@ export function App() {
     const controller = new AbortController();
     documentRequest.current = controller;
     setDocumentBusy(true);
-    setDocumentError("");
+    setDocumentError(null);
     setEvidenceKind("documents");
+    const target = equipment;
+    const epoch = executionEpoch;
     try {
       const value = await request(
         "",
@@ -493,18 +539,19 @@ export function App() {
       );
       if (!controller.signal.aborted) {
         setDocumentResult(value);
+        setDocumentObservation({
+          equipmentId: target.equipment_id,
+          equipmentLabel: `${target.equipment_name} · ${target.equipment_code}`,
+          completedAt: new Date().toISOString(),
+          epoch,
+        });
         requestAnimationFrame(() => {
           if (documentHeading.current?.getClientRects().length)
             documentHeading.current.focus();
         });
       }
     } catch (caught) {
-      if (!controller.signal.aborted)
-        setDocumentError(
-          explanation(
-            caught instanceof ApiError ? caught.code : "REQUEST_FAILED",
-          ),
-        );
+      if (!controller.signal.aborted) setDocumentError(readProblem(caught));
     } finally {
       if (!controller.signal.aborted) setDocumentBusy(false);
     }
@@ -527,7 +574,33 @@ export function App() {
           <button onClick={() => setShowConnection(true)} disabled={restoring}>
             接続設定
           </button>
-          {connected && <button onClick={disconnect}>接続解除</button>}
+          {connected && (
+            <button
+              onClick={disconnect}
+              disabled={
+                disconnectBusy || (busy && activeOperation === "connection")
+              }
+              aria-busy={disconnectBusy}
+            >
+              {disconnectBusy ? "接続解除中…" : "接続解除"}
+            </button>
+          )}
+          {disconnectBusy && (
+            <p role="status">
+              接続解除の応答を待っています。完了まで再送できません。
+            </p>
+          )}
+          {connected && !showConnection && (
+            <ReadFeedback
+              problem={connectionError}
+              operation={connectionOperation === "logout" ? "接続解除" : "接続"}
+              onRetry={
+                connectionOperation === "logout"
+                  ? () => void disconnect()
+                  : () => setShowConnection(true)
+              }
+            />
+          )}
         </div>
       </header>
       {restoring ? (
@@ -559,14 +632,40 @@ export function App() {
               autoComplete="off"
               spellCheck={false}
             />
-            <button className="primary" disabled={busy || !draftToken.trim()}>
-              {busy ? "確認中…" : "接続する"}
+            <button
+              className="primary"
+              disabled={busy || disconnectBusy || !draftToken.trim()}
+              aria-busy={busy && activeOperation === "connection"}
+              aria-describedby="connection-submit-reason"
+            >
+              {busy && activeOperation === "connection"
+                ? "接続確認中…"
+                : "接続する"}
             </button>
           </form>
           <p className="muted">
             管理者から受け取った接続tokenを入力してください。承認を行う際は、別の承認者で接続し直します。
           </p>
-          {error && <p role="alert">{error}</p>}
+          <p id="connection-submit-reason" role="status">
+            {disconnectBusy
+              ? "接続解除が完了するまで、接続を切り替えられません。"
+              : busy
+                ? activeOperation === "connection"
+                  ? "接続を確認しています。完了まで再送できません。"
+                  : "質問への応答を待っています。完了してから接続を切り替えてください。"
+                : !draftToken.trim()
+                  ? "接続用の認証情報を入力すると接続できます。"
+                  : "入力した認証情報で接続します。"}
+          </p>
+          <ReadFeedback
+            problem={connectionError}
+            operation={connectionOperation === "logout" ? "接続解除" : "接続"}
+            onRetry={
+              connectionOperation === "logout"
+                ? () => void disconnect()
+                : undefined
+            }
+          />
         </main>
       ) : (
         <div className="scenario-shell">
@@ -926,24 +1025,21 @@ export function App() {
                     </p>
                     <button
                       disabled={documentBusy || !equipment}
+                      aria-busy={documentBusy}
                       onClick={() => void searchDocuments()}
                     >
                       選択設備の関連文書を検索
                     </button>
                     {documentBusy && (
-                      <p role="status">関連文書を検索しています…</p>
+                      <p role="status">
+                        関連文書を検索しています。完了まで検索を再送できません。
+                      </p>
                     )}
-                    {documentError && (
-                      <div role="alert">
-                        <p>{documentError}</p>
-                        <button
-                          onClick={() => void searchDocuments()}
-                          disabled={documentBusy}
-                        >
-                          文書検索を再試行
-                        </button>
-                      </div>
-                    )}
+                    <ReadFeedback
+                      problem={documentError}
+                      operation="文書検索"
+                      onRetry={() => void searchDocuments()}
+                    />
                   </section>
                 )}
                 <h2 ref={documentHeading} tabIndex={-1}>
@@ -965,9 +1061,20 @@ export function App() {
                       </p>
                     )}
                     {evidenceKind === "documents" && (
-                      <p>
-                        検索で得た文書抜粋です。安全性や費用の確定判断ではありません。
-                      </p>
+                      <>
+                        {(documentBusy || documentError) && (
+                          <p className="notice">
+                            前回取得した検索結果です。今回の再検索は完了していません。
+                          </p>
+                        )}
+                        <DocumentSearchStatus
+                          observation={documentObservation}
+                          executionEpoch={executionEpoch}
+                        />
+                        <p>
+                          検索で得た文書抜粋です。安全性や費用の確定判断ではありません。
+                        </p>
+                      </>
                     )}
                     <EvidencePanel
                       result={evidenceResult}
@@ -1279,6 +1386,12 @@ export function App() {
                               ? "質問への回答"
                               : "関連文書の検索"}
                       </p>
+                      {reference === "documents" && referenceResult && (
+                        <DocumentSearchStatus
+                          observation={documentObservation}
+                          executionEpoch={executionEpoch}
+                        />
+                      )}
                       <p>
                         {referenceTime(referenceResult)}
                         {(

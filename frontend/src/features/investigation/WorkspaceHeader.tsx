@@ -127,9 +127,15 @@ export function WorkspaceHeader({
             onChange={(e) => setQuery(e.target.value)}
             placeholder="設備名の一部、またはコード"
           />
-          <button disabled={busy}>検索</button>
+          <button disabled={busy} aria-busy={busy}>
+            検索
+          </button>
         </form>
-        {busy && <p role="status">設備を探しています…</p>}
+        {busy && (
+          <p role="status">
+            設備を探しています。完了するまで検索を再送できません。
+          </p>
+        )}
         {error && (
           <div className="read-failure" role="alert">
             <p>{error}</p>

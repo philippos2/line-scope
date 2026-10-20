@@ -107,6 +107,12 @@ it("marks graph, summaries, loss and alternatives as preceding execution until i
   const summary = screen.getByRole("region", { name: "調査の要約" });
   const graph = screen.getByRole("tabpanel", { name: "接続及び影響範囲" });
   expect(summary.textContent).not.toContain("更新前");
+  await user.click(screen.getByRole("tab", { name: "出典と経路" }));
+  await user.click(screen.getByRole("button", { name: "関連文書" }));
+  await user.click(
+    screen.getByRole("button", { name: "選択設備の関連文書を検索" }),
+  );
+  await screen.findByRole("region", { name: "文書検索の取得状態" });
   await user.click(screen.getByRole("tab", { name: "変更・承認・実行" }));
   await user.click(screen.getByRole("button", { name: "更新完了を通知" }));
   await user.click(screen.getByRole("tab", { name: "接続及び影響範囲" }));
@@ -122,6 +128,14 @@ it("marks graph, summaries, loss and alternatives as preceding execution until i
     within(graph).getByRole("region", { name: "代替の提案" }).textContent,
   ).toContain("更新前");
   expect(within(graph).getAllByText(/更新前の結果/).length).toBeGreaterThan(0);
+  await user.click(screen.getByRole("tab", { name: "出典と経路" }));
+  expect(screen.getByText(/更新前の検索結果/)).toBeDefined();
+  await user.click(
+    screen.getByRole("button", { name: "選択設備の関連文書を検索" }),
+  );
+  await waitFor(() =>
+    expect(screen.queryByText(/更新前の検索結果/)).toBeNull(),
+  );
   await user.click(screen.getByRole("tab", { name: "質問する" }));
   // The answer arrived before execution, so graph refresh alone must not refresh it.
   await user.type(

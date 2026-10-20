@@ -1,4 +1,9 @@
 import {
+  ReadFeedback,
+  readProblem,
+  type ReadProblem,
+} from "../inputs/ReadFeedback";
+import {
   EquipmentQueryInput,
   SuggestedInput,
   InputAssistance,
@@ -48,7 +53,8 @@ export function CapacityPanel({
     filter: JsonObject;
   } | null>(null);
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState("");
+  const [error, setError] = useState<ReadProblem | null>(null);
+  const retryRead = useRef<(() => void) | null>(null);
   const [observedEpoch, setObservedEpoch] = useState(executionEpoch);
   const editorSequence = useRef(0);
   const active = useRef<AbortController | null>(null);
@@ -87,16 +93,16 @@ export function CapacityPanel({
   }
   async function run(action: (signal: AbortSignal) => Promise<void>) {
     if (pending.current) return;
+    retryRead.current = () => void run(action);
     const controller = new AbortController();
     active.current = controller;
     pending.current = true;
     setBusy(true);
-    setError("");
+    setError(null);
     try {
       await action(controller.signal);
     } catch (caught) {
-      if (!controller.signal.aborted)
-        setError(caught instanceof ApiError ? caught.code : "INVALID_RESPONSE");
+      if (!controller.signal.aborted) setError(readProblem(caught));
     } finally {
       pending.current = false;
       if (!controller.signal.aborted) setBusy(false);
@@ -176,14 +182,20 @@ export function CapacityPanel({
             onChange={(event) => setCode(event.target.value)}
           />
         </label>
-        <button disabled={busy}>登録済み能力入力を検索</button>
+        <button disabled={busy} aria-busy={busy}>
+          登録済み能力入力を検索
+        </button>
       </form>
-      {busy && <p role="status">能力入力を取得中…</p>}
-      {error && (
-        <p role="alert">
-          {error}。登録値を取得できません。仮値による補完は行っていません。
+      {busy && (
+        <p role="status">
+          能力入力を取得中です。完了まで、この欄の検索・登録操作はできません。
         </p>
       )}
+      <ReadFeedback
+        problem={error}
+        operation="能力入力の取得"
+        onRetry={() => retryRead.current?.()}
+      />
       <section aria-label="能力入力の検索候補">
         {rows.map((row, index) => (
           <button
