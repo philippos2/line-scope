@@ -1,6 +1,22 @@
 """Registered maintenance facts remain distinct from generated forecasts."""
 
 
+def maintenance_record_answer(observations, *, has_errors=False):
+    records = [
+        item.result.data for item in observations if item.tool == "search_maintenance_records"
+    ]
+    if (
+        has_errors
+        or not records
+        or any(row.get("items") != [] or row.get("next_cursor") is not None for row in records)
+    ):
+        return None
+    return (
+        "今回検索した登録済みの保全記録は0件のため、最後に保全した日時は確認できません。"
+        "保全作業が実施されていないことを意味するものではありません。"
+    )
+
+
 def maintenance_answer(observations, *, has_errors=False):
     results = [item.result.data for item in observations if item.tool == "get_maintenance_input"]
     searches = [item for item in observations if item.tool == "search_maintenance_inputs"]

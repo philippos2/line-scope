@@ -7,13 +7,13 @@ from uuid import uuid4
 from ..application.reads import ReadResult, ToolError
 from ..application.registered_decision import decision_answer
 from ..domain.canonical import canonical_json, strict_json
-from ..integrations.llm import LLMError, LLMReply
+from ..integrations.llm import LLMError, LLMReply, ToolCall
 from .agent_tools import AgentToolSession
 from .capacity_answer import capacity_answer
 from .economic_answer import economic_answer
 from .graph_answer import dependency_answer, downstream_answer, fulfillment_answer
 from .graph_model_view import GRAPH_TOOLS, graph_model_view
-from .maintenance_answer import maintenance_answer
+from .maintenance_answer import maintenance_answer, maintenance_record_answer
 from .safety_answer import safety_answer
 from .state_answer import state_answer
 
@@ -49,6 +49,17 @@ class ReadAgentResult:
     needs_input: bool
 
 
+def equipment_search_key(arguments):
+    """Only a first-page lookup by one literal admits an alternate lookup."""
+    filters = arguments.get("filter")
+    if arguments.get("cursor") is not None or type(filters) is not dict or len(filters) != 1:
+        return None
+    field, value = next(iter(filters.items()))
+    if field not in {"name", "equipment_code"} or type(value) is not str or not value:
+        return None
+    return field, value
+
+
 def model_tool_payload(tool, result):
     """Keep server Evidence intact; send identical Graph paths only once."""
     evidence = dict(result.evidence)
@@ -71,6 +82,7 @@ def supported_answer(observations, *, has_errors=False):
     groups = (
         ({"search_safety_inputs", "get_safety_input"}, (safety_answer,)),
         ({"search_maintenance_inputs", "get_maintenance_input"}, (maintenance_answer,)),
+        ({"search_maintenance_records"}, (maintenance_record_answer,)),
         ({"search_capacity_inputs", "get_capacity_input"}, (capacity_answer,)),
         ({"search_economic_inputs", "get_economic_input"}, (economic_answer,)),
         (GRAPH_TOOLS, (downstream_answer, dependency_answer, fulfillment_answer)),
@@ -161,6 +173,7 @@ class ReadAgent:
         if previous_messages:
             messages[1:1] = [{"role": "user", "content": message} for message in previous_messages]
         observations, trace, errors = [], [], {}
+        equipment_queries = set()
         while True:
             session.check_deadline()
             # Once all calls are consumed, permit only a final explanation.
@@ -250,7 +263,14 @@ class ReadAgent:
                     answer, tuple(observations), tuple(trace), tuple(errors.values()), False
                 )
             messages.append(reply.assistant_message())
-            for call in reply.tool_calls:
+            pending, alternate_calls = list(reply.tool_calls), []
+            for call in pending:
+                if call.name == "search_equipment":
+                    key = equipment_search_key(call.arguments)
+                    if key:
+                        equipment_queries.add(key)
+            while pending:
+                call = pending.pop(0)
                 signature = canonical_json({"tool": call.name, "arguments": call.arguments})
                 result, failure = None, None
                 for attempt in range(3):  # Initial attempt plus at most two transient retries.
@@ -304,6 +324,26 @@ class ReadAgent:
                 messages.append(
                     {"role": "tool", "tool_name": call.name, "content": canonical_json(payload)}
                 )
+                if (
+                    call.name == "search_equipment"
+                    and failure is None
+                    and result.data.get("items") == []
+                    and result.data.get("next_cursor") is None
+                ):
+                    key = equipment_search_key(call.arguments)
+                    if key:
+                        field, value = key
+                        other = "name" if field == "equipment_code" else "equipment_code"
+                        if (other, value) not in equipment_queries:
+                            equipment_queries.add((other, value))
+                            arguments = {**call.arguments, "filter": {other: value}}
+                            alternate_calls.append(
+                                ToolCall(str(uuid4()), "search_equipment", arguments)
+                            )
+                if not pending and alternate_calls:
+                    # Server-directed reads use the same admission, budget and evidence path.
+                    messages.append(LLMReply("", tuple(alternate_calls)).assistant_message())
+                    pending, alternate_calls = alternate_calls, []
 
             # The comparison already includes server-built explanations and evidence.
             # A further model generation cannot change its authoritative constraints.
