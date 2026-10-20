@@ -62,3 +62,20 @@ def reference_variants(text):
             )
         )
     return tuple(dict.fromkeys(variants))
+
+
+def question_messages(message):
+    """Keep the UI selection as untrusted context, separate from the actual question."""
+    match = re.match(r"調査対象の設備コードは([^\n]+)です。\n(.+)\Z", message, re.DOTALL)
+    if not match:
+        return [{"role": "user", "content": message}]
+    return [
+        {
+            "role": "user",
+            "content": "画面で選択中の設備コード（補足情報）："
+            + match[1]
+            + "。次の質問に設備名・コードが明記されている場合はそちらを優先し、"
+            "「この設備」など対象を省略した場合だけこの選択を参照してください。",
+        },
+        {"role": "user", "content": match[2]},
+    ]

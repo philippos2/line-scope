@@ -5,7 +5,7 @@
 <rect width="1600" height="1110" fill="#f8fafc"/>
 <g font-family="sans-serif" fill="#183247">
 <text x="30" y="42" font-size="26" font-weight="bold">LineScope：完了工程と残タスクの進行計画</text>
-<text x="30" y="76" font-size="18">現在：F1 複数設備の表記解決を確認／追加試験の了承・利用者確認待ち → F2 電源依存 → 両方のmerge後、F3「やること／やらないこと」を更新し文書PR</text>
+<text x="30" y="76" font-size="18">現在：F1 表記揺れと質問本文の対象優先を実機確認／利用者確認待ち → F2 電源依存 → 両方のmerge後、F3「やること／やらないこと」を更新し文書PR</text>
 <text x="30" y="108" font-size="17">残計画：暫定3 PR。F2は影響調査後に分割の要否を確定。他の未決・未検証まで完了したという意味ではない。</text>
 <g font-size="17">
 <rect x="30" y="132" width="1540" height="103" rx="8" fill="#ecfdf5" stroke="#0f766e"/>
@@ -19,12 +19,12 @@
 <g font-size="17" text-anchor="middle">
 <text x="546" y="331">原因・影響調査／見積もり</text><text x="835" y="331">実装</text><text x="1125" y="331">検証・ブラウザ確認</text><text x="1420" y="331">レビュー・merge</text>
 </g>
-<text x="30" y="378" font-size="20" font-weight="bold">F1 名称・保全日時の質問</text>
-<text x="30" y="409" font-size="17">同じ設備を名称／コードで特定</text>
+<text x="30" y="378" font-size="20" font-weight="bold">F1 名称・質問対象の解決</text>
+<text x="30" y="409" font-size="17">名称・コード・本文の対象を照合</text>
 <text x="30" y="437" font-size="17">想定1 PR・確認待ち</text>
 <rect x="420" y="370" width="255" height="57" rx="6" fill="#0f766e"/>
 <g stroke="none"><rect x="705" y="370" width="260" height="57" rx="6" fill="#0f766e"/><rect x="995" y="370" width="260" height="57" rx="6" fill="#0f766e"/><rect x="1285" y="370" width="270" height="57" rx="6" fill="#1d4ed8"/></g>
-<g font-size="17" text-anchor="middle"><text x="547" y="405" fill="white">調査済み</text><text x="835" y="405" fill="white">共通化を修正済み</text><text x="1125" y="405" fill="white">複数設備の照合確認済み</text><text x="1420" y="405" fill="white">現在：了承・利用者確認待ち</text></g>
+<g font-size="17" text-anchor="middle"><text x="547" y="405" fill="white">調査済み</text><text x="835" y="405" fill="white">表記・対象優先を修正済み</text><text x="1125" y="405" fill="white">選択と本文の違いも確認済み</text><text x="1420" y="405" fill="white">現在：了承・利用者確認待ち</text></g>
 <text x="420" y="463" font-size="16">指示・Tool定義の縮小と表記揺れの照合。GPU解放後に実機確認。競合下の応答は保証しない。</text>
 <path d="M1420 432V477H393V558H416" fill="none" stroke="#475569" stroke-width="2" marker-end="url(#arrow)"/>
 <text x="30" y="531" font-size="20" font-weight="bold">F2 M-208の必須電源依存</text>

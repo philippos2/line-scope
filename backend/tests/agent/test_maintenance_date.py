@@ -1,5 +1,6 @@
 """A focused date question resolves real records with one bounded model plan."""
 
+from dataclasses import replace
 from datetime import datetime, timezone
 from uuid import UUID
 
@@ -45,13 +46,24 @@ def test_name_variants_resolve_one_equipment_without_repeated_generation(registr
     dispatcher = Observed(registry)
     llm = ScriptedLLM(call("search_equipment", {"filter": {"name": name}}))
     result = ReadAgent(dispatcher, llm).run(
-        context(), request(name + "の前回のメンテナンス日時はいつか？")
+        context(),
+        replace(
+            request(name + "の前回のメンテナンス日時はいつか？"),
+            message="調査対象の設備コードはOTHERです。\n"
+            + name
+            + "の前回のメンテナンス日時はいつか？",
+        ),
     )
     assert not result.errors and not result.needs_input
     assert "第1加工機 · E-1" in result.answer and "0件" in result.answer
     assert "未実施という意味ではありません" in result.answer
     assert len(llm.requests) == 1
     assert set(llm.requests[0][1]) == {"search_equipment"}
+    assert llm.requests[0][0][-1] == {
+        "role": "user",
+        "content": name + "の前回のメンテナンス日時はいつか？",
+    }
+    assert "OTHER" in llm.requests[0][0][-2]["content"]
     records = [args for tool, args in dispatcher.calls if tool == "search_maintenance_records"]
     assert len(records) == 1 and records[0]["filter"] == {"equipment_id": str(UUID(int=1))}
     assert {

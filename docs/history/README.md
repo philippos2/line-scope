@@ -675,3 +675,5 @@ Dockerで追加36テスト成功、ruff check / format、git diff --check成功�
 - [保全日時質問のタイムアウトと表記揺れの再確認](2026-10-21-maintenance-date-timeout.md)
 
 - [複数設備の通常質問での表記照合](2026-10-21-equipment-reference-common.md)
+
+- [質問本文と画面選択の優先順位の修正](2026-10-21-question-target-priority.md)
