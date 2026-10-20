@@ -103,7 +103,7 @@ test("prepare is explicit and retry identity is retained until input changes", a
   );
   await screen.findByRole("alert");
   fireEvent.click(
-    screen.getByRole("button", { name: "経済入力の変更準備を作成" }),
+    screen.getByRole("button", { name: "同じ内容を再送して結果を確認" }),
   );
   await waitFor(() => expect(onPrepared).toHaveBeenCalledWith("saved"));
   const calls = vi.mocked(request).mock.calls;

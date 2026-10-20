@@ -1,3 +1,9 @@
+import {
+  OperationFeedback,
+  useOperationFeedback,
+  type OperationAction,
+  type OperationContext,
+} from "../inputs/OperationFeedback";
 import { registeredState } from "../investigation/readModel";
 import { ComparisonInputDetails } from "../decision/ComparisonInputDetails";
 import {
@@ -7,7 +13,7 @@ import {
   useState,
   type FormEvent,
 } from "react";
-import { ApiError, object, request, type Envelope } from "../../api/client";
+import { object, request, type Envelope } from "../../api/client";
 
 const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const text = (value: unknown) => (typeof value === "string" ? value : "未確認");
@@ -39,13 +45,12 @@ export function ActionPanel({
   const [saved, setSaved] = useState<Envelope | null>(null);
   const [execution, setExecution] = useState<Envelope | null>(null);
   const [checked, setChecked] = useState(false);
-  const [busy, setBusy] = useState(false);
+  const operation = useOperationFeedback();
+  const { busy, problem } = operation;
+  const uncertain = problem?.kind === "unknown";
   const [error, setError] = useState("");
-  const [diagnostic, setDiagnostic] = useState("");
   const [copied, setCopied] = useState(false);
-  const controller = useRef<AbortController | null>(null);
   const retry = useRef<{ message: string; key: string } | null>(null);
-  const pending = useRef(false);
   const handledOpen = useRef<typeof requestedOpen>(null);
   const snapshotHeading = useRef<HTMLHeadingElement>(null);
   const errorMessage = useRef<HTMLDivElement>(null);
@@ -53,7 +58,6 @@ export function ActionPanel({
     if (saved) snapshotHeading.current?.focus();
     else if (error) errorMessage.current?.focus();
   }, [saved, error]);
-  useEffect(() => () => controller.current?.abort(), []);
   useEffect(() => {
     setMessage(initialMessage);
   }, [initialMessage]);
@@ -61,59 +65,15 @@ export function ActionPanel({
     onSaved?.(saved);
   }, [saved, onSaved]);
 
+  const runOperation = operation.run;
+  const isPending = operation.isPending;
   const run = useCallback(
-    async (action: (signal: AbortSignal) => Promise<void>) => {
-      if (pending.current) return;
-      pending.current = true;
-      const active = new AbortController();
-      controller.current = active;
-      setBusy(true);
+    (action: OperationAction, context?: OperationContext) => {
       setError("");
-      setDiagnostic("");
       setChecked(false);
-      try {
-        await action(active.signal);
-      } catch (caught) {
-        if (!active.signal.aborted) {
-          setSaved(null);
-          const code =
-            caught instanceof ApiError ? caught.code : "REQUEST_FAILED";
-          const explanation =
-            (
-              {
-                AUTHORIZATION_DENIED:
-                  "この操作の権限がありません。依頼者・承認者と接続中の利用者を確認してください。",
-                AUTHENTICATION_REQUIRED:
-                  "接続が切れました。接続し直してください。",
-                VERSION_CONFLICT:
-                  "登録内容が変更されています。最新の登録値を取得し、変更準備を作り直してください。",
-                APPROVAL_EXPIRED:
-                  "承認期限を過ぎています。変更準備からやり直してください。",
-                SNAPSHOT_MISMATCH:
-                  "保存内容が一致しません。保存状態を再取得して確認してください。",
-                CONNECTION_FAILED:
-                  "応答を確認できませんでした。処理が確定している可能性があります。",
-                DEPENDENCY_UNAVAILABLE:
-                  "接続先サービスを利用できません。接続設定を確認してください。",
-              } as Record<string, string>
-            )[code] ??
-            "処理を完了できませんでした。保存状態を再取得して確認してください。";
-          setDiagnostic(
-            code +
-              (caught instanceof ApiError && caught.requestId
-                ? ` / ${caught.requestId}`
-                : ""),
-          );
-          setError(
-            `${explanation} 要求IDが分かる場合は保存状態を再取得してください。Prepare応答が不明な場合は同じ指示のまま再送できます。書き込みは自動再送しません。`,
-          );
-        }
-      } finally {
-        if (!active.signal.aborted) setBusy(false);
-        pending.current = false;
-      }
+      return runOperation(action, context);
     },
-    [],
+    [runOperation],
   );
   const load = useCallback(async (requestId: string, signal: AbortSignal) => {
     setSaved(null);
@@ -130,53 +90,63 @@ export function ActionPanel({
       if (!uuid.test(requestId)) return;
       setId(requestId);
       setCopied(false);
-      setExecution(null);
-      void run((signal) => load(requestId, signal));
+      if (requestId !== id) setExecution(null);
+      void run((signal) => load(requestId, signal), {
+        operation: "read",
+        requestId,
+      });
     },
-    [run, load],
+    [run, load, id],
   );
   useEffect(() => {
-    if (
-      !requestedOpen ||
-      handledOpen.current === requestedOpen ||
-      pending.current
-    )
+    if (!requestedOpen || handledOpen.current === requestedOpen || isPending())
       return;
     handledOpen.current = requestedOpen;
     open(requestedOpen.id);
-  }, [requestedOpen, open, busy]);
+  }, [requestedOpen, open, busy, isPending]);
   const alreadyPrepared =
     Boolean(message.trim()) && preparedMessage === message.trim();
   function prepare(event: FormEvent) {
     event.preventDefault();
     const command = message.trim();
-    if (!command || pending.current || alreadyPrepared) return;
+    if (
+      !command ||
+      isPending() ||
+      alreadyPrepared ||
+      (uncertain &&
+        (problem.operation !== "prepare" || retry.current?.message !== command))
+    )
+      return;
     if (retry.current?.message !== command)
       retry.current = { message: command, key: crypto.randomUUID() };
     setId("");
     setSaved(null);
     setExecution(null);
-    void run(async (signal) => {
-      const value = await request(
-        "",
-        "/agent",
-        { message: command },
-        signal,
-        retry.current!.key,
-      );
-      if (signal.aborted) return;
-      const requestId = value.data.update_request_id;
-      if (typeof requestId !== "string" || !uuid.test(requestId)) {
-        setError(
-          value.answer ??
-            "変更準備は作成されていません。対象と変更内容を明示してください。",
+    void run(
+      async (signal, confirmed) => {
+        const value = await request(
+          "",
+          "/agent",
+          { message: command },
+          signal,
+          retry.current!.key,
         );
-        return;
-      }
-      setId(requestId);
-      setPreparedMessage(command);
-      await load(requestId, signal);
-    });
+        if (signal.aborted) return;
+        const requestId = value.data.update_request_id;
+        if (typeof requestId !== "string" || !uuid.test(requestId)) {
+          setError(
+            value.answer ??
+              "変更準備は作成されていません。対象と変更内容を明示してください。",
+          );
+          return;
+        }
+        confirmed(requestId);
+        setId(requestId);
+        setPreparedMessage(command);
+        await load(requestId, signal);
+      },
+      { operation: "prepare" },
+    );
   }
   const data = saved?.data;
   const snapshot =
@@ -213,28 +183,32 @@ export function ActionPanel({
     actor && actor === requester && inputCategory,
   );
   const otherRequester = Boolean(actor && requester && actor !== requester);
-  const approvalReason = busy
-    ? "処理が終わるまでお待ちください。"
-    : !valid
-      ? "保存状態を再取得してください。"
-      : !pendingApproval
-        ? "この要求は承認待ちではありません。保存状態を確認してください。"
-        : ownRestrictedRequest
-          ? "この入力の依頼者は承認できません。別の工場管理者で接続してください。"
-          : !checked
-            ? "保存内容と操作内容を確認し、確認欄にチェックしてください。"
-            : "サーバが操作権限を確認して承認します。";
-  const executeReason = busy
-    ? "処理が終わるまでお待ちください。"
-    : !valid
-      ? "保存状態を再取得してください。"
-      : !approved
-        ? "実行には有効な承認が必要です。承認後に保存状態を再取得してください。"
-        : otherRequester
-          ? "実行できるのは元の依頼者です。依頼者で接続し直してください。"
-          : !checked
-            ? "承認された保存内容を確認し、確認欄にチェックしてください。"
-            : "元の依頼者として実行します。サーバが期限・権限・版を再確認します。";
+  const approvalReason = uncertain
+    ? "前の操作結果が不明です。書き込みを繰り返さず、同じ要求IDで保存状態を確認してください。"
+    : busy
+      ? "処理が終わるまでお待ちください。"
+      : !valid
+        ? "保存状態を再取得してください。"
+        : !pendingApproval
+          ? "この要求は承認待ちではありません。保存状態を確認してください。"
+          : ownRestrictedRequest
+            ? "この入力の依頼者は承認できません。別の工場管理者で接続してください。"
+            : !checked
+              ? "保存内容と操作内容を確認し、確認欄にチェックしてください。"
+              : "サーバが操作権限を確認して承認します。";
+  const executeReason = uncertain
+    ? "前の操作結果が不明です。実行を繰り返さず、同じ要求IDで保存状態を確認してください。"
+    : busy
+      ? "処理が終わるまでお待ちください。"
+      : !valid
+        ? "保存状態を再取得してください。"
+        : !approved
+          ? "実行には有効な承認が必要です。承認後に保存状態を再取得してください。"
+          : otherRequester
+            ? "実行できるのは元の依頼者です。依頼者で接続し直してください。"
+            : !checked
+              ? "承認された保存内容を確認し、確認欄にチェックしてください。"
+              : "元の依頼者として実行します。サーバが期限・権限・版を再確認します。";
   // 保存状態と依頼者との関係を表示し、操作権限はサーバで確認する。
   const viewerRole =
     {
@@ -280,6 +254,7 @@ export function ActionPanel({
     })[String(value)] ?? "状態を確認できません";
   function mutate(operation: "approve" | "reject" | "execute") {
     if (
+      uncertain ||
       !valid ||
       !checked ||
       (operation === "execute"
@@ -291,29 +266,33 @@ export function ActionPanel({
     setSaved(null);
     setExecution(null);
     if (operation === "execute") onExecution?.();
-    void run(async (signal) => {
-      const value =
-        operation === "execute"
-          ? await request(
-              "",
-              `/update-requests/${requestId}/execute`,
-              undefined,
-              signal,
-              undefined,
-              "POST",
-            )
-          : await request(
-              "",
-              `/approvals/${approvalId}/${operation}`,
-              operation === "approve" ? { snapshot_hash: hash } : undefined,
-              signal,
-              undefined,
-              "POST",
-            );
-      if (signal.aborted) return;
-      if (operation === "execute") setExecution(value);
-      await load(requestId, signal);
-    });
+    void run(
+      async (signal, confirmed) => {
+        const value =
+          operation === "execute"
+            ? await request(
+                "",
+                `/update-requests/${requestId}/execute`,
+                undefined,
+                signal,
+                undefined,
+                "POST",
+              )
+            : await request(
+                "",
+                `/approvals/${approvalId}/${operation}`,
+                operation === "approve" ? { snapshot_hash: hash } : undefined,
+                signal,
+                undefined,
+                "POST",
+              );
+        if (signal.aborted) return;
+        confirmed(requestId);
+        if (operation === "execute") setExecution(value);
+        await load(requestId, signal);
+      },
+      { operation, requestId },
+    );
   }
   return (
     <details className="action-panel" open={initiallyOpen || undefined}>
@@ -331,19 +310,32 @@ export function ActionPanel({
           placeholder="例：M-204の現在状態をRUNNINGに変更する準備を作って"
         />
         <button
-          disabled={busy || !message.trim() || alreadyPrepared}
+          disabled={
+            busy ||
+            !message.trim() ||
+            alreadyPrepared ||
+            (uncertain &&
+              (problem.operation !== "prepare" ||
+                retry.current?.message !== message.trim()))
+          }
           aria-describedby="action-prepare-reason"
         >
-          {alreadyPrepared ? "変更準備を作成済み" : "変更指示から準備を作成"}
+          {alreadyPrepared
+            ? "変更準備を作成済み"
+            : uncertain && problem.operation === "prepare"
+              ? "同じ指示を再送して結果を確認"
+              : "変更指示から準備を作成"}
         </button>
         <p id="action-prepare-reason" role="status">
           {busy
             ? "処理が完了するまで操作できません。"
-            : alreadyPrepared
-              ? "この指示の変更準備は作成済みです。保存内容と承認状態を確認してください。"
-              : !message.trim()
-                ? "変更準備には対象と変更内容の入力が必要です。"
-                : "変更準備だけでは登録値は変わりません。"}
+            : uncertain
+              ? "前の処理結果が不明です。今回の指示と再送キーを保持し、別の指示として再作成しないでください。"
+              : alreadyPrepared
+                ? "この指示の変更準備は作成済みです。保存内容と承認状態を確認してください。"
+                : !message.trim()
+                  ? "変更準備には対象と変更内容の入力が必要です。"
+                  : "変更準備だけでは登録値は変わりません。"}
         </p>
       </form>
       {!message.trim() && (
@@ -400,14 +392,9 @@ export function ActionPanel({
       {error && (
         <div role="alert" ref={errorMessage} tabIndex={-1}>
           <p>{error}</p>
-          {diagnostic && (
-            <details>
-              <summary>技術情報</summary>
-              <code>{diagnostic}</code>
-            </details>
-          )}
         </div>
       )}
+      <OperationFeedback problem={problem} onRead={open} />
       {data && (
         <section>
           <h2 ref={snapshotHeading} tabIndex={-1}>
@@ -522,6 +509,7 @@ export function ActionPanel({
             <button
               disabled={
                 busy ||
+                uncertain ||
                 !checked ||
                 !valid ||
                 !pendingApproval ||
@@ -535,6 +523,7 @@ export function ActionPanel({
             <button
               disabled={
                 busy ||
+                uncertain ||
                 !checked ||
                 !valid ||
                 !pendingApproval ||
@@ -547,7 +536,12 @@ export function ActionPanel({
             </button>
             <button
               disabled={
-                busy || !checked || !valid || !approved || otherRequester
+                busy ||
+                uncertain ||
+                !checked ||
+                !valid ||
+                !approved ||
+                otherRequester
               }
               aria-describedby="execute-reason"
               onClick={() => mutate("execute")}
