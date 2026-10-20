@@ -93,6 +93,35 @@ const calculationNames: Record<string, string> = {
   simple_cost_recovery: "単純費用回収期間",
 };
 
+function costReasons(option: JsonObject, calculations: JsonObject[]) {
+  const missing = list(option.missing_information);
+  const calculation = calculations.find(
+    (row) => row.id === `economic_${String(option.option)}`,
+  );
+  const input = object(calculation?.inputs) ? calculation.inputs : null;
+  const items = Array.isArray(input?.items) ? input.items.filter(object) : [];
+  const reasons: string[] = [];
+  if (missing.includes("economic_input"))
+    reasons.push("この案の費用項目を含む算定データが選択されていません。");
+  if (items.some((item) => item.amount == null))
+    reasons.push("選択した費用項目に、金額が設定されていない項目があります。");
+  if (items.some((item) => item.kind !== "DIRECT" && item.hours == null))
+    reasons.push(
+      "時間当たりの費用項目に、時間が設定されていない項目があります。",
+    );
+  if (items.some((item) => item.independent === false))
+    reasons.push(
+      "ほかの費用と独立して計上できると登録されていない項目があります。",
+    );
+  if (input?.complete === false)
+    reasons.push(
+      "選択した費用項目は、登録上も全項目がそろった扱いではありません。",
+    );
+  if (!reasons.length)
+    reasons.push("選択した入力に対して、サーバは費用の総額を返していません。");
+  return reasons;
+}
+
 export function DecisionComparison({
   comparison,
   names: entityNames = {},
@@ -195,9 +224,14 @@ export function DecisionComparison({
             ) : (
               <>
                 {option.total_cost == null && (
-                  <p>
-                    費用の総額は算定できません。登録費用と対応計画の選択内容を確認してください。
-                  </p>
+                  <div>
+                    <p>費用の総額は算定できません。</p>
+                    <ul>
+                      {costReasons(option, calculations).map((reason) => (
+                        <li key={reason}>{reason}</li>
+                      ))}
+                    </ul>
+                  </div>
                 )}
                 <dl>
                   {fields

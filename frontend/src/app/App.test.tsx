@@ -233,5 +233,12 @@ it("retains a previous answer as previous when a subsequent question fails, then
   expect((input as HTMLTextAreaElement).value).toBe("次の質問");
   await user.click(screen.getByRole("button", { name: "送信" }));
   await screen.findByText("今回の回答");
+  expect(
+    (screen.getByRole("button", { name: "送信" }) as HTMLButtonElement)
+      .disabled,
+  ).toBe(false);
+  expect(
+    screen.getByRole("button", { name: "送信" }).getAttribute("aria-busy"),
+  ).toBe("false");
   expect(screen.queryByText(/前回取得した回答/)).toBeNull();
 });

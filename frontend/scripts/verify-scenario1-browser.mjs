@@ -118,6 +118,15 @@ try {
   await expect(
     comparison.getByLabel("選択した条件の比較結果", { exact: true }),
   ).toBeVisible();
+  await expect(comparison).toContainText(
+    "金額が設定されていない項目があります",
+  );
+  await expect(comparison).toContainText(
+    "この案の費用項目を含む算定データが選択されていません",
+  );
+  await expect(comparison).not.toContainText(
+    "登録費用と対応計画の選択内容を確認してください",
+  );
   await page
     .getByRole("tab", { name: "接続及び影響範囲", exact: true })
     .click();

@@ -599,7 +599,7 @@ export function RegisteredComparison({
                 !visibleCandidates[group].length &&
                 !candidateFailures[group] && (
                   <p>
-                    候補は未取得です。上の「比較に使う正式入力の候補を取得」で確認できます。
+                    この分類はまだ検索していません。上の「比較に使う正式入力の候補を取得」を押してください。起点設備の比較に使える入力が登録されていない場合もあります。
                   </p>
                 )}
               {candidates[group] &&

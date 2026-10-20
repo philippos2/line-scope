@@ -747,6 +747,7 @@ export function App() {
                       <button
                         className="primary"
                         aria-describedby="question-submit-reason"
+                        aria-busy={busy}
                         disabled={busy || !message.trim()}
                       >
                         送信
