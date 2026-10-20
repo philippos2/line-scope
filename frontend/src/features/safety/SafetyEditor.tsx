@@ -1,3 +1,4 @@
+import { PreparedInputForm } from "../inputs/PreparedInputForm";
 import {
   OperationFeedback,
   useOperationFeedback,
@@ -102,7 +103,7 @@ export function SafetyEditor({
       <p className="muted">
         値を編集した場合は、出典と確認済みの扱いを引き継ぎません。変更内容に合う出典・確度を確認してください。
       </p>
-      <form onSubmit={submit}>
+      <PreparedInputForm onSubmit={submit}>
         <fieldset disabled={busy}>
           <legend>安全判断の記録</legend>
           <label>
@@ -195,7 +196,7 @@ export function SafetyEditor({
                   : ""
           }
         />
-      </form>
+      </PreparedInputForm>
       <OperationFeedback
         problem={operation.problem}
         onRead={onOpenPrepared ?? onPrepared}

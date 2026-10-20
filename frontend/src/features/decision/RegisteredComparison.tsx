@@ -81,6 +81,9 @@ export function RegisteredComparison({
   const [selected, setSelected] = useState(blank);
   const [records, setRecords] = useState<Record<string, Envelope>>({});
   const touched = useRef(new Set<Group>());
+  const recordEpochs = useRef<Record<string, number>>({});
+  const inherited = useRef(new WeakSet<Envelope>());
+  const candidateEpochs = useRef<Partial<Record<Group, number>>>({});
   const detailsHeading = useRef<HTMLElement>(null);
   const resultHeading = useRef<HTMLDivElement>(null);
   const focusVisible = (ref: { current: HTMLElement | null }) =>
@@ -96,9 +99,14 @@ export function RegisteredComparison({
     const values = [...initialEconomic, ...initialCapacity];
     const map: Record<string, Envelope> = {};
     for (const value of values) {
+      if (inherited.current.has(value)) continue;
+      inherited.current.add(value);
       const r = inputRecord(value);
       const id = r.economic_input_id ?? r.capacity_input_id;
-      if (typeof id === "string") map[id] = value;
+      if (typeof id === "string") {
+        map[id] = value;
+        recordEpochs.current[id] = executionEpoch;
+      }
     }
     setRecords((old) => ({ ...old, ...map }));
     setSelected((old) => ({
@@ -114,7 +122,13 @@ export function RegisteredComparison({
           ? [initialCapacityId]
           : old.capacity,
     }));
-  }, [initialEconomic, initialCapacity, initialEconomicId, initialCapacityId]);
+  }, [
+    initialEconomic,
+    initialCapacity,
+    initialEconomicId,
+    initialCapacityId,
+    executionEpoch,
+  ]);
   const visibleCandidates = Object.fromEntries(
     groups.map(([group, , idKey]) => {
       const listed = Array.isArray(candidates[group]?.items)
@@ -165,16 +179,21 @@ export function RegisteredComparison({
   const [details, setDetails] = useState<JsonObject | null>(null);
   const [busy, setBusy] = useState(false),
     [error, setError] = useState("");
+  const [operationName, setOperationName] = useState("");
   const [observedEpoch, setObservedEpoch] = useState(executionEpoch);
   const controller = useRef<AbortController | null>(null),
     pending = useRef(false);
   useEffect(() => () => controller.current?.abort(), []);
-  async function run(action: (signal: AbortSignal) => Promise<void>) {
+  async function run(
+    name: string,
+    action: (signal: AbortSignal) => Promise<void>,
+  ) {
     if (pending.current) return;
     const active = new AbortController();
     controller.current = active;
     pending.current = true;
     setBusy(true);
+    setOperationName(name);
     setError("");
     try {
       await action(active.signal);
@@ -212,7 +231,11 @@ export function RegisteredComparison({
         }
       }),
     );
-    if (!signal.aborted) setRecords((old) => ({ ...old, ...cache }));
+    if (!signal.aborted) {
+      for (const id of Object.keys(cache))
+        recordEpochs.current[id] = executionEpoch;
+      setRecords((old) => ({ ...old, ...cache }));
+    }
   }
   function search(requested?: Group[]) {
     if (!equipment || pending.current) return;
@@ -234,7 +257,7 @@ export function RegisteredComparison({
       for (const group of targetGroups) delete next[group];
       return next;
     });
-    void run(async (signal) => {
+    void run("比較に使う入力候補の取得", async (signal) => {
       const outcomes = await Promise.allSettled(
         targetGroups.map(async (group) => {
           const response = await request(
@@ -268,6 +291,7 @@ export function RegisteredComparison({
           try {
             await readDetails({ [group]: value }, signal);
             data[group] = value;
+            candidateEpochs.current[group] = executionEpoch;
           } catch (caught) {
             failures[group] =
               caught instanceof ApiError ? caught.code : "INVALID_RESPONSE";
@@ -312,7 +336,7 @@ export function RegisteredComparison({
   function nextPage(group: Group) {
     const cursor = candidates[group]?.next_cursor;
     if (!equipment || typeof cursor !== "string") return;
-    void run(async (signal) => {
+    void run("続きの入力候補の取得", async (signal) => {
       const response = await request(
         "",
         `/${paths[group]}/search`,
@@ -348,7 +372,7 @@ export function RegisteredComparison({
     });
   }
   function inspect(group: Group, identifier: string) {
-    void run(async (signal) => {
+    void run("入力・出典の取得", async (signal) => {
       const response = await request(
         "",
         `/${paths[group]}/${encodeURIComponent(identifier)}`,
@@ -356,6 +380,8 @@ export function RegisteredComparison({
         signal,
       );
       if (signal.aborted) return;
+      recordEpochs.current[identifier] = executionEpoch;
+      setRecords((old) => ({ ...old, [identifier]: response }));
       setDetails(response.data);
       focusVisible(detailsHeading);
     });
@@ -465,11 +491,24 @@ export function RegisteredComparison({
     setResult(null);
     onResult?.(null);
   }, [conditionKey, onResult]);
+  const staleSelected = groups.some(([group]) =>
+    selected[group].some((id) => recordEpochs.current[id] !== executionEpoch),
+  );
+  const selfCapacitySelected = selectedInputs.capacity.some(
+    (row) => row.equipment_id === equipment?.equipment_id,
+  );
   function compare(event: FormEvent) {
     event.preventDefault();
+    if (
+      pending.current ||
+      !timing.period ||
+      staleSelected ||
+      selfCapacitySelected
+    )
+      return;
     setResult(null);
     onResult?.(null);
-    void run(async (signal) => {
+    void run("対応案の比較", async (signal) => {
       const response = await request(
         "",
         "/decisions/compare",
@@ -496,6 +535,9 @@ export function RegisteredComparison({
           : "設備を探して候補を選択してください。"}
       </p>
       <p>
+        ここでは起点設備への修理・交換・継続と、別の設備への代替を比較します。この設備を代替候補として評価する場合は、代替を検討する元の設備を左で選んでください。
+      </p>
+      <p>
         各入力の出典・期間を確認して選択します。未選択は不明です。能力は代替候補の設備を、安全は対象設備・代替設備の入力を選択します。条件に合う候補が1件で検索が完了した場合だけ事前選択します。選び直せます。選択は設備全体の安全や運転許可を意味しません。
       </p>
       <p>
@@ -504,19 +546,31 @@ export function RegisteredComparison({
       <button disabled={busy || !equipment} onClick={() => search()}>
         比較に使う正式入力の候補を取得
       </button>
+      {!equipment && (
+        <p>
+          起点設備が未選択のため候補を取得できません。左の検索から設備を選んでください。
+        </p>
+      )}
       {candidateNotice && !busy && <p role="status">{candidateNotice}</p>}
       {error && (
         <p role="alert">
-          {explanation(error)} 入力・期間・対象を確認して再試行してください。
+          {operationName}を完了できませんでした。{explanation(error)}{" "}
+          入力と期間は保持しています。対応する取得・比較ボタンから再試行してください。
         </p>
       )}
-      {busy && <p role="status">正式入力を確認中…</p>}
+      {busy && <p role="status">{operationName}を実行しています…</p>}
       <form onSubmit={compare}>
         <fieldset disabled={busy || !equipment}>
           <legend>比較する入力と共通期間</legend>
           {groups.map(([group, label, idKey]) => (
             <section key={group} aria-label={`比較に使う${label}`}>
               <h3>{label}</h3>
+              {candidates[group] &&
+                candidateEpochs.current[group] !== executionEpoch && (
+                  <p className="notice">
+                    更新前の候補です。候補を取得し直してください。
+                  </p>
+                )}
               {(group === "economic" || group === "capacity") && (
                 <button
                   type="button"
@@ -545,7 +599,7 @@ export function RegisteredComparison({
                 !visibleCandidates[group].length &&
                 !candidateFailures[group] && (
                   <p>
-                    候補は未取得です。上の「比較に使う正式入力の候補を取得」で確認できます。
+                    この分類はまだ検索していません。上の「比較に使う正式入力の候補を取得」を押してください。起点設備の比較に使える入力が登録されていない場合もあります。
                   </p>
                 )}
               {candidates[group] &&
@@ -577,6 +631,11 @@ export function RegisteredComparison({
                     <input
                       type="checkbox"
                       checked={selected[group].includes(String(row[idKey]))}
+                      disabled={
+                        group === "capacity" &&
+                        row.equipment_id === equipment?.equipment_id &&
+                        !selected[group].includes(String(row[idKey]))
+                      }
                       onChange={(event) => {
                         const id = String(row[idKey]);
                         touched.current.add(group);
@@ -600,6 +659,9 @@ export function RegisteredComparison({
                       ? ` ／ ${names[String(row.product_id)] ?? "対象製品"}`
                       : ""}{" "}
                     · 第{String(row.version)}版
+                    {recordEpochs.current[String(row[idKey])] !== executionEpoch
+                      ? "（更新前）"
+                      : ""}
                     {selected[group].includes(String(row[idKey])) &&
                     !touched.current.has(group)
                       ? "（事前選択・変更できます）"
@@ -609,6 +671,12 @@ export function RegisteredComparison({
                       ? ` · ${displayPeriod(inputPeriod(inputRecord(records[String(row[idKey])]))!.start, inputPeriod(inputRecord(records[String(row[idKey])]))!.end)}`
                       : ""}
                   </label>
+                  {group === "capacity" &&
+                    row.equipment_id === equipment?.equipment_id && (
+                      <p>
+                        この設備自身の能力データは、この比較の代替用には選択できません。他の設備の代替として評価するときに使うデータです。
+                      </p>
+                    )}
                   <button
                     type="button"
                     onClick={() => inspect(group, String(row[idKey]))}
@@ -636,10 +704,30 @@ export function RegisteredComparison({
           <p>
             比較期間は編集できません。期間が合わない場合は入力を選び直すか、「入力を登録・訂正」で期間を直してください。安全条件は全期間を覆う必要があり、履歴は過去の背景情報として扱います。
           </p>
-          <button disabled={!timing.period}>選択した正式入力で比較する</button>
+          {!timing.period && (
+            <p role="status">
+              {timing.error}{" "}
+              入力を選択するか、「入力を登録・訂正」で登録条件を確認してください。
+            </p>
+          )}
+          {staleSelected && (
+            <p className="notice">
+              選択した入力が更新前のため比較できません。各入力の「入力・出典を確認」から再取得してください。
+            </p>
+          )}
+          {selfCapacitySelected && (
+            <p className="notice">
+              この設備自身の能力データは代替用に使えません。選択を解除し、別の設備の能力データを選んでください。
+            </p>
+          )}
+          <button
+            disabled={!timing.period || staleSelected || selfCapacitySelected}
+          >
+            選択した正式入力で比較する
+          </button>
           <button
             type="button"
-            disabled={!timing.period}
+            disabled={!timing.period || staleSelected || selfCapacitySelected}
             onClick={() =>
               onInvestigate(
                 `${equipment?.equipment_code}について、選択した登録入力で対応案を比較する。`,

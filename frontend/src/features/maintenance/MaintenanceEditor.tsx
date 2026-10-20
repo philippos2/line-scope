@@ -1,3 +1,4 @@
+import { PreparedInputForm } from "../inputs/PreparedInputForm";
 import {
   OperationFeedback,
   useOperationFeedback,
@@ -126,7 +127,7 @@ export function MaintenanceEditor({
       <p className="muted">
         値を編集した場合は、出典と確認済みの扱いを引き継ぎません。変更内容に合う出典・確度を確認してください。
       </p>
-      <form onSubmit={submit}>
+      <PreparedInputForm onSubmit={submit}>
         <fieldset disabled={busy}>
           <legend>計画・実績の記録</legend>
           <label>
@@ -294,7 +295,7 @@ export function MaintenanceEditor({
                   : ""
           }
         />
-      </form>
+      </PreparedInputForm>
       <OperationFeedback
         problem={operation.problem}
         onRead={onOpenPrepared ?? onPrepared}

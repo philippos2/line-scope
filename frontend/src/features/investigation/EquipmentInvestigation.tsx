@@ -1,3 +1,4 @@
+import { inputPeriod, inputRecord } from "./workspaceModel";
 import { useEffect, useMemo, useRef } from "react";
 import { object, type Envelope } from "../../api/client";
 import type { EquipmentCandidate } from "../equipment/EquipmentCandidates";
@@ -299,6 +300,23 @@ export function EquipmentInvestigation({
       onObservations(shown);
     }
   }, [shown, onObservations, referenceOnly]);
+  const knownComparisonBasis = [...model.economic, ...model.capacity].some(
+    (value) => inputPeriod(inputRecord(value)),
+  );
+  const comparisonLink = root ? (
+    <>
+      <button onClick={() => onUseEquipment(root)}>
+        {knownComparisonBasis
+          ? `${root.equipment_code}への対応案を比べる`
+          : `${root.equipment_code}の比較用入力を確認する`}
+      </button>
+      {!knownComparisonBasis && (
+        <p className="muted">
+          この調査では、比較に使う算定・代替能力データを取得できていません。比較画面で対応計画などの登録状況を確認できます。使える入力がなければ「入力を登録・訂正」が必要です。
+        </p>
+      )}
+    </>
+  ) : null;
   const info = (text: string) => <p className="muted">{text}</p>;
   const relationship = (
     <section className="relationship-panel" aria-label="接続及び影響範囲">
@@ -734,9 +752,7 @@ export function EquipmentInvestigation({
                 <button onClick={() => choose(selectedEquipment)}>
                   この設備を調べる
                 </button>
-                <button onClick={() => root && onUseEquipment(root)}>
-                  {root?.equipment_code}への対応案を比べる
-                </button>
+                {comparisonLink}
               </>
             )}
             <h3>この項目を含む経路</h3>
@@ -761,9 +777,7 @@ export function EquipmentInvestigation({
                 <h3>{root.equipment_name}</h3>
                 <p>{root.equipment_code}</p>
                 <p>登録上の状態：{registeredState(model.currentState)}</p>
-                <button onClick={() => onUseEquipment(root)}>
-                  {root?.equipment_code}への対応案を比べる
-                </button>
+                {comparisonLink}
               </>
             ) : (
               info("関係図の項目を選ぶと、属性と経路を表示します。")

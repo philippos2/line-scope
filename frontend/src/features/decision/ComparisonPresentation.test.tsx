@@ -100,3 +100,42 @@ it("labels infrastructure with the known name and code instead of displaying its
   expect(screen.getByText("共通電源 · R-02")).toBeDefined();
   expect(screen.queryByText("インフラ資源：resource-key")).toBeNull();
 });
+
+it("explains incomplete registered costs separately from absent option inputs", () => {
+  render(
+    <DecisionComparison
+      comparison={{
+        options: [
+          {
+            option: "REPAIR",
+            total_cost: null,
+            missing_information: ["maintenance_plan"],
+          },
+          {
+            option: "INTERIM",
+            total_cost: null,
+            missing_information: ["economic_input", "maintenance_plan"],
+          },
+        ],
+        calculations: [
+          {
+            id: "economic_REPAIR",
+            result: null,
+            inputs: {
+              complete: false,
+              items: [{ kind: "DIRECT", amount: null, independent: true }],
+            },
+          },
+        ],
+      }}
+    />,
+  );
+  expect(screen.getByText(/金額が設定されていない項目/)).toBeDefined();
+  expect(screen.getByText(/全項目がそろった扱いではありません/)).toBeDefined();
+  expect(
+    screen.getByText(/この案の費用項目を含む算定データが選択されていません/),
+  ).toBeDefined();
+  expect(
+    screen.queryByText(/登録費用と対応計画の選択内容を確認してください/),
+  ).toBeNull();
+});
