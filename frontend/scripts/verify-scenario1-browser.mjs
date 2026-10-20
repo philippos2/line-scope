@@ -57,6 +57,23 @@ async function search(code) {
   report.timings_ms[`${code}-search`] = Date.now() - started;
   await candidate.click();
 }
+async function searchDocuments(
+  button = "選択設備の関連文書を検索",
+  status = 200,
+) {
+  const response = page.waitForResponse(
+    (r) =>
+      r.url().endsWith("/agent") &&
+      r.request().method() === "POST" &&
+      r.request().postDataJSON()?.message?.startsWith("文書検索："),
+    { timeout: 30000 },
+  );
+  await page.getByRole("button", { name: button, exact: true }).click();
+  const result = await response;
+  await result.finished();
+  expect(result.status()).toBe(status);
+}
+
 try {
   await page.goto(base);
   await expect(page.locator(".equipment-search-panel")).toHaveCount(0);
@@ -209,9 +226,7 @@ try {
   );
   await page.getByRole("tab", { name: "出典と経路", exact: true }).click();
   await page.getByRole("button", { name: "関連文書", exact: true }).click();
-  await page
-    .getByRole("button", { name: "選択設備の関連文書を検索", exact: true })
-    .click();
+  await searchDocuments();
   await expect(
     page.getByRole("region", { name: "文書検索の取得状態", exact: true }),
   ).toContainText("M-204");
@@ -256,18 +271,14 @@ try {
         },
       });
     });
-    await page
-      .getByRole("button", { name: "選択設備の関連文書を検索", exact: true })
-      .click();
+    await searchDocuments("選択設備の関連文書を検索", 503);
     await expect(
       page.getByText(
         "前回取得した検索結果です。今回の再検索は完了していません。",
         { exact: true },
       ),
     ).toBeVisible();
-    await page
-      .getByRole("button", { name: "文書検索を再試行", exact: true })
-      .click();
+    await searchDocuments("文書検索を再試行");
     await expect(
       page.getByText(
         "前回取得した検索結果です。今回の再検索は完了していません。",
