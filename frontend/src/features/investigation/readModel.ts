@@ -25,6 +25,14 @@ export function explanation(code: string) {
   return (
     (
       {
+        INVALID_TOKEN_FORMAT:
+          "接続用の認証情報の形式が正しくありません。管理者から受け取った値を入力してください。",
+        INVALID_RESPONSE:
+          "取得した情報の形式が正しくありません。再取得しても続く場合は管理者へ連絡してください。",
+        REQUEST_TIMEOUT:
+          "取得が制限時間内に完了しませんでした。再取得できます。",
+        VALIDATION_ERROR:
+          "検索条件の形式が正しくありません。入力内容を見直してください。",
         AUTHENTICATION_REQUIRED: "接続が切れました。接続し直してください。",
         AUTHORIZATION_DENIED: "この情報を表示する権限がありません。",
         GRAPH_NOT_CURRENT: "関係データの更新待ちです。",

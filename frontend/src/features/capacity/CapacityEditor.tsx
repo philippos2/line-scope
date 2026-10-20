@@ -1,3 +1,8 @@
+import {
+  ReadFeedback,
+  readProblem,
+  type ReadProblem,
+} from "../inputs/ReadFeedback";
 import { PreparedInputForm } from "../inputs/PreparedInputForm";
 import {
   OperationFeedback,
@@ -39,7 +44,7 @@ export function CapacityEditor({
     [cursor, setCursor] = useState<string | null>(null),
     [searched, setSearched] = useState("");
   const [productBusy, setBusy] = useState(false),
-    [error, setError] = useState("");
+    [error, setError] = useState<ReadProblem | null>(null);
   const pending = useRef(false),
     retry = useRef<{ serialized: string; key: string } | null>(null);
   const body = {
@@ -122,7 +127,7 @@ export function CapacityEditor({
     if (pending.current) return;
     pending.current = true;
     setBusy(true);
-    setError("");
+    setError(null);
     try {
       const text = next ? searched : query;
       const result = await request(
@@ -151,8 +156,7 @@ export function CapacityEditor({
           : null,
       );
     } catch (caught) {
-      if (!signal.aborted)
-        setError(caught instanceof ApiError ? caught.code : "INVALID_RESPONSE");
+      if (!signal.aborted) setError(readProblem(caught));
     } finally {
       pending.current = false;
       if (!signal.aborted) setBusy(false);
@@ -448,7 +452,11 @@ export function CapacityEditor({
           }
         />
       </PreparedInputForm>
-      {error && <p role="alert">{error}</p>}
+      <ReadFeedback
+        problem={error}
+        operation="製品候補の検索"
+        onRetry={() => void findProducts()}
+      />
       <OperationFeedback
         problem={operation.problem}
         onRead={onOpenPrepared ?? onPrepared}

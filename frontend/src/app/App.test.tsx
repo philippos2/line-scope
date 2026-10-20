@@ -242,3 +242,66 @@ it("retains a previous answer as previous when a subsequent question fails, then
   ).toBe("false");
   expect(screen.queryByText(/前回取得した回答/)).toBeNull();
 });
+it("explains a login rejection without exposing the code outside technical details", async () => {
+  stubFetch(
+    vi.fn().mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          ...base,
+          status: "error",
+          errors: [{ code: "AUTHENTICATION_REQUIRED" }],
+        }),
+        { status: 401 },
+      ),
+    ),
+  );
+  render(<App />);
+  const user = userEvent.setup();
+  await user.type(await screen.findByLabelText("Bearer token"), "invalid");
+  await user.click(screen.getByRole("button", { name: "接続する" }));
+  await screen.findByRole("alert");
+  expect(
+    screen
+      .getByText("AUTHENTICATION_REQUIRED")
+      .closest("details")
+      ?.hasAttribute("open"),
+  ).toBe(false);
+  expect(
+    (screen.getByRole("button", { name: "接続する" }) as HTMLButtonElement)
+      .disabled,
+  ).toBe(false);
+});
+it("does not describe a pending question as a pending login in connection settings", async () => {
+  let resolve: (value: Response) => void = () => {};
+  stubFetch(
+    vi
+      .fn()
+      .mockResolvedValueOnce(reply())
+      .mockImplementationOnce(
+        () =>
+          new Promise<Response>((done) => {
+            resolve = done;
+          }),
+      ),
+  );
+  render(<App />);
+  const user = await connect();
+  await user.type(
+    screen.getByLabelText("関係や影響について質問する"),
+    "登録状態を読む",
+  );
+  await user.click(screen.getByRole("button", { name: "送信" }));
+  await user.click(screen.getByRole("button", { name: "接続設定" }));
+  expect(
+    screen.getByText(/質問への応答を待っています。完了してから接続/),
+  ).toBeDefined();
+  expect(
+    screen.getByRole("button", { name: "接続する" }).getAttribute("aria-busy"),
+  ).toBe("false");
+  resolve(reply());
+  await waitFor(() =>
+    expect(
+      screen.queryByText(/質問への応答を待っています。完了してから接続/),
+    ).toBeNull(),
+  );
+});
