@@ -195,3 +195,33 @@ it("selects equipment through the common search, loads relationships directly an
   )!;
   expect(JSON.parse(String(call[1].body)).context_id).toBeUndefined();
 });
+it("retains a previous answer as previous when a subsequent question fails, then recovers explicitly", async () => {
+  stubFetch(
+    vi
+      .fn()
+      .mockResolvedValueOnce(reply())
+      .mockResolvedValueOnce(reply())
+      .mockRejectedValueOnce(new TypeError("network failure"))
+      .mockResolvedValueOnce(reply({ ...base, answer: "今回の回答" })),
+  );
+  render(<App />);
+  const user = await connect();
+  expect(
+    (screen.getByRole("button", { name: "送信" }) as HTMLButtonElement)
+      .disabled,
+  ).toBe(true);
+  const input = screen.getByLabelText("関係や影響について質問する");
+  await user.type(input, "最初の質問");
+  await user.click(screen.getByRole("button", { name: "送信" }));
+  await screen.findByText("取得した回答");
+  await user.clear(input);
+  await user.type(input, "次の質問");
+  await user.click(screen.getByRole("button", { name: "送信" }));
+  await screen.findByRole("alert");
+  expect(screen.getByText("取得した回答")).toBeDefined();
+  expect(screen.getByText(/前回取得した回答/)).toBeDefined();
+  expect((input as HTMLTextAreaElement).value).toBe("次の質問");
+  await user.click(screen.getByRole("button", { name: "送信" }));
+  await screen.findByText("今回の回答");
+  expect(screen.queryByText(/前回取得した回答/)).toBeNull();
+});

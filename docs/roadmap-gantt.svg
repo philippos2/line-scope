@@ -1,10 +1,10 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1540" height="620" viewBox="0 0 1540 620" role="img" aria-labelledby="title desc">
 <title id="title">PR #270後の操作状態是正：監査文書、書込、比較・質問、読取・接続</title>
-<desc id="desc">A1、A2、Bと完了後導線はmerge済み。残る工程は文書271はmerge済み、残り修正2から3 PR。文書最大1日、書込最大1.5日、比較質問最大1日、読取接続最大1日。相対合計最大4.5作業日。各工程でレビューとmergeを挟み、待ち時間は含まない。実書込確認は許可後、経済入力で実施済み。他カテゴリは未検証。</desc>
+<desc id="desc">A1、A2、Bと完了後導線はmerge済み。残る工程は文書271はmerge済み、残りは現在のR1とW3および後続R2の2 PR。文書最大1日、書込最大1.5日、比較質問最大1日、読取接続最大1日。相対合計最大4.5作業日。各工程でレビューとmergeを挟み、待ち時間は含まない。実書込確認は許可後、経済入力で実施済み。他カテゴリは未検証。</desc>
 <rect width="1540" height="620" fill="#f8fafc"/>
 <g font-family="sans-serif" fill="#183247">
-<text x="28" y="40" font-size="25">残工程：状態規約と監査 → 書込の安全な復帰 → 比較・質問 → 読取・接続</text>
-<text x="28" y="74" font-size="17">#267〜#271 merge済み。残り修正2〜3 PR（現在のW1/W2を含む）。相対工数の最大枠／待ち時間は別。</text>
+<text x="28" y="40" font-size="25">操作状態の是正：監査・書込は完了 → 比較・質問・入力不足 → 読取・接続</text>
+<text x="28" y="74" font-size="17">#267〜#272 merge済み。現在のR1/W3＋後続R2の2 PR・残1〜2作業日。完了分と待ち時間は別。</text>
 <g stroke="#cbd5e1" stroke-width="1">
 <path d="M390 135V448 M510 135V448 M630 135V448 M750 135V448 M870 135V448 M990 135V448 M1110 135V448 M1230 135V448 M1350 135V448 M1470 135V448"/>
 <path d="M28 135H1470 M28 210H1470 M28 285H1470 M28 360H1470 M28 435H1470"/>
@@ -13,20 +13,20 @@
 <text x="390" y="122">0</text><text x="510" y="122">0.5日</text><text x="630" y="122">1日</text><text x="750" y="122">1.5日</text><text x="870" y="122">2日</text><text x="990" y="122">2.5日</text><text x="1110" y="122">3日</text><text x="1230" y="122">3.5日</text><text x="1350" y="122">4日</text><text x="1470" y="122">4.5日</text>
 </g>
 <g font-size="18">
-<text x="28" y="178">0 文書・状態監査（本工程）</text>
+<text x="28" y="178">0 文書・状態監査（完了）</text>
 <text x="28" y="253">1 書込の結果不明と復帰</text>
-<text x="28" y="328">2 比較・質問の状態表示</text>
+<text x="28" y="328">2 比較・質問・入力不足</text>
 <text x="28" y="403">3 読取・接続の案内と鮮度</text>
 </g>
 <rect x="390" y="155" width="240" height="38" rx="5" fill="#0f766e"/>
-<rect x="630" y="230" width="360" height="38" rx="5" fill="#1d4ed8"/>
+<rect x="630" y="230" width="360" height="38" rx="5" fill="#0f766e"/>
 <rect x="990" y="305" width="240" height="38" rx="5" fill="#1d4ed8"/>
 <rect x="1230" y="380" width="240" height="38" rx="5" fill="#1d4ed8"/>
 <g fill="white" font-size="16" text-anchor="middle">
-<text x="510" y="180">#271 merge済み</text><text x="810" y="255">実装・経済入力実通し済み</text><text x="1110" y="330">0.5〜1日・未修正</text><text x="1350" y="405">0.5〜1日・未修正</text>
+<text x="510" y="180">#271 merge済み</text><text x="810" y="255">#272 merge済み</text><text x="1110" y="330">0.5〜1日・現在のPR</text><text x="1350" y="405">0.5〜1日・未修正</text>
 </g>
 <path d="M630 194V219H650 M990 269V294H1010 M1230 344V369H1250" fill="none" stroke="#475569" stroke-width="2"/>
-<text x="28" y="480" font-size="17">各矢印：レビュー・利用者確認・merge後に次へ。工程2と3は同一PRにまとめる可能性あり。</text>
+<text x="28" y="480" font-size="17">各矢印：レビュー・利用者確認・merge後に次へ。残る工程2と3は、小さく確認するため別PRにする。</text>
 <rect x="28" y="505" width="1442" height="72" rx="7" fill="#fff7ed" stroke="#ea580c"/>
 <text x="43" y="534" font-size="17">別枠・経済入力で確認済み：実Prepare → 別担当者承認 → 元依頼者実行 → 調査再取得</text>
 <text x="43" y="559" font-size="16">明示許可後に実切断2箇所も確認し、専用環境を削除。他3入力の実書込と元の発火条件は未確認。</text>

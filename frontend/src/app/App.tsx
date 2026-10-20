@@ -59,6 +59,7 @@ export function App() {
   const [stateResult, setStateResult] = useState<Envelope | null>(null);
   const [comparisonStale, setComparisonStale] = useState(false);
   const [stateEpoch, setStateEpoch] = useState(0);
+  const [answerEpoch, setAnswerEpoch] = useState(0);
   const [graphResult, setGraphResult] = useState<Envelope | null>(null);
   const [inputTab, setInputTab] = useState("economic");
   const workspace = useRef<HTMLElement>(null);
@@ -342,6 +343,7 @@ export function App() {
       (value) => {
         freshContext.current = false;
         setResult(value);
+        setAnswerEpoch(executionEpoch);
         if (graphAnalyses(value).length) {
           setGraphResult(value);
         }
@@ -744,10 +746,18 @@ export function App() {
                       />
                       <button
                         className="primary"
+                        aria-describedby="question-submit-reason"
                         disabled={busy || !message.trim()}
                       >
                         送信
                       </button>
+                      <p id="question-submit-reason" role="status">
+                        {busy
+                          ? "質問への応答を待っています。完了するまで再送できません。"
+                          : !message.trim()
+                            ? "質問が未入力のため送信できません。質問を入力してください。"
+                            : "送信すると、上に表示した対象について質問します。"}
+                      </p>
                     </form>
                   </div>
                   <div className="question-response">
@@ -757,14 +767,29 @@ export function App() {
                       </p>
                     )}
                     {error && (
-                      <p role="alert">
-                        {explanation(error.split(" / ")[0])}{" "}
-                        質問を保ったまま再試行できます。
-                      </p>
+                      <div>
+                        <p role="alert">
+                          {explanation(error.split(" / ")[0])}{" "}
+                          質問を保ったまま再試行できます。
+                        </p>
+                        <details>
+                          <summary>技術情報：質問の取得失敗</summary>
+                          <p>{error}</p>
+                        </details>
+                      </div>
                     )}
                     {result && (
                       <section>
                         <h2>回答</h2>
+                        {answerEpoch !== executionEpoch ? (
+                          <p className="notice">
+                            更新前の回答です。登録値の変更後は、質問を再送して確認してください。
+                          </p>
+                        ) : stale ? (
+                          <p className="notice">
+                            前回取得した回答です。今回の質問への回答はまだ取得できていません。
+                          </p>
+                        ) : null}
                         {result.status === "partial" && (
                           <span className="badge warning">
                             一部の情報・評価が不足しています
@@ -793,25 +818,25 @@ export function App() {
                           <EconomicResult
                             key={index}
                             data={row.data}
-                            stale={stale}
+                            stale={stale || answerEpoch !== executionEpoch}
                           />
                         ) : row.tool === "get_capacity_input" ? (
                           <CapacityResult
                             key={index}
                             data={row.data}
-                            stale={stale}
+                            stale={stale || answerEpoch !== executionEpoch}
                           />
                         ) : row.tool === "get_safety_input" ? (
                           <SafetyResult
                             key={index}
                             data={row.data}
-                            stale={stale}
+                            stale={stale || answerEpoch !== executionEpoch}
                           />
                         ) : row.tool === "get_maintenance_input" ? (
                           <MaintenanceResult
                             key={index}
                             data={row.data}
-                            stale={stale}
+                            stale={stale || answerEpoch !== executionEpoch}
                           />
                         ) : null
                       ) : null,

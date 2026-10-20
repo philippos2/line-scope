@@ -89,6 +89,7 @@ it("marks graph, summaries, loss and alternatives as preceding execution until i
                 };
         return envelope({ tool_results: [{ tool, data }] });
       }
+      return envelope({});
     }
     throw new Error(`Unexpected read: ${url}`);
   });
@@ -121,6 +122,23 @@ it("marks graph, summaries, loss and alternatives as preceding execution until i
     within(graph).getByRole("region", { name: "代替の提案" }).textContent,
   ).toContain("更新前");
   expect(within(graph).getAllByText(/更新前の結果/).length).toBeGreaterThan(0);
+  await user.click(screen.getByRole("tab", { name: "質問する" }));
+  // The answer arrived before execution, so graph refresh alone must not refresh it.
+  await user.type(
+    screen.getByLabelText("関係や影響について質問する"),
+    "設備の状態",
+  );
+  await user.click(screen.getByRole("button", { name: "送信" }));
+  await screen.findByText("取得済み");
+  await user.click(screen.getByRole("tab", { name: "変更・承認・実行" }));
+  await user.click(screen.getByRole("button", { name: "更新完了を通知" }));
+  await user.click(screen.getByRole("tab", { name: "質問する" }));
+  expect(screen.getByText(/更新前の回答です/)).toBeDefined();
+  await user.click(screen.getByRole("button", { name: "送信" }));
+  await waitFor(() =>
+    expect(screen.queryByText(/更新前の回答です/)).toBeNull(),
+  );
+  await user.click(screen.getByRole("tab", { name: "接続及び影響範囲" }));
   const calls = fetcher.mock.calls.length;
   await user.click(screen.getByRole("button", { name: "設備ノードを選ぶ" }));
   await waitFor(() => expect(fetcher.mock.calls.length).toBeGreaterThan(calls));
