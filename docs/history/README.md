@@ -671,3 +671,5 @@ Dockerで追加36テスト成功、ruff check / format、git diff --check成功�
 - [候補付き入力・日時選択・変更手続き](2026-10-19-b-input-and-approval-workflow.md)
 
 - [経済入力の変更準備完了と要求IDの引き継ぎ](2026-10-20-economic-prepare-handoff.md)：入力画面に残る完了通知、IDコピー、保存内容参照と重複作成防止。専用環境での実作成は未実施。
+
+- [保全日時質問のタイムアウトと表記揺れの再確認](2026-10-21-maintenance-date-timeout.md)

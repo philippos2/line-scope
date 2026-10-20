@@ -5,6 +5,7 @@ import json
 import os
 import re
 from pathlib import Path
+from time import monotonic
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
@@ -57,6 +58,8 @@ def main():
     parser.add_argument("--url", required=True)
     parser.add_argument("--equipment-code", required=True)
     parser.add_argument("--equipment-name", required=True)
+    parser.add_argument("--name-variant", action="append", default=[])
+    parser.add_argument("--wording", choices=("last", "previous"), default="last")
     parser.add_argument("--ambiguous-name")
     parser.add_argument("--missing-name")
     parser.add_argument("--output", type=Path, required=True)
@@ -109,6 +112,7 @@ def main():
         ("unique", args.equipment_code, target),
         ("unique", args.equipment_name, target),
     ]
+    cases.extend(("unique", variant, target) for variant in args.name_variant)
     if args.ambiguous_name:
         candidates = search("name", args.ambiguous_name)
         if len(candidates) < 2:
@@ -122,10 +126,18 @@ def main():
         cases.append(("missing", args.missing_name, set()))
     report = []
     for kind, text, expected in cases:
-        payload = post(f"{text}が最後にメンテナンスされたのはいつか？")
+        started = monotonic()
+        question = (
+            f"{text}の前回のメンテナンス日時はいつか？"
+            if args.wording == "previous"
+            else f"{text}が最後にメンテナンスされたのはいつか？"
+        )
+        payload = post(question)
         item = {
             "case": kind,
             "target_text": text,
+            "question": question,
+            "duration_ms": round((monotonic() - started) * 1000),
             "request_id": payload.get("request_id"),
             "answer": payload.get("answer"),
             "status": payload.get("status"),

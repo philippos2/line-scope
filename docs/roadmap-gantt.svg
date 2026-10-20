@@ -1,11 +1,11 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1110" viewBox="0 0 1600 1110" role="img" aria-labelledby="title desc">
 <title id="title">LineScope：完了工程と残タスクF1・F2・F3の進行計画</title>
-<desc id="desc">#274までmerge済み。残計画はF1名称での質問の対象解決、続いてF2 M-208の必須電源依存に続きF3範囲一覧の文書更新の暫定3 PR。F1は利用者確認・レビュー待ち、F2は未着手。後続の工数と日付は未確定で、バーは日数でなく実施順を示す。各工程で検証、利用者確認、レビュー、mergeを挟む。その他の未解決・未検証・判断待ちは別枠に残す。</desc>
+<desc id="desc">#274までmerge済み。残計画はF1名称での質問の対象解決、続いてF2 M-208の必須電源依存に続きF3範囲一覧の文書更新の暫定3 PR。F1は保全日時の再確認済み・利用者確認待ち、F2は未着手。後続の工数と日付は未確定で、バーは日数でなく実施順を示す。各工程で検証、利用者確認、レビュー、mergeを挟む。その他の未解決・未検証・判断待ちは別枠に残す。</desc>
 <defs><marker id="arrow" markerWidth="9" markerHeight="9" refX="8" refY="4.5" orient="auto"><path d="M0 0L9 4.5L0 9" fill="none" stroke="#475569" stroke-width="1.5"/></marker></defs>
 <rect width="1600" height="1110" fill="#f8fafc"/>
 <g font-family="sans-serif" fill="#183247">
 <text x="30" y="42" font-size="26" font-weight="bold">LineScope：完了工程と残タスクの進行計画</text>
-<text x="30" y="76" font-size="18">現在：F1利用者確認・レビュー待ち → F2 電源依存 → 両方のmerge後、F3「やること／やらないこと」を更新し文書PR</text>
+<text x="30" y="76" font-size="18">現在：F1 名称・保全日時の質問は実機再確認済み／利用者確認待ち → F2 電源依存 → 両方のmerge後、F3「やること／やらないこと」を更新し文書PR</text>
 <text x="30" y="108" font-size="17">残計画：暫定3 PR。F2は影響調査後に分割の要否を確定。他の未決・未検証まで完了したという意味ではない。</text>
 <g font-size="17">
 <rect x="30" y="132" width="1540" height="103" rx="8" fill="#ecfdf5" stroke="#0f766e"/>
@@ -19,13 +19,13 @@
 <g font-size="17" text-anchor="middle">
 <text x="546" y="331">原因・影響調査／見積もり</text><text x="835" y="331">実装</text><text x="1125" y="331">検証・ブラウザ確認</text><text x="1420" y="331">レビュー・merge</text>
 </g>
-<text x="30" y="378" font-size="20" font-weight="bold">F1 名称でも質問できる</text>
+<text x="30" y="378" font-size="20" font-weight="bold">F1 名称・保全日時の質問</text>
 <text x="30" y="409" font-size="17">同じ設備を名称／コードで特定</text>
 <text x="30" y="437" font-size="17">想定1 PR・利用者確認待ち</text>
 <rect x="420" y="370" width="255" height="57" rx="6" fill="#0f766e"/>
 <g stroke="none"><rect x="705" y="370" width="260" height="57" rx="6" fill="#0f766e"/><rect x="995" y="370" width="260" height="57" rx="6" fill="#0f766e"/><rect x="1285" y="370" width="270" height="57" rx="6" fill="#1d4ed8"/></g>
-<g font-size="17" text-anchor="middle"><text x="547" y="405" fill="white">調査済み</text><text x="835" y="405" fill="white">実装済み</text><text x="1125" y="405" fill="white">名称・コードの画面確認済み</text><text x="1420" y="405" fill="white">現在：利用者確認待ち</text></g>
-<text x="420" y="463" font-size="16">名称・コードの実API／画面確認済み。曖昧な質問の候補未取得と生成時間切れは制約として記録。</text>
+<g font-size="17" text-anchor="middle"><text x="547" y="405" fill="white">調査済み</text><text x="835" y="405" fill="white">修正済み</text><text x="1125" y="405" fill="white">実API・画面確認済み</text><text x="1420" y="405" fill="white">現在：利用者確認待ち</text></g>
+<text x="420" y="463" font-size="16">指示・Tool定義の縮小と表記揺れの照合。GPU解放後に実機確認。競合下の応答は保証しない。</text>
 <path d="M1420 432V477H393V558H416" fill="none" stroke="#475569" stroke-width="2" marker-end="url(#arrow)"/>
 <text x="30" y="531" font-size="20" font-weight="bold">F2 M-208の必須電源依存</text>
 <text x="30" y="564" font-size="17">図示と利用可能性判定を両立</text>

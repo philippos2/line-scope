@@ -1,5 +1,6 @@
 """Internal read-only Agent loop. HTTP, clarification context and Prepare are separate."""
 
+from copy import deepcopy
 from dataclasses import dataclass
 from time import monotonic
 from uuid import uuid4
@@ -8,6 +9,7 @@ from ..application.reads import ReadResult, ToolError
 from ..application.registered_decision import decision_answer
 from ..domain.canonical import canonical_json, strict_json
 from ..integrations.llm import LLMError, LLMReply, ToolCall
+from . import maintenance_date
 from .agent_tools import AgentToolSession
 from .capacity_answer import capacity_answer
 from .economic_answer import economic_answer
@@ -159,8 +161,15 @@ class ReadAgent:
                 (),
                 False,
             )
+        focused = (
+            not request.explicit_as_of
+            and len(request.message) + sum(len(item) for item in previous_messages or ()) <= 1000
+            and maintenance_date.matches(request.message)
+            and "search_equipment" in session.schemas()
+        )
+        focused_target = None
         messages = [
-            {"role": "system", "content": SYSTEM_PROMPT},
+            {"role": "system", "content": maintenance_date.PROMPT if focused else SYSTEM_PROMPT},
             {"role": "user", "content": request.message},
         ]
         if request.explicit_as_of:
@@ -178,6 +187,8 @@ class ReadAgent:
             session.check_deadline()
             # Once all calls are consumed, permit only a final explanation.
             schemas = session.schemas() if session.calls < session.max_calls else {}
+            if focused:
+                schemas = {"search_equipment": deepcopy(maintenance_date.SCHEMA)}
             started = monotonic()
             result_code, output_bytes, tool_count = "OK", 0, 0
             metrics = {}
@@ -222,6 +233,10 @@ class ReadAgent:
             if not isinstance(reply, LLMReply):
                 raise ToolError("INTERNAL_ERROR", "Invalid internal LLM reply")
             if not reply.tool_calls:
+                if focused and reply.content.strip() == "通常調査":
+                    focused = False
+                    messages[0]["content"] = SYSTEM_PROMPT
+                    continue
                 if not observations:
                     # No verified facts: never return an unsupported factual answer.
                     needs_input = not errors or all(
@@ -264,6 +279,32 @@ class ReadAgent:
                 )
             messages.append(reply.assistant_message())
             pending, alternate_calls = list(reply.tool_calls), []
+            if focused:
+                if (
+                    len(pending) != 1
+                    or pending[0].name != "search_equipment"
+                    or equipment_search_key(pending[0].arguments) is None
+                ):
+                    return ReadAgentResult(
+                        "保全日時を調べる設備を一つ指定してください。設備名またはコードで指定できます。",
+                        (),
+                        (),
+                        (),
+                        True,
+                    )
+                original_field, reference = equipment_search_key(pending[0].arguments)
+                equipment_queries.add((original_field, reference))
+                for variant in maintenance_date.reference_variants(reference):
+                    for field in ("name", "equipment_code"):
+                        if (field, variant) not in equipment_queries:
+                            equipment_queries.add((field, variant))
+                            alternate_calls.append(
+                                ToolCall(
+                                    str(uuid4()),
+                                    "search_equipment",
+                                    {"filter": {field: variant}, "page_size": 20, "cursor": None},
+                                )
+                            )
             for call in pending:
                 if call.name == "search_equipment":
                     key = equipment_search_key(call.arguments)
@@ -325,7 +366,8 @@ class ReadAgent:
                     {"role": "tool", "tool_name": call.name, "content": canonical_json(payload)}
                 )
                 if (
-                    call.name == "search_equipment"
+                    not focused
+                    and call.name == "search_equipment"
                     and failure is None
                     and result.data.get("items") == []
                     and result.data.get("next_cursor") is None
@@ -340,6 +382,54 @@ class ReadAgent:
                             alternate_calls.append(
                                 ToolCall(str(uuid4()), "search_equipment", arguments)
                             )
+                if focused and not pending and not alternate_calls:
+                    if errors:
+                        return ReadAgentResult(
+                            "登録情報を最後まで取得できず、保全の実施日時を確認できませんでした。取得エラーを確認して再試行してください。",
+                            tuple(observations),
+                            tuple(trace),
+                            tuple(errors.values()),
+                            False,
+                        )
+                    if focused_target is None:
+                        focused_target, clarification = maintenance_date.target_selection(
+                            observations
+                        )
+                        if clarification:
+                            return ReadAgentResult(
+                                clarification,
+                                tuple(observations),
+                                tuple(trace),
+                                (),
+                                True,
+                            )
+                        cursor = None
+                    else:
+                        pages = [
+                            item
+                            for item in observations
+                            if item.tool == "search_maintenance_records"
+                        ]
+                        cursor = pages[-1].result.data.get("next_cursor")
+                        if cursor is None:
+                            return ReadAgentResult(
+                                maintenance_date.answer(focused_target, observations),
+                                tuple(observations),
+                                tuple(trace),
+                                (),
+                                False,
+                            )
+                    alternate_calls.append(
+                        ToolCall(
+                            str(uuid4()),
+                            "search_maintenance_records",
+                            {
+                                "filter": {"equipment_id": focused_target["equipment_id"]},
+                                "page_size": 100,
+                                "cursor": cursor,
+                            },
+                        )
+                    )
                 if not pending and alternate_calls:
                     # Server-directed reads use the same admission, budget and evidence path.
                     messages.append(LLMReply("", tuple(alternate_calls)).assistant_message())
