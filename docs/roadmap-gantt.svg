@@ -1,12 +1,12 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="920" viewBox="0 0 1600 920" role="img" aria-labelledby="title desc">
-<title id="title">LineScope：完了工程と残タスクF1・F2の進行計画</title>
-<desc id="desc">#274までmerge済み。残計画はF1名称での質問の対象解決、続いてF2 M-208の必須電源依存の暫定2 PR。F1は調査中、F2は未着手。後続の工数と日付は未確定で、バーは日数でなく実施順を示す。各工程で検証、利用者確認、レビュー、mergeを挟む。その他の未解決・未検証・判断待ちは別枠に残す。</desc>
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1110" viewBox="0 0 1600 1110" role="img" aria-labelledby="title desc">
+<title id="title">LineScope：完了工程と残タスクF1・F2・F3の進行計画</title>
+<desc id="desc">#274までmerge済み。残計画はF1名称での質問の対象解決、続いてF2 M-208の必須電源依存に続きF3範囲一覧の文書更新の暫定3 PR。F1は調査中、F2は未着手。後続の工数と日付は未確定で、バーは日数でなく実施順を示す。各工程で検証、利用者確認、レビュー、mergeを挟む。その他の未解決・未検証・判断待ちは別枠に残す。</desc>
 <defs><marker id="arrow" markerWidth="9" markerHeight="9" refX="8" refY="4.5" orient="auto"><path d="M0 0L9 4.5L0 9" fill="none" stroke="#475569" stroke-width="1.5"/></marker></defs>
-<rect width="1600" height="920" fill="#f8fafc"/>
+<rect width="1600" height="1110" fill="#f8fafc"/>
 <g font-family="sans-serif" fill="#183247">
 <text x="30" y="42" font-size="26" font-weight="bold">LineScope：完了工程と残タスクの進行計画</text>
-<text x="30" y="76" font-size="18">現在：F1の対象解決を調査中 → 実装・確認・merge → F2の電源依存を影響調査から開始</text>
-<text x="30" y="108" font-size="17">残計画：暫定2 PR。F2は影響調査後に分割の要否を確定。他の未決・未検証まで完了したという意味ではない。</text>
+<text x="30" y="76" font-size="18">現在：F1調査中 → F2 電源依存 → 両方のmerge後、F3「やること／やらないこと」を更新し文書PR</text>
+<text x="30" y="108" font-size="17">残計画：暫定3 PR。F2は影響調査後に分割の要否を確定。他の未決・未検証まで完了したという意味ではない。</text>
 <g font-size="17">
 <rect x="30" y="132" width="1540" height="103" rx="8" fill="#ecfdf5" stroke="#0f766e"/>
 <text x="48" y="161" font-weight="bold">完了：UI是正と基盤整備（merge済み・残工数に加算しない）</text>
@@ -15,7 +15,7 @@
 </g>
 <text x="30" y="271" font-size="19" font-weight="bold">残作業（各タスクを工程行で表示）</text>
 <text x="30" y="299" font-size="16">横軸は実施順。日付・日数は調査後に確定するため、下のバー幅は工数を表さない。</text>
-<g stroke="#cbd5e1"><path d="M30 343H1570 M30 493H1570 M30 693H1570"/><path d="M405 320V693 M690 320V693 M980 320V693 M1270 320V693 M1570 320V693"/></g>
+<g stroke="#cbd5e1"><path d="M30 343H1570 M30 493H1570 M30 693H1570 M30 883H1570"/><path d="M405 320V883 M690 320V883 M980 320V883 M1270 320V883 M1570 320V883"/></g>
 <g font-size="17" text-anchor="middle">
 <text x="546" y="331">原因・影響調査／見積もり</text><text x="835" y="331">実装</text><text x="1125" y="331">検証・ブラウザ確認</text><text x="1420" y="331">レビュー・merge</text>
 </g>
@@ -35,9 +35,17 @@
 <g font-size="17" text-anchor="middle"><text x="547" y="565">未着手：F1のmerge後</text><text x="835" y="565">設計・範囲の確認後</text><text x="1125" y="565">電源依存・候補判定を確認</text><text x="1420" y="565">利用者確認後にmerge</text></g>
 <text x="420" y="624" font-size="16">DB・状態取得／変更統制・Graph・API・JSON・UIへの影響を先に調査。辺を追加するだけでは完了しない。</text>
 <text x="420" y="654" font-size="16">調査結果で工数・PR分割を確定し、時間軸とバーを更新。利用可能性の不明を隠さない。</text>
-<rect x="30" y="720" width="1540" height="113" rx="8" fill="#fff7ed" stroke="#ea580c"/>
-<text x="48" y="751" font-size="18" font-weight="bold">別枠：未解決・未検証・採用判断待ち（F1・F2の2 PRに含めない）</text>
-<text x="48" y="783" font-size="17">通信中断・送信不可の発火条件、他3入力の実書込、サジェスチョン、費用・データ拡充、変更手続きの追加案など。</text>
-<text x="48" y="811" font-size="17">採用範囲と工数はroadmap.mdの一覧で管理。新規タスクは一覧と、この図の工程行へ同時に反映する。</text>
-<g font-size="16"><rect x="30" y="859" width="23" height="18" fill="#0f766e"/><text x="64" y="875">完了</text><rect x="170" y="859" width="23" height="18" fill="#1d4ed8"/><text x="204" y="875">現在</text><rect x="310" y="859" width="23" height="18" fill="#e2e8f0" stroke="#64748b" stroke-dasharray="4 3"/><text x="344" y="875">未着手・予定</text><text x="700" y="875">正本となる進捗一覧：docs/roadmap.md ／ 実装着手・mergeの判断は開発依頼者</text></g>
+<path d="M1420 592V677H393V758H416" fill="none" stroke="#475569" stroke-width="2" marker-end="url(#arrow)"/>
+<text x="30" y="731" font-size="20" font-weight="bold">F3 やること／やらないこと</text>
+<text x="30" y="764" font-size="17">最新の到達点で範囲一覧を更新</text>
+<text x="30" y="794" font-size="17">文書PR 1本・stash保持中</text>
+<g fill="#e2e8f0" stroke="#64748b" stroke-dasharray="6 4"><rect x="420" y="730" width="255" height="57" rx="6"/><rect x="705" y="730" width="260" height="57" rx="6"/><rect x="995" y="730" width="260" height="57" rx="6"/><rect x="1285" y="730" width="270" height="57" rx="6"/></g>
+<g font-size="17" text-anchor="middle"><text x="547" y="765">F1・F2のmerge完了待ち</text><text x="835" y="765">stashを最新内容へ更新</text><text x="1125" y="765">要件・実装・未確認と照合</text><text x="1420" y="765">文書PRを作成・レビュー</text></g>
+<text x="420" y="824" font-size="16">requirements.mdの範囲整理案を保留中。今は取り出さず、2件の改修とmergeが終わってから実施する。</text>
+<text x="420" y="854" font-size="16">stashはhashで再確認して保護。古い案のまま適用せず、最新の「やること／やらないこと」を記載する。</text>
+<rect x="30" y="910" width="1540" height="113" rx="8" fill="#fff7ed" stroke="#ea580c"/>
+<text x="48" y="941" font-size="18" font-weight="bold">別枠：未解決・未検証・採用判断待ち（F1・F2・F3の3 PRに含めない）</text>
+<text x="48" y="973" font-size="17">通信中断・送信不可の発火条件、他3入力の実書込、サジェスチョン、費用・データ拡充、変更手続きの追加案など。</text>
+<text x="48" y="1001" font-size="17">採用範囲と工数はroadmap.mdの一覧で管理。新規タスクは一覧と、この図の工程行へ同時に反映する。</text>
+<g font-size="16"><rect x="30" y="1049" width="23" height="18" fill="#0f766e"/><text x="64" y="1065">完了</text><rect x="170" y="1049" width="23" height="18" fill="#1d4ed8"/><text x="204" y="1065">現在</text><rect x="310" y="1049" width="23" height="18" fill="#e2e8f0" stroke="#64748b" stroke-dasharray="4 3"/><text x="344" y="1065">未着手・予定</text><text x="700" y="1065">正本となる進捗一覧：docs/roadmap.md ／ 実装着手・mergeの判断は開発依頼者</text></g>
 </g></svg>
