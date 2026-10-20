@@ -271,3 +271,33 @@ PR #265後に確認された対象設備の受渡し・ボタン無効・日時�
 - 入力と再送キーの保持は画面のメモリ内だけであり、接続・対象変更や画面を閉じた後の保持を約束しない。認証情報を保存せず、この変更で永続的な復旧機能や承認一覧を追加しない。
 
 この適用範囲は書込と、その保存要求の取得。検索・比較・質問など全UIの失敗表示まで統一済みとはしない。実書込の通し確認は明示許可前の未検証項目として残す。
+
+### 明示拒否コードの根拠と副作用の境界
+
+`OperationFeedback`の`failed`は、**今回の試行が要求どおりに成立したとは扱わず、明示された拒否理由を表示する**分類である。「DBが不変」「要求が未保存」「過去にも未実行」を意味しない。要求・承認の失効や監査の保存は起こり得る。成功応答と要求IDを確認した後のGET失敗は、コードにかかわらず`confirmed-read-failed`を優先する。
+
+当初の説明表にあった12コードを、今回の対象経路（4入力Prepare、自然文Prepare、承認・拒否・実行、保存要求GET）で静的に照合した。以下は実DBで再検証した結果ではない。
+
+| コード | 確認した発生箇所・意味 | 残り得る記録・注意点 | 表示分類 |
+|---|---|---|---|
+| AUTHENTICATION_REQUIRED | `http_logging`の認証入口、各serviceのTrusted Context検証 | 当該handlerの更新前に拒否。アクセスログ等まで無いとはしない | 明示拒否 |
+| AUTHORIZATION_DENIED | `approval_policy`の職務・自己承認、`execute`のowner・閲覧権限、入力Prepareのrequire | 今回の対象操作を許可しない。失敗監査等が残り得る。既存の要求の不存在を意味しない | 明示拒否 |
+| INVALID_ARGUMENT | 入力Prepareの正規化、AgentInput、承認hash・ID形式検証等。Execute途中の例外も主transactionからrollbackする | 失敗監査が残り得る。自然文Prepare後の読取失敗は`AgentService._prepared`がIDを保持した準備結果へ変換する | 明示拒否 |
+| INVALID_TOKEN_FORMAT | Frontend `api/client.request`のHeaders作成失敗 | サーバ由来ではなくfetch実行前のclientエラー。この試行では送信していない | 送信前の失敗 |
+| VERSION_CONFLICT | `approvals._conflict_code`、各入力Approval、`execute`の対象version検証 | 承認側はINVALIDATEDと監査をcommitしてから409。Execute側は主更新をrollback後、別transactionで失効・監査を保存し得る | 明示拒否。DB無変更とはしない |
+| APPROVAL_EXPIRED | `execute_policy.validate_new_execute`と承認消費直前の期限検証 | 主更新rollback後、`execute._retire`がEXPIREDと監査を保存し得る | 明示拒否。期限切れ状態を確認する |
+| APPROVAL_INVALIDATED | `execute_policy`の現在権限・自己承認・保存hash検証 | 主更新rollback後、`_retire`がINVALIDATEDと監査を保存し得る | 明示拒否。失効状態を確認する |
+| INVALID_UPDATE_STATE | `approval_policy`の承認待ち条件、`execute_policy`の有効承認条件、`proposals.save`の置換可否 | 今回の試行の状態条件が不成立。以前の要求が既に保存・承認・実行済みの場合もあり、過去の成功は否定しない | 明示拒否 |
+| APPROVAL_MISMATCH | `approval_policy.validate_approve`のSnapshot hash不一致 | 承認成立前に拒否。失敗監査が残り得る | 明示拒否 |
+| DUPLICATE_REQUEST | `proposals._saved`の入力hash不一致 | 同じキーの既存要求を保持したまま異なる入力の再送を拒否する。既存要求が保存・実行済みである可能性を否定しない | 明示拒否。元の入力と保存状態を確認する |
+| SNAPSHOT_MISMATCH | 現行バックエンドに発生箇所なし。実在するhash不一致はAPPROVAL_MISMATCH等 | 拒否の根拠が確認できないため、明示拒否一覧から除く | 書込では結果不明 |
+| RESOURCE_NOT_FOUND | 現行バックエンドに発生箇所なし。対象不存在ではTARGET_NOT_FOUND等を使用 | 拒否の根拠が確認できないため、明示拒否一覧から除く。代わりのコードを今回新たに一覧へ追加しない | 書込では結果不明 |
+
+根拠コード：
+
+- [HTTP認証入口](../../backend/src/linescope/interfaces/http_logging.py)、[Frontend client](../../frontend/src/api/client.ts)。
+- [承認ポリシー](../../backend/src/linescope/application/approval_policy.py)、[承認transaction](../../backend/src/linescope/application/approvals.py)。
+- [実行ポリシー](../../backend/src/linescope/application/execute_policy.py)、[主実行と失効保存](../../backend/src/linescope/application/execute.py)。
+- [保存・再送照合](../../backend/src/linescope/application/proposals.py)、[失敗監査](../../backend/src/linescope/application/audit.py)、[Agentの準備後読取](../../backend/src/linescope/application/agent_service.py)。
+
+明示拒否の一覧は通常の表示文言集ではなく、確認済みの拒否経路の一覧として扱う。コードを加える場合は発生箇所とcommit／rollback境界を再照合する。未分類の書込エラーは結果不明とする。失効・監査保存後の通信失敗も、成功したエラー応答を受信していない限り明示拒否とは判定しない。

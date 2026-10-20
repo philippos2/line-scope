@@ -21,21 +21,31 @@ it("distinguishes an unknown Prepare from failure and never resends automaticall
   expect(screen.getByText(/直近の別の要求/)).toBeTruthy();
   expect(screen.getByText(/書き込みは自動再送しません/)).toBeTruthy();
 });
-it("treats explicit authorization refusal as failure instead of an unknown write", async () => {
-  const { result } = renderHook(useOperationFeedback);
-  await act(() =>
-    result.current.run(
-      async () => {
-        throw new ApiError("AUTHORIZATION_DENIED");
-      },
-      { operation: "approve", requestId: "saved" },
-    ),
-  );
-  expect(result.current.problem?.kind).toBe("failed");
-  expect(result.current.problem?.requestId).toBe("saved");
-  render(<OperationFeedback problem={result.current.problem} />);
-  expect(screen.getByText(/この操作の権限がありません/)).toBeTruthy();
-});
+it.each([
+  ["AUTHORIZATION_DENIED", "failed"],
+  ["SNAPSHOT_MISMATCH", "unknown"],
+  ["RESOURCE_NOT_FOUND", "unknown"],
+])(
+  "classifies %s by evidence of a current rejection path",
+  async (code, kind) => {
+    const { result } = renderHook(useOperationFeedback);
+    await act(() =>
+      result.current.run(
+        async () => {
+          throw new ApiError(code);
+        },
+        { operation: "approve", requestId: "saved" },
+      ),
+    );
+    expect(result.current.problem?.kind).toBe(kind);
+    expect(result.current.problem?.requestId).toBe("saved");
+    render(<OperationFeedback problem={result.current.problem} />);
+    if (kind === "failed")
+      expect(screen.getByText(/この操作の権限がありません/)).toBeTruthy();
+    else
+      expect(screen.getByText(/未作成・未実行とは判断できません/)).toBeTruthy();
+  },
+);
 it("keeps a confirmed operation separate from the following failed GET", async () => {
   const { result } = renderHook(useOperationFeedback);
   await act(() =>

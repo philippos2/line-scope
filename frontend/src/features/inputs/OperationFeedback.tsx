@@ -19,7 +19,7 @@ export type OperationProblem = {
   diagnosticId?: string;
   explanation: string;
 };
-const explanations: Record<string, string> = {
+const knownRejections: Record<string, string> = {
   AUTHORIZATION_DENIED:
     "この操作の権限がありません。依頼者・承認者と接続中の利用者を確認してください。",
   AUTHENTICATION_REQUIRED: "接続が切れています。接続状態を確認してください。",
@@ -33,15 +33,13 @@ const explanations: Record<string, string> = {
     "承認が無効になっています。保存状態と現在の権限を確認してください。",
   INVALID_UPDATE_STATE:
     "現在の要求状態では操作できません。保存状態を確認してください。",
-  SNAPSHOT_MISMATCH: "保存内容が一致しません。保存状態を再取得してください。",
   APPROVAL_MISMATCH:
     "承認対象の保存内容が一致しません。保存状態を再取得してください。",
   DUPLICATE_REQUEST:
     "同じ再送キーに異なる内容が指定されています。元の送信内容を確認してください。",
-  RESOURCE_NOT_FOUND:
-    "指定した対象を取得できません。対象または要求IDを確認してください。",
 };
-// 明示的な拒否だけを成否判明として扱い、それ以外の書込エラーは安全側に倒す。
+// 現行の拒否経路を確認したコードだけを扱う。監査や要求失効の保存はあり得る。
+// コードを追加するときはfrontend-consoleの根拠表も更新し、不明な書込は安全側に倒す。
 function problemFor(
   caught: unknown,
   context: OperationContext,
@@ -57,7 +55,7 @@ function problemFor(
   return {
     kind: confirmed
       ? "confirmed-read-failed"
-      : context.operation !== "read" && !explanations[code]
+      : context.operation !== "read" && !knownRejections[code]
         ? "unknown"
         : "failed",
     operation: context.operation,
@@ -65,7 +63,7 @@ function problemFor(
     code,
     diagnosticId: caught instanceof ApiError ? caught.requestId : undefined,
     explanation:
-      explanations[code] ??
+      knownRejections[code] ??
       (context.operation === "read"
         ? "保存状態を取得できませんでした。接続を確認して再取得してください。"
         : "サーバの処理結果を確認できませんでした。"),
@@ -197,9 +195,17 @@ export function OperationFeedback({
           )}
         </>
       ) : problem.kind === "unknown" ? (
-        <p>
-          今回の変更要求IDは取得できていません。直近の別の要求を今回の結果とは判断しないでください。送信内容と再送キーはこの画面内で保持しています。接続や対象を切り替える前に結果を確認してください。同じ内容を再送する場合は、表示された操作可否を確認して明示した再送ボタンを使ってください。
-        </p>
+        <ul>
+          <li>
+            今回の変更要求IDは取得できていません。直近の別の要求を今回の結果とは判断しないでください。
+          </li>
+          <li>
+            送信内容と再送キーはこの画面内で保持しています。接続や対象を切り替える前に結果を確認してください。
+          </li>
+          <li>
+            再送する場合は、同じ内容・同じキーを使う明示ボタンの操作可否を確認してください。
+          </li>
+        </ul>
       ) : null}
       <details>
         <summary>技術情報</summary>
