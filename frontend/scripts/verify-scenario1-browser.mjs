@@ -218,6 +218,21 @@ try {
   await expect(
     page.getByRole("region", { name: "文書検索の取得状態", exact: true }),
   ).toContainText("日本時間");
+  await page.getByRole("button", { name: "根拠を見る", exact: true }).click();
+  const documentDrawer = page.getByRole("dialog", {
+    name: "関連文書の参照",
+    exact: true,
+  });
+  await expect(
+    documentDrawer.getByRole("region", {
+      name: "文書検索の取得状態",
+      exact: true,
+    }),
+  ).toContainText("M-204");
+  await expect(documentDrawer).not.toContainText("取得済み（時刻情報なし）");
+  await documentDrawer
+    .getByRole("button", { name: "参照を閉じる", exact: true })
+    .click();
   if (verifyReadFailures) {
     let fail = true;
     await page.route("**/api/agent", (route) => {

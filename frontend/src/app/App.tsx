@@ -1392,20 +1392,22 @@ export function App() {
                           executionEpoch={executionEpoch}
                         />
                       )}
-                      <p>
-                        {referenceTime(referenceResult)}
-                        {(
-                          reference === "comparison"
-                            ? comparisonStale
-                            : reference === "graph"
-                              ? model.stale
-                              : reference === "answer"
-                                ? stale
-                                : false
-                        )
-                          ? " ／ 更新前"
-                          : ""}
-                      </p>
+                      {reference !== "documents" && (
+                        <p>
+                          {referenceTime(referenceResult)}
+                          {(
+                            reference === "comparison"
+                              ? comparisonStale
+                              : reference === "graph"
+                                ? model.stale
+                                : reference === "answer"
+                                  ? stale
+                                  : false
+                          )
+                            ? " ／ 更新前"
+                            : ""}
+                        </p>
+                      )}
                       {step === "execution" && (
                         <p className="notice">
                           調査・比較の参考情報です。変更要求の保存内容の根拠ではありません。
