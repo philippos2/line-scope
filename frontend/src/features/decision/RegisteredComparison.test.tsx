@@ -149,3 +149,51 @@ it("keeps selection while candidate reads and comparison run through distinct pe
     ).disabled,
   ).toBe(false);
 });
+
+it("never offers the root equipment's own capacity as an alternate", async () => {
+  const capacity: Envelope = {
+    ...base,
+    data: {
+      input: {
+        capacity_input_id: "self",
+        equipment_id: "m",
+        product_id: "p",
+        version: 1,
+        payload: {
+          period_start: "2026-10-18T00:00:00Z",
+          period_end: "2026-10-19T00:00:00Z",
+        },
+      },
+    },
+  };
+  const send = vi.fn();
+  vi.stubGlobal("fetch", send);
+  render(
+    <RegisteredComparison
+      equipment={{
+        equipment_id: "m",
+        equipment_name: "設備",
+        equipment_code: "M",
+      }}
+      names={{}}
+      initialEconomic={[]}
+      initialCapacity={[capacity]}
+      initialEconomicId=""
+      initialCapacityId="self"
+      candidateIds={[]}
+      productIds={["p"]}
+      executionEpoch={0}
+      onInvestigate={() => {}}
+    />,
+  );
+  const user = userEvent.setup();
+  const compare = screen.getByRole("button", {
+    name: "選択した正式入力で比較する",
+  }) as HTMLButtonElement;
+  expect(compare.disabled).toBe(true);
+  const selected = screen.getByRole("checkbox") as HTMLInputElement;
+  await user.click(selected); // A retained invalid selection may still be cleared.
+  expect(selected.checked).toBe(false);
+  expect(selected.disabled).toBe(true);
+  expect(send).not.toHaveBeenCalled();
+});

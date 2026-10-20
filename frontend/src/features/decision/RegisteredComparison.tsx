@@ -494,9 +494,18 @@ export function RegisteredComparison({
   const staleSelected = groups.some(([group]) =>
     selected[group].some((id) => recordEpochs.current[id] !== executionEpoch),
   );
+  const selfCapacitySelected = selectedInputs.capacity.some(
+    (row) => row.equipment_id === equipment?.equipment_id,
+  );
   function compare(event: FormEvent) {
     event.preventDefault();
-    if (pending.current || !timing.period || staleSelected) return;
+    if (
+      pending.current ||
+      !timing.period ||
+      staleSelected ||
+      selfCapacitySelected
+    )
+      return;
     setResult(null);
     onResult?.(null);
     void run("対応案の比較", async (signal) => {
@@ -524,6 +533,9 @@ export function RegisteredComparison({
         {equipment
           ? `${equipment.equipment_name}（${equipment.equipment_code}）`
           : "設備を探して候補を選択してください。"}
+      </p>
+      <p>
+        ここでは起点設備への修理・交換・継続と、別の設備への代替を比較します。この設備を代替候補として評価する場合は、代替を検討する元の設備を左で選んでください。
       </p>
       <p>
         各入力の出典・期間を確認して選択します。未選択は不明です。能力は代替候補の設備を、安全は対象設備・代替設備の入力を選択します。条件に合う候補が1件で検索が完了した場合だけ事前選択します。選び直せます。選択は設備全体の安全や運転許可を意味しません。
@@ -619,6 +631,11 @@ export function RegisteredComparison({
                     <input
                       type="checkbox"
                       checked={selected[group].includes(String(row[idKey]))}
+                      disabled={
+                        group === "capacity" &&
+                        row.equipment_id === equipment?.equipment_id &&
+                        !selected[group].includes(String(row[idKey]))
+                      }
                       onChange={(event) => {
                         const id = String(row[idKey]);
                         touched.current.add(group);
@@ -654,6 +671,12 @@ export function RegisteredComparison({
                       ? ` · ${displayPeriod(inputPeriod(inputRecord(records[String(row[idKey])]))!.start, inputPeriod(inputRecord(records[String(row[idKey])]))!.end)}`
                       : ""}
                   </label>
+                  {group === "capacity" &&
+                    row.equipment_id === equipment?.equipment_id && (
+                      <p>
+                        この設備自身の能力データは、この比較の代替用には選択できません。他の設備の代替として評価するときに使うデータです。
+                      </p>
+                    )}
                   <button
                     type="button"
                     onClick={() => inspect(group, String(row[idKey]))}
@@ -692,12 +715,19 @@ export function RegisteredComparison({
               選択した入力が更新前のため比較できません。各入力の「入力・出典を確認」から再取得してください。
             </p>
           )}
-          <button disabled={!timing.period || staleSelected}>
+          {selfCapacitySelected && (
+            <p className="notice">
+              この設備自身の能力データは代替用に使えません。選択を解除し、別の設備の能力データを選んでください。
+            </p>
+          )}
+          <button
+            disabled={!timing.period || staleSelected || selfCapacitySelected}
+          >
             選択した正式入力で比較する
           </button>
           <button
             type="button"
-            disabled={!timing.period || staleSelected}
+            disabled={!timing.period || staleSelected || selfCapacitySelected}
             onClick={() =>
               onInvestigate(
                 `${equipment?.equipment_code}について、選択した登録入力で対応案を比較する。`,
