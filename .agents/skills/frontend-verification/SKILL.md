@@ -20,7 +20,7 @@ docker build --target development -t linescope-frontend-check frontend
 docker run --rm linescope-frontend-check npm run check
 ```
 
-実APIとの通し確認が必要なら`python3 scripts/verify_frontend_flow.py --docker-group docker`を使う。Docker groupが不要な環境では引数を省く。使い捨て環境を作成・削除するscriptであり、開発者がブラウザで確認する継続デモとは区別する。単なる文言変更で全フローを無条件に繰り返さない。
+実APIの常設読取確認は`frontend/scripts/verify-scenario1-browser.mjs`を使う。私有envと既存のbrowser-check imageを指定する手順・補助scriptの用途はFrontend READMEに従う。scriptは環境作成・seed・書込を行わない。書込の通し確認は専用環境と事前に示した操作範囲でのみ行い、読取確認へ混ぜない。単なる文言変更で全フローを無条件に繰り返さない。
 
 実ブラウザでは、変更した主要操作、不明・部分結果・mockの表示、認証情報の扱いを確認する。実応答、stub、mockのどこを確認したかを明示する。Fixture成功を全業務受入や一般LLM品質の合格として扱わない。
 

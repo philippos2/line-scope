@@ -474,7 +474,7 @@ PO-B03と能力情報のPO-B07は確定済み。CapacityInputに同一製品・�
 | 17 | interfaces/test_agent_api.py、agent/test_agent_input.py | 曖昧対象・context owner・再検証。実モデルの名前解決品質は別判定 |
 | 18 | interfaces/test_graph_business_scenarios.py | 空結果・partial・LAGGING／ERROR／REBUILDINGを区別 |
 | 19 | interfaces/test_controlled_action_scenarios.py | 保存afterと最新current、再送、履歴／Outboxの非増殖 |
-| G01 | interfaces/test_golden_registered_acceptance.py、frontend/scripts/verify-comparison.mjs | 正式入力から比較・根拠・未知・承認更新の代表経路。一般LLM／検索品質と全UI variantの受入は別判定 |
+| G01 | interfaces/test_golden_registered_acceptance.py、frontend/scripts/verify-scenario1-browser.mjs | 正式入力から比較・根拠・未知・承認更新は実API試験で検証する。現行UIの読取主経路はシナリオ1、書込UIの補助確認はverify-input-workflow-browser.mjs。一般LLM／検索品質と全UI variantの受入は別判定 |
 
 実LLMはread-demo-v2のTool選択・構造化結果と文章を別判定する。検索はretrieval-demo-v1の6文書・6質問でhit@1、recall@3、MRR、正本引用の一致を測る。小規模合成datasetの成功を実運用全体の品質保証へ拡大しない。一般品質閾値はevals §6に従いbaseline確認後のPO承認を必要とする。
 
