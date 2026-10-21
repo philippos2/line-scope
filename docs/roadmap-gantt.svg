@@ -6,7 +6,7 @@
 <g font-family="sans-serif" fill="#183247">
 <text x="30" y="43" font-size="28" font-weight="bold">LineScope：残り3PRの時間軸ガント</text>
 <text x="30" y="77" font-size="21" font-weight="bold">順序：H ハルシネーション対応 → F2 M-208電源依存 → F3 やること／やらないこと</text>
-<text x="30" y="107" font-size="18">#275は2026-10-21 merge済み。現在はH5の共通表示・実ブラウザ8項目・実PG関連250件確認後、修正後CI・利用者確認待ち。</text>
+<text x="30" y="107" font-size="18">#275は2026-10-21 merge済み。現在はH5の共通表示・追加回帰後、実装head CI全成功（4066成功・1 skip）。利用者確認待ち。</text>
 <text x="30" y="147" font-size="22" font-weight="bold">1．報告計画（暦日・日本時間）</text>
 <text x="30" y="175" font-size="17">棒は作成開始から報告期限までの予定期間。実働工数ではない。灰色は土日。</text>
 <path d="M450 210L450 385" fill="none" stroke="#cbd5e1"/>
@@ -86,8 +86,8 @@
 <text x="1412.5" y="936" font-size="16" fill="white" text-anchor="middle">2.5日</text>
 <path d="M1275.0 878V907H1275.0V915" fill="none" stroke="#64748b" marker-end="url(#arrow)"/>
 <path d="M30 963L1630 963" fill="none" stroke="#cbd5e1"/>
-<text x="35" y="992" font-size="18" font-weight="bold">H5 追加：質問と参照能力の対応照合（期間未確定・#276内、ブラウザ8項目・関連250件成功、全件CI待ち）</text>
-<text x="440" y="1018" font-size="16">再発 → 共通表示・正常質問／保証例の回帰確認 → 修正後CI・利用者確認。期間は未配置。</text>
+<text x="35" y="992" font-size="18" font-weight="bold">H5 追加：質問と参照能力の対応照合（期間未確定・#276内、実装head CI全成功・利用者確認待ち）</text>
+<text x="440" y="1018" font-size="16">再発 → 共通表示・正常質問／保証例の回帰確認 → 実装head CI成功 → 利用者確認。期間は未配置。</text>
 <text x="30" y="1040" font-size="17">矢印は前工程の終了後に着手する依存。半日の境界も棒幅へ反映。実績・確定納期ではない。</text>
 <text x="30" y="1092" font-size="22" font-weight="bold">3．依存待ち・期間未確定（時間軸へ未配置）</text>
 <text x="30" y="1122" font-size="17">ここには期間の棒を描かない。F2の影響調査後、開始・終了・期間を見積もって時間軸へ配置する。</text>
@@ -138,5 +138,5 @@
 <text x="30" y="1990" font-size="17">残PRはH → F2 → F3の3本。設計専用の4本目は作らない。分割が必要なら事前に計画変更を報告。</text>
 <text x="30" y="2025" font-size="17">青＝予定期間（上段は報告窓、下段は暫定実働）。未配置は未完了であり、期間ゼロ・完了ではない。</text>
 <text x="30" y="2060" font-size="17">出典：docs/roadmap.md、docs/design/grounded-answer-plan.md。新規タスク・状態・見積もり変更時に同時更新。</text>
-<text x="30" y="2095" font-size="16">更新：2026-10-22 ／ H5のブラウザ8項目・実PG関連250件成功。修正後全件CI・利用者確認待ち。PRはDraft。既存データ・モデル設定は無変更。</text>
+<text x="30" y="2095" font-size="16">更新：2026-10-22 ／ H5の実装head eb6fba4は全件CI成功。文書追記headのCIは別確認。利用者確認待ち。PRはDraft。既存データ・モデル設定は無変更。</text>
 </g></svg>

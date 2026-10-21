@@ -117,3 +117,9 @@ H5のhead aba702cのCIは保全記録のページング試験1件が失敗した
 - 全Backendは次の修正headのCIで別途確認する。旧headのCI失敗や、今回の関連250件を全Backend成功へ付け替えない。
 
 ![保証期間の確認不能を共通表示する画面](assets/pr276/warranty-unavailable.png)
+
+### 修正実装headの全件CI
+
+`eb6fba4` のBackend CI run `39636956462` は全成功。shard 1は1983成功・1 skip、shard 2は2083成功、計4066成功・1 skip。両shardの収集4067件・collection hashが一致した。先の保全ページング失敗を含む全件、Frontend check、runtime起動・migrationが成功した。Frontend CIでVitestを実行したという意味ではない。
+
+この結果は実装headに対するもの。結果追記だけの文書headのCIは別に確認する。PRはDraft、5174番を維持し、利用者確認後の指示を待つ。使い捨てPostgreSQL・試験container・network・私有認証envは削除し、既存デモとstashは保持した。
