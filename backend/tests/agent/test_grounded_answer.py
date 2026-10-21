@@ -74,14 +74,26 @@ def test_unrendered_relation_cannot_become_another_predicate():
 
 
 def test_partial_search_is_not_zero_or_latest():
-    item = observed(
-        "search_maintenance_records",
-        {"items": [], "next_cursor": "pending"},
-        {"filter": {"equipment_id": str(UUID(int=42))}},
-    )
-    answer, sections = build_answer((item,), scope=ReadScope(("MAINTENANCE",)))
-    assert "0件" not in answer and "続き" in answer
-    assert any(row["code"] == "INCOMPLETE" for row in sections["unavailable"])
+    class Pending(Dispatcher):
+        def schemas(self):
+            return {
+                "search_equipment": {"type": "object"},
+                "search_maintenance_records": {"type": "object"},
+            }
+
+        def run(self, context, tool, arguments, **kwargs):
+            assert tool == "search_equipment"
+            self.calls += 1
+            return ReadResult({"items": [], "next_cursor": "pending" + str(self.calls)}, {})
+
+    llm = ScopedLLM(["MAINTENANCE"], subjects=({"entity_type": "Equipment", "reference": "M-204"},))
+    dispatcher = Pending()
+    result = ReadAgent(dispatcher, llm).run(context(), request())
+    assert "0件" not in result.answer and "続き" in result.answer
+    assert any(row["code"] == "INCOMPLETE" for row in result.answer_sections["unavailable"])
+    assert any(row["code"] == "AGENT_LIMIT_REACHED" for row in result.errors)
+    assert dispatcher.calls == 12 and len(result.observations) == 12
+    assert len(llm.planning_requests) == 1 and not llm.requests
 
 
 def test_read_failure_never_means_absence():
@@ -95,9 +107,10 @@ def test_read_failure_never_means_absence():
 
 
 class ScopedLLM(ScriptedLLM):
-    def __init__(self, topics, *replies):
+    def __init__(self, topics, *replies, subjects=()):
         super().__init__(*replies)
         self.topics = topics
+        self.subjects = list(subjects)
 
     def complete(self, messages, *, schemas, deadline):
         if PLAN_TOOL in schemas:
@@ -106,7 +119,7 @@ class ScopedLLM(ScriptedLLM):
                 PLAN_TOOL,
                 {
                     "topics": self.topics,
-                    "subjects": [],
+                    "subjects": self.subjects,
                     "requested_fields": [
                         next(
                             (field for field, topic in FIELDS.items() if topic == chosen),
@@ -120,14 +133,50 @@ class ScopedLLM(ScriptedLLM):
 
 
 def test_scope_reduces_advertised_tools_without_expanding_authority():
-    llm = ScopedLLM(["ATTRIBUTES", "UNSUPPORTED"], call(), LLMReply("値を推測した自由な回答", ()))
-    result = ReadAgent(Dispatcher(), llm).run(context(), request())
-    assert "get_equipment" in llm.requests[0][1]
-    assert "get_equipment_state" not in llm.requests[0][1]
-    assert "prepare_equipment_state_update" not in llm.requests[0][1]
+    class Lookup(Dispatcher):
+        def run(self, context, tool, arguments, **kwargs):
+            self.calls += 1
+            assert tool == "search_equipment"
+            assert context.authenticated_user_id == "floor1"
+            matched = arguments["filter"] == {"equipment_code": "M-204"}
+            return ReadResult(
+                {
+                    "items": [{"equipment_id": str(UUID(int=1)), "equipment_code": "M-204"}]
+                    if matched
+                    else [],
+                    "next_cursor": None,
+                },
+                {"source": "POSTGRESQL"},
+            )
+
+        def schemas(self):
+            return {
+                name: {"type": "object"}
+                for name in (
+                    "search_equipment",
+                    "get_equipment",
+                    "get_equipment_state",
+                    "prepare_equipment_state_update",
+                )
+            }
+
+    llm = ScopedLLM(
+        ["ATTRIBUTES", "UNSUPPORTED"],
+        LLMReply("値を推測した自由な回答", ()),
+        subjects=({"entity_type": "Equipment", "reference": "M-204"},),
+    )
+    dispatcher = Lookup()
+    result = ReadAgent(dispatcher, llm).run(context(), request())
+    advertised = ReadScope(("ATTRIBUTES", "UNSUPPORTED")).schemas(dispatcher.schemas())
+    assert "get_equipment" in advertised
+    assert (
+        "get_equipment_state" not in advertised
+        and "prepare_equipment_state_update" not in advertised
+    )
     assert "値を推測した自由な回答" not in result.answer
     assert "範囲外" in result.answer and "M-204" in result.answer
-    assert llm.planning_requests[0][2] == llm.requests[0][2]
+    assert dispatcher.calls == 2 and not result.errors
+    assert len(llm.planning_requests) == 1 and not llm.requests
 
 
 def test_scope_runtime_rejects_provider_call_outside_advertised_capability():
