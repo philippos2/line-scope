@@ -1,5 +1,6 @@
 """Natural-language target lookup preserves each real search and bounded admission."""
 
+import json
 from uuid import uuid4
 
 import pytest
@@ -31,6 +32,10 @@ class SearchDispatcher:
 EMPTY = {"items": [], "next_cursor": None}
 
 
+def lookup_summary(llm):
+    return json.loads(llm.requests[-1][0][-1]["content"])["equipment_lookup_summary"]
+
+
 @pytest.mark.parametrize("field,other", [("name", "equipment_code"), ("equipment_code", "name")])
 def test_zero_lookup_reads_the_other_condition_before_next_generation(field, other):
     target = {"equipment_id": str(uuid4())}
@@ -51,14 +56,19 @@ def test_zero_lookup_reads_the_other_condition_before_next_generation(field, oth
     assert len(result.trace) == 2 and all(row["code"] == "OK" for row in result.trace)
     assert llm.requests[1][0][-1]["role"] == "tool"
     assert len(llm.requests) == 2
+    summary = lookup_summary(llm)
+    assert len(summary) == 1 and summary[0]["status"] == "FOUND"
+    assert summary[0]["equipment_found"] and summary[0]["candidate_count"] == 1
+    assert summary[0]["candidates"][0]["equipment_id"] == target["equipment_id"]
+    assert len(summary[0]["queries"]) == 2
 
 
 @pytest.mark.parametrize(
     "arguments,data",
     [
         (
-            {"filter": {"name": "literal"}},
-            {"items": [{"equipment_id": "one"}], "next_cursor": None},
+            {"filter": {"name": "literal"}, "page_size": 100},
+            {"items": [{"equipment_id": f"item-{n}"} for n in range(21)], "next_cursor": None},
         ),
         ({"filter": {"name": "literal"}, "cursor": "continued"}, EMPTY),
         ({"filter": {"name": "literal", "equipment_code": "literal"}}, EMPTY),
@@ -66,34 +76,45 @@ def test_zero_lookup_reads_the_other_condition_before_next_generation(field, oth
 )
 def test_nonempty_continuation_and_explicit_and_filters_keep_their_meaning(arguments, data):
     dispatcher = SearchDispatcher([data])
-    result = ReadAgent(
-        dispatcher, ScriptedLLM(call("search_equipment", arguments), LLMReply("取得結果です。", ()))
-    ).run(context(), request())
+    llm = ScriptedLLM(call("search_equipment", arguments), LLMReply("取得結果です。", ()))
+    result = ReadAgent(dispatcher, llm).run(context(), request())
     assert dispatcher.arguments == [arguments] and len(result.observations) == 1
+    summary = lookup_summary(llm)[0]
+    if arguments.get("cursor"):
+        assert summary["status"] == "INCOMPLETE" and not summary["complete"]
+    elif data["items"]:
+        assert summary["status"] == "MULTIPLE_MATCHES" and summary["candidate_count"] == 21
+        assert summary["candidate_sample_truncated"] and len(summary["candidates"]) == 20
+        assert len(result.observations[0].result.data["items"]) == 21
+        assert summary["queries"][0]["returned_equipment_count"] == 21
+        assert summary["queries"][0]["returned_equipment_sample_truncated"]
+    else:
+        assert summary["status"] == "NO_MATCH"
+        assert summary["queries"][0]["filter"] == arguments["filter"]
 
 
 def test_two_empty_conditions_do_not_create_an_unbounded_cycle():
     dispatcher = SearchDispatcher([EMPTY, EMPTY])
-    result = ReadAgent(
-        dispatcher,
-        ScriptedLLM(
-            call("search_equipment", {"filter": {"name": "literal"}}), LLMReply("該当なし。", ())
-        ),
-    ).run(context(), request())
+    llm = ScriptedLLM(
+        call("search_equipment", {"filter": {"name": "literal"}}), LLMReply("該当なし。", ())
+    )
+    result = ReadAgent(dispatcher, llm).run(context(), request())
     assert len(dispatcher.arguments) == len(result.observations) == 2
+    assert lookup_summary(llm)[0]["status"] == "NO_MATCH"
+    assert not lookup_summary(llm)[0]["equipment_found"]
 
 
 def test_failed_lookup_is_not_treated_as_zero_results():
     dispatcher = SearchDispatcher([ToolError("INVALID_ARGUMENT", "Rejected")])
-    result = ReadAgent(
-        dispatcher,
-        ScriptedLLM(
-            call("search_equipment", {"filter": {"name": "第一加工機"}}),
-            LLMReply("補足が必要です。", ()),
-        ),
-    ).run(context(), request())
+    llm = ScriptedLLM(
+        call("search_equipment", {"filter": {"name": "第一加工機"}}),
+        LLMReply("補足が必要です。", ()),
+    )
+    result = ReadAgent(dispatcher, llm).run(context(), request())
     assert len(dispatcher.arguments) == 1 and not result.observations
     assert result.errors[0]["code"] == "INVALID_ARGUMENT"
+    assert lookup_summary(llm)[0]["status"] == "INCOMPLETE"
+    assert not lookup_summary(llm)[0]["complete"]
 
 
 def test_alternate_read_cannot_bypass_the_twelve_call_budget():

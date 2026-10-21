@@ -64,6 +64,12 @@ def test_name_variants_and_explicit_question_use_the_common_read_loop(registry, 
     assert "0件" in result.answer
     assert "実施されていないことを意味するものではありません" in result.answer
     assert len(llm.requests) == 3
+    summary = json.loads(llm.requests[1][0][-1]["content"])["equipment_lookup_summary"]
+    assert len(summary) == 1 and summary[0]["status"] == "FOUND"
+    assert summary[0]["candidate_count"] == 1
+    assert summary[0]["candidates"][0]["equipment_id"] == str(UUID(int=1))
+    final_payloads = [json.loads(m["content"]) for m in llm.requests[-1][0] if m["role"] == "tool"]
+    assert sum("equipment_lookup_summary" in payload for payload in final_payloads) == 1
     assert "search_maintenance_records" in llm.requests[0][1]
     assert llm.requests[0][0][-1] == {
         "role": "user",
@@ -315,6 +321,10 @@ def test_general_multi_equipment_lookup_preserves_both_spelling_groups(pair):
         if message["role"] == "tool"
     ]
     assert len(payloads) == 8
+    summaries = payloads[-1]["equipment_lookup_summary"]
+    assert len(summaries) == 2
+    assert all(s["status"] == "FOUND" and s["candidate_count"] == 1 for s in summaries)
+    assert {s["candidates"][0]["equipment_id"] for s in summaries} == found
     assert {
         row["equipment_id"] for payload in payloads for row in payload["data"]["items"]
     } == found
@@ -343,6 +353,9 @@ def test_general_lookup_keeps_distinct_equipment_for_colliding_spellings(registr
     }
     assert found == {str(UUID(int=1)), str(UUID(int=3))}
     assert all(tool == "search_equipment" for tool, _ in dispatcher.calls)
+    summary = json.loads(llm.requests[1][0][-1]["content"])["equipment_lookup_summary"]
+    assert len(summary) == 1 and summary[0]["status"] == "MULTIPLE_MATCHES"
+    assert summary[0]["candidate_count"] == 2
     # Successful original lookup must not prevent collision checks before generation.
     payloads = [
         json.loads(message["content"])

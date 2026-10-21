@@ -40,10 +40,8 @@ def _kanji(value):
     return "".join(parts)
 
 
-def reference_variants(text):
-    normalized = unicodedata.normalize("NFKC", text)
-
-    def replace(match, kind):
+def _render_reference(normalized, kind):
+    def replace(match):
         number = _number(match[1])
         if number is None or not 0 <= number <= 9999:
             return match[0]
@@ -52,15 +50,22 @@ def reference_variants(text):
             rendered = rendered.translate(str.maketrans("0123456789", "０１２３４５６７８９"))
         return "第" + rendered
 
+    return re.sub(
+        r"第([0-9零〇一二三四五六七八九十百千]+)(?![0-9零〇一二三四五六七八九十百千万億兆.,，])",
+        replace,
+        normalized,
+    )
+
+
+def reference_key(text):
+    """Stable grouping key; it is never substituted into an actual Tool filter."""
+    return _render_reference(unicodedata.normalize("NFKC", text), "ascii")
+
+
+def reference_variants(text):
+    normalized = unicodedata.normalize("NFKC", text)
     variants = [text, normalized]
-    for kind in ("ascii", "kanji", "wide"):
-        variants.append(
-            re.sub(
-                r"第([0-9零〇一二三四五六七八九十百千]+)(?![0-9零〇一二三四五六七八九十百千万億兆.,，])",
-                lambda m: replace(m, kind),
-                normalized,
-            )
-        )
+    variants.extend(_render_reference(normalized, kind) for kind in ("ascii", "kanji", "wide"))
     return tuple(dict.fromkeys(variants))
 
 
