@@ -143,7 +143,7 @@ def test_invalid_scope_never_dispatches_or_defaults_to_all_tools():
     dispatcher = Dispatcher()
     with pytest.raises(ToolError) as error:
         ReadAgent(dispatcher, ScopedLLM(["nonexistent"])).run(context(), request())
-    assert error.value.code == "INVALID_ARGUMENT" and dispatcher.calls == 0
+    assert error.value.code == "INTERNAL_ERROR" and dispatcher.calls == 0
 
 
 def test_valid_selection_has_only_actual_request_references():

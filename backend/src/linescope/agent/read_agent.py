@@ -173,6 +173,12 @@ class ReadAgent:
         if scope.subjects:
             observations, trace, errors = collect_scope(scope, session)
             answer, sections = build_answer(observations, scope=scope, errors=errors)
+            if request.explicit_as_of:
+                note = "指定時刻について現在登録情報を評価しています。当時の状態の完全復元ではありません。"
+                answer = note + "\n" + answer
+                sections["unavailable"].append(
+                    {"code": "CURRENT_REGISTRATION_ONLY", "text": note, "references": []}
+                )
             return ReadAgentResult(
                 answer,
                 observations,

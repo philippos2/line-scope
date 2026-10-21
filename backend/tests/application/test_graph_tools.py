@@ -85,8 +85,11 @@ def test_agent_retains_real_graph_paths_and_server_evidence(world, tool):
     }
     llm = ScriptedLLM(call(tool, {"target": target}), LLMReply("依存経路を確認しました。", ()))
     request = AgentInput.parse(context(), '{"message":"影響経路を調べて"}', received_at=at)
-    result = ReadAgent(ToolDispatcher(db, graph=service(world)), llm).run(context(), request)
-    assert set(TOOLS) <= llm.requests[0][1].keys()
+    dispatcher = ToolDispatcher(db, graph=service(world))
+    result = ReadAgent(dispatcher, llm).run(context(), request)
+    assert tool in llm.requests[0][1]
+    assert set(TOOLS) - {tool} <= dispatcher.schemas().keys()
+    assert not (set(TOOLS) - {tool}) & llm.requests[0][1].keys()
     assert not any(name.startswith("prepare_") for name in llm.requests[0][1])
     assert not result.errors and len(result.observations) == 1
     observation = result.observations[0].result

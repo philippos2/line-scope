@@ -167,6 +167,12 @@ def build_answer(observations, *, scope=None, errors=(), selected=None):
         tool, data = observation.tool, observation.result.data
         refs = (observation.tool_call_id,)
         matched = False
+        if data.get("not_evaluated"):
+            missing(
+                "NOT_EVALUATED",
+                "この取得結果に未評価の観点があります。登録された関係・判定だけから、実際の運転可否・能力・安全性等は判断できません。",
+                refs,
+            )
         for entity, (label, fields) in ENTITY_FIELDS.items():
             if tool not in {"get_" + entity, "search_" + entity + "s"}:
                 # Irregular plurals are explicit data contracts, not natural-language rules.

@@ -205,7 +205,7 @@ def classify(llm, request, session, previous_messages=None):
             )
     calls = reply.tool_calls
     if len(calls) != 1 or calls[0].name != PLAN_TOOL:
-        raise ToolError("INVALID_ARGUMENT", "Question scope could not be determined")
+        raise ToolError("INTERNAL_ERROR", "Question scope could not be determined")
     arguments = calls[0].arguments
     topics = arguments.get("topics") if type(arguments) is dict else None
     if (
@@ -216,13 +216,13 @@ def classify(llm, request, session, previous_messages=None):
         or any(type(t) is not str or t not in TOPICS for t in topics)
         or len(topics) != len(set(topics))
     ):
-        raise ToolError("INVALID_ARGUMENT", "Question scope could not be determined")
+        raise ToolError("INTERNAL_ERROR", "Question scope could not be determined")
     subjects = arguments["subjects"]
     supplied = reference_key(
         " ".join(item["content"] for item in question_messages(request.message))
     )
     if type(subjects) is not list or len(subjects) > 4:
-        raise ToolError("INVALID_ARGUMENT", "Question targets could not be determined")
+        raise ToolError("INTERNAL_ERROR", "Question targets could not be determined")
     for subject in subjects:
         if (
             type(subject) is not dict
@@ -249,7 +249,7 @@ def classify(llm, request, session, previous_messages=None):
         or not 1 <= len(requested) <= 16
         or any(type(field) is not str or not 1 <= len(field) <= 100 for field in requested)
     ):
-        raise ToolError("INVALID_ARGUMENT", "Requested information could not be determined")
+        raise ToolError("INTERNAL_ERROR", "Requested information could not be determined")
     # A coarse topic is not evidence that a requested attribute exists.
     # Only catalogued fields can enable a capability; unknown fields stay unsupported.
     admitted = tuple(dict.fromkeys(FIELDS.get(field, "UNSUPPORTED") for field in requested))
