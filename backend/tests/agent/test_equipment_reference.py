@@ -130,8 +130,9 @@ def test_latest_date_uses_every_record_page_and_renders_japan_time(registry):
             from copy import deepcopy
 
             from linescope.agent.read_scope import PLAN_TOOL
+            from linescope.agent.scope_check import CHECK_TOOL
 
-            if PLAN_TOOL in schemas:
+            if PLAN_TOOL in schemas or CHECK_TOOL in schemas:
                 return super().complete(messages, schemas=schemas, deadline=deadline)
             self.requests.append((deepcopy(messages), schemas, deadline))
             pages = [

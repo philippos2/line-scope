@@ -242,7 +242,9 @@ def test_question_scope_review_stops_unrelated_reads(verdict):
     )
     assert dispatcher.calls == 0 and not result.observations
     assert not result.answer_sections["facts"] and not result.needs_input
-    assert "未確認" in result.answer and "0件" not in result.answer
+    assert "M-204の交換部品はどこに保管されているか？" in result.answer
+    assert "登録の有無や実際の状態を断定したものではありません" in result.answer
+    assert "0件" not in result.answer
     assert any(
         row["code"] == "QUESTION_SCOPE_UNCONFIRMED" for row in result.answer_sections["unavailable"]
     )

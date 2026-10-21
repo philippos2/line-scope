@@ -4,7 +4,7 @@ from datetime import datetime
 
 from ..application.registered_decision import decision_answer
 from ..domain.canonical import canonical_json
-from .answer_text import public_answer
+from .answer_text import UUID_TEXT, public_answer
 from .capacity_answer import capacity_answer
 from .economic_answer import economic_answer
 from .equipment_lookup_view import equipment_lookup_view
@@ -98,13 +98,20 @@ def search_pages(observation, observations):
     return pages, rows, complete
 
 
-def build_answer(observations, *, scope=None, errors=(), selected=None):
+def build_answer(observations, *, scope=None, errors=(), selected=None, question=None):
     """Only server adapters create facts. Selection names existing request-local fact IDs."""
     scope_blocked = bool(scope and scope.scope_issue)
     if scope_blocked:
         observations = ()
     facts, unavailable = [], []
     truncated = False
+    public_question = UUID_TEXT.sub("IDで指定した対象", question) if question else None
+    unconfirmed_question = (
+        f"「{public_question}」については、現在LineScopeで参照できる情報からは確認できません。"
+        "登録の有無や実際の状態を断定したものではありません。"
+        if question
+        else None
+    )
 
     def missing(code, text, references=()):
         item = {"code": code, "text": text, "references": list(references)}
@@ -300,7 +307,8 @@ def build_answer(observations, *, scope=None, errors=(), selected=None):
         if topic == "UNSUPPORTED":
             missing(
                 "OUT_OF_SCOPE",
-                "この版で参照できる情報の範囲外の事項があります。登録の有無や、その値・場所・可否は判断できません。",
+                unconfirmed_question
+                or "この版で参照できる情報の範囲外の事項があります。登録の有無や、その値・場所・可否は判断できません。",
             )
         elif required and not any(o.tool in required for o in observations):
             missing(
@@ -333,7 +341,8 @@ def build_answer(observations, *, scope=None, errors=(), selected=None):
     if scope_blocked:
         missing(
             "QUESTION_SCOPE_UNCONFIRMED",
-            "質問で求められた情報と、参照できる情報の対応を確認できません。"
+            unconfirmed_question
+            or "質問で求められた情報と、参照できる情報の対応を確認できません。"
             "別の情報を質問への回答として表示することはしていません。"
             "登録の有無や値は未確認です。この質問への回答は確定できません。",
         )
