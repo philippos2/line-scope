@@ -94,6 +94,7 @@ def test_partial_search_is_not_zero_or_latest():
     assert any(row["code"] == "AGENT_LIMIT_REACHED" for row in result.errors)
     assert dispatcher.calls == 12 and len(result.observations) == 12
     assert len(llm.planning_requests) == 1 and not llm.requests
+    assert "抽出した対象表現：M-204" in result.answer_sections["scope"]
 
 
 def test_read_failure_never_means_absence():

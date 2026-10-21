@@ -332,10 +332,14 @@ def build_answer(observations, *, scope=None, errors=(), selected=None):
             "NOT_RETRIEVED",
             "参照結果は取得していません。対象や質問の範囲を具体的に指定してください。",
         )
+    scope_labels = scope.labels() if scope else []
+    if scope and scope.subjects:
+        subjects = "、".join(subject["reference"] for subject in scope.subjects)
+        scope_labels = [public_answer(f"抽出した対象表現：{subjects}", observations), *scope_labels]
     sections = {
         "version": 1,
         "mode": "REGISTERED_RESULTS",
-        "scope": scope.labels() if scope else [],
+        "scope": scope_labels,
         "facts": facts,
         "interpretation": [],
         "unavailable": unavailable,
