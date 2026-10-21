@@ -8,9 +8,9 @@ from uuid import UUID
 import pytest
 from application.test_proposals import context
 
-from agent.test_read_agent import ScriptedLLM, call, request
+from agent.test_read_agent import AdmittedPlanAgent, ScriptedLLM, call, request
 from linescope.agent.answer_text import public_answer
-from linescope.agent.read_agent import ReadAgent, ReadObservation
+from linescope.agent.read_agent import ReadObservation
 from linescope.application.reads import ReadResult, ToolError
 from linescope.application.tools import ToolDispatcher
 from linescope.integrations.llm import LLMReply
@@ -51,7 +51,7 @@ def test_name_variants_and_explicit_question_use_the_common_read_loop(registry, 
         call("search_maintenance_records", {"filter": {"equipment_id": str(UUID(int=1))}}),
         LLMReply("記録はありません。", ()),
     )
-    result = ReadAgent(dispatcher, llm).run(
+    result = AdmittedPlanAgent(dispatcher, llm).run(
         context(),
         replace(
             request(name + "の前回のメンテナンス日時はいつか？"),
@@ -92,7 +92,7 @@ def test_equivalent_names_on_distinct_equipment_require_selection(registry):
             (UUID(int=2),),
         )
     dispatcher = Observed(registry)
-    result = ReadAgent(
+    result = AdmittedPlanAgent(
         dispatcher,
         ScriptedLLM(
             call("search_equipment", {"filter": {"name": "第1加工機"}}),
@@ -157,7 +157,7 @@ def test_latest_date_uses_every_record_page_and_renders_japan_time(registry):
             return LLMReply("取得した記録の最新実施日時は2025-01-02T18:30:00.000000Zです。", ())
 
     llm = PagedRecordLLM()
-    result = ReadAgent(dispatcher, llm).run(
+    result = AdmittedPlanAgent(dispatcher, llm).run(
         context(), request("E-1が最後にメンテナンスされたのはいつか？")
     )
     pages = [args for tool, args in dispatcher.calls if tool == "search_maintenance_records"]
@@ -172,7 +172,7 @@ def test_latest_date_uses_every_record_page_and_renders_japan_time(registry):
 
 def test_failed_record_read_is_not_an_absence_answer(registry):
     dispatcher = Observed(registry, fail_records=True)
-    result = ReadAgent(
+    result = AdmittedPlanAgent(
         dispatcher,
         ScriptedLLM(
             call("search_equipment", {"filter": {"name": "第1加工機"}}),
@@ -190,7 +190,7 @@ def test_mixed_question_retains_the_general_read_flow(registry):
         LLMReply("実施内容はこの記録から判断できません。", ()),
     )
     dispatcher = Observed(registry)
-    result = ReadAgent(dispatcher, llm).run(
+    result = AdmittedPlanAgent(dispatcher, llm).run(
         context(), request("第1加工機の前回のメンテナンス日時と実施内容を教えて")
     )
     assert len(llm.requests) == 2 and len(llm.requests[0][1]) > 1
@@ -228,7 +228,7 @@ def test_explicit_question_target_is_separate_from_selection_and_old_conversatio
         call("search_maintenance_records", {"filter": {"equipment_id": str(UUID(int=2))}}),
         LLMReply("記録なし。", ()),
     )
-    result = ReadAgent(dispatcher, llm).run(
+    result = AdmittedPlanAgent(dispatcher, llm).run(
         context(),
         incoming,
         previous_messages=["調査対象の設備コードはE-1です。\nこの設備の状態は？"],
@@ -258,7 +258,7 @@ def test_implicit_question_keeps_current_selection_separate_from_previous_target
         LLMReply("記録なし。", ()),
     )
     dispatcher = Observed(pair)
-    result = ReadAgent(dispatcher, llm).run(
+    result = AdmittedPlanAgent(dispatcher, llm).run(
         context(),
         incoming,
         previous_messages=["第1加工機の前回のメンテナンス日時はいつか？"],
@@ -281,7 +281,7 @@ def test_general_multi_equipment_lookup_preserves_both_spelling_groups(pair):
     )
     llm = ScriptedLLM(LLMReply("", planned), LLMReply("未確認の参照：" + str(UUID(int=999)), ()))
     dispatcher = Observed(pair)
-    result = ReadAgent(dispatcher, llm).run(
+    result = AdmittedPlanAgent(dispatcher, llm).run(
         context(), request("第一加工機と第２加工機の製造メーカーは同じか？")
     )
     assert not result.errors and len(llm.requests) == 2
@@ -355,7 +355,9 @@ def test_general_lookup_keeps_distinct_equipment_for_colliding_spellings(registr
         LLMReply("候補：" + str(UUID(int=1)) + "、" + str(UUID(int=3)), ()),
     )
     dispatcher = Observed(registry)
-    result = ReadAgent(dispatcher, llm).run(context(), request("第1加工機の製造メーカーは？"))
+    result = AdmittedPlanAgent(dispatcher, llm).run(
+        context(), request("第1加工機の製造メーカーは？")
+    )
     assert not result.errors and len(result.observations) == 3
     assert "E-1" in result.answer and "E-3" in result.answer
     assert str(UUID(int=1)) not in result.answer and str(UUID(int=3)) not in result.answer

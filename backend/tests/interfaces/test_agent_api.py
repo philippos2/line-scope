@@ -111,7 +111,7 @@ def test_clarification_context_is_owned_and_continues_with_original_message():
             "/agent", json={"message": "M-204", "context_id": identity}, headers=HEADERS
         )
     assert second.status_code == 200 and second.json()["context_id"] == identity
-    assert [m["content"] for m in llm.requests[1][0] if m["role"] == "user"] == [
+    assert [m["content"] for m in llm.planning_requests[1][0] if m["role"] == "user"] == [
         "あの設備の状態は？",
         "M-204",
     ]

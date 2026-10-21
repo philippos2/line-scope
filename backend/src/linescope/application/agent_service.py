@@ -69,6 +69,8 @@ class AgentApplication:
             raise ToolError("AUTHENTICATION_REQUIRED", "Trusted execution context is required")
         if not isinstance(incoming, AgentInput) or type(retry_requested) is not bool:
             raise ToolError("INVALID_ARGUMENT", "Validated Agent input is required")
+        if incoming.read_confirmation is not None:
+            return self._confirmed_read(context, incoming)
         if retry_requested:
             saved = self.proposals.find_by_retry(
                 context, incoming.retry_key, agent_input_hash=incoming.input_hash
@@ -99,6 +101,17 @@ class AgentApplication:
             read_input,
             previous_messages=previous if incoming.context_id else None,
         )
+        if result.pending_read is not None:
+            from ..agent.read_confirmation import original_hash
+
+            result.pending_read["hash"] = original_hash(incoming)
+            result.pending_read["effective_as_of"] = read_input.explicit_as_of
+            stored = {
+                "read_scope": result.pending_read,
+                "messages": [],
+                "explicit_as_of": read_input.explicit_as_of,
+            }
+            return AnalyzedAgentResult(result, self.conversations.create(context, stored))
         context_id = incoming.context_id
         if result.needs_input or context_id:
             stored = {
@@ -110,6 +123,23 @@ class AgentApplication:
             else:
                 context_id = self.conversations.create(context, stored)
         return AnalyzedAgentResult(result, context_id)
+
+    def _confirmed_read(self, context, incoming):
+        from ..agent.read_confirmation import confirmed_read
+
+        conversation = self.conversations.get(context, incoming.context_id)
+        if self.read_agent is None:
+            raise ToolError("DEPENDENCY_UNAVAILABLE", "Read Agent is unavailable")
+        result = confirmed_read(
+            self.read_agent, context, incoming, conversation.get("read_scope", {})
+        )
+        if result.read_clarification and result.read_clarification["status"] in {
+            "ACCEPTED",
+            "DECLINED",
+        }:
+            conversation["read_scope"]["closed"] = True
+            self.conversations.update(context, incoming.context_id, conversation)
+        return AnalyzedAgentResult(result, None)
 
     def _prepared(self, context, saved):
         try:

@@ -69,6 +69,16 @@ def reference_variants(text):
     return tuple(dict.fromkeys(variants))
 
 
+def selected_reference(message, reference):
+    """A deictic subject may use the UI hint; all codes remain untrusted lookup input."""
+    match = re.match(r"調査対象の設備コードは([^\n]+)です。\n(.+)\Z", message, re.DOTALL)
+    if match and re.fullmatch(
+        r"(?:この|その|選択(?:中|した)|調査中)(?:の)?(?:設備|機械|機材|装置)", reference
+    ):
+        return match[1]
+    return reference
+
+
 def question_messages(message):
     """Keep the UI selection as untrusted context, separate from the actual question."""
     match = re.match(r"調査対象の設備コードは([^\n]+)です。\n(.+)\Z", message, re.DOTALL)

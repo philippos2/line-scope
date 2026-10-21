@@ -103,6 +103,22 @@ PLAN_SCHEMA = {
                 "required": ["entity_type", "reference"],
             },
         },
+        "source_spans": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 16,
+            "items": {
+                "type": "object",
+                "additionalProperties": False,
+                "properties": {
+                    "text": {"type": "string"},
+                    "start": {"type": "integer"},
+                    "end": {"type": "integer"},
+                },
+                "required": ["text", "start", "end"],
+            },
+            "description": "最後の質問本文の尋ねている語句を原文のまま抽出。start/endはUnicode文字の0始まり・終端を含まない位置。対象以外の属性・修飾・疑問を落とさない。",
+        },
         "topics": {
             "type": "array",
             "minItems": 1,
@@ -111,7 +127,7 @@ PLAN_SCHEMA = {
             "items": {"type": "string", "enum": list(TOPICS)},
         },
     },
-    "required": ["topics", "subjects", "requested_fields"],
+    "required": ["topics", "subjects", "requested_fields", "source_spans"],
     "description": "質問の情報種別を分類する内部処理。事実や回答文を生成しない。",
 }
 SELECT_SCHEMA = {
@@ -130,7 +146,7 @@ SELECT_SCHEMA = {
 }
 SCOPE_PROMPT = """LineScopeの質問を情報種別へ分類しdescribe_read_requestを1回だけ呼んでください。回答文・値は生成しません。
 本文に明記された対象を画面選択や過去の質問より優先します。複合質問は必要な種別を全て選びます。
-登録属性はコード・名称・種類・有効フラグです。これら以外の属性はUNSUPPORTEDです。
+登録属性はコード・名称・種類です。有効フラグactiveは通常分類から除外します。これら以外の属性はUNSUPPORTEDです。
 STATEは登録状態、MAINTENANCEは保全の計画・実績、UPSTREAM等は登録関係の探索です。
 登録関係の到達から、登録されていない物の場所や運転可否など別の事実は回答できません。
 ECONOMICS/CAPACITY/SAFETY/MAINTENANCE_INPUTSは明示登録された入力の範囲だけです。
@@ -145,6 +161,7 @@ class ReadScope:
     subjects: tuple[dict, ...] = ()
     scope_issue: str | None = None
     requested_fields: tuple[str, ...] = ()
+    source_spans: tuple[dict, ...] = ()
 
     def schemas(self, available):
         allowed = IDENTITY_TOOLS | set().union(*(TOPICS[t][1] for t in self.topics))
@@ -155,12 +172,14 @@ class ReadScope:
 
 
 def classify(llm, request, session, previous_messages=None):
+    from .read_catalog import BUSINESS_FIELDS, valid_spans
+
     messages = [
         {
             "role": "system",
             "content": SCOPE_PROMPT
             + "\n参照可能なfieldは次だけです："
-            + ", ".join(FIELDS)
+            + ", ".join(BUSINESS_FIELDS)
             + "。requested_fieldsには質問が本当に求めている属性を入れます。"
             + "一覧にその属性がなければ、既存fieldに言い換えず、求められた属性を示す別のfield名を入れてください。",
         }
@@ -176,7 +195,8 @@ def classify(llm, request, session, previous_messages=None):
     topics = arguments.get("topics") if type(arguments) is dict else None
     if (
         type(arguments) is not dict
-        or set(arguments) != {"topics", "subjects", "requested_fields"}
+        or set(arguments) - {"topics", "subjects", "requested_fields", "source_spans"}
+        or not {"topics", "subjects", "requested_fields"} <= set(arguments)
         or type(topics) is not list
         or not 1 <= len(topics) <= 15
         or any(type(t) is not str or t not in TOPICS for t in topics)
@@ -218,9 +238,11 @@ def classify(llm, request, session, previous_messages=None):
         raise ToolError("INTERNAL_ERROR", "Requested information could not be determined")
     # A coarse topic is not evidence that a requested attribute exists.
     # Only catalogued fields can enable a capability; unknown fields stay unsupported.
-    admitted = tuple(dict.fromkeys(FIELDS.get(field, "UNSUPPORTED") for field in requested))
+    admitted = tuple(
+        dict.fromkeys(BUSINESS_FIELDS.get(field, "UNSUPPORTED") for field in requested)
+    )
     issue = None
-    supported = [field for field in requested if field in FIELDS]
+    supported = [field for field in requested if field in BUSINESS_FIELDS]
     if supported:
         from .scope_check import CHECK_SCHEMA, CHECK_TOOL, check_messages, checked_verdict
 
@@ -231,7 +253,10 @@ def classify(llm, request, session, previous_messages=None):
             session,
         )
         issue = checked_verdict(reply)
-    return ReadScope(admitted, tuple(subjects), issue, tuple(requested))
+    spans = arguments.get("source_spans", [])
+    if supported and not valid_spans(spans, request.message):
+        issue = "UNVERIFIABLE"
+    return ReadScope(admitted, tuple(subjects), issue, tuple(requested), tuple(spans))
 
 
 def complete_scope(llm, messages, schemas, session):

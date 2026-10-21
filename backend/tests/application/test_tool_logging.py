@@ -5,10 +5,9 @@ from uuid import UUID, uuid4
 
 import pytest
 from agent.test_agent_tools import Dispatcher, session
-from agent.test_read_agent import ScriptedLLM, call, request
+from agent.test_read_agent import AdmittedPlanAgent, ScriptedLLM, call, request
 from fastapi.testclient import TestClient
 
-from linescope.agent.read_agent import ReadAgent
 from linescope.application.reads import ToolError
 from linescope.demo_seed import DEMO_EQUIPMENT, seed_demo
 from linescope.integrations.llm import LLMReply
@@ -32,7 +31,7 @@ def test_llm_failure_metrics_do_not_expose_content_or_change_failure(invalid_rep
     output = io.StringIO()
     context = session().context
     with pytest.raises(ToolError) as error:
-        ReadAgent(
+        AdmittedPlanAgent(
             Dispatcher(lambda: None), Broken(), event_logger=EventLogger("DEBUG", output)
         ).run(context, request(SECRET))
     (entry,) = entries(output)
@@ -178,7 +177,7 @@ def test_retries_share_call_id_and_have_individual_attempt_events():
     output = io.StringIO()
     events = EventLogger("DEBUG", output)
     reply = call()
-    result = ReadAgent(
+    result = AdmittedPlanAgent(
         Dispatcher(action), ScriptedLLM(reply, LLMReply("確認しました", ())), event_logger=events
     ).run(session().context, request())
     logged = [row for row in entries(output) if row["event"] == "tool.call.completed"]

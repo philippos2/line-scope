@@ -32,8 +32,11 @@ class CollectedRead:
     arguments: dict
 
 
-def collect_scope(scope, session, *, identification_only=False):
-    observations, trace, errors, targets = [], [], [], []
+def collect_scope(
+    scope, session, *, identification_only=False, identified_targets=None, resolved_targets=None
+):
+    observations, trace, errors = [], [], []
+    targets = list(resolved_targets or ())
     available = session.schemas()
 
     def read(tool, arguments):
@@ -101,7 +104,7 @@ def collect_scope(scope, session, *, identification_only=False):
                 return rows, False
             seen.add(cursor)
 
-    for subject in scope.subjects:
+    for subject in () if resolved_targets is not None else scope.subjects:
         kind, reference = subject["entity_type"], subject["reference"]
         if kind != "Equipment":
             try:
@@ -132,6 +135,14 @@ def collect_scope(scope, session, *, identification_only=False):
                     matches[row["equipment_id"]] = row
         if complete and len(matches) == 1:
             targets.append({"entity_type": kind, "entity_id": next(iter(matches))})
+        elif complete and not matches:
+            errors.append(
+                {
+                    "code": "TARGET_NOT_FOUND",
+                    "message": "No target found in completed lookup",
+                    "details": {},
+                }
+            )
         elif len(matches) > 1:
             errors.append(
                 {
@@ -141,6 +152,8 @@ def collect_scope(scope, session, *, identification_only=False):
                 }
             )
 
+    if identified_targets is not None:
+        identified_targets.extend(targets)
     if identification_only:
         return tuple(observations), tuple(trace), tuple(errors)
 

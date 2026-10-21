@@ -544,3 +544,5 @@ Agentの比較Tool admissionは、元の問い合わせ中のJSON選択とTool�
 - この任意項目を知らない既存clientは、通常の質問を再入力して参照範囲を明示できる。確認UI未対応を理由に自由文の「はい」を解釈して実行しない。実装時は既存clientの応答表示・context再利用も互換試験する。
 
 H6の定義照会は、既存`answer_sections` version 1への任意の`definitions`配列（`catalog_key`、`text`、`catalog_version`、`source=CAPABILITY_CATALOG`）として追加する案。コードが能力カタログの定義を表示し、Tool取得のfactsやDB事実へ混在させない。新しい必須field・HTTP経路は作らず、通常Readは維持する。対象のない定義質問へ選択設備を補完せず、設備の値を取得しない。既存の認証と参照範囲を維持する。
+
+H6実装候補の`answer_sections.read_outcome`は任意の診断項目として、AUTO／CONFIRM／UNSUPPORTED／TARGET_AMBIGUOUS／TARGET_REQUIRED／TARGET_NOT_FOUND／INCOMPLETE／UNVERIFIABLE／EXPLICIT_READを区別する。質問の意味が正しいという保証ではなく、コードが選んだ処理の記録。EXPLICIT_READは確認後の別の限定照会であり、元の問いへの正答を意味しない。現在は候補・検証未完了。

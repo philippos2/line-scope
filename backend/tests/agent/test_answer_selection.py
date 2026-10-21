@@ -2,8 +2,7 @@
 
 import pytest
 
-from agent.test_read_agent import Dispatcher, ScriptedLLM, call, context, request
-from linescope.agent.read_agent import ReadAgent
+from agent.test_read_agent import AdmittedPlanAgent, Dispatcher, ScriptedLLM, call, context, request
 from linescope.application.reads import ReadResult
 from linescope.integrations.llm import LLMReply
 
@@ -31,7 +30,7 @@ def test_mixed_investigation_is_not_replaced_by_safety_search_summary(other_tool
             return ReadResult(data, {"source": "POSTGRESQL"})
 
     prose = "取得した複数分野の結果は構造化結果を確認してください。安全入力は未登録です。"
-    result = ReadAgent(
+    result = AdmittedPlanAgent(
         MixedDispatcher(),
         ScriptedLLM(call(other_tool), call("search_safety_inputs"), LLMReply(prose, ())),
     ).run(context(), request())

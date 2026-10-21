@@ -134,6 +134,11 @@ export function App() {
   const [questionSelection, setQuestionSelection] = useState<JsonObject | null>(
     null,
   );
+  const [pendingRead, setPendingRead] = useState<{
+    body: JsonObject;
+    text: string;
+    response: Envelope;
+  } | null>(null);
   const [result, setResult] = useState<Envelope | null>(null);
   const [error, setError] = useState("");
   const [, setSelected] = useState<NodeRef | null>(null);
@@ -187,6 +192,7 @@ export function App() {
     setDocumentResult(null);
     setActionDraft("");
     setStateChoice("");
+    setPendingRead(null);
     setResult(null);
     setGraphResult(null);
     setMessage("");
@@ -251,6 +257,7 @@ export function App() {
     setActorRole("");
     setShowConnection(false);
     setBusy(false);
+    setPendingRead(null);
     setResult(null);
     setSelected(null);
     setMessage("");
@@ -316,6 +323,7 @@ export function App() {
             ? session.data.user_id
             : "認証済み",
         );
+        setPendingRead(null);
         setResult(null);
         setSelected(null);
         retry.current = null;
@@ -370,6 +378,7 @@ export function App() {
         ? { context_id: result.context_id }
         : {}),
     };
+    setPendingRead(null);
     const serialized = JSON.stringify(body);
     if (retry.current?.body !== serialized)
       retry.current = { body: serialized, key: crypto.randomUUID() };
@@ -385,6 +394,12 @@ export function App() {
       (value) => {
         freshContext.current = false;
         setResult(value);
+        if (
+          object(value.data.read_clarification) &&
+          value.data.read_clarification.status === "PENDING"
+        ) {
+          setPendingRead({ body, text, response: value });
+        }
         setAnswerEpoch(executionEpoch);
         if (graphAnalyses(value).length) {
           setGraphResult(value);
@@ -406,8 +421,39 @@ export function App() {
       },
     );
   }
+  async function confirmRead(choice: "ACCEPT" | "REJECT") {
+    const pending = pendingRead;
+    if (
+      !pending ||
+      busy ||
+      pending.text !== message ||
+      !pending.response.context_id
+    )
+      return;
+    const body = {
+      ...pending.body,
+      context_id: pending.response.context_id,
+      read_confirmation: choice,
+    };
+    if (choice === "REJECT") {
+      setPendingRead(null);
+      freshContext.current = true;
+      messageInput.current?.focus();
+    }
+    await perform(
+      () => request(token.current, "/agent", body, abort.current?.signal),
+      (value) => {
+        setPendingRead(null);
+        setResult(value);
+        setStale(false);
+        setAnswerEpoch(executionEpoch);
+        freshContext.current = true;
+      },
+    );
+  }
   function draftInvestigation(text: string, focus = true) {
     freshContext.current = true;
+    setPendingRead(null);
     setQuestionSelection(null);
     setMessage(text);
     if (focus) messageInput.current?.focus();
@@ -841,6 +887,14 @@ export function App() {
                         ref={messageInput}
                         value={message}
                         onChange={(event) => {
+                          setPendingRead(null);
+                          freshContext.current = true;
+                          if (busy) {
+                            current.current++;
+                            abort.current?.abort();
+                            setBusy(false);
+                            setActiveOperation(null);
+                          }
                           setMessage(event.target.value);
                           setQuestionSelection(null);
                         }}
@@ -899,6 +953,87 @@ export function App() {
                             一部の情報・評価が不足しています
                           </span>
                         )}
+                        {object(result.data.read_clarification) && (
+                          <section aria-label="質問の解釈確認">
+                            <h3>
+                              {result.data.read_clarification.status ===
+                              "PENDING"
+                                ? "調べる範囲を確認してください"
+                                : "選んだ照会の範囲"}
+                            </h3>
+                            <p>
+                              元の質問：
+                              {String(
+                                result.data.read_clarification
+                                  .original_question ?? "",
+                              )}
+                            </p>
+                            <p>
+                              対象：
+                              {Array.isArray(
+                                result.data.read_clarification.targets,
+                              )
+                                ? result.data.read_clarification.targets.join(
+                                    "、",
+                                  )
+                                : "未確認"}
+                            </p>
+                            <p>
+                              この画面で調べる範囲：
+                              {Array.isArray(
+                                result.data.read_clarification.scope,
+                              )
+                                ? result.data.read_clarification.scope.join(
+                                    "、",
+                                  )
+                                : "未確認"}
+                            </p>
+                            <p>
+                              この範囲の結果で、元の質問全体に答えられるとは限りません。運転許可や業務変更の承認ではありません。
+                            </p>
+                            {result.data.read_clarification.status ===
+                              "ACCEPTED" && (
+                              <p>
+                                以下は、利用者が選んだ範囲の結果です。元の質問全体への回答を確定したものではありません。
+                              </p>
+                            )}
+                            {pendingRead?.response === result &&
+                              pendingRead.text === message && (
+                                <div>
+                                  <button
+                                    type="button"
+                                    disabled={busy}
+                                    aria-busy={busy}
+                                    onClick={() => void confirmRead("ACCEPT")}
+                                  >
+                                    この範囲を調べる
+                                  </button>
+                                  <button
+                                    type="button"
+                                    disabled={busy}
+                                    onClick={() => void confirmRead("REJECT")}
+                                  >
+                                    違う・質問を直す
+                                  </button>
+                                  <p role="status">
+                                    {busy
+                                      ? "選んだ照会を処理しています。完了まで再送できません。"
+                                      : "まだこの範囲の値は取得していません。質問を編集することもできます。"}
+                                  </p>
+                                </div>
+                              )}
+                            {result.data.read_clarification.status ===
+                              "PENDING" &&
+                              pendingRead?.response !== result && (
+                                <p>
+                                  この確認は終了しました。質問を編集して送信できます。
+                                </p>
+                              )}
+                          </section>
+                        )}
+                        {object(result.data.read_clarification) &&
+                          result.data.read_clarification.status ===
+                            "DECLINED" && <p>{result.answer}</p>}
                         <RegisteredAnswer response={result} />
                       </section>
                     )}

@@ -5,9 +5,9 @@ from uuid import UUID
 import pytest
 from application.test_proposals import context
 
-from agent.test_read_agent import Dispatcher, ScriptedLLM, call, request
+from agent.test_read_agent import AdmittedPlanAgent, Dispatcher, ScriptedLLM, call, request
 from linescope.agent.grounded_answer import build_answer
-from linescope.agent.read_agent import ReadAgent, ReadObservation
+from linescope.agent.read_agent import ReadObservation
 from linescope.agent.read_scope import FIELDS, PLAN_TOOL, ReadScope
 from linescope.agent.scope_check import CHECK_TOOL, FIELD_MEANINGS
 from linescope.application.reads import ReadResult, ToolError
@@ -89,7 +89,7 @@ def test_partial_search_is_not_zero_or_latest():
 
     llm = ScopedLLM(["MAINTENANCE"], subjects=({"entity_type": "Equipment", "reference": "M-204"},))
     dispatcher = Pending()
-    result = ReadAgent(dispatcher, llm).run(context(), request())
+    result = AdmittedPlanAgent(dispatcher, llm).run(context(), request())
     assert "0件" not in result.answer and "続き" in result.answer
     assert any(row["code"] == "INCOMPLETE" for row in result.answer_sections["unavailable"])
     assert any(row["code"] == "AGENT_LIMIT_REACHED" for row in result.errors)
@@ -120,6 +120,13 @@ class ScopedLLM(ScriptedLLM):
             return call(
                 PLAN_TOOL,
                 {
+                    "source_spans": [
+                        {
+                            "text": messages[-1]["content"],
+                            "start": 0,
+                            "end": len(messages[-1]["content"]),
+                        }
+                    ],
                     "topics": self.topics,
                     "subjects": self.subjects,
                     "requested_fields": [
@@ -168,7 +175,7 @@ def test_scope_reduces_advertised_tools_without_expanding_authority():
         subjects=({"entity_type": "Equipment", "reference": "M-204"},),
     )
     dispatcher = Lookup()
-    result = ReadAgent(dispatcher, llm).run(context(), request())
+    result = AdmittedPlanAgent(dispatcher, llm).run(context(), request())
     advertised = ReadScope(("ATTRIBUTES", "UNSUPPORTED")).schemas(dispatcher.schemas())
     assert "get_equipment" in advertised
     assert (
@@ -185,7 +192,7 @@ def test_scope_reduces_advertised_tools_without_expanding_authority():
 def test_scope_runtime_rejects_provider_call_outside_advertised_capability():
     dispatcher = Dispatcher()
     llm = ScopedLLM(["ATTRIBUTES"], call("get_equipment_state"), LLMReply("停止中です", ()))
-    result = ReadAgent(dispatcher, llm).run(context(), request())
+    result = AdmittedPlanAgent(dispatcher, llm).run(context(), request())
     assert dispatcher.calls == 0
     assert result.errors[0]["code"] == "AUTHORIZATION_DENIED"
     assert "停止中です" not in result.answer
@@ -194,13 +201,13 @@ def test_scope_runtime_rejects_provider_call_outside_advertised_capability():
 def test_invalid_scope_never_dispatches_or_defaults_to_all_tools():
     dispatcher = Dispatcher()
     with pytest.raises(ToolError) as error:
-        ReadAgent(dispatcher, ScopedLLM(["nonexistent"])).run(context(), request())
+        AdmittedPlanAgent(dispatcher, ScopedLLM(["nonexistent"])).run(context(), request())
     assert error.value.code == "INTERNAL_ERROR" and dispatcher.calls == 0
 
 
 def test_valid_selection_has_only_actual_request_references():
     llm = ScopedLLM(["ATTRIBUTES"], call(), call("select_answer_facts", {"fact_ids": ["f1"]}))
-    result = ReadAgent(Dispatcher(), llm).run(context(), request())
+    result = AdmittedPlanAgent(Dispatcher(), llm).run(context(), request())
     assert result.answer_sections["facts"][0]["references"] == [result.observations[0].tool_call_id]
     assert result.answer_sections["facts"][0]["predicate"] == "equipment.identity"
 
@@ -260,7 +267,7 @@ class IdentityDispatcher(Dispatcher):
 def test_question_scope_review_stops_unrelated_reads(verdict):
     dispatcher = IdentityDispatcher()
     llm = ReviewedLLM(call(CHECK_TOOL, {"verdict": verdict}))
-    result = ReadAgent(dispatcher, llm).run(
+    result = AdmittedPlanAgent(dispatcher, llm).run(
         context(), request("M-204の交換部品はどこに保管されているか？")
     )
     assert dispatcher.calls == 2
@@ -283,7 +290,7 @@ def test_question_scope_review_match_keeps_registered_facts():
     assert set(FIELD_MEANINGS) == set(FIELDS)
     dispatcher = Dispatcher()
     llm = ScopedLLM(["ATTRIBUTES"], call(), LLMReply("創作した文章", ()))
-    result = ReadAgent(dispatcher, llm).run(context(), request())
+    result = AdmittedPlanAgent(dispatcher, llm).run(context(), request())
     assert dispatcher.calls == 1 and result.answer_sections["facts"]
     assert "M-204" in result.answer and "創作した文章" not in result.answer
 
@@ -291,7 +298,7 @@ def test_question_scope_review_match_keeps_registered_facts():
 def test_question_scope_review_malformed_response_never_dispatches_domain_reads():
     dispatcher = IdentityDispatcher()
     llm = ReviewedLLM(call(CHECK_TOOL, {"verdict": "MATCH", "answer": "任意文"}))
-    result = ReadAgent(dispatcher, llm).run(context(), request())
+    result = AdmittedPlanAgent(dispatcher, llm).run(context(), request())
     assert dispatcher.calls == 2
     assert {row["predicate"] for row in result.answer_sections["facts"]} == {"equipment.identity"}
     assert "任意文" not in result.answer
@@ -304,7 +311,7 @@ def test_question_scope_review_deadline_never_dispatches():
     dispatcher = Dispatcher()
     llm = ReviewedLLM(LLMError("AGENT_LIMIT_REACHED", "Read deadline reached"))
     with pytest.raises(ToolError) as error:
-        ReadAgent(dispatcher, llm).run(context(), request())
+        AdmittedPlanAgent(dispatcher, llm).run(context(), request())
     assert error.value.code == "AGENT_LIMIT_REACHED" and dispatcher.calls == 0
 
 

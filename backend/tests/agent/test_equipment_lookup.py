@@ -6,8 +6,7 @@ from uuid import uuid4
 import pytest
 from application.test_proposals import context
 
-from agent.test_read_agent import ScriptedLLM, call, request
-from linescope.agent.read_agent import ReadAgent
+from agent.test_read_agent import AdmittedPlanAgent, ScriptedLLM, call, request
 from linescope.application.reads import ReadResult, ToolError
 from linescope.integrations.llm import LLMReply
 
@@ -44,7 +43,7 @@ def test_zero_lookup_reads_the_other_condition_before_next_generation(field, oth
         call("search_equipment", {"filter": {field: "literal"}, "page_size": 20}),
         LLMReply("登録された設備を確認しました。", ()),
     )
-    result = ReadAgent(dispatcher, llm).run(context(), request())
+    result = AdmittedPlanAgent(dispatcher, llm).run(context(), request())
     assert dispatcher.arguments == [
         {"filter": {field: "literal"}, "page_size": 20},
         {"filter": {other: "literal"}, "page_size": 20},
@@ -77,7 +76,7 @@ def test_zero_lookup_reads_the_other_condition_before_next_generation(field, oth
 def test_nonempty_continuation_and_explicit_and_filters_keep_their_meaning(arguments, data):
     dispatcher = SearchDispatcher([data])
     llm = ScriptedLLM(call("search_equipment", arguments), LLMReply("取得結果です。", ()))
-    result = ReadAgent(dispatcher, llm).run(context(), request())
+    result = AdmittedPlanAgent(dispatcher, llm).run(context(), request())
     assert dispatcher.arguments == [arguments] and len(result.observations) == 1
     summary = lookup_summary(llm)[0]
     if arguments.get("cursor"):
@@ -98,7 +97,7 @@ def test_two_empty_conditions_do_not_create_an_unbounded_cycle():
     llm = ScriptedLLM(
         call("search_equipment", {"filter": {"name": "literal"}}), LLMReply("該当なし。", ())
     )
-    result = ReadAgent(dispatcher, llm).run(context(), request())
+    result = AdmittedPlanAgent(dispatcher, llm).run(context(), request())
     assert len(dispatcher.arguments) == len(result.observations) == 2
     assert lookup_summary(llm)[0]["status"] == "NO_MATCH"
     assert not lookup_summary(llm)[0]["equipment_found"]
@@ -110,7 +109,7 @@ def test_failed_lookup_is_not_treated_as_zero_results():
         call("search_equipment", {"filter": {"name": "第一加工機"}}),
         LLMReply("補足が必要です。", ()),
     )
-    result = ReadAgent(dispatcher, llm).run(context(), request())
+    result = AdmittedPlanAgent(dispatcher, llm).run(context(), request())
     assert len(dispatcher.arguments) == 1 and not result.observations
     assert result.errors[0]["code"] == "INVALID_ARGUMENT"
     assert lookup_summary(llm)[0]["status"] == "INCOMPLETE"
@@ -126,7 +125,7 @@ def test_alternate_read_cannot_bypass_the_twelve_call_budget():
         ]
     )
     with pytest.raises(ToolError, match="budget") as error:
-        ReadAgent(dispatcher, llm).run(context(), request())
+        AdmittedPlanAgent(dispatcher, llm).run(context(), request())
     assert error.value.code == "AGENT_LIMIT_REACHED"
     assert len(dispatcher.arguments) == 12
 

@@ -12,6 +12,9 @@ export function RegisteredAnswer({ response }: { response: Envelope }) {
       </div>
     );
   }
+  const definitions = Array.isArray(sections.definitions)
+    ? sections.definitions.filter(object)
+    : [];
   const facts = Array.isArray(sections.facts)
     ? sections.facts.filter(object)
     : [];
@@ -28,6 +31,19 @@ export function RegisteredAnswer({ response }: { response: Envelope }) {
     : [];
   return (
     <div className="registered-answer">
+      {definitions.length > 0 && (
+        <section aria-label="用語の説明">
+          <h3>用語の説明</h3>
+          {definitions.map((item, index) => (
+            <p key={index}>
+              {typeof item.text === "string"
+                ? item.text
+                : "説明を取得できません。"}
+            </p>
+          ))}
+          <p>LineScopeの参照範囲の定義です。設備の現在値ではありません。</p>
+        </section>
+      )}
       {facts.length > 0 && (
         <section aria-label="確認できたこと">
           <h3>確認できたこと</h3>

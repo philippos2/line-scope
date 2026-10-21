@@ -16,7 +16,7 @@ from .graph_answer import dependency_answer, downstream_answer, fulfillment_answ
 from .graph_model_view import GRAPH_TOOLS, graph_model_view
 from .grounded_answer import build_answer
 from .maintenance_answer import maintenance_answer, maintenance_record_answer
-from .read_scope import SELECT_SCHEMA, SELECT_TOOL, ReadScope, classify
+from .read_scope import SELECT_SCHEMA, SELECT_TOOL, ReadScope
 from .safety_answer import safety_answer
 from .scoped_reads import collect_scope
 from .state_answer import state_answer
@@ -55,6 +55,8 @@ class ReadAgentResult:
     errors: tuple[dict, ...]
     needs_input: bool
     answer_sections: dict | None = None
+    read_clarification: dict | None = None
+    pending_read: dict | None = None
 
 
 def equipment_search_key(arguments):
@@ -167,16 +169,27 @@ class ReadAgent:
                 sections,
             )
 
+        from .read_confirmation import interpreted_read
+
+        interpreted = interpreted_read(self, request, session, previous_messages)
+        if interpreted is not None:
+            return interpreted
+        return self._execute_scope(
+            context, request, session, ReadScope(("COMPARISON",)), previous_messages
+        )
+
+    def _execute_scope(self, context, request, session, scope, previous_messages=None):
+        """Execute a server-admitted plan; the natural-language gate owns admission.
+
+        Used by explicit registered comparison. This is not an HTTP or Tool entry.
+        Model calls here still pass scope, authority, time and call-budget checks.
+        """
+
         def render_answer(observations, **kwargs):
             return build_answer(
                 observations, question=question_messages(request.message)[-1]["content"], **kwargs
             )
 
-        scope = (
-            ReadScope(("COMPARISON",))
-            if set(session.schemas()) == {"compare_registered_inputs"}
-            else classify(self.llm, request, session, previous_messages)
-        )
         if scope.scope_issue or scope.topics == ("UNSUPPORTED",):
             observations, trace, errors = collect_scope(scope, session, identification_only=True)
             answer, sections = render_answer(

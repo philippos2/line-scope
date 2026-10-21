@@ -533,8 +533,15 @@ def create_app(
             }
             if result.answer_sections is not None:
                 data["answer_sections"] = result.answer_sections
+            if result.read_clarification is not None:
+                data["read_clarification"] = result.read_clarification
             if result.needs_input:
-                data.update(candidates=[], missing_fields=["target_identifier"])
+                data.update(
+                    candidates=[],
+                    missing_fields=[
+                        "read_confirmation" if result.read_clarification else "target_identifier"
+                    ],
+                )
             evidence = {
                 "tool_results": [
                     {"tool_call_id": item.tool_call_id, "tool": item.tool, **item.result.evidence}

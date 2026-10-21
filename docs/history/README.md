@@ -1,5 +1,7 @@
 # 文書レビュー・変更履歴
 
+- [H6実装checkpoint（未完了）](2026-10-22-h6-implementation-checkpoint.md)：追加13件、全結合6失敗、中断・片付け、実モデルと5174は未実施。
+
 - [H6実装前の試験対応・字義照合・総量](2026-10-22-h6-implementation-prerequisites.md)：自動13件への追加提案、44項目の負荷、条件付き承認の残条件。
 
 - [曖昧な質問解釈の確認設計（#276・文書のみ）](2026-10-22-read-scope-confirmation-design.md)：確認の条件・拒否後の編集・API追加案・評価と承認待ち。
