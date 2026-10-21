@@ -6,7 +6,7 @@
 <g font-family="sans-serif" fill="#183247">
 <text x="30" y="43" font-size="28" font-weight="bold">LineScope：残り3PRの時間軸ガント</text>
 <text x="30" y="77" font-size="21" font-weight="bold">順序：H ハルシネーション対応 → F2 M-208電源依存 → F3 やること／やらないこと</text>
-<text x="30" y="107" font-size="18">#275は2026-10-21 merge済み。現在はHの文書設計。実装は設計承認後。</text>
+<text x="30" y="107" font-size="18">#275は2026-10-21 merge済み。現在はHの実装・限定確認後、全件検証・CI・利用者確認前。</text>
 <text x="30" y="147" font-size="22" font-weight="bold">1．報告計画（暦日・日本時間）</text>
 <text x="30" y="175" font-size="17">棒は作成開始から報告期限までの予定期間。実働工数ではない。灰色は土日。</text>
 <path d="M450 210L450 385" fill="none" stroke="#cbd5e1"/>
@@ -29,13 +29,13 @@
 <path d="M30 385L1630 385" fill="none" stroke="#cbd5e1"/>
 <text x="35" y="279" font-size="19" font-weight="bold">Q3 表記照合の案・工数</text>
 <rect x="450" y="258" width="510" height="30" fill="#2563eb"/>
-<text x="462" y="280" font-size="17" fill="white">10/21開始 → 10/23報告期限</text>
+<text x="462" y="280" font-size="17" fill="white">10/21開始 → 案を提示済み（期限10/23）</text>
 <text x="35" y="349" font-size="19" font-weight="bold">Q2・Q4 ハルシネーション設計</text>
 <rect x="450" y="328" width="1020" height="30" fill="#2563eb"/>
-<text x="462" y="350" font-size="17" fill="white">10/21開始 → 10/26報告期限（実装完了期限ではない）</text>
-<text x="35" y="414" font-size="17">#275 merge翌作業日を1日目として計算。文書案は作成中／レビュー待ち。</text>
-<text x="30" y="463" font-size="22" font-weight="bold">2．H実装の暫定ガント（承認日T0の後、1日＝1作業日）</text>
-<text x="30" y="493" font-size="17">見積もり7〜10作業日の上限側10日を配分。承認・レビュー・CI待ちを除く。暦上の開始日は未確定。</text>
+<text x="462" y="350" font-size="17" fill="white">10/21開始 → 案を提示済み（期限10/26、実装完了期限ではない）</text>
+<text x="35" y="414" font-size="17">#275 merge翌作業日を1日目として計算。文書案は提示済み。実装後は検証・利用者確認を別に管理。</text>
+<text x="30" y="463" font-size="22" font-weight="bold">2．H実装の着手前見積もり（1日＝1作業日）</text>
+<text x="30" y="493" font-size="17">基準線は上限側10作業日の仮配分。実装指示は受領済み。下の棒は実績期間ではない。</text>
 <path d="M450 520L450 1010" fill="none" stroke="#cbd5e1"/>
 <path d="M560 520L560 1010" fill="none" stroke="#cbd5e1"/>
 <path d="M670 520L670 1010" fill="none" stroke="#cbd5e1"/>
@@ -136,5 +136,5 @@
 <text x="30" y="1990" font-size="17">残PRはH → F2 → F3の3本。設計専用の4本目は作らない。分割が必要なら事前に計画変更を報告。</text>
 <text x="30" y="2025" font-size="17">青＝予定期間（上段は報告窓、下段は暫定実働）。未配置は未完了であり、期間ゼロ・完了ではない。</text>
 <text x="30" y="2060" font-size="17">出典：docs/roadmap.md、docs/design/grounded-answer-plan.md。新規タスク・状態・見積もり変更時に同時更新。</text>
-<text x="30" y="2095" font-size="16">更新：2026-10-21 ／ コード・設定・環境の変更なし。実装着手とmergeは開発者の判断。</text>
+<text x="30" y="2095" font-size="16">更新：2026-10-21 ／ Hは実装・限定確認済み。全件・利用者確認前。PRはDraft。既存データ・モデル設定は無変更。</text>
 </g></svg>

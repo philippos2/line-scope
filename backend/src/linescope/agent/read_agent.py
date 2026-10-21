@@ -16,7 +16,7 @@ from .graph_answer import dependency_answer, downstream_answer, fulfillment_answ
 from .graph_model_view import GRAPH_TOOLS, graph_model_view
 from .grounded_answer import build_answer
 from .maintenance_answer import maintenance_answer, maintenance_record_answer
-from .read_scope import SELECT_SCHEMA, SELECT_TOOL, classify
+from .read_scope import SELECT_SCHEMA, SELECT_TOOL, ReadScope, classify
 from .safety_answer import safety_answer
 from .scoped_reads import collect_scope
 from .state_answer import state_answer
@@ -166,7 +166,11 @@ class ReadAgent:
                 False,
                 sections,
             )
-        scope = classify(self.llm, request, session, previous_messages)
+        scope = (
+            ReadScope(("COMPARISON",))
+            if set(session.schemas()) == {"compare_registered_inputs"}
+            else classify(self.llm, request, session, previous_messages)
+        )
         if not scope.subjects and scope.topics == ("UNSUPPORTED",):
             answer, sections = build_answer((), scope=scope)
             return ReadAgentResult(answer, (), (), (), False, sections)

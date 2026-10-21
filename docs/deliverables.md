@@ -102,5 +102,5 @@ POはUC-B01〜15とBusiness Scenarioの意図を既存仕様との不整合時�
 - [Frontend画面設計](design/frontend-console.md)：画面の責務と操作。
 - [Frontend README](../frontend/README.md)：画面の起動・検証手順。
 - [ロードマップ](roadmap.md)：到達点と残項目。
-- [ハルシネーション対応計画](design/grounded-answer-plan.md)：根拠付き回答の設計・工数・検証・3PR計画のレビュー案。未承認・未実装。
+- [ハルシネーション対応計画](design/grounded-answer-plan.md)：根拠付き回答の設計・実装範囲・限界・検証・残り3PRの計画。
 - [履歴一覧](history/README.md)：個別作業・判断・検証の記録。
