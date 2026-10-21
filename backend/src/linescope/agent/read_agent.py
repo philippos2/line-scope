@@ -171,8 +171,10 @@ class ReadAgent:
             if set(session.schemas()) == {"compare_registered_inputs"}
             else classify(self.llm, request, session, previous_messages)
         )
-        if not scope.subjects and scope.topics == ("UNSUPPORTED",):
+        if scope.scope_issue or scope.topics == ("UNSUPPORTED",):
             answer, sections = build_answer((), scope=scope)
+            # A scope rejection is not a target-selection conversation. Saving it as
+            # needs_input would start a conversation for unrelated rejected questions.
             return ReadAgentResult(answer, (), (), (), False, sections)
         if scope.subjects:
             observations, trace, errors = collect_scope(scope, session)

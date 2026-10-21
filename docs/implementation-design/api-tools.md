@@ -518,3 +518,7 @@ Agentの比較Tool admissionは、元の問い合わせ中のJSON選択とTool�
 - 率はEconomicInput.payloadの任意`incident_losses`から取得する。配列1〜30件、scope_keyは入力内一意・100文字以内。各項目は`scope_key`、`product_id`（UUID）、`loss_per_hour`（既存の非負十進文字列制約、NULL可）、`independent`（boolean）、`source`（既存bounded text）、`certainty`（ESTIMATED / CONFIRMED）を必須とする。省略は既存payloadを維持し、率を修理案から自動転記しない。
 - 入力は正本から再読込し、共通期間の一致・各停止設備の影響製品の網羅を照合する。率が不明、非独立、同一scopeの宣言不一致、期間不一致等は完全合計をNULLにしてpartialで返す。既知小計は完全合計と区別する。Graph・認可等のerrorは既存status対応に従う。
 - `evidence`に各Graphの根拠、世代・時点、PG観測時刻と状態version、正式入力のID・version・出典を残す。金額は登録条件下の推定。`actual_damage_confirmed=false`、`cumulative_loss=null`、`automatic_state_change=false`を保持する。
+
+#### 質問と参照範囲の対応未確認
+
+自然文の範囲照合が不一致・不確実・非対応・検証不能の場合、`answer_sections.unavailable`に`QUESTION_SCOPE_UNCONFIRMED`を返し、`facts`は空にする。`needs_input=false`とし、業務Readは開始しない。これは対象候補の選択待ちではないため、拒否した質問を新たな対象選択会話として保存しない。scopeは採用できなかった解釈であることを明示する。登録の有無・0件・未作業を確定した意味ではない。範囲外だけの質問も無関係な属性取得は行わない。内部照合Toolは公開Toolとして追加しない。

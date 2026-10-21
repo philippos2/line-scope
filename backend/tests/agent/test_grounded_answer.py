@@ -9,8 +9,9 @@ from agent.test_read_agent import Dispatcher, ScriptedLLM, call, request
 from linescope.agent.grounded_answer import build_answer
 from linescope.agent.read_agent import ReadAgent, ReadObservation
 from linescope.agent.read_scope import FIELDS, PLAN_TOOL, ReadScope
+from linescope.agent.scope_check import CHECK_TOOL, FIELD_MEANINGS
 from linescope.application.reads import ReadResult, ToolError
-from linescope.integrations.llm import LLMReply
+from linescope.integrations.llm import LLMError, LLMReply
 
 
 def observed(tool="get_equipment", data=None, arguments=None, identifier="observed-1"):
@@ -213,3 +214,66 @@ def test_display_limit_is_explicit_and_not_completed_as_a_global_claim():
     _, sections = build_answer((observed("search_equipment", data, {"filter": {}}),))
     assert len(sections["facts"]) == 80
     assert any(row["code"] == "DISPLAY_LIMIT" for row in sections["unavailable"])
+
+
+class ReviewedLLM(ScopedLLM):
+    def __init__(self, review):
+        super().__init__(
+            ["UPSTREAM"], subjects=({"entity_type": "Equipment", "reference": "M-204"},)
+        )
+        self.review = review
+        self.review_requests = []
+
+    def complete(self, messages, *, schemas, deadline):
+        if CHECK_TOOL in schemas:
+            self.review_requests.append((messages, schemas, deadline))
+            if isinstance(self.review, Exception):
+                raise self.review
+            return self.review
+        return super().complete(messages, schemas=schemas, deadline=deadline)
+
+
+@pytest.mark.parametrize("verdict", ["MISMATCH", "UNSUPPORTED", "UNCERTAIN"])
+def test_question_scope_review_stops_unrelated_reads(verdict):
+    dispatcher = Dispatcher()
+    llm = ReviewedLLM(call(CHECK_TOOL, {"verdict": verdict}))
+    result = ReadAgent(dispatcher, llm).run(
+        context(), request("M-204の交換部品はどこに保管されているか？")
+    )
+    assert dispatcher.calls == 0 and not result.observations
+    assert not result.answer_sections["facts"] and not result.needs_input
+    assert "未確認" in result.answer and "0件" not in result.answer
+    assert any(
+        row["code"] == "QUESTION_SCOPE_UNCONFIRMED" for row in result.answer_sections["unavailable"]
+    )
+    assert "交換部品" in llm.review_requests[0][0][1]["content"]
+    assert "upstream_dependencies" in llm.review_requests[0][0][-1]["content"]
+    assert llm.review_requests[0][2] == llm.planning_requests[0][2]
+
+
+def test_question_scope_review_match_keeps_registered_facts():
+    assert set(FIELD_MEANINGS) == set(FIELDS)
+    dispatcher = Dispatcher()
+    llm = ScopedLLM(["ATTRIBUTES"], call(), LLMReply("創作した文章", ()))
+    result = ReadAgent(dispatcher, llm).run(context(), request())
+    assert dispatcher.calls == 1 and result.answer_sections["facts"]
+    assert "M-204" in result.answer and "創作した文章" not in result.answer
+
+
+def test_question_scope_review_malformed_response_never_dispatches():
+    dispatcher = Dispatcher()
+    llm = ReviewedLLM(call(CHECK_TOOL, {"verdict": "MATCH", "answer": "任意文"}))
+    result = ReadAgent(dispatcher, llm).run(context(), request())
+    assert dispatcher.calls == 0 and not result.answer_sections["facts"]
+    assert "任意文" not in result.answer
+    assert any(
+        row["code"] == "QUESTION_SCOPE_UNCONFIRMED" for row in result.answer_sections["unavailable"]
+    )
+
+
+def test_question_scope_review_deadline_never_dispatches():
+    dispatcher = Dispatcher()
+    llm = ReviewedLLM(LLMError("AGENT_LIMIT_REACHED", "Read deadline reached"))
+    with pytest.raises(ToolError) as error:
+        ReadAgent(dispatcher, llm).run(context(), request())
+    assert error.value.code == "AGENT_LIMIT_REACHED" and dispatcher.calls == 0

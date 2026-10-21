@@ -143,6 +143,7 @@ subjectsには質問本文にある対象の名称またはコードをreference
 class ReadScope:
     topics: tuple[str, ...]
     subjects: tuple[dict, ...] = ()
+    scope_issue: str | None = None
 
     def schemas(self, available):
         allowed = IDENTITY_TOOLS | set().union(*(TOPICS[t][1] for t in self.topics))
@@ -166,43 +167,7 @@ def classify(llm, request, session, previous_messages=None):
     for previous in previous_messages or ():
         messages.extend(question_messages(previous))
     messages.extend(question_messages(request.message))
-    started = monotonic()
-    code, output_bytes, tool_count, metrics = "OK", 0, 0, {}
-    try:
-        reply = llm.complete(messages, schemas={PLAN_TOOL: PLAN_SCHEMA}, deadline=session.deadline)
-        if not isinstance(reply, LLMReply):
-            raise LLMError("INTERNAL_ERROR", "Invalid internal LLM reply")
-        output_bytes = len(canonical_json(reply.assistant_message()).encode("utf-8"))
-        tool_count, metrics = len(reply.tool_calls), dict(reply.metrics)
-        session.check_deadline()
-    except LLMError as error:
-        code, metrics = error.code, dict(error.metrics)
-        raise ToolError(error.code, error.message) from error
-    except ToolError as error:
-        code = error.code
-        raise
-    finally:
-        if session.events:
-            session.events.emit(
-                "llm.call.completed",
-                component="api",
-                outcome="success" if code == "OK" else "failure",
-                result_code=code,
-                dependency="llm",
-                request_id=session.context.request_id,
-                actor_id=session.context.authenticated_user_id,
-                role=session.context.role,
-                duration_ms=max(0, int((monotonic() - started) * 1000)),
-                llm_input_bytes=len(
-                    canonical_json(
-                        {"messages": messages, "schemas": {PLAN_TOOL: PLAN_SCHEMA}}
-                    ).encode("utf-8")
-                ),
-                llm_output_bytes=output_bytes,
-                llm_tool_count=tool_count,
-                llm_schema_count=1,
-                **metrics,
-            )
+    reply = complete_scope(llm, messages, {PLAN_TOOL: PLAN_SCHEMA}, session)
     calls = reply.tool_calls
     if len(calls) != 1 or calls[0].name != PLAN_TOOL:
         raise ToolError("INTERNAL_ERROR", "Question scope could not be determined")
@@ -253,4 +218,55 @@ def classify(llm, request, session, previous_messages=None):
     # A coarse topic is not evidence that a requested attribute exists.
     # Only catalogued fields can enable a capability; unknown fields stay unsupported.
     admitted = tuple(dict.fromkeys(FIELDS.get(field, "UNSUPPORTED") for field in requested))
-    return ReadScope(admitted, tuple(subjects))
+    issue = None
+    supported = [field for field in requested if field in FIELDS]
+    if supported:
+        from .scope_check import CHECK_SCHEMA, CHECK_TOOL, check_messages, checked_verdict
+
+        reply = complete_scope(
+            llm,
+            check_messages(request.message, supported, subjects),
+            {CHECK_TOOL: CHECK_SCHEMA},
+            session,
+        )
+        issue = checked_verdict(reply)
+    return ReadScope(admitted, tuple(subjects), issue)
+
+
+def complete_scope(llm, messages, schemas, session):
+    started = monotonic()
+    code, output_bytes, tool_count, metrics = "OK", 0, 0, {}
+    try:
+        reply = llm.complete(messages, schemas=schemas, deadline=session.deadline)
+        if not isinstance(reply, LLMReply):
+            raise LLMError("INTERNAL_ERROR", "Invalid internal LLM reply")
+        output_bytes = len(canonical_json(reply.assistant_message()).encode("utf-8"))
+        tool_count, metrics = len(reply.tool_calls), dict(reply.metrics)
+        session.check_deadline()
+    except LLMError as error:
+        code, metrics = error.code, dict(error.metrics)
+        raise ToolError(error.code, error.message) from error
+    except ToolError as error:
+        code = error.code
+        raise
+    finally:
+        if session.events:
+            session.events.emit(
+                "llm.call.completed",
+                component="api",
+                outcome="success" if code == "OK" else "failure",
+                result_code=code,
+                dependency="llm",
+                request_id=session.context.request_id,
+                actor_id=session.context.authenticated_user_id,
+                role=session.context.role,
+                duration_ms=max(0, int((monotonic() - started) * 1000)),
+                llm_input_bytes=len(
+                    canonical_json({"messages": messages, "schemas": schemas}).encode("utf-8")
+                ),
+                llm_output_bytes=output_bytes,
+                llm_tool_count=tool_count,
+                llm_schema_count=1,
+                **metrics,
+            )
+    return reply

@@ -30,6 +30,10 @@ class ScriptedLLM:
         from copy import deepcopy
 
         from linescope.agent.read_scope import FIELDS, PLAN_TOOL
+        from linescope.agent.scope_check import CHECK_TOOL
+
+        if CHECK_TOOL in schemas:
+            return call(CHECK_TOOL, {"verdict": "MATCH"})
 
         if PLAN_TOOL in schemas:
             # These existing tests exercise retrieval, not model intent accuracy.

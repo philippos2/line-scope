@@ -100,6 +100,9 @@ def search_pages(observation, observations):
 
 def build_answer(observations, *, scope=None, errors=(), selected=None):
     """Only server adapters create facts. Selection names existing request-local fact IDs."""
+    scope_blocked = bool(scope and scope.scope_issue)
+    if scope_blocked:
+        observations = ()
     facts, unavailable = [], []
     truncated = False
 
@@ -291,7 +294,7 @@ def build_answer(observations, *, scope=None, errors=(), selected=None):
             "READ_FAILED",
             "一部の登録情報を取得できませんでした。取得失敗を未登録や記録なしとは判断していません。",
         )
-    topics = scope.topics if scope else ()
+    topics = scope.topics if scope and not scope_blocked else ()
     for topic in topics:
         required = TOPICS[topic][1]
         if topic == "UNSUPPORTED":
@@ -327,12 +330,21 @@ def build_answer(observations, *, scope=None, errors=(), selected=None):
             # A model may order verified facts, but cannot hide a result or its limitations.
             order = {value: i for i, value in enumerate(selected["fact_ids"])}
             facts.sort(key=lambda fact: order.get(fact["id"], MAX_FACTS))
-    if not observations:
+    if scope_blocked:
+        missing(
+            "QUESTION_SCOPE_UNCONFIRMED",
+            "質問で求められた情報と、参照できる情報の対応を確認できません。"
+            "別の情報を質問への回答として表示することはしていません。"
+            "登録の有無や値は未確認です。この質問への回答は確定できません。",
+        )
+    elif not observations and topics != ("UNSUPPORTED",):
         missing(
             "NOT_RETRIEVED",
             "参照結果は取得していません。対象や質問の範囲を具体的に指定してください。",
         )
     scope_labels = scope.labels() if scope else []
+    if scope_blocked:
+        scope_labels = ["質問との対応を確認できなかった解釈：" + "、".join(scope_labels)]
     if scope and scope.subjects:
         subjects = "、".join(subject["reference"] for subject in scope.subjects)
         scope_labels = [public_answer(f"抽出した対象表現：{subjects}", observations), *scope_labels]
