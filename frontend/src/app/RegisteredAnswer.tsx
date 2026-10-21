@@ -28,15 +28,9 @@ export function RegisteredAnswer({ response }: { response: Envelope }) {
     : [];
   return (
     <div className="registered-answer">
-      <p className="notice">
-        AIは質問の解釈と情報の整理を担当します。事実は取得した登録情報からサーバが表示しています。
-      </p>
-      {scope.length > 0 && (
-        <p>今回の質問を次の情報として解釈しました：{scope.join("、")}</p>
-      )}
       {facts.length > 0 && (
-        <section aria-label="取得した事実">
-          <h3>取得した事実</h3>
+        <section aria-label="確認できたこと">
+          <h3>確認できたこと</h3>
           <ul>
             {facts.map((fact, index) => {
               const references = Array.isArray(fact.references)
@@ -84,6 +78,13 @@ export function RegisteredAnswer({ response }: { response: Envelope }) {
           </ul>
         </section>
       )}
+      <details>
+        <summary>回答に使った情報</summary>
+        <p>
+          登録情報から確認できた内容を表示しています。実際の稼働や運転許可を保証するものではありません。
+        </p>
+        {scope.length > 0 && <p>質問の読み取り：{scope.join("、")}</p>}
+      </details>
     </div>
   );
 }

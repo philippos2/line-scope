@@ -521,4 +521,4 @@ Agentの比較Tool admissionは、元の問い合わせ中のJSON選択とTool�
 
 #### 質問と参照範囲の対応未確認
 
-自然文の範囲照合が不一致・不確実・非対応・検証不能の場合、`answer_sections.unavailable`に`QUESTION_SCOPE_UNCONFIRMED`を返し、`facts`は空にする。`needs_input=false`とし、業務Readは開始しない。これは対象候補の選択待ちではないため、拒否した質問を新たな対象選択会話として保存しない。scopeは採用できなかった解釈であることを明示する。登録の有無・0件・未作業を確定した意味ではない。範囲外だけの質問も無関係な属性取得は行わない。内部照合Toolは公開Toolとして追加しない。
+自然文の範囲照合が不一致・不確実・非対応・検証不能の場合、`answer_sections.unavailable`に`QUESTION_SCOPE_UNCONFIRMED`を返す。質問内容のReadは開始せず、設備の識別用Readのみを許す。`facts`には実際に識別できた名称・コード（predicate=equipment.identity）、または複数候補（equipment.identity_candidate）だけを表示できる。通常は`needs_input=false`とし、識別候補が複数のときだけtrueにする。これは対象候補の選択待ちではないため、拒否した質問を新たな対象選択会話として保存しない。scopeは採用できなかった解釈であることを明示する。登録の有無・0件・未作業を確定した意味ではない。範囲外だけの質問も、対象の識別と質問内容の取得を区別する。識別結果の名前・コードを超えて依存関係等を回答の代わりに公開しない。内部照合Toolは公開Toolとして追加しない。

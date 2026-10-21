@@ -233,15 +233,40 @@ class ReviewedLLM(ScopedLLM):
         return super().complete(messages, schemas=schemas, deadline=deadline)
 
 
+class IdentityDispatcher(Dispatcher):
+    def schemas(self):
+        return {"search_equipment": {}, "trace_upstream_dependencies": {}}
+
+    def run(self, context, tool, arguments, **kwargs):
+        assert tool == "search_equipment"
+        self.calls += 1
+        return ReadResult(
+            {
+                "items": [
+                    {
+                        "equipment_id": str(UUID(int=1)),
+                        "equipment_code": "M-204",
+                        "equipment_name": "第1加工機",
+                    }
+                ],
+                "next_cursor": None,
+            },
+            {"source": "POSTGRESQL"},
+        )
+
+
 @pytest.mark.parametrize("verdict", ["MISMATCH", "UNSUPPORTED", "UNCERTAIN"])
 def test_question_scope_review_stops_unrelated_reads(verdict):
-    dispatcher = Dispatcher()
+    dispatcher = IdentityDispatcher()
     llm = ReviewedLLM(call(CHECK_TOOL, {"verdict": verdict}))
     result = ReadAgent(dispatcher, llm).run(
         context(), request("M-204の交換部品はどこに保管されているか？")
     )
-    assert dispatcher.calls == 0 and not result.observations
-    assert not result.answer_sections["facts"] and not result.needs_input
+    assert dispatcher.calls == 2
+    assert all(o.tool == "search_equipment" for o in result.observations)
+    assert not result.needs_input
+    assert {row["predicate"] for row in result.answer_sections["facts"]} == {"equipment.identity"}
+    assert "第1加工機（M-204）のことですね。" in result.answer
     assert "M-204の交換部品はどこに保管されているか？" in result.answer
     assert "登録の有無や実際の状態を断定したものではありません" in result.answer
     assert "0件" not in result.answer
@@ -262,11 +287,12 @@ def test_question_scope_review_match_keeps_registered_facts():
     assert "M-204" in result.answer and "創作した文章" not in result.answer
 
 
-def test_question_scope_review_malformed_response_never_dispatches():
-    dispatcher = Dispatcher()
+def test_question_scope_review_malformed_response_never_dispatches_domain_reads():
+    dispatcher = IdentityDispatcher()
     llm = ReviewedLLM(call(CHECK_TOOL, {"verdict": "MATCH", "answer": "任意文"}))
     result = ReadAgent(dispatcher, llm).run(context(), request())
-    assert dispatcher.calls == 0 and not result.answer_sections["facts"]
+    assert dispatcher.calls == 2
+    assert {row["predicate"] for row in result.answer_sections["facts"]} == {"equipment.identity"}
     assert "任意文" not in result.answer
     assert any(
         row["code"] == "QUESTION_SCOPE_UNCONFIRMED" for row in result.answer_sections["unavailable"]

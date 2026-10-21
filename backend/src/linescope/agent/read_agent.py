@@ -172,12 +172,24 @@ class ReadAgent:
             else classify(self.llm, request, session, previous_messages)
         )
         if scope.scope_issue or scope.topics == ("UNSUPPORTED",):
+            observations, trace, errors = collect_scope(scope, session, identification_only=True)
             answer, sections = build_answer(
-                (), scope=scope, question=question_messages(request.message)[-1]["content"]
+                observations,
+                scope=scope,
+                errors=errors,
+                question=question_messages(request.message)[-1]["content"],
+                identification_only=True,
             )
             # A scope rejection is not a target-selection conversation. Saving it as
             # needs_input would start a conversation for unrelated rejected questions.
-            return ReadAgentResult(answer, (), (), (), False, sections)
+            return ReadAgentResult(
+                answer,
+                observations,
+                trace,
+                errors,
+                any(error["code"] == "TARGET_AMBIGUOUS" for error in errors),
+                sections,
+            )
         if scope.subjects:
             observations, trace, errors = collect_scope(scope, session)
             answer, sections = build_answer(observations, scope=scope, errors=errors)

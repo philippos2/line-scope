@@ -98,10 +98,12 @@ def search_pages(observation, observations):
     return pages, rows, complete
 
 
-def build_answer(observations, *, scope=None, errors=(), selected=None, question=None):
+def build_answer(
+    observations, *, scope=None, errors=(), selected=None, question=None, identification_only=False
+):
     """Only server adapters create facts. Selection names existing request-local fact IDs."""
     scope_blocked = bool(scope and scope.scope_issue)
-    if scope_blocked:
+    if scope_blocked and not identification_only:
         observations = ()
     facts, unavailable = [], []
     truncated = False
@@ -140,8 +142,49 @@ def build_answer(observations, *, scope=None, errors=(), selected=None, question
 
     identity = tuple(o for o in observations if o.tool in {"search_equipment", "get_equipment"})
     lookup_groups = equipment_lookup_view(identity)
+    if identification_only:
+        for group in lookup_groups:
+            refs = tuple(
+                o.tool_call_id
+                for o in identity
+                if any(q["filter"] == (o.arguments or {}).get("filter") for q in group["queries"])
+            )
+            labels = []
+            for candidate in group["candidates"]:
+                attributes = candidate["observed_attributes"]
+                if len(attributes) != 1:
+                    continue
+                name, code = (
+                    attributes[0].get("equipment_name"),
+                    attributes[0].get("equipment_code"),
+                )
+                if isinstance(name, str) and isinstance(code, str):
+                    labels.append(f"{name}（{code}）")
+            if group["status"] == "FOUND" and not errors and len(labels) == 1:
+                add("REGISTERED_FIELD", labels[0] + "のことですね。", refs, "equipment.identity")
+            elif group["status"] == "MULTIPLE_MATCHES":
+                for label in dict.fromkeys(labels):
+                    add("SEARCH_RESULT", label, refs, "equipment.identity_candidate")
+                missing(
+                    "AMBIGUOUS",
+                    "当てはまる設備が複数あります。どの設備か、設備コードでお知らせください。",
+                    refs,
+                )
+            elif group["status"] == "NO_MATCH" and not errors:
+                missing(
+                    "NO_MATCH",
+                    "当てはまる設備が見つかりませんでした。設備名や設備コードをご確認ください。",
+                    refs,
+                )
+            else:
+                missing(
+                    "IDENTITY_UNCONFIRMED",
+                    "設備を一つに特定できませんでした。設備名や設備コードをご確認ください。",
+                    refs,
+                )
+    answer_observations = () if identification_only else observations
     record_queries = set()
-    for observation in observations:
+    for observation in answer_observations:
         if observation.tool != "search_maintenance_records":
             continue
         pages, records, complete = search_pages(observation, observations)
@@ -173,7 +216,7 @@ def build_answer(observations, *, scope=None, errors=(), selected=None, question
             key,
             "maintenance_record.max_registered_date",
         )
-    for observation in observations:
+    for observation in answer_observations:
         tool, data = observation.tool, observation.result.data
         refs = (observation.tool_call_id,)
         matched = False

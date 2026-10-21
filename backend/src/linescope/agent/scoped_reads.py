@@ -32,7 +32,7 @@ class CollectedRead:
     arguments: dict
 
 
-def collect_scope(scope, session):
+def collect_scope(scope, session, *, identification_only=False):
     observations, trace, errors, targets = [], [], [], []
     available = session.schemas()
 
@@ -140,6 +140,9 @@ def collect_scope(scope, session):
                     "details": {},
                 }
             )
+
+    if identification_only:
+        return tuple(observations), tuple(trace), tuple(errors)
 
     for target in targets:
         identifier = target["entity_id"]
