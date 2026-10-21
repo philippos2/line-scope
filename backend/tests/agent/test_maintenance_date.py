@@ -1,5 +1,6 @@
 """A focused date question resolves real records with one bounded model plan."""
 
+import json
 from dataclasses import replace
 from datetime import datetime, timezone
 from uuid import UUID
@@ -138,3 +139,134 @@ def test_mixed_question_retains_the_general_read_flow(registry):
         ("search_equipment", {"filter": {"name": name}})
         for name in ("第1加工機", "第一加工機", "第１加工機")
     ]
+
+
+@pytest.fixture
+def pair(registry):
+    with registry.transaction() as connection:
+        connection.execute(
+            "INSERT INTO equipment(equipment_id,equipment_code,equipment_name,equipment_type,active) VALUES(%s,'E-2','第2加工機','machine',true)",
+            (UUID(int=2),),
+        )
+    return registry
+
+
+def test_explicit_question_target_is_separate_from_selection_and_old_conversation(pair):
+    question = "第２加工機の前回のメンテナンス日時はいつか？"
+    incoming = replace(
+        request(question),
+        message="調査対象の設備コードはE-1です。\n" + question,
+        context_id=str(UUID(int=99)),
+    )
+    dispatcher = Observed(pair)
+    llm = ScriptedLLM(call("search_equipment", {"filter": {"name": "第２加工機"}}))
+    result = ReadAgent(dispatcher, llm).run(
+        context(),
+        incoming,
+        previous_messages=["調査対象の設備コードはE-1です。\nこの設備の状態は？"],
+    )
+    messages = llm.requests[0][0]
+    assert messages[-1] == {"role": "user", "content": question}
+    assert messages[-2]["role"] == "user" and "E-1" in messages[-2]["content"]
+    assert "E-1" not in messages[0]["content"]
+    assert "第2加工機 · E-2" in result.answer and "E-1" not in result.answer
+    assert not result.errors
+    assert [
+        args["filter"] for tool, args in dispatcher.calls if tool == "search_maintenance_records"
+    ] == [{"equipment_id": str(UUID(int=2))}]
+
+
+def test_implicit_question_keeps_current_selection_separate_from_previous_target(pair):
+    question = "この設備の前回のメンテナンス日時はいつか？"
+    incoming = replace(
+        request(question),
+        message="調査対象の設備コードはE-2です。\n" + question,
+        context_id=str(UUID(int=99)),
+    )
+    llm = ScriptedLLM(call("search_equipment", {"filter": {"equipment_code": "E-2"}}))
+    dispatcher = Observed(pair)
+    result = ReadAgent(dispatcher, llm).run(
+        context(),
+        incoming,
+        previous_messages=["第1加工機の前回のメンテナンス日時はいつか？"],
+    )
+    messages = llm.requests[0][0]
+    assert messages[-1] == {"role": "user", "content": question}
+    assert messages[-2]["role"] == "user" and "E-2" in messages[-2]["content"]
+    assert "E-2" not in messages[0]["content"]
+    assert messages[1]["content"].startswith("第1加工機")
+    assert "第2加工機 · E-2" in result.answer and not result.errors
+    assert [
+        args["filter"] for tool, args in dispatcher.calls if tool == "search_maintenance_records"
+    ] == [{"equipment_id": str(UUID(int=2))}]
+
+
+def test_general_multi_equipment_lookup_preserves_both_spelling_groups(pair):
+    planned = (
+        call("search_equipment", {"filter": {"name": "第一加工機"}}).tool_calls
+        + call("search_equipment", {"filter": {"name": "第２加工機"}}).tool_calls
+    )
+    llm = ScriptedLLM(LLMReply("", planned), LLMReply("メーカー情報は確認できません。", ()))
+    dispatcher = Observed(pair)
+    result = ReadAgent(dispatcher, llm).run(
+        context(), request("第一加工機と第２加工機の製造メーカーは同じか？")
+    )
+    assert not result.errors and len(llm.requests) == 2
+    assert len(result.observations) == len(dispatcher.calls) == 8
+    found = {
+        row["equipment_id"]
+        for observation in result.observations
+        for row in observation.result.data["items"]
+    }
+    assert found == {str(UUID(int=1)), str(UUID(int=2))}
+    names = {args["filter"]["name"] for _, args in dispatcher.calls if "name" in args["filter"]}
+    assert names == {
+        "第1加工機",
+        "第一加工機",
+        "第１加工機",
+        "第2加工機",
+        "第二加工機",
+        "第２加工機",
+    }
+    # Both original zeroes and successful variant reads reach the next model turn.
+    payloads = [
+        json.loads(message["content"])
+        for message in llm.requests[1][0]
+        if message["role"] == "tool"
+    ]
+    assert len(payloads) == 8
+    assert {
+        row["equipment_id"] for payload in payloads for row in payload["data"]["items"]
+    } == found
+    assert any(payload["data"]["items"] == [] for payload in payloads)
+
+
+def test_general_lookup_keeps_distinct_equipment_for_colliding_spellings(registry):
+    with registry.transaction() as connection:
+        connection.execute(
+            "INSERT INTO equipment(equipment_id,equipment_code,equipment_name,equipment_type,active) VALUES(%s,'E-3','第一加工機','machine',true)",
+            (UUID(int=3),),
+        )
+    llm = ScriptedLLM(
+        call("search_equipment", {"filter": {"name": "第1加工機"}}),
+        LLMReply("複数候補のため設備コードを指定してください。", ()),
+    )
+    dispatcher = Observed(registry)
+    result = ReadAgent(dispatcher, llm).run(context(), request("第1加工機の製造メーカーは？"))
+    assert not result.errors and len(result.observations) == 3
+    found = {
+        row["equipment_id"]
+        for observation in result.observations
+        for row in observation.result.data["items"]
+    }
+    assert found == {str(UUID(int=1)), str(UUID(int=3))}
+    assert all(tool == "search_equipment" for tool, _ in dispatcher.calls)
+    # Successful original lookup must not prevent collision checks before generation.
+    payloads = [
+        json.loads(message["content"])
+        for message in llm.requests[1][0]
+        if message["role"] == "tool"
+    ]
+    assert {
+        row["equipment_id"] for payload in payloads for row in payload["data"]["items"]
+    } == found

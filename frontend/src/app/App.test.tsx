@@ -194,6 +194,22 @@ it("selects equipment through the common search, loads relationships directly an
     String(init.body).includes("調査対象の設備コードはM-208"),
   )!;
   expect(JSON.parse(String(call[1].body)).context_id).toBeUndefined();
+  const question = "第１加工機の前回のメンテナンス日時はいつか？";
+  const input = screen.getByLabelText("関係や影響について質問する");
+  await user.clear(input);
+  await user.type(input, question);
+  await user.click(screen.getByRole("button", { name: "送信" }));
+  await waitFor(() =>
+    expect(
+      fetcher.mock.calls.some(
+        ([, init]) =>
+          typeof init.body === "string" &&
+          JSON.parse(init.body).message ===
+            `調査対象の設備コードはM-208です。\n${question}`,
+      ),
+    ).toBe(true),
+  );
+  expect((input as HTMLTextAreaElement).value).toBe(question);
   await user.click(screen.getByRole("tab", { name: "接続及び影響範囲" }));
   expect(screen.getByText(/比較画面で対応計画などの登録状況/)).toBeDefined();
   await user.click(

@@ -88,7 +88,7 @@ def test_failed_lookup_is_not_treated_as_zero_results():
     result = ReadAgent(
         dispatcher,
         ScriptedLLM(
-            call("search_equipment", {"filter": {"name": "literal"}}),
+            call("search_equipment", {"filter": {"name": "第一加工機"}}),
             LLMReply("補足が必要です。", ()),
         ),
     ).run(context(), request())
@@ -100,7 +100,7 @@ def test_alternate_read_cannot_bypass_the_twelve_call_budget():
     dispatcher = SearchDispatcher([EMPTY] * 12)
     llm = ScriptedLLM(
         *[
-            call("search_equipment", {"filter": {"name": f"literal-{number}"}})
+            call("search_equipment", {"filter": {"name": f"第{number + 1}加工機"}})
             for number in range(7)
         ]
     )
