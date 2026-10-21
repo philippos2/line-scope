@@ -1,6 +1,5 @@
 """Internal read-only Agent loop. HTTP, clarification context and Prepare are separate."""
 
-from copy import deepcopy
 from dataclasses import dataclass
 from time import monotonic
 from uuid import uuid4
@@ -9,8 +8,8 @@ from ..application.reads import ReadResult, ToolError
 from ..application.registered_decision import decision_answer
 from ..domain.canonical import canonical_json, strict_json
 from ..integrations.llm import LLMError, LLMReply, ToolCall
-from . import maintenance_date
 from .agent_tools import AgentToolSession
+from .answer_text import public_answer
 from .capacity_answer import capacity_answer
 from .economic_answer import economic_answer
 from .equipment_reference import question_messages, reference_variants
@@ -27,7 +26,7 @@ SYSTEM_PROMPT = """あなたはLineScopeの参照専用アシスタントです�
 数字の半角・全角・漢数字の表記候補はサーバが実検索する。元の検索が0件でも追加の表記候補の結果を確認して対象を解決する。別表記で異なる設備IDが返る場合は同一設備と断定せず選択を求める。複数設備の質問では各設備を別々に解決する。製造メーカー等の属性が返却データにない場合は、その情報が確認できないと答え、名称やコードから推測しない。
 必要な参照がそろったら追加Toolを呼ばず終了する。複数の独立した参照が必要なら同じ応答でまとめて呼んでよい。
 【正式入力】経済・能力・安全・対応計画／故障履歴はsearch_*_inputsで候補を探し、明示選択されたIDをget_*_inputで取得する。比較はcompare_registered_inputsへ明示選択IDと共通期間を渡す。複数候補・期間違いを勝手に選択・合算せず、未登録をMOCK_FIXTUREで補完しない。出典・version・評価期間・未知を保持する。
-【意味】経済の小計と未知の総額を区別する。能力は同じ製品・単位・期間だけ評価し、条件付き期限の前提を保持する。能力充足は安全・品質・完全代替の保証ではない。安全の停止必須を経済利益で上書きしない。未知・期限外を安全とせず、登録条件を設備全体の安全や実運転許可へ一般化しない。調達待ち・作業・停止時間を区別する。故障履歴・過去損失から将来故障率を推測しない。次回保全候補が複数なら選択を求め、自動状態変更しない。
+【意味】登録データや依存関係が見つからないことから、実運転・代替の可否を肯定も否定も断定しない。未評価の観点は「判断できない」と明示し、未登録の対象を既存設備やインフラと同一視しない。経済の小計と未知の総額を区別する。能力は同じ製品・単位・期間だけ評価し、条件付き期限の前提を保持する。能力充足は安全・品質・完全代替の保証ではない。安全の停止必須を経済利益で上書きしない。未知・期限外を安全とせず、登録条件を設備全体の安全や実運転許可へ一般化しない。調達待ち・作業・停止時間を区別する。故障履歴・過去損失から将来故障率を推測しない。次回保全候補が複数なら選択を求め、自動状態変更しない。
 【時刻】現在のGraph分析ではexplicit_as_ofを省略する。now、現在、推測日時は禁止。利用者が過去日時を明示した場合だけtimezone付きISO 8601へ構造化する。現在登録情報の期間評価は当時の正本・Graph・設備状態の完全復元ではない。
 【Graph】trace_downstream_impactは下流の直接／間接の依存到達候補、trace_upstream_dependenciesは上流依存、find_common_dependenciesは各対象に共通する上流到達候補。上流・共通依存は下流停止影響や故障原因、SPOFの確定判定ではない。
 find_alternative_pathsは明示した重要対象と除外対象について全必須条件と一段代替の構造を評価する。purpose=SUBSTITUTIONは一段置換で通常の依存経路ではない。find_single_point_failure_candidatesは重要対象ごとに候補を一つずつ除外する。candidate_nodes省略は必須上流の自動探索、空配列は評価なし。
@@ -42,6 +41,7 @@ class ReadObservation:
     tool_call_id: str
     tool: str
     result: ReadResult
+    arguments: dict | None = None
 
 
 @dataclass(frozen=True)
@@ -150,7 +150,9 @@ class ReadAgent:
             result = session.run(command["tool"], command["arguments"], tool_call_id=call_id)
             if not isinstance(result, ReadResult):
                 raise ToolError("INTERNAL_ERROR", "Read Tool returned an invalid result")
-            observations = (ReadObservation(call_id, command["tool"], result),)
+            observations = (
+                ReadObservation(call_id, command["tool"], result, command["arguments"]),
+            )
             return ReadAgentResult(
                 supported_answer(observations)
                 or (
@@ -163,15 +165,8 @@ class ReadAgent:
                 (),
                 False,
             )
-        focused = (
-            not request.explicit_as_of
-            and len(request.message) + sum(len(item) for item in previous_messages or ()) <= 1000
-            and maintenance_date.matches(request.message)
-            and "search_equipment" in session.schemas()
-        )
-        focused_target = None
         messages = [
-            {"role": "system", "content": maintenance_date.PROMPT if focused else SYSTEM_PROMPT},
+            {"role": "system", "content": SYSTEM_PROMPT},
             *question_messages(request.message),
         ]
         if request.explicit_as_of:
@@ -192,8 +187,6 @@ class ReadAgent:
             session.check_deadline()
             # Once all calls are consumed, permit only a final explanation.
             schemas = session.schemas() if session.calls < session.max_calls else {}
-            if focused:
-                schemas = {"search_equipment": deepcopy(maintenance_date.SCHEMA)}
             started = monotonic()
             result_code, output_bytes, tool_count = "OK", 0, 0
             metrics = {}
@@ -238,10 +231,6 @@ class ReadAgent:
             if not isinstance(reply, LLMReply):
                 raise ToolError("INTERNAL_ERROR", "Invalid internal LLM reply")
             if not reply.tool_calls:
-                if focused and reply.content.strip() == "通常調査":
-                    focused = False
-                    messages[0]["content"] = SYSTEM_PROMPT
-                    continue
                 if not observations:
                     # No verified facts: never return an unsupported factual answer.
                     needs_input = not errors or all(
@@ -274,6 +263,7 @@ class ReadAgent:
                     or supported_answer(observations, has_errors=bool(errors))
                     or reply.content
                 )
+                answer = public_answer(answer, observations)
                 if request.explicit_as_of:
                     answer = (
                         "指定時刻について現在登録情報を評価しています。"
@@ -284,32 +274,6 @@ class ReadAgent:
                 )
             messages.append(reply.assistant_message())
             pending, alternate_calls = list(reply.tool_calls), []
-            if focused:
-                if (
-                    len(pending) != 1
-                    or pending[0].name != "search_equipment"
-                    or equipment_search_key(pending[0].arguments) is None
-                ):
-                    return ReadAgentResult(
-                        "保全日時を調べる設備を一つ指定してください。設備名またはコードで指定できます。",
-                        (),
-                        (),
-                        (),
-                        True,
-                    )
-                original_field, reference = equipment_search_key(pending[0].arguments)
-                equipment_queries.add((original_field, reference))
-                for variant in reference_variants(reference):
-                    for field in ("name", "equipment_code"):
-                        if (field, variant) not in equipment_queries:
-                            equipment_queries.add((field, variant))
-                            alternate_calls.append(
-                                ToolCall(
-                                    str(uuid4()),
-                                    "search_equipment",
-                                    {"filter": {field: variant}, "page_size": 20, "cursor": None},
-                                )
-                            )
             for call in pending:
                 if call.name == "search_equipment":
                     key = equipment_search_key(call.arguments)
@@ -362,7 +326,9 @@ class ReadAgent:
                         break
                 if failure is None:
                     errors.pop(signature, None)
-                    observations.append(ReadObservation(call.call_id, call.name, result))
+                    observations.append(
+                        ReadObservation(call.call_id, call.name, result, call.arguments)
+                    )
                     payload = model_tool_payload(call.name, result)
                 else:
                     errors[signature] = failure
@@ -371,8 +337,7 @@ class ReadAgent:
                     {"role": "tool", "tool_name": call.name, "content": canonical_json(payload)}
                 )
                 if (
-                    not focused
-                    and call.name == "search_equipment"
+                    call.name == "search_equipment"
                     and failure is None
                     and result.data.get("next_cursor") is None
                 ):
@@ -401,54 +366,6 @@ class ReadAgent:
                                 )
                                 supplementary_searches.add(supplementary.call_id)
                                 alternate_calls.append(supplementary)
-                if focused and not pending and not alternate_calls:
-                    if errors:
-                        return ReadAgentResult(
-                            "登録情報を最後まで取得できず、保全の実施日時を確認できませんでした。取得エラーを確認して再試行してください。",
-                            tuple(observations),
-                            tuple(trace),
-                            tuple(errors.values()),
-                            False,
-                        )
-                    if focused_target is None:
-                        focused_target, clarification = maintenance_date.target_selection(
-                            observations
-                        )
-                        if clarification:
-                            return ReadAgentResult(
-                                clarification,
-                                tuple(observations),
-                                tuple(trace),
-                                (),
-                                True,
-                            )
-                        cursor = None
-                    else:
-                        pages = [
-                            item
-                            for item in observations
-                            if item.tool == "search_maintenance_records"
-                        ]
-                        cursor = pages[-1].result.data.get("next_cursor")
-                        if cursor is None:
-                            return ReadAgentResult(
-                                maintenance_date.answer(focused_target, observations),
-                                tuple(observations),
-                                tuple(trace),
-                                (),
-                                False,
-                            )
-                    alternate_calls.append(
-                        ToolCall(
-                            str(uuid4()),
-                            "search_maintenance_records",
-                            {
-                                "filter": {"equipment_id": focused_target["equipment_id"]},
-                                "page_size": 100,
-                                "cursor": cursor,
-                            },
-                        )
-                    )
                 if not pending and alternate_calls:
                     # Server-directed reads use the same admission, budget and evidence path.
                     messages.append(LLMReply("", tuple(alternate_calls)).assistant_message())

@@ -11,8 +11,31 @@ def maintenance_record_answer(observations, *, has_errors=False):
         or any(row.get("items") != [] or row.get("next_cursor") is not None for row in records)
     ):
         return None
+    # Scope comes from the executed query, never from a different lookup candidate.
+    targets = {
+        (item.arguments or {}).get("filter", {}).get("equipment_id")
+        for item in observations
+        if item.tool == "search_maintenance_records"
+    }
+    labels = {
+        row["equipment_id"]: " · ".join(
+            value for value in (row.get("equipment_name"), row.get("equipment_code")) if value
+        )
+        for item in observations
+        if item.tool in {"search_equipment", "get_equipment"}
+        for row in (
+            item.result.data.get("items", [])
+            if item.tool == "search_equipment"
+            else [item.result.data]
+        )
+        if row.get("equipment_id")
+    }
+    scope = "、".join(
+        labels[target] for target in sorted(target for target in targets if target in labels)
+    )
+    scope = scope + "：" if scope and targets <= labels.keys() else "今回検索した"
     return (
-        "今回検索した登録済みの保全記録は0件のため、最後に保全した日時は確認できません。"
+        scope + "登録済みの保全記録は0件です。"
         "保全作業が実施されていないことを意味するものではありません。"
     )
 

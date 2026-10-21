@@ -124,7 +124,7 @@ def test_empty_record_summary_does_not_claim_a_last_date_or_leak_generated_ids(r
     observations = (ReadObservation("call", "search_maintenance_records", ReadResult(records, {})),)
     answer = supported_answer(observations)
     if expected:
-        assert "日時は確認できません" in answer
+        assert "0件" in answer
         assert "実施されていないことを意味するものではありません" in answer
         assert supported_answer(observations, has_errors=True) is None
     else:

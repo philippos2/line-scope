@@ -69,6 +69,13 @@ def question_messages(message):
     match = re.match(r"調査対象の設備コードは([^\n]+)です。\n(.+)\Z", message, re.DOTALL)
     if not match:
         return [{"role": "user", "content": message}]
+    question = match[2]
+    # Only an explicit reference to the screen selection admits that context.
+    # Do not offer an unrelated equipment code as a competing question target.
+    if not re.search(
+        r"(?:この|その|選択(?:中|した)|調査中)(?:の)?(?:設備|機械|機材|装置)", question
+    ):
+        return [{"role": "user", "content": question}]
     return [
         {
             "role": "user",
