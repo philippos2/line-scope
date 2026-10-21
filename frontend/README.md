@@ -39,3 +39,7 @@ docker run --rm --pull never --network host --env-file /private/browser.env \
 比較の起点と代替候補は別の設備です。起点自身の能力入力は代替用に使えません。比較用の入力を調査画面で取得できていないとき、右欄は「{起点}の比較用入力を確認する」と表示し、比較画面で登録状況を確認する入口にします。保全入力は未取得の可能性があるため、算定・能力が空というだけで比較リンクを無効にしません。使える入力がなければ登録・訂正が必要だと案内します。
 
 [画面設計](../docs/design/frontend-console.md)・[ロードマップ](../docs/roadmap.md)・[開発規則](../CONTRIBUTING.md)を参照してください。
+
+### 口語・範囲照合の任意の実モデル評価
+
+同じ主シナリオscriptへ`LINESCOPE_BROWSER_QUESTION_SCOPE=1`を渡すと、追加6問を実LLM・実APIで確認します。平叙／口語／比喩×名称／コード×登録状態／非対応の全12組から、全因子対を覆う6組を選んでいます。通常モードは実LLMを呼びません。検証結果・失敗応答は私有outputの`report.json`へ残り、業務書込は許可しません。既存のnative Chromiumを使う場合は`LINESCOPE_BROWSER_EXECUTABLE=/usr/bin/chromium`を指定できます。新しいimage・モデル設定は不要です。

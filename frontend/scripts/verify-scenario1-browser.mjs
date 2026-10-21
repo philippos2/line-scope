@@ -1,11 +1,84 @@
 // Maintained read-only smoke: actual scenario1 API, no mocked business responses.
 import { URL } from "node:url";
-import { chromium, expect } from "@playwright/test";
+import { chromium, expect } from "playwright/test";
 import { mkdir, writeFile } from "node:fs/promises";
 const base = process.env.LINESCOPE_BROWSER_URL;
 const token = process.env.LINESCOPE_BROWSER_TOKEN;
 if (!base || !token) throw new Error("Browser URL and private token required");
 const verifyReadFailures = process.env.LINESCOPE_BROWSER_READ_FAILURES === "1";
+const verifyQuestionScope =
+  process.env.LINESCOPE_BROWSER_QUESTION_SCOPE === "1";
+// Pairwise selection: expression(3) x reference(2) x scope(2), 6 of 12.
+// Examples are evaluation inputs, never runtime keyword routes.
+const questionCases = [
+  {
+    expression: "plain",
+    reference: "name",
+    scope: "state",
+    question: "第1加工機は現在停止していますか？",
+    code: "M-204",
+    state: "STOPPED",
+  },
+  {
+    expression: "plain",
+    reference: "code",
+    scope: "unsupported",
+    question: "M-208の保証期限はいつですか？",
+    code: "M-208",
+  },
+  {
+    expression: "colloquial",
+    reference: "name",
+    scope: "unsupported",
+    question: "第二加工機の替えの部品、どこにしまってある？",
+    code: "M-208",
+  },
+  {
+    expression: "colloquial",
+    reference: "code",
+    scope: "state",
+    question: "M-208っていま動いてる？",
+    code: "M-208",
+    state: "RUNNING",
+  },
+  {
+    expression: "figurative",
+    reference: "name",
+    scope: "state",
+    question: "第１加工機はいま死んでるか？",
+    code: "M-204",
+    state: "STOPPED",
+  },
+  {
+    expression: "figurative",
+    reference: "code",
+    scope: "unsupported",
+    question: "M-204って、まだ保証が生きてる？",
+    code: "M-204",
+  },
+];
+function checkQuestionCoverage() {
+  const factors = {
+    expression: ["plain", "colloquial", "figurative"],
+    reference: ["name", "code"],
+    scope: ["state", "unsupported"],
+  };
+  const axes = Object.keys(factors);
+  for (let i = 0; i < axes.length; i++) {
+    for (let j = i + 1; j < axes.length; j++) {
+      for (const a of factors[axes[i]]) {
+        for (const b of factors[axes[j]]) {
+          expect(
+            questionCases.some(
+              (row) => row[axes[i]] === a && row[axes[j]] === b,
+            ),
+          ).toBe(true);
+        }
+      }
+    }
+  }
+}
+
 const output = process.env.LINESCOPE_BROWSER_OUTPUT ?? "/out";
 await mkdir(output, { recursive: true });
 const report = {
@@ -17,7 +90,9 @@ const report = {
   page_errors: [],
   timings_ms: {},
 };
-const browser = await chromium.launch();
+const browser = await chromium.launch({
+  executablePath: process.env.LINESCOPE_BROWSER_EXECUTABLE || undefined,
+});
 const page = await browser.newPage({ viewport: { width: 1600, height: 1050 } });
 page.setDefaultTimeout(30000);
 page.on("pageerror", (error) => report.page_errors.push(error.message));
@@ -40,7 +115,11 @@ await page.route("**/api/**", async (route) => {
     (readPaths.includes(path) ||
       (path === "/api/agent" &&
         (req.postDataJSON()?.message?.startsWith("関係分析 ") ||
-          req.postDataJSON()?.message?.startsWith("文書検索："))))
+          req.postDataJSON()?.message?.startsWith("文書検索：") ||
+          (verifyQuestionScope &&
+            questionCases.some((row) =>
+              req.postDataJSON()?.message?.endsWith(row.question),
+            )))))
   )
     return route.continue();
   report.blocked.push({ method: req.method(), path });
@@ -324,6 +403,92 @@ try {
     path: `${output}/scenario1-input-guidance.png`,
     fullPage: true,
   });
+  if (verifyQuestionScope) {
+    checkQuestionCoverage();
+    report.question_cases = [];
+    await page.getByRole("tab", { name: "質問する", exact: true }).click();
+    for (const row of questionCases) {
+      await page
+        .getByLabel("関係や影響について質問する", { exact: true })
+        .fill(row.question);
+      const pending = page.waitForResponse(
+        (r) =>
+          r.url().endsWith("/agent") &&
+          r.request().postDataJSON()?.message?.endsWith(row.question),
+        { timeout: 135000 },
+      );
+      await page.getByRole("button", { name: "送信", exact: true }).click();
+      const response = await pending;
+      const body = await response.json();
+      report.question_cases.push({
+        ...row,
+        status: response.status(),
+        response: body,
+      });
+      try {
+        expect(response.status()).toBe(200);
+        const sections = body.data.answer_sections;
+        expect(sections?.version).toBe(1);
+        expect(body.answer).toContain(row.code);
+        const tools = body.data.tool_results;
+        for (const fact of sections.facts) {
+          expect(fact.references.length).toBeGreaterThan(0);
+          for (const ref of fact.references)
+            expect(tools.some((tool) => tool.tool_call_id === ref)).toBe(true);
+        }
+        if (row.scope === "state") {
+          const states = tools.filter(
+            (tool) => tool.tool === "get_equipment_state",
+          );
+          expect(states).toHaveLength(1);
+          expect(states[0].data.state_code).toBe(row.state);
+          const equipment = tools.flatMap((tool) =>
+            tool.tool === "search_equipment"
+              ? tool.data.items
+              : tool.tool === "get_equipment"
+                ? [tool.data]
+                : [],
+          );
+          expect(
+            equipment.some(
+              (item) =>
+                item.equipment_code === row.code &&
+                item.equipment_id === states[0].data.equipment_id,
+            ),
+          ).toBe(true);
+          expect(
+            sections.facts.some((fact) =>
+              fact.references.includes(states[0].tool_call_id),
+            ),
+          ).toBe(true);
+          expect(body.answer).toContain(row.state);
+        } else {
+          expect(sections.unavailable.length).toBeGreaterThan(0);
+          expect(
+            sections.facts.every(
+              (fact) => fact.predicate === "equipment.identity",
+            ),
+          ).toBe(true);
+          expect(
+            tools.every((tool) =>
+              ["search_equipment", "get_equipment"].includes(tool.tool),
+            ),
+          ).toBe(true);
+        }
+      } catch (error) {
+        report.question_cases.at(-1).failure = error.message;
+      }
+      await expect(
+        page.getByRole("button", { name: "送信", exact: true }),
+      ).toBeEnabled();
+      await page.screenshot({
+        path: `${output}/question-scope-${report.question_cases.length}.png`,
+        fullPage: true,
+      });
+    }
+  }
+  if (verifyQuestionScope)
+    expect(report.question_cases.every((row) => !row.failure)).toBe(true);
   expect(report.blocked).toHaveLength(0);
   expect(report.page_errors).toHaveLength(0);
   report.result = "PASS";
