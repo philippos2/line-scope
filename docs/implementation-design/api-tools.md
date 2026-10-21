@@ -524,3 +524,21 @@ Agentの比較Tool admissionは、元の問い合わせ中のJSON選択とTool�
 自然文の範囲照合が不一致・不確実・非対応・検証不能の場合、`answer_sections.unavailable`に`QUESTION_SCOPE_UNCONFIRMED`を返す。質問内容のReadは開始せず、設備の識別用Readのみを許す。`facts`には実際に識別できた名称・コード（predicate=equipment.identity）、または複数候補（equipment.identity_candidate）だけを表示できる。通常は`needs_input=false`とし、識別候補が複数のときだけtrueにする。これは対象候補の選択待ちではないため、拒否した質問を新たな対象選択会話として保存しない。scopeは採用できなかった解釈であることを明示する。登録の有無・0件・未作業を確定した意味ではない。範囲外だけの質問も、対象の識別と質問内容の取得を区別する。識別結果の名前・コードを超えて依存関係等を回答の代わりに公開しない。内部照合Toolは公開Toolとして追加しない。
 
 自然文の`answer_sections`では、`equipment.identity`は対象識別であり、要求内容への回答済みを意味しない。対象識別しか返せず、他の未取得・非対応の理由もない場合は`unavailable`に`QUESTION_NOT_ANSWERED`を返し、HTTP envelopeはpartialとする。質問を明示し、別の登録属性を回答として代入しない。元のTool結果・Evidenceは維持する。
+
+#### Read範囲の確認契約案（H6・未実装／実装承認待ち）
+
+現行のAgentInput・応答では以下の確認操作を利用できない。§13の方針を実装するには、**POST /agentに任意の`read_confirmation`を追加**する。既存のbody項目・通常Read・直接Graph／比較・Prepare経路はこの項目がない場合に維持する。新HTTP経路・永続DB・業務権限は追加しない。
+
+```json
+{"message":"初回に送信した文字列そのもの","context_id":"サーバが返した確認用UUID","read_confirmation":"ACCEPT"}
+```
+
+- choiceは`ACCEPT`／`REJECT`だけ。`context_id`必須。`as_of`がある場合も初回と一致させる。質問の編集後は確認を継続せず、新規の質問として送る。`replace_update_request_id`との併用、未知choice・未知field・不正型はINVALID_ARGUMENT。単なる自然文の「はい」は受理の証拠にしない。
+- 初回の確認待ちはHTTP 200、envelope status=okで受け付け、照会の完了とは扱わない。`data.read_clarification`に`kind=READ_SCOPE`、`status=PENDING`、原文の質問、実対象の名称・コード、サーバが定義する提案範囲の表示、限定、理由codeを追加し、`context_id`と`data.needs_input=true`を返す。表示には既存の内部ID抑制・公開文字列の規則を適用し、hash検証は未加工の送信文字列で行う。原文・表示をHTMLとして実行しない。提案は事実・運転許可ではなく、この時点のfactsは識別だけ。`answer_sections`の現行version 1に未実装の必須fieldを追加しない。
+- ConversationStoreは既存の利用者所有・TTL30分・プロセス内メモリを再利用する。再起動・期限切れはCONTEXT_EXPIRED、別利用者はAUTHORIZATION_DENIED。永続保存・workerをまたぐ共有保証を新設しない。
+- 保留情報は、初回messageとexplicit_as_ofの専用hash、対象の原文参照・実検索のID、サーバ側の提案能力／引数条件、カタログversionを持つ。既存`AgentInput.input_hash`はcontext_idも含むため、そのまま初回と再送の一致比較に使わない。clientに能力・Tool・ID・権限の差替えを許さない。
+- 確認項目がある要求は専用のRead分岐を先に選び、変更要求の再送lookup・Prepare認識へ流さない。Idempotency-Keyがあっても業務変更の再送として扱わず、受理によりPrepare／Approval／Executeを起動しない。業務更新のAPI契約は変えない。
+- ACCEPTは保留情報のowner・期限・原文hash・定義versionを検証し、対象を再照合して同じ対象集合に一意解決するかを確認する。対象変更・複数化・検索失敗・古い定義は実Readへ進まず、理由と再確認を返す。各Readの認可・現在のGraph同期・既存の時点制約も維持し、古い参照値を確定値として再利用しない。
+- ACCEPT後の`read_clarification.status=ACCEPTED`には原文と、利用者が選んだ参照範囲を残す。値・根拠は既存のコード生成を使い、選択範囲の結果として表示する。元の質問全体への正答と自動認定しない。結果取得失敗はReadの失敗として扱い、自動再送しない。再実行する場合も同じ照会への利用者の明示操作とし、書込の再送規則と混同しない。
+- REJECTは質問内容を取得せず、確認を終了して`status=DECLINED`を返す。入力原文を残し編集へ戻す。違うという回答だけで「未登録／非対応」と断定しない。Frontendは編集への復帰を通知の完了待ちにせず、通知失敗でも古い確認を復元・自動再送しない。失敗は確認終了の通知失敗として記録する。
+- この任意項目を知らない既存clientは、通常の質問を再入力して参照範囲を明示できる。確認UI未対応を理由に自由文の「はい」を解釈して実行しない。実装時は既存clientの応答表示・context再利用も互換試験する。
