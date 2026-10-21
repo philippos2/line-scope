@@ -59,10 +59,10 @@
 <g fill="#e2e8f0" stroke="#64748b" stroke-dasharray="6 4"><rect x="705" y="1260" width="260" height="65" rx="6"/><rect x="995" y="1260" width="260" height="65" rx="6"/><rect x="1285" y="1260" width="270" height="65" rx="6"/></g>
 <g font-size="16" text-anchor="middle"><text x="547" y="1285">#275 merge後2作業日以内</text><text x="547" y="1309">修正案・工数の報告期限</text><text x="835" y="1285">質問と検索の規則を統一</text><text x="835" y="1309">実装は承認後</text><text x="1125" y="1297">衝突・続き・失敗も確認</text><text x="1420" y="1285">採否・実装順は開発者判断</text><text x="1420" y="1309">追加PR数は未確定</text></g>
 <path d="M30 1555H1570" stroke="#cbd5e1"/>
-<text x="30" y="1423" font-size="20" font-weight="bold">Q4 未評価の運転可否の断定</text><text x="30" y="1457" font-size="17">mainでも再現・未解決</text>
+<text x="30" y="1423" font-size="20" font-weight="bold">Q4 根拠を超える自由回答</text><text x="30" y="1457" font-size="17">運転可否・保管場所／未解決</text>
 <rect x="420" y="1400" width="255" height="65" rx="6" fill="#fef3c7" stroke="#d97706"/>
 <g fill="#e2e8f0" stroke="#64748b" stroke-dasharray="6 4"><rect x="705" y="1400" width="260" height="65" rx="6"/><rect x="995" y="1400" width="260" height="65" rx="6"/><rect x="1285" y="1400" width="270" height="65" rx="6"/></g>
-<g font-size="16" text-anchor="middle"><text x="547" y="1425">#275 merge後3作業日以内</text><text x="547" y="1449">Q2と併せた検討案の期限</text><text x="835" y="1425">根拠と結論の対応を設計</text><text x="835" y="1449">質問別の専用化はしない</text><text x="1125" y="1437">未登録・未評価を断定しない</text><text x="1420" y="1425">範囲・実装は開発者判断</text><text x="1420" y="1449">追加PR数は未確定</text></g>
+<g font-size="16" text-anchor="middle"><text x="547" y="1425">#275 merge後3作業日以内</text><text x="547" y="1449">Q2と併せた文書案の期限</text><text x="835" y="1425">根拠付き回答を文書設計</text><text x="835" y="1449">質問別の専用化はしない</text><text x="1125" y="1437">未登録・未評価を断定しない</text><text x="1420" y="1425">範囲・実装は開発者判断</text><text x="1420" y="1449">追加PR数は未確定</text></g>
 <text x="30" y="1600" font-size="16">期限は案の報告期限。実装完了日ではない。F1→F2→F3の既定順序を変更しない。</text>
 <rect x="30" y="1660" width="1540" height="113" rx="8" fill="#fff7ed" stroke="#ea580c"/>
 <text x="48" y="1691" font-size="18" font-weight="bold">その他：未解決・未検証・採用判断待ち（既定3 PR・Q1〜Q4以外も残る）</text>
