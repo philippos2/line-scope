@@ -144,6 +144,7 @@ class ReadScope:
     topics: tuple[str, ...]
     subjects: tuple[dict, ...] = ()
     scope_issue: str | None = None
+    requested_fields: tuple[str, ...] = ()
 
     def schemas(self, available):
         allowed = IDENTITY_TOOLS | set().union(*(TOPICS[t][1] for t in self.topics))
@@ -230,7 +231,7 @@ def classify(llm, request, session, previous_messages=None):
             session,
         )
         issue = checked_verdict(reply)
-    return ReadScope(admitted, tuple(subjects), issue)
+    return ReadScope(admitted, tuple(subjects), issue, tuple(requested))
 
 
 def complete_scope(llm, messages, schemas, session):

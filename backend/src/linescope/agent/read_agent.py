@@ -166,6 +166,12 @@ class ReadAgent:
                 False,
                 sections,
             )
+
+        def render_answer(observations, **kwargs):
+            return build_answer(
+                observations, question=question_messages(request.message)[-1]["content"], **kwargs
+            )
+
         scope = (
             ReadScope(("COMPARISON",))
             if set(session.schemas()) == {"compare_registered_inputs"}
@@ -173,11 +179,10 @@ class ReadAgent:
         )
         if scope.scope_issue or scope.topics == ("UNSUPPORTED",):
             observations, trace, errors = collect_scope(scope, session, identification_only=True)
-            answer, sections = build_answer(
+            answer, sections = render_answer(
                 observations,
                 scope=scope,
                 errors=errors,
-                question=question_messages(request.message)[-1]["content"],
                 identification_only=True,
             )
             # A scope rejection is not a target-selection conversation. Saving it as
@@ -192,7 +197,7 @@ class ReadAgent:
             )
         if scope.subjects:
             observations, trace, errors = collect_scope(scope, session)
-            answer, sections = build_answer(observations, scope=scope, errors=errors)
+            answer, sections = render_answer(observations, scope=scope, errors=errors)
             if request.explicit_as_of:
                 note = "指定時刻について現在登録情報を評価しています。当時の状態の完全復元ではありません。"
                 answer = note + "\n" + answer
@@ -293,13 +298,13 @@ class ReadAgent:
                             for item in errors.values()
                         )
                     )
-                    answer, sections = build_answer((), scope=scope, errors=tuple(errors.values()))
+                    answer, sections = render_answer((), scope=scope, errors=tuple(errors.values()))
                     return ReadAgentResult(
                         answer, (), tuple(trace), tuple(errors.values()), needs_input, sections
                     )
                 if not selection and not reply.content.strip():
                     raise ToolError("INTERNAL_ERROR", "LLM did not provide an explanation")
-                answer, sections = build_answer(
+                answer, sections = render_answer(
                     tuple(observations),
                     scope=scope,
                     errors=tuple(errors.values()),
@@ -440,7 +445,7 @@ class ReadAgent:
                 payload["equipment_lookup_summary"] = lookup_summary
                 lookup_message["content"] = canonical_json(payload)
 
-            _, answer_sections = build_answer(
+            _, answer_sections = render_answer(
                 tuple(observations), scope=scope, errors=tuple(errors.values())
             )
             model_payload = strict_json(messages[-1]["content"])
@@ -454,7 +459,7 @@ class ReadAgent:
             # A further model generation cannot change its authoritative constraints.
             registered = [item for item in observations if item.tool == "compare_registered_inputs"]
             if registered:
-                answer, sections = build_answer(
+                answer, sections = render_answer(
                     tuple(observations), scope=scope, errors=tuple(errors.values())
                 )
                 return ReadAgentResult(

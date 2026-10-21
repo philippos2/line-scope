@@ -176,7 +176,8 @@ def test_scope_reduces_advertised_tools_without_expanding_authority():
         and "prepare_equipment_state_update" not in advertised
     )
     assert "値を推測した自由な回答" not in result.answer
-    assert "範囲外" in result.answer and "M-204" in result.answer
+    assert "確認できません" in result.answer and "M-204" in result.answer
+    assert any(row["code"] == "OUT_OF_SCOPE" for row in result.answer_sections["unavailable"])
     assert dispatcher.calls == 2 and not result.errors
     assert len(llm.planning_requests) == 1 and not llm.requests
 
@@ -201,7 +202,7 @@ def test_valid_selection_has_only_actual_request_references():
     llm = ScopedLLM(["ATTRIBUTES"], call(), call("select_answer_facts", {"fact_ids": ["f1"]}))
     result = ReadAgent(Dispatcher(), llm).run(context(), request())
     assert result.answer_sections["facts"][0]["references"] == [result.observations[0].tool_call_id]
-    assert result.answer_sections["facts"][0]["predicate"] == "equipment.registered_fields"
+    assert result.answer_sections["facts"][0]["predicate"] == "equipment.identity"
 
 
 def test_display_limit_is_explicit_and_not_completed_as_a_global_claim():
@@ -305,3 +306,49 @@ def test_question_scope_review_deadline_never_dispatches():
     with pytest.raises(ToolError) as error:
         ReadAgent(dispatcher, llm).run(context(), request())
     assert error.value.code == "AGENT_LIMIT_REACHED" and dispatcher.calls == 0
+
+
+def test_identity_and_available_metadata_do_not_answer_another_property():
+    scope = ReadScope(("ATTRIBUTES",), requested_fields=("active",))
+    answer, sections = build_answer(
+        (
+            observed(
+                data={
+                    "equipment_name": "第1加工機",
+                    "equipment_code": "E-42",
+                    "active": True,
+                    "equipment_type": "machine",
+                    "version": 1,
+                }
+            ),
+        ),
+        scope=scope,
+        question="第一加工機はまだ保証期間内か？",
+    )
+    assert "第1加工機（E-42）" in answer
+    assert "machine" not in answer and "はい" not in answer and "version" not in answer
+    assert {row["predicate"] for row in sections["facts"]} == {"equipment.identity"}
+    assert any(row["code"] == "QUESTION_NOT_ANSWERED" for row in sections["unavailable"])
+    assert sections["facts"][0]["references"] == ["observed-1"]
+
+
+def test_explicit_registered_attribute_is_answered_without_dumping_other_fields():
+    scope = ReadScope(("ATTRIBUTES",), requested_fields=("equipment_type",))
+    answer, sections = build_answer(
+        (
+            observed(
+                data={
+                    "equipment_name": "検査装置",
+                    "equipment_code": "E-99",
+                    "equipment_type": "inspection",
+                    "active": True,
+                    "version": 7,
+                }
+            ),
+        ),
+        scope=scope,
+        question="E-99の設備種別を教えてください",
+    )
+    assert "inspection" in answer and "はい" not in answer
+    assert "QUESTION_NOT_ANSWERED" not in {row["code"] for row in sections["unavailable"]}
+    assert all(row["references"] == ["observed-1"] for row in sections["facts"])

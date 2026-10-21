@@ -198,7 +198,7 @@ def test_mixed_question_retains_the_general_read_flow(registry):
         "第1加工機" in result.answer and result.answer != "実施内容はこの記録から判断できません。"
     )
     assert "実施日時" not in result.answer
-    assert result.answer_sections["facts"][0]["predicate"] == "equipment.registered_fields"
+    assert result.answer_sections["facts"][0]["predicate"] == "equipment.identity"
     assert dispatcher.calls == [
         ("search_equipment", {"filter": {"name": name}})
         for name in ("第1加工機", "第一加工機", "第１加工機")

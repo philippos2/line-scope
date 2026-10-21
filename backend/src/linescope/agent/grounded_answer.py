@@ -8,6 +8,7 @@ from .answer_text import UUID_TEXT, public_answer
 from .capacity_answer import capacity_answer
 from .economic_answer import economic_answer
 from .equipment_lookup_view import equipment_lookup_view
+from .equipment_reference import reference_key
 from .graph_answer import dependency_answer, downstream_answer, fulfillment_answer
 from .maintenance_answer import maintenance_answer, maintenance_record_answer
 from .read_scope import TOPICS
@@ -75,6 +76,29 @@ SUMMARY_RENDERERS = {
     "find_single_point_failure_candidates": (fulfillment_answer,),
 }
 
+# Registered attribute terminology, not question-specific or equipment-specific routes.
+# Technical record metadata must be explicitly requested, never substituted for a
+# business question just because the model selected an available field.
+EQUIPMENT_ATTRIBUTE_TERMS = {
+    "equipment_name": ("equipment_name", "設備名", "設備の名前", "設備の名称"),
+    "equipment_code": ("equipment_code", "設備コード", "設備番号", "機番"),
+    "equipment_type": ("equipment_type", "設備種別", "設備の種類", "機種"),
+    "active": ("active", "有効フラグ", "レコードの有効"),
+    "version": ("version", "バージョン", "版番号"),
+}
+
+
+def explicitly_requested_attributes(scope, question):
+    normalized = reference_key(question).casefold()
+    return {
+        field
+        for field in scope.requested_fields
+        if any(
+            reference_key(term).casefold() in normalized
+            for term in EQUIPMENT_ATTRIBUTE_TERMS.get(field, ())
+        )
+    }
+
 
 def shown(value):
     if value is None:
@@ -107,6 +131,11 @@ def build_answer(
         observations = ()
     facts, unavailable = [], []
     truncated = False
+    question_mode = bool(scope and question)
+    requested_attributes = (
+        explicitly_requested_attributes(scope, question) if question_mode else set()
+    )
+    identity_answered = False
     public_question = UUID_TEXT.sub("IDで指定した対象", question) if question else None
     unconfirmed_question = (
         f"「{public_question}」については、現在LineScopeで参照できる情報からは確認できません。"
@@ -142,7 +171,7 @@ def build_answer(
 
     identity = tuple(o for o in observations if o.tool in {"search_equipment", "get_equipment"})
     lookup_groups = equipment_lookup_view(identity)
-    if identification_only:
+    if identification_only or question_mode:
         for group in lookup_groups:
             refs = tuple(
                 o.tool_call_id
@@ -162,6 +191,9 @@ def build_answer(
                     labels.append(f"{name}（{code}）")
             if group["status"] == "FOUND" and not errors and len(labels) == 1:
                 add("REGISTERED_FIELD", labels[0] + "のことですね。", refs, "equipment.identity")
+                identity_answered = bool(
+                    requested_attributes & {"equipment_name", "equipment_code"}
+                )
             elif group["status"] == "MULTIPLE_MATCHES":
                 for label in dict.fromkeys(labels):
                     add("SEARCH_RESULT", label, refs, "equipment.identity_candidate")
@@ -177,10 +209,31 @@ def build_answer(
                     refs,
                 )
             else:
+                if group["status"] not in {"FOUND", "NO_MATCH", "MULTIPLE_MATCHES"}:
+                    missing(
+                        "INCOMPLETE",
+                        "設備検索の続きまたは照合結果は未取得です。全件・一意は確定していません。",
+                        refs,
+                    )
                 missing(
                     "IDENTITY_UNCONFIRMED",
                     "設備を一つに特定できませんでした。設備名や設備コードをご確認ください。",
                     refs,
+                )
+        for observation in identity:
+            if observation.tool != "get_equipment":
+                continue
+            row = observation.result.data
+            name, code = row.get("equipment_name"), row.get("equipment_code")
+            if isinstance(code, str):
+                text = (
+                    f"{name}（{code}）のことですね。"
+                    if isinstance(name, str)
+                    else f"設備コードは{code}です。"
+                )
+                add("REGISTERED_FIELD", text, (observation.tool_call_id,), "equipment.identity")
+                identity_answered = bool(
+                    requested_attributes & {"equipment_name", "equipment_code"}
                 )
     answer_observations = () if identification_only else observations
     record_queries = set()
@@ -232,6 +285,15 @@ def build_answer(
                 if not (entity == "equipment" and tool == "search_equipment"):
                     continue
             matched = True
+            if entity == "equipment" and question_mode:
+                fields = tuple(
+                    field
+                    for field in fields
+                    if field in requested_attributes
+                    and field not in {"equipment_name", "equipment_code"}
+                )
+                if not fields:
+                    break
             rows = data.get("items", []) if tool.startswith("search_") else [data]
             if type(rows) is not list:
                 missing("INVALID_RESULT", "取得結果の形式を確認できません。", refs)
@@ -251,7 +313,9 @@ def build_answer(
                 if values:
                     add(
                         "REGISTERED_FIELD",
-                        f"登録{label}「{subject or label}」：" + "、".join(values) + "。",
+                        ("" if question_mode else f"登録{label}「{subject or label}」：")
+                        + "、".join(values)
+                        + "。",
                         refs,
                         entity + ".registered_fields",
                     )
@@ -344,6 +408,17 @@ def build_answer(
             "READ_FAILED",
             "一部の登録情報を取得できませんでした。取得失敗を未登録や記録なしとは判断していません。",
         )
+    if (
+        question_mode
+        and not identification_only
+        and not identity_answered
+        and not unavailable
+        and not any(
+            fact["predicate"] not in {"equipment.identity", "equipment.identity_candidate"}
+            for fact in facts
+        )
+    ):
+        missing("QUESTION_NOT_ANSWERED", unconfirmed_question)
     topics = scope.topics if scope and not scope_blocked else ()
     for topic in topics:
         required = TOPICS[topic][1]

@@ -571,6 +571,7 @@ def create_app(
                             "INVALID_SELECTION",
                             "UNVERIFIABLE_RESULT",
                             "NOT_RETRIEVED",
+                            "QUESTION_NOT_ANSWERED",
                         }
                         for item in result.answer_sections["unavailable"]
                     )

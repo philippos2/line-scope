@@ -89,7 +89,7 @@ def test_read_only_schema_and_server_evidence_are_retained():
     llm = ScriptedLLM(call(), LLMReply("M-204を確認しました。", ()))
     result = ReadAgent(Dispatcher(), llm).run(context(), request())
     assert "M-204" in result.answer and result.answer != "M-204を確認しました。"
-    assert result.answer_sections["facts"][0]["predicate"] == "equipment.registered_fields"
+    assert result.answer_sections["facts"][0]["predicate"] == "equipment.identity"
     assert result.answer_sections["facts"][0]["references"] == [result.observations[0].tool_call_id]
     assert result.observations[0].result.evidence == {"source": "POSTGRESQL", "version": 1}
     assert not result.needs_input and not result.errors
