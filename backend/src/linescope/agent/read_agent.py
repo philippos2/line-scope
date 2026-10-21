@@ -5,19 +5,20 @@ from time import monotonic
 from uuid import uuid4
 
 from ..application.reads import ReadResult, ToolError
-from ..application.registered_decision import decision_answer
 from ..domain.canonical import canonical_json, strict_json
 from ..integrations.llm import LLMError, LLMReply, ToolCall
 from .agent_tools import AgentToolSession
-from .answer_text import public_answer
 from .capacity_answer import capacity_answer
 from .economic_answer import economic_answer
 from .equipment_lookup_view import equipment_lookup_view
 from .equipment_reference import question_messages, reference_variants
 from .graph_answer import dependency_answer, downstream_answer, fulfillment_answer
 from .graph_model_view import GRAPH_TOOLS, graph_model_view
+from .grounded_answer import build_answer
 from .maintenance_answer import maintenance_answer, maintenance_record_answer
+from .read_scope import SELECT_SCHEMA, SELECT_TOOL, classify
 from .safety_answer import safety_answer
+from .scoped_reads import collect_scope
 from .state_answer import state_answer
 
 SYSTEM_PROMPT = """あなたはLineScopeの参照専用アシスタントです。質問に必要なRead Toolsを選び、取得した事実だけを日本語で説明してください。
@@ -53,6 +54,7 @@ class ReadAgentResult:
     trace: tuple[dict, ...]
     errors: tuple[dict, ...]
     needs_input: bool
+    answer_sections: dict | None = None
 
 
 def equipment_search_key(arguments):
@@ -155,22 +157,39 @@ class ReadAgent:
             observations = (
                 ReadObservation(call_id, command["tool"], result, command["arguments"]),
             )
+            answer, sections = build_answer(observations)
             return ReadAgentResult(
-                supported_answer(observations)
-                or (
-                    "取得結果と未評価事項は構造化結果をご確認ください。"
-                    if command["tool"] in GRAPH_TOOLS
-                    else "選択したノードの登録属性を取得しました。"
-                ),
+                answer,
                 observations,
                 ({"tool_call_id": call_id, "tool": command["tool"], "attempt": 1, "code": "OK"},),
                 (),
                 False,
+                sections,
+            )
+        scope = classify(self.llm, request, session, previous_messages)
+        if not scope.subjects and scope.topics == ("UNSUPPORTED",):
+            answer, sections = build_answer((), scope=scope)
+            return ReadAgentResult(answer, (), (), (), False, sections)
+        if scope.subjects:
+            observations, trace, errors = collect_scope(scope, session)
+            answer, sections = build_answer(observations, scope=scope, errors=errors)
+            return ReadAgentResult(
+                answer,
+                observations,
+                trace,
+                errors,
+                any(error["code"] == "TARGET_AMBIGUOUS" for error in errors),
+                sections,
             )
         messages = [
             {"role": "system", "content": SYSTEM_PROMPT},
             *question_messages(request.message),
         ]
+        messages[0]["content"] += (
+            "\n今回の情報種別は" + "、".join(scope.labels()) + "です。"
+            "範囲外の値を推測せず、取得後はanswer_factsのIDをselect_answer_factsで選択してください。"
+            "自由文の結論や値は公開されません。未取得の必要情報があれば取得してください。"
+        )
         if request.explicit_as_of:
             messages[0]["content"] += (
                 "\n今回のAPI指定時刻は" + request.explicit_as_of + "です。"
@@ -189,7 +208,9 @@ class ReadAgent:
         while True:
             session.check_deadline()
             # Once all calls are consumed, permit only a final explanation.
-            schemas = session.schemas() if session.calls < session.max_calls else {}
+            schemas = scope.schemas(session.schemas()) if session.calls < session.max_calls else {}
+            if observations and session.calls < session.max_calls:
+                schemas[SELECT_TOOL] = SELECT_SCHEMA
             started = monotonic()
             result_code, output_bytes, tool_count = "OK", 0, 0
             metrics = {}
@@ -233,47 +254,44 @@ class ReadAgent:
             session.check_deadline()
             if not isinstance(reply, LLMReply):
                 raise ToolError("INTERNAL_ERROR", "Invalid internal LLM reply")
-            if not reply.tool_calls:
+            selection = [call for call in reply.tool_calls if call.name == SELECT_TOOL]
+            if selection and len(reply.tool_calls) != 1:
+                raise ToolError("INVALID_ARGUMENT", "Answer selection must finish the read")
+            if not reply.tool_calls or selection:
                 if not observations:
-                    # No verified facts: never return an unsupported factual answer.
-                    needs_input = not errors or all(
-                        item["code"] in {"TARGET_NOT_FOUND", "TARGET_AMBIGUOUS", "INVALID_ARGUMENT"}
-                        for item in errors.values()
+                    needs_input = "UNSUPPORTED" not in scope.topics and (
+                        not errors
+                        or all(
+                            item["code"]
+                            in {"TARGET_NOT_FOUND", "TARGET_AMBIGUOUS", "INVALID_ARGUMENT"}
+                            for item in errors.values()
+                        )
                     )
-                    answer = (
-                        "対象を特定できる設備コード・IDなどを指定してください。"
-                        if needs_input
-                        else "参照要求を完了できませんでした。エラー情報を確認してください。"
-                    )
+                    answer, sections = build_answer((), scope=scope, errors=tuple(errors.values()))
                     return ReadAgentResult(
-                        answer,
-                        (),
-                        tuple(trace),
-                        tuple(errors.values()),
-                        needs_input,
+                        answer, (), tuple(trace), tuple(errors.values()), needs_input, sections
                     )
-                if not reply.content.strip():
+                if not selection and not reply.content.strip():
                     raise ToolError("INTERNAL_ERROR", "LLM did not provide an explanation")
-                answer = (
-                    next(
-                        (
-                            decision_answer(item.result.data)
-                            for item in observations
-                            if item.tool == "compare_registered_inputs"
-                        ),
-                        None,
-                    )
-                    or supported_answer(observations, has_errors=bool(errors))
-                    or reply.content
+                answer, sections = build_answer(
+                    tuple(observations),
+                    scope=scope,
+                    errors=tuple(errors.values()),
+                    selected=selection[0].arguments if selection else None,
                 )
-                answer = public_answer(answer, observations)
                 if request.explicit_as_of:
-                    answer = (
-                        "指定時刻について現在登録情報を評価しています。"
-                        "当時の状態の完全復元ではありません。\n" + answer
+                    note = "指定時刻について現在登録情報を評価しています。当時の状態の完全復元ではありません。"
+                    answer = note + "\n" + answer
+                    sections["unavailable"].append(
+                        {"code": "CURRENT_REGISTRATION_ONLY", "text": note, "references": []}
                     )
                 return ReadAgentResult(
-                    answer, tuple(observations), tuple(trace), tuple(errors.values()), False
+                    answer,
+                    tuple(observations),
+                    tuple(trace),
+                    tuple(errors.values()),
+                    False,
+                    sections,
                 )
             messages.append(reply.assistant_message())
             pending, alternate_calls = list(reply.tool_calls), []
@@ -288,6 +306,10 @@ class ReadAgent:
                 result, failure = None, None
                 for attempt in range(3):  # Initial attempt plus at most two transient retries.
                     try:
+                        if call.name not in scope.schemas(session.schemas()):
+                            raise ToolError(
+                                "AUTHORIZATION_DENIED", "Tool is outside the selected read scope"
+                            )
                         result = session.run(
                             call.name,
                             call.arguments,
@@ -392,13 +414,28 @@ class ReadAgent:
                 payload["equipment_lookup_summary"] = lookup_summary
                 lookup_message["content"] = canonical_json(payload)
 
+            _, answer_sections = build_answer(
+                tuple(observations), scope=scope, errors=tuple(errors.values())
+            )
+            model_payload = strict_json(messages[-1]["content"])
+            model_payload["answer_facts"] = [
+                {"id": fact["id"], "predicate": fact["predicate"], "text": fact["text"][:240]}
+                for fact in answer_sections["facts"]
+            ]
+            messages[-1]["content"] = canonical_json(model_payload)
+
             # The comparison already includes server-built explanations and evidence.
             # A further model generation cannot change its authoritative constraints.
             registered = [item for item in observations if item.tool == "compare_registered_inputs"]
             if registered:
-                answer = decision_answer(registered[-1].result.data)
-                if errors:
-                    answer = "一部の参照に失敗しています。" + answer
+                answer, sections = build_answer(
+                    tuple(observations), scope=scope, errors=tuple(errors.values())
+                )
                 return ReadAgentResult(
-                    answer, tuple(observations), tuple(trace), tuple(errors.values()), False
+                    answer,
+                    tuple(observations),
+                    tuple(trace),
+                    tuple(errors.values()),
+                    False,
+                    sections,
                 )

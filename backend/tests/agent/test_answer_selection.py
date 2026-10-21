@@ -35,7 +35,15 @@ def test_mixed_investigation_is_not_replaced_by_safety_search_summary(other_tool
         MixedDispatcher(),
         ScriptedLLM(call(other_tool), call("search_safety_inputs"), LLMReply(prose, ())),
     ).run(context(), request())
-    assert result.answer == prose
+    assert result.answer != prose
+    assert result.answer_sections["mode"] == "REGISTERED_RESULTS"
+    references = {
+        ref
+        for row in result.answer_sections["facts"] + result.answer_sections["unavailable"]
+        for ref in row["references"]
+    }
+    assert {row.tool_call_id for row in result.observations} <= references
+    assert "安全判定は未取得" in result.answer
     assert len(result.observations) == 2 and len(result.trace) == 2
     assert not result.errors
     assert all(item.result.evidence == {"source": "POSTGRESQL"} for item in result.observations)

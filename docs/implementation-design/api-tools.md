@@ -7,7 +7,7 @@
   "request_id": "uuid",
   "context_id": "uuid-or-null",
   "status": "ok|partial|error",
-  "answer": "LLM generated natural language or null",
+  "answer": "server-rendered verified read text, workflow explanation, or null",
   "data": {},
   "evidence": {},
   "warnings": [],
@@ -30,6 +30,21 @@
 ```
 
 出力は共通Envelope。
+
+### 通常Readの根拠付き回答
+
+通常Readは、LLMで対象表現と要求fieldを構造化し、サーバの対応field一覧へ照合して取得する。粗い情報種別だけで未知の属性を既存の属性へ置換しない。対象のreferenceは今回の質問本文、または対象省略時の画面補足から照合し、LLMが作った設備コード・IDを対象へ昇格させない。本文にない過去対象で上書きしない。
+
+`data.answer_sections`は追加の任意フィールド。version 1、mode `REGISTERED_RESULTS`、scope（サーバの固定表示名の配列）、facts、interpretation（現時点は空配列）、unavailable、noticeを持つ。既存のanswer、tool_results、tool_trace、Evidenceは維持する。
+
+- factsの各項目はid（要求内の`f1`等）、kind、predicate、text、referencesを持つ。kindはREGISTERED_FIELD／SEARCH_RESULT／SERVER_ASSESSMENT／DOCUMENT_REFERENCE。textは実際の取得値または既存のサーバ要約からコードが生成し、LLMの自由文を挿入しない。referencesは同じ要求の実tool_call_idだけを参照する。
+- unavailableはcode、text、referencesを持つ。非対応、未取得、検索失敗、検索0件、複数候補、続き、未対応の表示形式、表示上限を区別する。OUT_OF_SCOPEはDBの未登録を意味しない。
+- 最大80事実。表示省略はDISPLAY_LIMITを明示する。範囲や失敗を、事実の並び替えで消さない。partialは従来のTool結果に加え、取得不完全・失敗・必要情報未取得・表示上限・検証不能を反映する。確認待ち（needs_input）は従来どおり別扱い。
+- コピー等で使うanswerも同じサーバ生成textから組み立てる。HTTP handlerはそれをEnvelopeへ載せるだけで、SQL・計算・意味の判定を実装しない。
+
+`describe_read_request`、`select_answer_facts`はAgent内部のモデル応答契約で、業務Tool・HTTP APIではない。前者は対象と要求fieldを構造化するだけで、実行は既存Tool sessionの認可・総12回・同じ120秒deadlineを通す。後者は要求内の既存fact IDの選択・順序だけ。値・主張文・権限・任意Tool名は受け付けない。主体が特定できる質問ではコードが取得を組み立て、LLMの再選択を繰り返さない。主体未確定の補足探索も同じ広告範囲・実行時の制限に従い、自由文を公開しない。
+
+属性・型・関係を扱う固定adapterがない結果は確認不能とする。属性不在と実際の不存在、記録0件と作業未実施、構造成立と運転許可を区別する。LLMの解釈間違いの可能性は残り、画面に今回の解釈範囲を表示する。
 
 ### Graphで明示選択した対象の調査
 

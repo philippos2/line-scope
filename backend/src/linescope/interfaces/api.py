@@ -531,6 +531,8 @@ def create_app(
                 ],
                 "tool_trace": list(result.trace),
             }
+            if result.answer_sections is not None:
+                data["answer_sections"] = result.answer_sections
             if result.needs_input:
                 data.update(candidates=[], missing_fields=["target_identifier"])
             evidence = {
@@ -557,6 +559,22 @@ def create_app(
                 evidence=evidence,
                 context_id=context_id,
                 partial=bool(result.errors and result.observations)
+                or bool(
+                    result.answer_sections
+                    and not result.needs_input
+                    and any(
+                        item["code"]
+                        in {
+                            "READ_FAILED",
+                            "INCOMPLETE",
+                            "DISPLAY_LIMIT",
+                            "INVALID_SELECTION",
+                            "UNVERIFIABLE_RESULT",
+                            "NOT_RETRIEVED",
+                        }
+                        for item in result.answer_sections["unavailable"]
+                    )
+                )
                 or any(
                     (
                         (item.tool in GRAPH_TOOLS or item.tool == "retrieve_knowledge")

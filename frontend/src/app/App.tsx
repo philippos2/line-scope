@@ -1,3 +1,4 @@
+import { RegisteredAnswer } from "./RegisteredAnswer";
 import {
   ReadFeedback,
   readProblem,
@@ -898,7 +899,7 @@ export function App() {
                             一部の情報・評価が不足しています
                           </span>
                         )}
-                        <p className="answer">{result.answer}</p>
+                        <RegisteredAnswer response={result} />
                       </section>
                     )}
                   </div>

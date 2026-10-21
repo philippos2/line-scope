@@ -124,9 +124,15 @@ def test_latest_date_uses_every_record_page_and_renders_japan_time(registry):
     dispatcher = Observed(registry)
 
     class PagedRecordLLM(ScriptedLLM):
+        scope_topics = ("MAINTENANCE",)
+
         def complete(self, messages, *, schemas, deadline):
             from copy import deepcopy
 
+            from linescope.agent.read_scope import PLAN_TOOL
+
+            if PLAN_TOOL in schemas:
+                return super().complete(messages, schemas=schemas, deadline=deadline)
             self.requests.append((deepcopy(messages), schemas, deadline))
             pages = [
                 json.loads(m["content"])["data"]
@@ -187,7 +193,11 @@ def test_mixed_question_retains_the_general_read_flow(registry):
         context(), request("第1加工機の前回のメンテナンス日時と実施内容を教えて")
     )
     assert len(llm.requests) == 2 and len(llm.requests[0][1]) > 1
-    assert result.answer == "実施内容はこの記録から判断できません。"
+    assert (
+        "第1加工機" in result.answer and result.answer != "実施内容はこの記録から判断できません。"
+    )
+    assert "実施日時" not in result.answer
+    assert result.answer_sections["facts"][0]["predicate"] == "equipment.registered_fields"
     assert dispatcher.calls == [
         ("search_equipment", {"filter": {"name": name}})
         for name in ("第1加工機", "第一加工機", "第１加工機")
@@ -275,7 +285,9 @@ def test_general_multi_equipment_lookup_preserves_both_spelling_groups(pair):
     )
     assert not result.errors and len(llm.requests) == 2
     assert str(UUID(int=999)) not in result.answer
-    assert "内部識別子を含めずに説明できません" in result.answer
+    assert "第1加工機" in result.answer and "第2加工機" in result.answer
+    assert "未確認の参照" not in result.answer
+    assert result.answer_sections["mode"] == "REGISTERED_RESULTS"
     # Verified but unnamed references stay distinct; an invented ID is never relabelled.
     unnamed = ReadObservation(
         "graph",

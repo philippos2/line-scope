@@ -192,9 +192,9 @@ def test_retries_share_call_id_and_have_individual_attempt_events():
     assert [row["tool_call_id"] for row in logged] == [row["tool_call_id"] for row in result.trace]
     assert SECRET not in output.getvalue()
     model_calls = [row for row in entries(output) if row["event"] == "llm.call.completed"]
-    assert len(model_calls) == 2
-    assert [row["llm_tool_count"] for row in model_calls] == [1, 0]
-    assert all(row["llm_schema_count"] == 1 for row in model_calls)
+    assert len(model_calls) == 3
+    assert [row["llm_tool_count"] for row in model_calls] == [1, 1, 0]
+    assert [row["llm_schema_count"] for row in model_calls] == [1, 1, 2]
     assert all(row["llm_input_bytes"] > 0 and row["llm_output_bytes"] > 0 for row in model_calls)
     assert all(row["duration_ms"] >= 0 and row["result_code"] == "OK" for row in model_calls)
 

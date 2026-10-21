@@ -13,12 +13,42 @@ from linescope.integrations.llm import LLMError, LLMReply, ToolCall
 
 class ScriptedLLM:
     def __init__(self, *replies):
+        from linescope.agent.read_scope import TOPICS
+
+        tools = {call.name for reply in replies for call in reply.tool_calls}
+        self.scope_topics = getattr(
+            self,
+            "scope_topics",
+            tuple(name for name, (_, admitted) in TOPICS.items() if tools & admitted)
+            or ("ATTRIBUTES",),
+        )
         self.replies = iter(replies)
         self.requests = []
+        self.planning_requests = []
 
     def complete(self, messages, *, schemas, deadline):
         from copy import deepcopy
 
+        from linescope.agent.read_scope import FIELDS, PLAN_TOOL
+
+        if PLAN_TOOL in schemas:
+            # These existing tests exercise retrieval, not model intent accuracy.
+            # Planning is separately recorded and tested in test_grounded_answer.
+            self.planning_requests.append((deepcopy(messages), schemas, deadline))
+            return call(
+                PLAN_TOOL,
+                {
+                    "topics": list(self.scope_topics),
+                    "subjects": [],
+                    "requested_fields": [
+                        next(
+                            (field for field, topic in FIELDS.items() if topic == chosen),
+                            "unsupported",
+                        )
+                        for chosen in self.scope_topics
+                    ],
+                },
+            )
         self.requests.append((deepcopy(messages), schemas, deadline))
         return next(self.replies)
 
@@ -54,7 +84,9 @@ class Dispatcher:
 def test_read_only_schema_and_server_evidence_are_retained():
     llm = ScriptedLLM(call(), LLMReply("M-204を確認しました。", ()))
     result = ReadAgent(Dispatcher(), llm).run(context(), request())
-    assert result.answer == "M-204を確認しました。"
+    assert "M-204" in result.answer and result.answer != "M-204を確認しました。"
+    assert result.answer_sections["facts"][0]["predicate"] == "equipment.registered_fields"
+    assert result.answer_sections["facts"][0]["references"] == [result.observations[0].tool_call_id]
     assert result.observations[0].result.evidence == {"source": "POSTGRESQL", "version": 1}
     assert not result.needs_input and not result.errors
     assert "prepare_equipment_state_update" not in llm.requests[0][1]
