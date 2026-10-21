@@ -677,3 +677,5 @@ Dockerで追加36テスト成功、ruff check / format、git diff --check成功�
 - [複数設備の通常質問での表記照合](2026-10-21-equipment-reference-common.md)
 
 - [質問本文と画面選択の優先順位の修正](2026-10-21-question-target-priority.md)
+
+- [PR #275レビューの比較測定・検索不一致・過去4点の対応表](2026-10-21-pr275-review-checks.md)
