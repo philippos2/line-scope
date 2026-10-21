@@ -818,10 +818,13 @@ export function App() {
                 <div className="query-and-answer">
                   <div className="question-input">
                     <p>
-                      質問の対象：
+                      画面で選択中の設備：
                       {equipment
                         ? `${equipment.equipment_name} · ${equipment.equipment_code}`
                         : "未選択（設備名・コードを質問に含めるか、上の「設備を選ぶ」を使ってください）"}
+                    </p>
+                    <p>
+                      質問に設備名・コードを書いた場合は、その設備を優先します。
                     </p>
                     {questionSelection && (
                       <p>
@@ -856,7 +859,7 @@ export function App() {
                           ? "質問への応答を待っています。完了するまで再送できません。"
                           : !message.trim()
                             ? "質問が未入力のため送信できません。質問を入力してください。"
-                            : "送信すると、上に表示した対象について質問します。"}
+                            : "質問に明記した設備について調べます。対象を省略した場合は画面の選択を使います。"}
                       </p>
                     </form>
                   </div>

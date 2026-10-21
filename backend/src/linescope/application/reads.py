@@ -67,8 +67,14 @@ SCHEMAS["get_operation_equipment_assignments"] = create_model(
 
 
 class EquipmentFilter(Arguments):
-    equipment_code: StrictStr = None
-    name: StrictStr = None
+    equipment_code: StrictStr = Field(
+        default=None,
+        description="Exact equipment code, not the equipment name. Omit when searching by name.",
+    )
+    name: StrictStr = Field(
+        default=None,
+        description="Equipment name or literal name substring. Use this for names, not equipment_code.",
+    )
 
 
 class PlanFilter(Arguments):
@@ -142,7 +148,15 @@ class ReadTools:
         self.cursors = CursorCodec()
 
     def schemas(self):
-        return {name: model.model_json_schema() for name, model in SCHEMAS.items()}
+        schemas = {name: model.model_json_schema() for name, model in SCHEMAS.items()}
+        schemas["search_equipment"]["description"] = (
+            "Find equipment by name or code. Use filter.name for a name or name substring; "
+            "use filter.equipment_code for an exact code. Filters in one call are AND, not OR. "
+            "When unsure, search separately; do not declare a name absent after only a code search. "
+            "Use returned equipment_id only after unambiguous identification. "
+            "Multiple candidates or next_cursor require clarification, not first-row selection."
+        )
+        return schemas
 
     def run(self, context, tool, arguments):
         if not isinstance(context, ExecutionContext):

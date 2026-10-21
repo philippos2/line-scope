@@ -2,6 +2,8 @@
 
 このディレクトリはLineScopeの文書レビュー、仕様判断、変更経緯を保存する。現在の仕様は[deliverables.md](../deliverables.md)が指定する文書群を正本とする。履歴にある過去の指摘・未決定事項を現在の仕様として扱わない。
 
+- [PR #275の設備検索結果の統合](2026-10-21-equipment-lookup-summary.md)：取得済みの設備を不存在と回答する不備の再現と、質問の題材に依存しないモデル用検索ビューの修正。
+- [PR #275の専用経路撤去と通常Readの再確認](2026-10-21-pr275-common-read-withdrawal.md)：例示に特化した分岐の撤去、画面選択の文脈競合の再修正、既存試験の通常経路への移行。
 - [名称での質問とM-208の電源依存](2026-10-21-name-and-power-followups.md)：実APIでの対象解決の再現、必須電源依存の制約と後続F1・F2の計画。実装変更なし。
 - [読取・接続と文書検索の鮮度](2026-10-21-read-connection-freshness.md)：R2・残W2、読取失敗の共通表示、接続の操作区別、文書検索の時点・更新前規則と限定した検証。
 - [比較・質問と入力不足の案内](2026-10-20-comparison-question-feedback.md)：#272後のR1・W3、実APIと制御応答を区別した確認、残PRと後続項目の整理。
@@ -671,3 +673,11 @@ Dockerで追加36テスト成功、ruff check / format、git diff --check成功�
 - [候補付き入力・日時選択・変更手続き](2026-10-19-b-input-and-approval-workflow.md)
 
 - [経済入力の変更準備完了と要求IDの引き継ぎ](2026-10-20-economic-prepare-handoff.md)：入力画面に残る完了通知、IDコピー、保存内容参照と重複作成防止。専用環境での実作成は未実施。
+
+- [保全日時質問のタイムアウトと表記揺れの再確認](2026-10-21-maintenance-date-timeout.md)
+
+- [複数設備の通常質問での表記照合](2026-10-21-equipment-reference-common.md)
+
+- [質問本文と画面選択の優先順位の修正](2026-10-21-question-target-priority.md)
+
+- [PR #275レビューの比較測定・検索不一致・過去4点の対応表](2026-10-21-pr275-review-checks.md)
