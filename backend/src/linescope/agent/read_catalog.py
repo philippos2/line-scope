@@ -157,3 +157,18 @@ def definitions_answer(field):
             }
         ],
     }
+
+
+# Required subject cardinality is a capability contract, not an intent keyword rule.
+SUBJECT_COUNTS = {field: (1, 4) for field in BUSINESS_FIELDS}
+SUBJECT_COUNTS["document_excerpt"] = (0, 4)
+SUBJECT_COUNTS["common_dependencies"] = (2, 4)
+
+
+def subjects_sufficient(scope):
+    return all(
+        SUBJECT_COUNTS.get(field, (1, 4))[0]
+        <= len(scope.subjects)
+        <= SUBJECT_COUNTS.get(field, (1, 4))[1]
+        for field in scope.requested_fields
+    )

@@ -12,7 +12,6 @@ from psycopg import sql
 from application.test_search_reads import identity
 from application.test_search_reads import search_world as search_fixture
 from linescope.application.reads import ReadTools, ToolError
-from linescope.integrations.llm import LLMReply
 from linescope.interfaces.api import create_app
 from linescope.logging import EventLogger
 
@@ -83,16 +82,29 @@ def test_persisted_attack_is_searchable_without_second_order_execution(world, at
 @pytest.mark.parametrize("attack", ATTACKS)
 def test_untrusted_llm_arguments_through_http_do_not_change_sql_structure(world, attack):
     before = snapshot(world)
-    llm = ScriptedLLM(
-        call("search_equipment", {"filter": {"name": attack}}),
-        LLMReply("該当設備はありません。", ()),
-    )
+    from linescope.agent.read_scope import PLAN_TOOL
+
+    class ExtractedTarget(ScriptedLLM):
+        def complete(self, messages, *, schemas, deadline):
+            reply = super().complete(messages, schemas=schemas, deadline=deadline)
+            if PLAN_TOOL in schemas:
+                arguments = dict(reply.tool_calls[0].arguments)
+                arguments["subjects"] = [{"entity_type": "Equipment", "reference": attack}]
+                return call(PLAN_TOOL, arguments)
+            return reply
+
+    llm = ExtractedTarget()
     with TestClient(
         create_app(settings(), world, llm=llm, event_logger=EventLogger(stream=io.StringIO()))
     ) as client:
-        response = client.post("/agent", headers=HEADERS, json={"message": "設備を検索して"})
-    assert response.status_code == 200 and response.json()["status"] == "ok"
-    assert response.json()["data"]["tool_results"][0]["data"] == {"items": [], "next_cursor": None}
+        response = client.post(
+            "/agent", headers=HEADERS, json={"message": f"設備「{attack}」を検索して"}
+        )
+    assert response.status_code == 200
+    rows = response.json()["data"]["tool_results"]
+    assert len(rows) == 2 and all(row["tool"] == "search_equipment" for row in rows)
+    assert all(row["data"] == {"items": [], "next_cursor": None} for row in rows)
+    assert response.json()["data"]["answer_sections"]["read_outcome"] == "TARGET_NOT_FOUND"
     assert snapshot(world) == before
 
 

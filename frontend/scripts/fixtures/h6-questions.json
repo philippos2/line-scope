@@ -1,0 +1,173 @@
+{
+  "version": 1,
+  "status": "FROZEN_BEFORE_MODEL_EXECUTION",
+  "note": "実文の保存は実装着手後。モデル評価前に固定し、holdoutを調整に使わない。失敗を見て修正へ使った場合はholdoutから外した事実と新評価案を報告する。実行済みを意味しない。",
+  "cases": [
+    {
+      "id": "B01",
+      "group": "regression",
+      "repeat": 1,
+      "question": "M-204の消耗品のストックはどの倉庫にあるか？",
+      "expected": "UNSUPPORTED",
+      "equipment_code": "M-204"
+    },
+    {
+      "id": "B02",
+      "group": "regression",
+      "repeat": 1,
+      "question": "M-208の交換部品のストックは、どの倉庫に保管されているか？",
+      "expected": "UNSUPPORTED",
+      "equipment_code": "M-208"
+    },
+    {
+      "id": "B03",
+      "group": "regression",
+      "repeat": 1,
+      "question": "第一加工機のメーカー保証期間はいつまでか？",
+      "expected": "UNSUPPORTED",
+      "equipment_code": "M-204"
+    },
+    {
+      "id": "B04",
+      "group": "regression",
+      "repeat": 1,
+      "question": "M-204の代替機材としてM-208の代わりにコーヒーメーカーを適用してもラインは動作するか？",
+      "expected": "UNSUPPORTED",
+      "equipment_code": "M-204"
+    },
+    {
+      "id": "B05",
+      "group": "regression",
+      "repeat": 1,
+      "question": "第２加工機の登録状態は？",
+      "expected": "AUTO",
+      "equipment_code": "M-208",
+      "expected_state": "RUNNING"
+    },
+    {
+      "id": "B06",
+      "group": "regression",
+      "repeat": 1,
+      "question": "第一加工機の前回のメンテナンス日時はいつか？",
+      "expected": "AUTO",
+      "equipment_code": "M-204"
+    },
+    {
+      "id": "B07",
+      "group": "regression",
+      "repeat": 1,
+      "question": "加工機の登録状態は？",
+      "expected": "TARGET_AMBIGUOUS",
+      "equipment_code": null
+    },
+    {
+      "id": "B08",
+      "group": "regression",
+      "repeat": 1,
+      "question": "第１加工機",
+      "expected": "SEARCH",
+      "equipment_code": "M-204"
+    },
+    {
+      "id": "T01",
+      "group": "tuning",
+      "repeat": 3,
+      "question": "第1加工機は現在停止していますか？",
+      "expected": "AUTO",
+      "equipment_code": "M-204",
+      "expected_state": "STOPPED"
+    },
+    {
+      "id": "T02",
+      "group": "tuning",
+      "repeat": 3,
+      "question": "M-208の保証期限はいつですか？",
+      "expected": "UNSUPPORTED",
+      "equipment_code": "M-208"
+    },
+    {
+      "id": "T03",
+      "group": "tuning",
+      "repeat": 3,
+      "question": "第二加工機の替えの部品、どこにしまってある？",
+      "expected": "UNSUPPORTED",
+      "equipment_code": "M-208"
+    },
+    {
+      "id": "T04",
+      "group": "tuning",
+      "repeat": 3,
+      "question": "M-208っていま動いてる？",
+      "expected": "CONFIRM",
+      "equipment_code": "M-208",
+      "expected_state": "RUNNING"
+    },
+    {
+      "id": "T05",
+      "group": "tuning",
+      "repeat": 3,
+      "question": "第１加工機はいま死んでるか？",
+      "expected": "CONFIRM",
+      "equipment_code": "M-204",
+      "expected_state": "STOPPED"
+    },
+    {
+      "id": "T06",
+      "group": "tuning",
+      "repeat": 3,
+      "question": "M-204って、まだ保証が生きてる？",
+      "expected": "UNSUPPORTED",
+      "equipment_code": "M-204"
+    },
+    {
+      "id": "V01",
+      "group": "holdout",
+      "repeat": 3,
+      "question": "M-208の登録上の状態を教えて",
+      "expected": "AUTO",
+      "equipment_code": "M-208",
+      "expected_state": "RUNNING"
+    },
+    {
+      "id": "V02",
+      "group": "holdout",
+      "repeat": 3,
+      "question": "M-208の保守契約の有効状態を教えて",
+      "expected": "UNSUPPORTED",
+      "equipment_code": "M-208"
+    },
+    {
+      "id": "V03",
+      "group": "holdout",
+      "repeat": 3,
+      "question": "第2加工機の構造上の代替候補を見せて",
+      "expected": "AUTO",
+      "equipment_code": "M-208"
+    },
+    {
+      "id": "V04",
+      "group": "holdout",
+      "repeat": 3,
+      "question": "第2加工機の予備ユニットの置き場所を見せて",
+      "expected": "UNSUPPORTED",
+      "equipment_code": "M-208"
+    },
+    {
+      "id": "V05",
+      "group": "holdout",
+      "repeat": 3,
+      "question": "M-208はいま息してる？",
+      "expected": "CONFIRM",
+      "equipment_code": "M-208",
+      "expected_state": "RUNNING"
+    },
+    {
+      "id": "V06",
+      "group": "holdout",
+      "repeat": 3,
+      "question": "M-208の保証契約はいま息してる？",
+      "expected": "UNSUPPORTED",
+      "equipment_code": "M-208"
+    }
+  ]
+}

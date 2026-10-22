@@ -7,7 +7,13 @@ from ..domain.canonical import canonical_hash
 from .answer_text import public_answer
 from .equipment_reference import question_messages
 from .grounded_answer import build_answer
-from .read_catalog import CATALOG_VERSION, FIELD_MEANINGS, definitions_answer, literal_read
+from .read_catalog import (
+    CATALOG_VERSION,
+    FIELD_MEANINGS,
+    definitions_answer,
+    literal_read,
+    subjects_sufficient,
+)
 from .read_scope import classify
 from .scoped_reads import collect_scope
 
@@ -38,7 +44,7 @@ def _result(scope, request, observations, trace, errors, *, clarification=None, 
         else "UNSUPPORTED"
         if "UNSUPPORTED" in scope.topics or scope.scope_issue == "UNSUPPORTED"
         else "TARGET_REQUIRED"
-        if not scope.subjects
+        if not subjects_sufficient(scope)
         else "UNVERIFIABLE"
         if scope.scope_issue
         else "AUTO"
@@ -59,7 +65,7 @@ def _result(scope, request, observations, trace, errors, *, clarification=None, 
         trace,
         errors,
         bool(clarification and clarification["status"] == "PENDING")
-        or (not scope.subjects and "UNSUPPORTED" not in scope.topics and not errors)
+        or (not subjects_sufficient(scope) and "UNSUPPORTED" not in scope.topics and not errors)
         or any(row["code"] == "TARGET_AMBIGUOUS" for row in errors),
         sections,
         clarification,
@@ -85,7 +91,7 @@ def interpreted_read(agent, request, session, previous):
     observations, trace, errors = collect_scope(
         scope, session, identification_only=True, identified_targets=targets
     )
-    if errors or not scope.subjects or len(targets) != len(scope.subjects):
+    if errors or not subjects_sufficient(scope) or len(targets) != len(scope.subjects):
         return _result(scope, request, observations, trace, errors)
     if literal:
         values, more_trace, failures = collect_scope(scope, session, resolved_targets=targets)
@@ -119,7 +125,8 @@ def interpreted_read(agent, request, session, previous):
         "scope": [FIELD_MEANINGS[field] for field in scope.requested_fields],
         "reason": "LITERAL_COVERAGE_NOT_ESTABLISHED",
         "limitation": "この範囲の結果で、元の質問全体に答えられるとは限りません。",
-        "targets": target_labels(observations, targets),
+        "targets": target_labels(observations, targets)
+        or ["対象指定なし（照会範囲を確認してください）"],
     }
     pending = {
         "kind": "READ_SCOPE",

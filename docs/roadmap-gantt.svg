@@ -6,7 +6,7 @@
 <g font-family="sans-serif" fill="#183247">
 <text x="30" y="43" font-size="28" font-weight="bold">LineScope：残り3PRの時間軸ガント</text>
 <text x="30" y="77" font-size="21" font-weight="bold">順序：H ハルシネーション対応 → F2 M-208電源依存 → F3 やること／やらないこと</text>
-<text x="30" y="107" font-size="18">#275はmerge済み。現在は#276内のH6「曖昧な解釈だけ確認」を設計。口語全般の理解は約束せず、H6未完了。隙間調査で文書検索の対象要件不備を確認、未修正。実モデル・5174は未実施。</text>
+<text x="30" y="107" font-size="18">#275はmerge済み。現在は#276内のH6「曖昧な解釈だけ確認」を設計。口語全般の理解は約束せず、H6未完了。既知6失敗を修正、局所68件成功。全結合は再確認中。実モデル・5174は未実施。</text>
 <text x="30" y="147" font-size="22" font-weight="bold">1．報告計画（暦日・日本時間）</text>
 <text x="30" y="175" font-size="17">棒は作成開始から報告期限までの予定期間。実働工数ではない。灰色は土日。</text>
 <path d="M450 210L450 385" fill="none" stroke="#cbd5e1"/>
