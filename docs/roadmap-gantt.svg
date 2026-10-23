@@ -108,7 +108,7 @@
 <text x="30" y="1092" font-size="22" font-weight="bold">3．依存待ち・期間未確定（時間軸へ未配置）</text>
 <text x="30" y="1122" font-size="17">ここには期間の棒を描かない。F2の影響調査後、開始・終了・期間を見積もって時間軸へ配置する。</text>
 <text x="45" y="1167" font-size="18" font-weight="bold">H6-R 実評価の不備修正・再評価（同じ#276／追加件数の承認待ち）</text>
-<text x="45" y="1196" font-size="17">共通照合へ置換。Backend4,086・Frontend73成功、ブラウザ成功。実モデル未再評価。H合格までF2は未着手。</text>
+<text x="45" y="1196" font-size="17">共通照合は検証済。限定規則・暫定例外を点検。H6-R実モデル未再評価。H合格までF2は未着手。</text>
 <g transform="translate(0 80)">
 <rect x="30" y="1145" width="1600" height="126" fill="white" stroke="#cbd5e1"/>
 <text x="45" y="1175" font-size="20" font-weight="bold">F2 M-208の必須電源依存</text>
