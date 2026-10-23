@@ -705,3 +705,5 @@ Dockerで追加36テスト成功、ruff check / format、git diff --check成功�
 - [報告原文21件・直接API各3回の検証計画と判定表](2026-10-23-agent-question-verification.md)
 
 - [追加の突拍子もない質問6種類・期待・未実行](2026-10-23-unexpected-question-cases.md)
+
+- [質問の直接API回帰・第2回](2026-10-23-agent-question-round2.md)：原文21＋補助6を各3回、81応答の前後比較。誤誘導5・取りこぼし3で受入未達、追加実装停止。

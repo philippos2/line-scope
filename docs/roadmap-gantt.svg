@@ -103,13 +103,13 @@
 <text x="40" y="1276" font-size="18">回帰・実モデル・文書（0.75〜1.5日）</text>
 <rect x="1208" y="1256" width="252" height="30" fill="#2563eb"/><text x="1334" y="1277" font-size="16" fill="white" text-anchor="middle">1.5日</text>
 <path d="M1208 1241V1249H1208V1256" fill="none" stroke="#64748b" marker-end="url(#arrow)"/>
-<text x="30" y="1325" font-size="16">第1回：21原文×3＝63応答を保存、9分17秒。再修正後に全原文と補助6問を各3回、計81回の再検証案。</text>
+<text x="30" y="1325" font-size="16">第2回：原文63＋補助18＝81応答、13分17秒。原文58/63・補助15/18適合。受入未達で追加実装停止。</text>
 <g transform="translate(0 260)">
 <text x="30" y="1092" font-size="22" font-weight="bold">3．依存待ち・期間未確定（時間軸へ未配置）</text>
 <text x="30" y="1122" font-size="17">ここには期間の棒を描かない。F2の影響調査後、開始・終了・期間を見積もって時間軸へ配置する。</text>
-<text x="45" y="1144" font-size="14">構文6→7・自動7は実装／ローカル検証承認済み。81回（12〜20分／上限30分）は実行了承前。</text>
-<text x="45" y="1167" font-size="18" font-weight="bold">H6-R 実評価の不備修正・再評価（同じ#276／追加件数承認済み）</text>
-<text x="45" y="1196" font-size="17">H6-R：原文の全63回収集済み。3入力は不適合、3入力は一部。補助6種類も追加。H未達、F2・F3未着手。</text>
+<text x="45" y="1144" font-size="14">判断待ち：H6 閉じた選択方式の検討。採否・範囲・工数は未確定。追加実装は停止。</text>
+<text x="45" y="1167" font-size="18" font-weight="bold">H6-R 実API再評価（同じ#276／81回完了・受入未達）</text>
+<text x="45" y="1196" font-size="17">H6-R：誤誘導5回・口語の取りこぼし3回。構文上限7と事前基準を維持。H未完、F2・F3未着手。</text>
 <text x="45" y="1218" font-size="14">H6-R未解決：最新等を含む保全照会の対象誤分割。受入前に確認／期間未見積もり。</text>
 <g transform="translate(0 80)">
 <rect x="30" y="1145" width="1600" height="126" fill="white" stroke="#cbd5e1"/>
