@@ -421,6 +421,8 @@ def build_answer(
         )
     if (
         question_mode
+        and not scope_blocked
+        and "UNSUPPORTED" not in scope.topics
         and not identification_only
         and not identity_answered
         and not unavailable

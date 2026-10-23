@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from uuid import UUID, uuid4
 
 from ..application.reads import ReadResult, ToolError
-from .equipment_reference import question_messages, reference_variants
+from .equipment_reference import question_messages
 
 GET_ENTITY = {
     "Equipment": ("get_equipment", "equipment_id"),
@@ -123,10 +123,7 @@ def collect_scope(
                 targets.append({"entity_type": kind, "entity_id": identifier})
             continue
         matches, complete = {}, True
-        queries = [
-            ("equipment_code", reference),
-            *(("name", variant) for variant in reference_variants(reference)),
-        ]
+        queries = [("reference", reference)]
         for field, value in dict.fromkeys(queries):
             rows, finished = search("search_equipment", {field: value})
             complete = complete and finished

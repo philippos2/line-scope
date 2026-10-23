@@ -697,3 +697,5 @@ Dockerで追加36テスト成功、ruff check / format、git diff --check成功�
 - [PR #275レビューの比較測定・検索不一致・過去4点の対応表](2026-10-21-pr275-review-checks.md)
 
 - [H6実モデル評価・未解決項目と追加試験案](2026-10-23-h6-real-model-evaluation.md)
+
+- [検索層への表記照合の集約と重複回答の修正](2026-10-23-reference-normalization-review.md)

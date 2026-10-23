@@ -51,10 +51,12 @@ def test_selection_reorders_only_server_values_and_cannot_hide_limitations():
 def test_unrelated_source_field_is_not_a_supported_attribute():
     answer, sections = build_answer(
         (observed(data={"equipment_code": "E-42", "untrusted_property": "架空の場所"}),),
-        scope=ReadScope(("UNSUPPORTED",)),
+        scope=ReadScope(("ATTRIBUTES", "UNSUPPORTED")),
+        question="検査装置の契約期限は？",
     )
     assert "架空の場所" not in answer and "登録がありません" not in answer
     assert sections["unavailable"][0]["code"] == "OUT_OF_SCOPE"
+    assert len(sections["unavailable"]) == 1
 
 
 def test_unrendered_relation_cannot_become_another_predicate():
@@ -147,7 +149,7 @@ def test_scope_reduces_advertised_tools_without_expanding_authority():
             self.calls += 1
             assert tool == "search_equipment"
             assert context.authenticated_user_id == "floor1"
-            matched = arguments["filter"] == {"equipment_code": "M-204"}
+            matched = arguments["filter"] == {"reference": "M-204"}
             return ReadResult(
                 {
                     "items": [{"equipment_id": str(UUID(int=1)), "equipment_code": "M-204"}]
@@ -185,7 +187,7 @@ def test_scope_reduces_advertised_tools_without_expanding_authority():
     assert "値を推測した自由な回答" not in result.answer
     assert "確認できません" in result.answer and "M-204" in result.answer
     assert any(row["code"] == "OUT_OF_SCOPE" for row in result.answer_sections["unavailable"])
-    assert dispatcher.calls == 2 and not result.errors
+    assert dispatcher.calls == 1 and not result.errors
     assert len(llm.planning_requests) == 1 and not llm.requests
 
 
@@ -270,7 +272,7 @@ def test_question_scope_review_stops_unrelated_reads(verdict):
     result = AdmittedPlanAgent(dispatcher, llm).run(
         context(), request("M-204の交換部品はどこに保管されているか？")
     )
-    assert dispatcher.calls == 2
+    assert dispatcher.calls == 1
     assert all(o.tool == "search_equipment" for o in result.observations)
     assert not result.needs_input
     assert {row["predicate"] for row in result.answer_sections["facts"]} == {"equipment.identity"}
@@ -281,6 +283,14 @@ def test_question_scope_review_stops_unrelated_reads(verdict):
     assert any(
         row["code"] == "QUESTION_SCOPE_UNCONFIRMED" for row in result.answer_sections["unavailable"]
     )
+    # A scope rejection already explains why the question is unanswered. Do not
+    # add a second, identical generic explanation under another reason code.
+    assert [row["code"] for row in result.answer_sections["unavailable"]].count(
+        "QUESTION_SCOPE_UNCONFIRMED"
+    ) == 1
+    assert "QUESTION_NOT_ANSWERED" not in {
+        row["code"] for row in result.answer_sections["unavailable"]
+    }
     assert "交換部品" in llm.review_requests[0][0][1]["content"]
     assert "upstream_dependencies" in llm.review_requests[0][0][-1]["content"]
     assert llm.review_requests[0][2] == llm.planning_requests[0][2]
@@ -299,7 +309,7 @@ def test_question_scope_review_malformed_response_never_dispatches_domain_reads(
     dispatcher = IdentityDispatcher()
     llm = ReviewedLLM(call(CHECK_TOOL, {"verdict": "MATCH", "answer": "任意文"}))
     result = AdmittedPlanAgent(dispatcher, llm).run(context(), request())
-    assert dispatcher.calls == 2
+    assert dispatcher.calls == 1
     assert {row["predicate"] for row in result.answer_sections["facts"]} == {"equipment.identity"}
     assert "任意文" not in result.answer
     assert any(

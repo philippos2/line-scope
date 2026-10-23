@@ -297,15 +297,18 @@ def test_http_threadpool_tool_and_envelope_share_server_request_id(db):
         for row in entries(output)
         if row["event"] in {"http.request.completed", "tool.call.completed"}
     ]
-    assert len(relevant) == 4
+    assert len(relevant) == 3
     assert [row["tool"] for row in relevant if row["component"] == "tool"] == [
-        "search_equipment",
         "search_equipment",
         "get_equipment_state",
     ]
     assert {row["request_id"] for row in relevant} == {result.json()["request_id"]}
     assert all(row["actor_id"] == "floor1" and row["role"] == "floor" for row in relevant)
     tool = next(row for row in relevant if row.get("tool") == "get_equipment_state")
-    assert tool["tool_call_id"] == result.json()["data"]["tool_trace"][2]["tool_call_id"]
+    assert tool["tool_call_id"] == next(
+        row["tool_call_id"]
+        for row in result.json()["data"]["tool_trace"]
+        if row["tool"] == "get_equipment_state"
+    )
     assert tool["equipment_id"] == str(DEMO_EQUIPMENT[0][0])
     assert SECRET not in output.getvalue() and "STOPPED" not in output.getvalue()

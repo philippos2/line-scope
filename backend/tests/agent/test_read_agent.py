@@ -210,7 +210,11 @@ def test_real_postgres_search_then_state_and_no_business_updates(db):
         LLMReply("M-204はSTOPPEDです。", ()),
     )
     result = AdmittedPlanAgent(ToolDispatcher(db), llm).run(context(), request())
-    assert result.observations[1].result.data["state_code"] == "STOPPED"
+    assert [
+        item.result.data["state_code"]
+        for item in result.observations
+        if item.tool == "get_equipment_state"
+    ] == ["STOPPED"]
     assert all(item.result.evidence["source"] == "POSTGRESQL" for item in result.observations)
     with db.transaction() as connection:
         assert connection.execute("SELECT count(*) AS n FROM update_request").fetchone()["n"] == 0

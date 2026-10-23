@@ -35,8 +35,8 @@ def lookup_summary(llm):
     return json.loads(llm.requests[-1][0][-1]["content"])["equipment_lookup_summary"]
 
 
-@pytest.mark.parametrize("field,other", [("name", "equipment_code"), ("equipment_code", "name")])
-def test_zero_lookup_reads_the_other_condition_before_next_generation(field, other):
+@pytest.mark.parametrize("field", ["name", "equipment_code"])
+def test_zero_lookup_uses_shared_search_before_next_generation(field):
     target = {"equipment_id": str(uuid4())}
     dispatcher = SearchDispatcher([EMPTY, {"items": [target], "next_cursor": None}])
     llm = ScriptedLLM(
@@ -46,7 +46,7 @@ def test_zero_lookup_reads_the_other_condition_before_next_generation(field, oth
     result = AdmittedPlanAgent(dispatcher, llm).run(context(), request())
     assert dispatcher.arguments == [
         {"filter": {field: "literal"}, "page_size": 20},
-        {"filter": {other: "literal"}, "page_size": 20},
+        {"filter": {"reference": "literal"}, "page_size": 20},
     ]
     assert [item.result.data for item in result.observations] == [
         EMPTY,
@@ -74,10 +74,14 @@ def test_zero_lookup_reads_the_other_condition_before_next_generation(field, oth
     ],
 )
 def test_nonempty_continuation_and_explicit_and_filters_keep_their_meaning(arguments, data):
-    dispatcher = SearchDispatcher([data])
+    # A successful strict first page must also check normalized collisions.
+    expected = [arguments]
+    if "cursor" not in arguments and list(arguments["filter"]) == ["name"]:
+        expected.append({**arguments, "filter": {"reference": arguments["filter"]["name"]}})
+    dispatcher = SearchDispatcher([data] * len(expected))
     llm = ScriptedLLM(call("search_equipment", arguments), LLMReply("取得結果です。", ()))
     result = AdmittedPlanAgent(dispatcher, llm).run(context(), request())
-    assert dispatcher.arguments == [arguments] and len(result.observations) == 1
+    assert dispatcher.arguments == expected and len(result.observations) == len(expected)
     summary = lookup_summary(llm)[0]
     if arguments.get("cursor"):
         assert summary["status"] == "INCOMPLETE" and not summary["complete"]

@@ -96,8 +96,8 @@ await page.route("**/api/**", async (route) => {
   report.blocked.push({ method: req.method(), path });
   return route.abort();
 });
-async function search(code) {
-  await page.getByLabel("設備名・コード", { exact: true }).fill(code);
+async function search(code, query = code) {
+  await page.getByLabel("設備名・コード", { exact: true }).fill(query);
   const started = Date.now();
   await page.getByRole("button", { name: "検索", exact: true }).click();
   const candidate = page
@@ -212,7 +212,7 @@ async function runScenario1() {
       .getByRole("tab", { name: "接続及び影響範囲", exact: true })
       .click();
   }
-  await search("M-204");
+  await search("M-204", verifyH6 ? "M-204" : "ｍ－２０４");
   const loss = page.getByRole("region", { name: "推定損害額", exact: true });
   const alternative = page.getByRole("region", {
     name: "代替の提案",
@@ -340,7 +340,7 @@ async function runScenario1() {
   await page
     .getByRole("tab", { name: "接続及び影響範囲", exact: true })
     .click();
-  await search("M-208");
+  await search("M-208", verifyH6 ? "M-208" : "第二加工機");
   await expect(loss).toContainText("稼働中のため、停止損害の算定対象外");
   const inputLink = page.getByRole("button", {
     name: "M-208の比較用入力を確認する",

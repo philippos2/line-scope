@@ -1,4 +1,3 @@
-import { referenceVariants } from "./referenceVariants";
 import {
   ApiError,
   object,
@@ -90,12 +89,7 @@ export function products(result?: Envelope): NodeRef[] {
     .filter((n) => n.entity_type === "Product");
 }
 export async function searchEquipment(query: string, signal: AbortSignal) {
-  const filters = query.trim()
-    ? referenceVariants(query.trim()).flatMap((value) => [
-        { name: value },
-        { equipment_code: value },
-      ])
-    : [{}];
+  const filters = query.trim() ? [{ reference: query.trim() }] : [{}];
   const replies = await Promise.allSettled(
     filters.map((filter) =>
       direct(

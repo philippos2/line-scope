@@ -78,11 +78,10 @@ def test_name_variants_and_explicit_question_use_the_common_read_loop(registry, 
     assert all("OTHER" not in message["content"] for message in llm.requests[0][0])
     records = [args for tool, args in dispatcher.calls if tool == "search_maintenance_records"]
     assert len(records) == 1 and records[0]["filter"] == {"equipment_id": str(UUID(int=1))}
-    assert {
-        args["filter"]["name"]
-        for tool, args in dispatcher.calls
-        if "name" in args.get("filter", {})
-    } == {"第1加工機", "第一加工機", "第１加工機"}
+    assert [args["filter"] for tool, args in dispatcher.calls if tool == "search_equipment"] == [
+        {"name": name},
+        {"reference": name},
+    ]
 
 
 def test_equivalent_names_on_distinct_equipment_require_selection(registry):
@@ -200,8 +199,7 @@ def test_mixed_question_retains_the_general_read_flow(registry):
     assert "実施日時" not in result.answer
     assert result.answer_sections["facts"][0]["predicate"] == "equipment.identity"
     assert dispatcher.calls == [
-        ("search_equipment", {"filter": {"name": name}})
-        for name in ("第1加工機", "第一加工機", "第１加工機")
+        ("search_equipment", {"filter": {field: "第1加工機"}}) for field in ("name", "reference")
     ]
 
 
@@ -311,29 +309,23 @@ def test_general_multi_equipment_lookup_preserves_both_spelling_groups(pair):
         ),
     )
     assert "説明できません" in public_answer(str(UUID(int=1)), [conflicting])
-    assert len(result.observations) == len(dispatcher.calls) == 8
+    assert len(result.observations) == len(dispatcher.calls) == 4
     found = {
         row["equipment_id"]
         for observation in result.observations
         for row in observation.result.data["items"]
     }
     assert found == {str(UUID(int=1)), str(UUID(int=2))}
-    names = {args["filter"]["name"] for _, args in dispatcher.calls if "name" in args["filter"]}
-    assert names == {
-        "第1加工機",
-        "第一加工機",
-        "第１加工機",
-        "第2加工機",
-        "第二加工機",
-        "第２加工機",
-    }
+    assert {
+        args["filter"]["reference"] for _, args in dispatcher.calls if "reference" in args["filter"]
+    } == {"第一加工機", "第２加工機"}
     # Both original zeroes and successful variant reads reach the next model turn.
     payloads = [
         json.loads(message["content"])
         for message in llm.requests[1][0]
         if message["role"] == "tool"
     ]
-    assert len(payloads) == 8
+    assert len(payloads) == 4
     summaries = payloads[-1]["equipment_lookup_summary"]
     assert len(summaries) == 2
     assert all(s["status"] == "FOUND" and s["candidate_count"] == 1 for s in summaries)
@@ -358,7 +350,7 @@ def test_general_lookup_keeps_distinct_equipment_for_colliding_spellings(registr
     result = AdmittedPlanAgent(dispatcher, llm).run(
         context(), request("第1加工機の製造メーカーは？")
     )
-    assert not result.errors and len(result.observations) == 3
+    assert not result.errors and len(result.observations) == 2
     assert "E-1" in result.answer and "E-3" in result.answer
     assert str(UUID(int=1)) not in result.answer and str(UUID(int=3)) not in result.answer
     found = {

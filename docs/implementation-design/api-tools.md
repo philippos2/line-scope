@@ -48,7 +48,7 @@
 
 ### Graphで明示選択した対象の調査
 
-`message`が`関係分析 `で始まる場合、後続は`{"tool":"find_common_dependencies","arguments":{"targets":[...]}}`の厳密JSONとする。許可するのは§19〜23の5 Graph分析と`search_equipment`、`get_equipment` / `get_process` / `get_production_operation` / `get_product` / `get_infrastructure_resource`だけ。外側JSONは`tool`と`arguments`のみ、argumentsはobject必須。`search_equipment`のargumentsは既存Read契約の`filter`（`name`部分一致、`equipment_code`大文字小文字を区別する完全一致）・`page_size`・`cursor`を使う。空filterも許可し、複数filterはAND条件。既存の通常設備Readと同じロール認可を適用し、Graph分析の認可とは分ける。LLMによる対象ID・探索引数の再生成を行わず、既存Tool dispatcherの引数検証・認可・Graph同期gate・探索上限をそのまま適用する。
+`message`が`関係分析 `で始まる場合、後続は`{"tool":"find_common_dependencies","arguments":{"targets":[...]}}`の厳密JSONとする。許可するのは§19〜23の5 Graph分析と`search_equipment`、`get_equipment` / `get_process` / `get_production_operation` / `get_product` / `get_infrastructure_resource`だけ。外側JSONは`tool`と`arguments`のみ、argumentsはobject必須。`search_equipment`のargumentsは既存Read契約の`filter`（`name`部分一致、`equipment_code`大文字小文字を区別する完全一致、`reference`は§15の共通表記照合）・`page_size`・`cursor`を使う。空filterも許可し、複数filterはAND条件。既存の通常設備Readと同じロール認可を適用し、Graph分析の認可とは分ける。LLMによる対象ID・探索引数の再生成を行わず、既存Tool dispatcherの引数検証・認可・Graph同期gate・探索上限をそのまま適用する。
 
 新規の個別Tool HTTP endpointは設けない。Prepare・Approval・Execute・任意SQL/Cypher・その他Toolへの汎用dispatchは認めない。新規調査として`context_id`と`replace_update_request_id`を拒否する。明示時刻は既存`as_of`契約で固定し、未知・不完全・EvidenceとTool traceを通常の参照Envelopeに保持する。引数不正や権限不足は通常のToolエラーとし、LLMへのfallbackや成功への変換を行わない。
 
@@ -236,11 +236,30 @@ Tool schemaは未知fieldを拒否し、日時はtimezone付きISO 8601、IDはU
 
 get系は該当ID（equipment_id / maintenance_plan_id / process_id / production_operation_id / product_id / infrastructure_resource_id / dependency_relation_id）を必須とし、一意な正本recordを返す。get_equipment_stateはequipment_idでstate_code / version / updated_at、get_operation_equipment_assignmentsはproduction_operation_idで全active Assignmentと親versionを返す。過去時刻での割当評価が必要な場合はexplicit_as_ofを受け、現在登録情報の期間評価であることを返す。
 
-search系は明示filter、page_size（1〜100、default 20）、cursorを受け、items / next_cursorを返す。安定したID順、cursorは同じfilter・認証主体に拘束する。設備filterはequipment_code / name、保全予定はequipment_id / plan_code / plan_status、保全実績はequipment_id / record_code / maintenance_plan_id、関係はtyped source / target / relation_type / active、履歴はupdate_request_id / category / occurred_from / occurred_to。get_equipment_state_historyはequipment_idと任意の半開期間・pagination。空検索はitems=[]、一意対象なしはTARGET_NOT_FOUND、複数候補からの更新一意化はTARGET_AMBIGUOUS。
+search系は明示filter、page_size（1〜100、default 20）、cursorを受け、items / next_cursorを返す。安定したID順、cursorは同じfilter・認証主体に拘束する。設備filterはequipment_code / name / reference、保全予定はequipment_id / plan_code / plan_status、保全実績はequipment_id / record_code / maintenance_plan_id、関係はtyped source / target / relation_type / active、履歴はupdate_request_id / category / occurred_from / occurred_to。get_equipment_state_historyはequipment_idと任意の半開期間・pagination。空検索はitems=[]、一意対象なしはTARGET_NOT_FOUND、複数候補からの更新一意化はTARGET_AMBIGUOUS。
 
 検索filterはANDで合成し、省略filterは空条件とする。code・ID・状態値・boolは完全一致、設備nameはPostgreSQLのlowerによる大小文字を区別しないリテラル部分一致とし、% / _をwildcardとして扱わない。maintenance_plan_idの明示NULLは「計画との関連なし」、省略は条件なし。その他の非nullable filterの明示NULLはINVALID_ARGUMENT。activeを省略した通常参照はactive / inactive双方を返す。
 
 cursorは署名付き継続tokenとして認証user_id・role・Tool名・正規化filterに拘束する。改ざん・異なる拘束条件はINVALID_ARGUMENT。page_sizeは途中変更できる。v1の単一APIプロセスはランダム署名keyを起動時に生成し、再起動後のcursorは無効とする。cursorは検索継続用で、更新・承認・Prepare retry keyと共用しない。DB queryはID keysetとpage_size+1のLIMITで次ページの有無を判定し、全件取得や全件数の返却を行わない。
+
+### 設備の共通表記照合（reference）
+
+`search_equipment.filter.reference` は1〜200文字の非空文字列（空白のみは禁止）。登録コードへの正規化後の完全一致、または登録名称への正規化後のliteral部分一致を、一つの条件内でOR照合する。他のfilterとの組合せは引き続きAND。従来の `equipment_code` / `name` の意味は変更しない。左ペインと自然文の対象解決はこの共通条件を使う。新しいHTTP経路・DB列・別名登録は追加しない。
+
+| 種類 | 許容する規則 | 同一視しないもの |
+|---|---|---|
+| 文字の互換・結合表記 | 入力・登録値の両方へUnicode NFKC | 音や意味が似るだけの語 |
+| 英字等の大小 | 両側へUnicode casefold（PostgreSQL 18 / UTF-8、DB側はbuiltin `pg_unicode_fast`を明示） | 誤字・文字の脱落・並べ替え |
+| 空白 | 検索入力の前後を除去 | 識別子の内部空白の削除 |
+| 記号 | NFKCで対応する全角／半角 | ハイフンの除去・異なる記号の無条件置換 |
+| 名称中の数 | `第`＋0〜9999の整数の標準的な算用・漢数字（位取り表記／数字列）。複数の数も各トークンで照合 | 任意の漢字語の数値化、ゼロ埋めの除去、コード内の漢数字変換 |
+| 数の境界 | 数字列を途中で一致させない。`第1`は`第11`の候補にしない | 数の接頭部分だけによる別設備への一致 |
+| 別名・同義語 | 登録データにある名称・コードのみ | 業務上の別名をLLMで生成して同一設備とみなすこと |
+
+名称の照合パターンはサーバが原文をescapeして生成し、DBへbindする。呼出元は正規表現を指定できない。各数の候補はパターン内で局所的に表し、複数の数による検索要求の直積を作らない。DB側の条件で絞り、ID順keyset / page_size+1による既存paginationを維持する。正規化したキーや、全件をAgentへ渡す走査結果を保存しない。
+
+正規化により別の登録IDへも一致する場合、両方の実IDを候補として返す。元の表記と一致した先頭行を優先しない。同じIDの重複と別IDの衝突を区別し、cursorの続き・取得失敗・呼出し上限が残るときは一意・0件を確定しない。返却する名称・コード・version・Evidenceは登録された実値である。cursorは原文のfilterへ拘束され、同じ正規化結果でも異なるfilterのcursorを流用しない。
+
 
 履歴検索は最初にaccess-controlの閲覧filterを適用する。全件検索を経由して権限外件数・recordを返さない。recordの返却項目はdata-modelの該当業務列。更新対象解決後もPrepare内で再読込する。
 

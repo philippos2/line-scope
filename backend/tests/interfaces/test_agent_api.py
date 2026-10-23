@@ -49,9 +49,20 @@ def test_agent_api_uses_real_reads_and_server_evidence(seeded):
     assert body["status"] == "ok"
     assert "STOPPED" in body["answer"] and "version 1" in body["answer"]
     assert "故障原因・安全性・将来状態はこの状態情報から判断できません" in body["answer"]
-    assert body["data"]["tool_results"][2]["data"]["state_code"] == "STOPPED"
-    assert body["evidence"]["tool_results"][2]["source"] == "POSTGRESQL"
-    assert len(body["data"]["tool_trace"]) == 3 and not body["errors"]
+    assert [
+        row["data"]["state_code"]
+        for row in body["data"]["tool_results"]
+        if row["tool"] == "get_equipment_state"
+    ] == ["STOPPED"]
+    assert [
+        row["source"]
+        for row in body["evidence"]["tool_results"]
+        if row["tool"] == "get_equipment_state"
+    ] == ["POSTGRESQL"]
+    assert [row["tool"] for row in body["data"]["tool_trace"]] == [
+        "search_equipment",
+        "get_equipment_state",
+    ] and not body["errors"]
     assert not llm.requests and not llm.planning_requests
     with seeded.transaction() as connection:
         assert connection.execute("SELECT count(*) AS n FROM update_request").fetchone()["n"] == 0
@@ -268,4 +279,4 @@ def test_partial_result_retains_evidence_and_warning(seeded):
     assert result.status_code == 200
     body = result.json()
     assert body["status"] == "partial" and body["warnings"][0]["code"] == "TARGET_NOT_FOUND"
-    assert len(body["data"]["tool_results"]) == len(body["evidence"]["tool_results"]) == 2
+    assert len(body["data"]["tool_results"]) == len(body["evidence"]["tool_results"]) == 1
