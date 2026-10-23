@@ -137,6 +137,41 @@ def literal_read(message):
     return matches[0] if len(matches) == 1 else None
 
 
+def unbound_attribute(scope, message):
+    """Bind an explicit nominal attribute to the proposed capability.
+
+    This is the existing whole-question value grammar, not arbitrary-language
+    parsing. Unrecognized colloquial predicates remain on the clarification path.
+    An explicit unbound attribute cannot be replaced by a nearby capability,
+    even if both model calls agree. No negative vocabulary is consulted.
+    """
+    if len(scope.subjects) != 1 or scope.subjects[0]["entity_type"] != "Equipment":
+        return None
+    from .equipment_reference import reference_key
+
+    reference = reference_key(selected_reference(message, scope.subjects[0]["reference"]))
+    text = reference_key(question_messages(message)[-1]["content"]).strip()
+    pattern = SHAPES["value"].format(term=r"(?P<attribute>.+?)", end=END, punct=PUNCT)
+    pattern = pattern.replace(r"(?P<subject>.+?)", re.escape(reference))
+    match = re.fullmatch(pattern, text)
+    if not match:
+        return None
+    attribute = match["attribute"]
+    bound = {
+        field
+        for field, terms in TERMS.items()
+        if any(
+            re.fullmatch(
+                r"(?:(?:前回|最後|最新|登録済み)の)?" + re.escape(reference_key(term)), attribute
+            )
+            for term in terms
+        )
+    }
+    if not bound or not scope.requested_fields or not set(scope.requested_fields) <= bound:
+        return attribute
+    return None
+
+
 def locate_spans(spans, message):
     """Validate verbatim extraction and calculate positions without model arithmetic.
 

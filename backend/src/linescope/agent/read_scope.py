@@ -162,6 +162,7 @@ class ReadScope:
     source_spans: tuple[dict, ...] = ()
     validation_stage: str | None = None
     validation_reason: str | None = None
+    unbound_attribute: str | None = None
 
     def schemas(self, available):
         allowed = IDENTITY_TOOLS | set().union(*(TOPICS[t][1] for t in self.topics))

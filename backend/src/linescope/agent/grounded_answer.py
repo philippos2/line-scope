@@ -149,6 +149,12 @@ def build_answer(
         else None
     )
 
+    if scope and scope.unbound_attribute:
+        attribute = public_answer(scope.unbound_attribute, observations)
+        unconfirmed_question = (
+            f"「{attribute}」は、現在LineScopeで参照できる情報からは確認できません。"
+        )
+
     def missing(code, text, references=()):
         for existing in unavailable:
             if existing["code"] == code and existing["text"] == text:

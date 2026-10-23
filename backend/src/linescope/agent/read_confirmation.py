@@ -14,6 +14,7 @@ from .read_catalog import (
     definitions_answer,
     literal_reads,
     subjects_sufficient,
+    unbound_attribute,
 )
 from .read_scope import ReadScope, classify
 from .scoped_reads import collect_scope
@@ -156,6 +157,23 @@ def interpreted_read(agent, request, session, previous):
         observations, trace, errors, targets = resolved
     if errors or not subjects_sufficient(scope) or len(targets) != len(scope.subjects):
         return _result(scope, request, observations, trace, errors)
+    attribute = unbound_attribute(scope, request.message) if not literal else None
+    if attribute is not None:
+        scope = replace(scope, unbound_attribute=attribute)
+    if (
+        not literal
+        and scope.scope_issue in {None, "UNCERTAIN"}
+        and "UNSUPPORTED" not in scope.topics
+        and attribute is not None
+    ):
+        scope = replace(
+            scope,
+            scope_issue="MISMATCH",
+            validation_stage="REQUEST_FIELD",
+            validation_reason="UNBOUND_ATTRIBUTE",
+            unbound_attribute=attribute,
+        )
+        return _result(scope, request, observations, trace, errors)
     if literal:
         values, more_trace, failures = collect_scope(scope, session, resolved_targets=targets)
         result = _result(
@@ -261,6 +279,20 @@ def confirmed_read(agent, context, request, saved):
     observations, trace, errors = collect_scope(
         saved["scope"], session, identification_only=True, identified_targets=targets
     )
+    attribute = unbound_attribute(saved["scope"], request.message)
+    if (
+        attribute is not None
+        and saved["scope"].scope_issue in {None, "UNCERTAIN"}
+        and "UNSUPPORTED" not in saved["scope"].topics
+    ):
+        scope = replace(
+            saved["scope"],
+            scope_issue="MISMATCH",
+            validation_stage="REQUEST_FIELD",
+            validation_reason="UNBOUND_ATTRIBUTE",
+            unbound_attribute=attribute,
+        )
+        return _result(scope, request, observations, trace, errors)
     if saved["scope"].scope_issue not in {None, "UNCERTAIN"}:
         return _result(saved["scope"], request, observations, trace, errors)
     if errors or targets != saved["targets"]:
