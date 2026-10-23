@@ -123,7 +123,14 @@ def search_pages(observation, observations):
 
 
 def build_answer(
-    observations, *, scope=None, errors=(), selected=None, question=None, identification_only=False
+    observations,
+    *,
+    scope=None,
+    errors=(),
+    selected=None,
+    question=None,
+    identification_only=False,
+    identity_verified=False,
 ):
     """Only server adapters create facts. Selection names existing request-local fact IDs."""
     scope_blocked = bool(scope and scope.scope_issue)
@@ -189,7 +196,11 @@ def build_answer(
                 )
                 if isinstance(name, str) and isinstance(code, str):
                     labels.append(f"{name}（{code}）")
-            if group["status"] == "FOUND" and not errors and len(labels) == 1:
+            if (
+                group["status"] == "FOUND"
+                and (not errors or identity_verified)
+                and len(labels) == 1
+            ):
                 add("REGISTERED_FIELD", labels[0] + "のことですね。", refs, "equipment.identity")
                 identity_answered = bool(
                     requested_attributes & {"equipment_name", "equipment_code"}

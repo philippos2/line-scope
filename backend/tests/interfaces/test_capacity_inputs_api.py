@@ -6,13 +6,15 @@ from copy import deepcopy
 from uuid import uuid4
 
 import pytest
-from agent.test_read_agent import ScriptedLLM, call
+from agent.test_read_agent import ScriptedLLM
 from domain.test_capacity import payload
 from fastapi.testclient import TestClient
 
+from interfaces.agent_read_support import selected_input_summary
 from linescope.demo_seed import DEMO_EQUIPMENT, seed_demo
 from linescope.domain.canonical import canonical_hash, canonical_json
 from linescope.domain.snapshot import CanonicalSnapshot
+from linescope.execution import ExecutionContext
 from linescope.integrations.llm import LLMReply
 from linescope.interfaces.api import create_app
 from linescope.logging import EventLogger
@@ -152,26 +154,36 @@ def test_create_approve_execute_read_and_retry_keep_fixed_ids_and_atomic_history
         )
         assert connection.execute("SELECT count(*) AS n FROM equipment").fetchone()["n"] > 0
 
-    llm = ScriptedLLM(
-        call("search_capacity_inputs", {"filter": {"input_code": "CAPACITY"}}),
-        call("get_capacity_input", {"capacity_input_id": identifier(saved)}),
-        LLMReply("安全で完全代替できます", ()),
-    )
+    llm = ScriptedLLM(LLMReply("安全で完全代替できます", ()))
     with TestClient(create_app(settings(), world, llm=llm)) as agent_client:
         result = agent_client.post(
-            "/agent",
-            json={"message": "登録済み能力入力CAPACITYの不足と条件付き復旧期限を確認して"},
-            headers=headers(),
+            "/agent", json={"message": "M-204の能力入力は？"}, headers=headers()
         )
         assert result.status_code == 200
         data = result.json()
-        assert "不足30" in data["answer"] and "条件付き許容停止時間4時間" in data["answer"]
-        assert "安全で完全代替できます" not in data["answer"]
-        assert [row["tool"] for row in data["data"]["tool_results"]] == [
-            "search_capacity_inputs",
-            "get_capacity_input",
-        ]
-        assert data["evidence"]["tool_results"][-1]["version"] == 1
+        candidates = next(
+            row["data"]["items"]
+            for row in data["data"]["tool_results"]
+            if row["tool"] == "search_capacity_inputs"
+        )
+        assert [row["capacity_input_id"] for row in candidates] == [identifier(saved)]
+        assert not any(row["tool"] == "get_capacity_input" for row in data["data"]["tool_results"])
+        # The user chooses the observed ID, then the existing detail GET evaluates it.
+        detail = agent_client.get(f"/capacity-inputs/{identifier(saved)}", headers=headers())
+        assert detail.status_code == 200
+        summary, selected = selected_input_summary(
+            world, ExecutionContext("requester", "manager", uuid4()), "capacity", identifier(saved)
+        )
+        assert {k: v for k, v in selected.data.items() if k != "observed_at"} == {
+            k: v for k, v in detail.json()["data"].items() if k != "observed_at"
+        }
+        assert "不足30" in summary and "条件付き許容停止時間4時間" in summary
+        assert (
+            "安全で完全代替できます" not in data["answer"]
+            and "安全で完全代替できます" not in summary
+        )
+        assert selected.evidence["version"] == 1
+        assert not llm.requests and not llm.planning_requests
 
 
 def test_update_version_conflict_preserves_winning_payload(world):

@@ -12,6 +12,7 @@ from graph.test_neo4j_generation import graph_driver as graph_driver
 from graph.test_neo4j_generation import target as target
 from graph.test_rebuild_control import store as store
 
+from interfaces.agent_read_support import confirm_read, graph_message, readonly_schemas
 from linescope.integrations.llm import LLMReply
 from linescope.interfaces.api import create_app
 from linescope.settings import Settings
@@ -26,24 +27,37 @@ def test_api_past_time_is_server_bound_and_not_a_historical_state_restore(world)
             {"target": {"entity_type": "Equipment", "entity_id": origin}},
         ),
         LLMReply("指定時刻の依存関係を確認しました。", ()),
+        subjects=[{"entity_type": "Equipment", "reference": "M-204"}],
     )
     settings = Settings(users={"token": {"user_id": "manager1", "role": "manager"}})
     with TestClient(create_app(settings, db, llm=llm, graph_driver=driver)) as client:
-        response = client.post(
-            "/agent",
-            json={"message": "当時の影響を調べて", "as_of": "2026-10-08T09:00:00+09:00"},
-            headers={"Authorization": "Bearer token"},
+        response = confirm_read(
+            client,
+            "M-204の当時の状態と影響を調べて",
+            {"Authorization": "Bearer token"},
+            as_of="2026-10-08T09:00:00+09:00",
         )
     assert response.status_code == 200
     body = response.json()
-    evidence = body["evidence"]["tool_results"]
+    evidence = [
+        row for row in body["evidence"]["tool_results"] if row["tool"] != "search_equipment"
+    ]
     assert evidence[1]["as_of"] == "2026-10-08T00:00:00.000000Z"
     assert evidence[1]["analysis_mode"] == "EXPLICIT_HISTORICAL"
-    assert len(body["data"]["tool_results"][1]["data"]["reached_nodes"]) == 2
+    assert (
+        len(
+            next(
+                row["data"]["reached_nodes"]
+                for row in body["data"]["tool_results"]
+                if row["tool"] == "trace_downstream_impact"
+            )
+        )
+        == 2
+    )
     assert evidence[0]["request_temporal_scope"] == "CURRENT_STATE_AT_OBSERVATION"
     assert evidence[1]["request_temporal_scope"] == "CURRENT_REGISTRATION_AT_AS_OF"
     assert "完全復元ではありません" in body["answer"]
-    assert "2026-10-08T00:00:00.000000Z" in llm.requests[0][0][0]["content"]
+    assert not llm.requests  # The code binds the time; model-written Tool arguments are not used.
 
 
 @pytest.mark.parametrize("tool", ["trace_downstream_impact", "trace_upstream_dependencies"])
@@ -72,7 +86,9 @@ def test_http_agent_returns_paths_and_authoritative_state_evidence(world, tool, 
         create_app(settings, db, llm=llm, graph_driver=None if owned else driver)
     ) as client:
         response = client.post(
-            "/agent", json={"message": "影響を調べて"}, headers={"Authorization": "Bearer token"}
+            "/agent",
+            json={"message": graph_message(tool, args)},
+            headers={"Authorization": "Bearer token"},
         )
     assert response.status_code == 200
     body = response.json()
@@ -98,7 +114,7 @@ def test_http_agent_returns_paths_and_authoritative_state_evidence(world, tool, 
         "max_paths": 1000,
         "timeout_ms": 5000,
     }
-    assert "execute" not in llm.requests[0][1]
+    assert "execute" not in readonly_schemas(db)
     # The injected driver is borrowed, so it remains usable after API shutdown.
     driver.verify_connectivity()
 
@@ -114,11 +130,18 @@ def test_http_graph_authorization_uses_authenticated_role(world):
     settings = Settings(users={"token": {"user_id": "floor1", "role": "floor"}})
     with TestClient(create_app(settings, db, llm=llm, graph_driver=driver)) as client:
         response = client.post(
-            "/agent", json={"message": "影響を調べて"}, headers={"Authorization": "Bearer token"}
+            "/agent",
+            json={
+                "message": graph_message(
+                    "trace_downstream_impact",
+                    {"target": {"entity_type": "Equipment", "entity_id": origin}},
+                )
+            },
+            headers={"Authorization": "Bearer token"},
         )
     assert response.status_code == 403
     assert response.json()["errors"][0]["code"] == "AUTHORIZATION_DENIED"
-    assert response.json()["evidence"]["tool_results"] == []
+    assert response.json()["evidence"] == {}
 
 
 @pytest.mark.parametrize("rebuilding", [False, True])
@@ -132,13 +155,15 @@ def test_http_partial_and_rebuilding_follow_graph_error_contract(world, rebuildi
     settings = Settings(users={"token": {"user_id": "manager1", "role": "manager"}})
     with TestClient(create_app(settings, db, llm=llm, graph_driver=driver)) as client:
         response = client.post(
-            "/agent", json={"message": "影響を調べて"}, headers={"Authorization": "Bearer token"}
+            "/agent",
+            json={"message": graph_message("trace_downstream_impact", args)},
+            headers={"Authorization": "Bearer token"},
         )
     body = response.json()
     if rebuilding:
         assert response.status_code == 503 and body["status"] == "error"
         assert body["errors"][0]["code"] == "GRAPH_REBUILDING"
-        assert body["evidence"]["tool_results"] == []
+        assert body["evidence"] == {}
     else:
         assert response.status_code == 200 and body["status"] == "partial"
         assert "探索は不完全" in body["answer"]

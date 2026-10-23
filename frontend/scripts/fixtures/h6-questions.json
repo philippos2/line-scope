@@ -42,7 +42,8 @@
       "question": "第２加工機の登録状態は？",
       "expected": "AUTO",
       "equipment_code": "M-208",
-      "expected_state": "RUNNING"
+      "expected_state": "RUNNING",
+      "expected_tool": "get_equipment_state"
     },
     {
       "id": "B06",
@@ -50,7 +51,8 @@
       "repeat": 1,
       "question": "第一加工機の前回のメンテナンス日時はいつか？",
       "expected": "AUTO",
-      "equipment_code": "M-204"
+      "equipment_code": "M-204",
+      "expected_tool": "search_maintenance_records"
     },
     {
       "id": "B07",
@@ -75,7 +77,11 @@
       "question": "第1加工機は現在停止していますか？",
       "expected": "AUTO",
       "equipment_code": "M-204",
-      "expected_state": "STOPPED"
+      "expected_state": "STOPPED",
+      "expected_tool": "get_equipment_state",
+      "expression": "plain",
+      "reference": "name",
+      "scope": "state"
     },
     {
       "id": "T02",
@@ -83,7 +89,10 @@
       "repeat": 3,
       "question": "M-208の保証期限はいつですか？",
       "expected": "UNSUPPORTED",
-      "equipment_code": "M-208"
+      "equipment_code": "M-208",
+      "expression": "plain",
+      "reference": "code",
+      "scope": "unsupported"
     },
     {
       "id": "T03",
@@ -91,7 +100,10 @@
       "repeat": 3,
       "question": "第二加工機の替えの部品、どこにしまってある？",
       "expected": "UNSUPPORTED",
-      "equipment_code": "M-208"
+      "equipment_code": "M-208",
+      "expression": "colloquial",
+      "reference": "name",
+      "scope": "unsupported"
     },
     {
       "id": "T04",
@@ -100,7 +112,10 @@
       "question": "M-208っていま動いてる？",
       "expected": "CONFIRM",
       "equipment_code": "M-208",
-      "expected_state": "RUNNING"
+      "expected_state": "RUNNING",
+      "expression": "colloquial",
+      "reference": "code",
+      "scope": "state"
     },
     {
       "id": "T05",
@@ -109,7 +124,10 @@
       "question": "第１加工機はいま死んでるか？",
       "expected": "CONFIRM",
       "equipment_code": "M-204",
-      "expected_state": "STOPPED"
+      "expected_state": "STOPPED",
+      "expression": "figurative",
+      "reference": "name",
+      "scope": "state"
     },
     {
       "id": "T06",
@@ -117,7 +135,10 @@
       "repeat": 3,
       "question": "M-204って、まだ保証が生きてる？",
       "expected": "UNSUPPORTED",
-      "equipment_code": "M-204"
+      "equipment_code": "M-204",
+      "expression": "figurative",
+      "reference": "code",
+      "scope": "unsupported"
     },
     {
       "id": "V01",
@@ -126,7 +147,8 @@
       "question": "M-208の登録上の状態を教えて",
       "expected": "AUTO",
       "equipment_code": "M-208",
-      "expected_state": "RUNNING"
+      "expected_state": "RUNNING",
+      "expected_tool": "get_equipment_state"
     },
     {
       "id": "V02",
@@ -142,7 +164,8 @@
       "repeat": 3,
       "question": "第2加工機の構造上の代替候補を見せて",
       "expected": "AUTO",
-      "equipment_code": "M-208"
+      "equipment_code": "M-208",
+      "expected_tool": "find_alternative_paths"
     },
     {
       "id": "V04",

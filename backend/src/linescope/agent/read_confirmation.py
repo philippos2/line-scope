@@ -22,7 +22,17 @@ def original_hash(request):
     return canonical_hash({"message": request.message, "as_of": request.explicit_as_of})
 
 
-def _result(scope, request, observations, trace, errors, *, clarification=None, pending=None):
+def _result(
+    scope,
+    request,
+    observations,
+    trace,
+    errors,
+    *,
+    clarification=None,
+    pending=None,
+    identity_verified=False,
+):
     from .read_agent import ReadAgentResult
 
     answer, sections = build_answer(
@@ -31,6 +41,7 @@ def _result(scope, request, observations, trace, errors, *, clarification=None, 
         errors=errors,
         question=question_messages(request.message)[-1]["content"],
         identification_only=clarification is not None,
+        identity_verified=identity_verified,
     )
     sections["read_outcome"] = (
         "CONFIRM"
@@ -95,7 +106,14 @@ def interpreted_read(agent, request, session, previous):
         return _result(scope, request, observations, trace, errors)
     if literal:
         values, more_trace, failures = collect_scope(scope, session, resolved_targets=targets)
-        result = _result(scope, request, observations + values, trace + more_trace, failures)
+        result = _result(
+            scope,
+            request,
+            observations + values,
+            trace + more_trace,
+            failures,
+            identity_verified=True,
+        )
         if literal.predicate_value:
             # Report the actual registered value as well as the Boolean predicate.
             state = [x for x in values if x.tool == "get_equipment_state"]
@@ -198,7 +216,14 @@ def confirmed_read(agent, context, request, saved):
             )
         return _result(saved["scope"], request, observations, trace, errors)
     values, more_trace, failures = collect_scope(saved["scope"], session, resolved_targets=targets)
-    result = _result(saved["scope"], request, observations + values, trace + more_trace, failures)
+    result = _result(
+        saved["scope"],
+        request,
+        observations + values,
+        trace + more_trace,
+        failures,
+        identity_verified=True,
+    )
     result.answer_sections["read_outcome"] = "EXPLICIT_READ"
     clarification["status"] = "ACCEPTED"
     return replace(result, read_clarification=clarification)

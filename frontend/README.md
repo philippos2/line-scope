@@ -43,3 +43,9 @@ docker run --rm --pull never --network host --env-file /private/browser.env \
 ### 口語・範囲照合の任意の実モデル評価
 
 同じ主シナリオscriptへ`LINESCOPE_BROWSER_QUESTION_SCOPE=1`を渡すと、追加6問を実LLM・実APIで確認します。平叙／口語／比喩×名称／コード×登録状態／非対応の全12組から、全因子対を覆う6組を選んでいます。通常モードは実LLMを呼びません。検証結果・失敗応答は私有outputの`report.json`へ残り、業務書込は許可しません。既存のnative Chromiumを使う場合は`LINESCOPE_BROWSER_EXECUTABLE=/usr/bin/chromium`を指定できます。新しいimage・モデル設定は不要です。
+
+### H6：曖昧な解釈の確認の評価
+
+主シナリオrunnerへ`LINESCOPE_BROWSER_H6=1`を渡すと、固定した`frontend/scripts/fixtures/h6-questions.json`に従い20種類・44項目（43質問と左検索1）を実行します。`verify-h6-read-scopes.mjs`はこのrunnerの補助モジュールで、独立した追加runnerではありません。通常の主シナリオや他の追加モードとは同時に実行しません。
+
+実モデル実行は開発者が了承した負荷・時間帯だけとし、私有envへ`LINESCOPE_BROWSER_H6_WINDOW_START`と`LINESCOPE_BROWSER_H6_WINDOW_END`をtimezone付きISO日時で指定します。既定の時間帯はありません。終了までに2応答分の余裕がない場合や連続2回の応答期限超過では停止します。確認が必要な問いは、確認前に業務値を取得しないことと、明示受理後の実Readを分けて検査します。業務書込は許可しません。各結果・所要時間・失敗は私有outputに保存し、反復を別の試験種類として水増ししません。留出に失敗して調整へ利用した場合は、留出のまま合格扱いにしません。

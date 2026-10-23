@@ -1,3 +1,9 @@
+import {
+  acceptReadScope,
+  h6AllowedRequest,
+  h6Fixture,
+  runH6,
+} from "./verify-h6-read-scopes.mjs";
 // Maintained read-only smoke: actual scenario1 API, no mocked business responses.
 import { URL } from "node:url";
 import { chromium, expect } from "playwright/test";
@@ -5,58 +11,22 @@ import { mkdir, writeFile } from "node:fs/promises";
 const base = process.env.LINESCOPE_BROWSER_URL;
 const token = process.env.LINESCOPE_BROWSER_TOKEN;
 if (!base || !token) throw new Error("Browser URL and private token required");
+const verifyH6 = process.env.LINESCOPE_BROWSER_H6 === "1";
 const verifyReadFailures = process.env.LINESCOPE_BROWSER_READ_FAILURES === "1";
 const verifyQuestionScope =
   process.env.LINESCOPE_BROWSER_QUESTION_SCOPE === "1";
+if (verifyH6 && (verifyReadFailures || verifyQuestionScope))
+  throw new Error("Run H6 separately to preserve the approved 44-item count");
 // Pairwise selection: expression(3) x reference(2) x scope(2), 6 of 12.
 // Examples are evaluation inputs, never runtime keyword routes.
-const questionCases = [
-  {
-    expression: "plain",
-    reference: "name",
-    scope: "state",
-    question: "第1加工機は現在停止していますか？",
-    code: "M-204",
-    state: "STOPPED",
-  },
-  {
-    expression: "plain",
-    reference: "code",
-    scope: "unsupported",
-    question: "M-208の保証期限はいつですか？",
-    code: "M-208",
-  },
-  {
-    expression: "colloquial",
-    reference: "name",
-    scope: "unsupported",
-    question: "第二加工機の替えの部品、どこにしまってある？",
-    code: "M-208",
-  },
-  {
-    expression: "colloquial",
-    reference: "code",
-    scope: "state",
-    question: "M-208っていま動いてる？",
-    code: "M-208",
-    state: "RUNNING",
-  },
-  {
-    expression: "figurative",
-    reference: "name",
-    scope: "state",
-    question: "第１加工機はいま死んでるか？",
-    code: "M-204",
-    state: "STOPPED",
-  },
-  {
-    expression: "figurative",
-    reference: "code",
-    scope: "unsupported",
-    question: "M-204って、まだ保証が生きてる？",
-    code: "M-204",
-  },
-];
+const questionCases = h6Fixture.cases
+  .filter((row) => row.group === "tuning")
+  .map((row) => ({
+    ...row,
+    code: row.equipment_code,
+    state: row.expected_state,
+  }));
+
 function checkQuestionCoverage() {
   const factors = {
     expression: ["plain", "colloquial", "figurative"],
@@ -116,6 +86,7 @@ await page.route("**/api/**", async (route) => {
       (path === "/api/agent" &&
         (req.postDataJSON()?.message?.startsWith("関係分析 ") ||
           req.postDataJSON()?.message?.startsWith("文書検索：") ||
+          (verifyH6 && h6AllowedRequest(req.postDataJSON())) ||
           (verifyQuestionScope &&
             questionCases.some((row) =>
               req.postDataJSON()?.message?.endsWith(row.question),
@@ -153,7 +124,7 @@ async function searchDocuments(
   expect(result.status()).toBe(status);
 }
 
-try {
+async function runScenario1() {
   await page.goto(base);
   await expect(page.locator(".equipment-search-panel")).toHaveCount(0);
   await page.getByLabel("Bearer token").fill(token);
@@ -419,10 +390,21 @@ try {
       );
       await page.getByRole("button", { name: "送信", exact: true }).click();
       const response = await pending;
-      const body = await response.json();
+      let body = await response.json();
+      const initial = body;
+      if (row.expected === "CONFIRM") {
+        expect(body.data.read_clarification?.status).toBe("PENDING");
+        expect(
+          body.data.tool_results.every((tool) =>
+            ["search_equipment", "get_equipment"].includes(tool.tool),
+          ),
+        ).toBe(true);
+        body = await acceptReadScope(page, row.question);
+      }
       report.question_cases.push({
         ...row,
         status: response.status(),
+        initial_response: initial,
         response: body,
       });
       try {
@@ -489,6 +471,13 @@ try {
   }
   if (verifyQuestionScope)
     expect(report.question_cases.every((row) => !row.failure)).toBe(true);
+}
+
+try {
+  if (verifyH6) {
+    checkQuestionCoverage();
+    await runH6(page, base, token, report);
+  } else await runScenario1();
   expect(report.blocked).toHaveLength(0);
   expect(report.page_errors).toHaveLength(0);
   report.result = "PASS";

@@ -3,7 +3,7 @@ import os
 from uuid import UUID, uuid4
 
 import pytest
-from agent.test_read_agent import ScriptedLLM, call
+from agent.test_read_agent import ScriptedLLM
 from application.test_proposals import NOW, PREPARE_HASH, category_snapshot, context, snapshot
 from fastapi.testclient import TestClient
 
@@ -41,21 +41,18 @@ def seeded(db):
 
 
 def test_agent_api_uses_real_reads_and_server_evidence(seeded):
-    llm = ScriptedLLM(
-        call("search_equipment", {"filter": {"equipment_code": "M-204"}}),
-        call("get_equipment_state"),
-        LLMReply("M-204はSTOPPEDです", ()),
-    )
+    llm = ScriptedLLM()
     with TestClient(create_app(settings(), seeded, llm=llm)) as client:
-        result = client.post("/agent", json={"message": "M-204の状態を教えて"}, headers=HEADERS)
+        result = client.post("/agent", json={"message": "M-204の登録状態は？"}, headers=HEADERS)
     assert result.status_code == 200
     body = result.json()
     assert body["status"] == "ok"
     assert "STOPPED" in body["answer"] and "version 1" in body["answer"]
     assert "故障原因・安全性・将来状態はこの状態情報から判断できません" in body["answer"]
-    assert body["data"]["tool_results"][1]["data"]["state_code"] == "STOPPED"
-    assert body["evidence"]["tool_results"][1]["source"] == "POSTGRESQL"
-    assert len(body["data"]["tool_trace"]) == 2 and not body["errors"]
+    assert body["data"]["tool_results"][2]["data"]["state_code"] == "STOPPED"
+    assert body["evidence"]["tool_results"][2]["source"] == "POSTGRESQL"
+    assert len(body["data"]["tool_trace"]) == 3 and not body["errors"]
+    assert not llm.requests and not llm.planning_requests
     with seeded.transaction() as connection:
         assert connection.execute("SELECT count(*) AS n FROM update_request").fetchone()["n"] == 0
 
@@ -259,14 +256,16 @@ def test_invalid_content_type_and_retry_header(headers):
 
 
 def test_partial_result_retains_evidence_and_warning(seeded):
-    llm = ScriptedLLM(
-        call("get_equipment_state"),
-        call("get_equipment", {"equipment_id": str(UUID(int=999))}),
-        LLMReply("取得できた結果のみです", ()),
-    )
+    # A successful real identity read followed by a missing state is partial,
+    # rather than a model inventing a second target that was never requested.
+    with seeded.transaction() as connection:
+        connection.execute(
+            "DELETE FROM equipment_current_state WHERE equipment_id=%s", (UUID(int=1),)
+        )
+    llm = ScriptedLLM()
     with TestClient(create_app(settings(), seeded, llm=llm)) as client:
-        result = client.post("/agent", json={"message": "設備を調べて"}, headers=HEADERS)
+        result = client.post("/agent", json={"message": "M-204の登録状態は？"}, headers=HEADERS)
     assert result.status_code == 200
     body = result.json()
     assert body["status"] == "partial" and body["warnings"][0]["code"] == "TARGET_NOT_FOUND"
-    assert len(body["data"]["tool_results"]) == len(body["evidence"]["tool_results"]) == 1
+    assert len(body["data"]["tool_results"]) == len(body["evidence"]["tool_results"]) == 2

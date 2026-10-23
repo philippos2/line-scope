@@ -85,9 +85,16 @@ def test_plan_registration_approval_execution_and_api_read(world):
         assert client.post(endpoint, headers=headers()).status_code == 409
         confirmed = approve_execute(client, saved)
         assert confirmed["execution_result"]["targets"] == saved["canonical_snapshot"]["targets"]
-        result = post(client, "NEW-PLANの保全予定を調べて")
+        result = post(client, "EQ10の保全計画は？")
         assert result.status_code == 200
-        item = result.json()["data"]["tool_results"][0]["data"]["items"][0]
+        plans = next(
+            row["data"]["items"]
+            for row in result.json()["data"]["tool_results"]
+            if row["tool"] == "search_maintenance_plans"
+        )
+        matches = [row for row in plans if row["plan_code"] == "NEW-PLAN"]
+        assert len(matches) == 1
+        item = matches[0]
         assert item["maintenance_plan_id"] == target["target_id"]
         assert item["plan_status"] == "PLANNED" and item["version"] == 1
         assert client.post(endpoint, headers=headers()).status_code == 200
@@ -122,9 +129,16 @@ def test_record_registration_execution_and_current_inspection(world, plan):
             llm=llm,
         )
     ) as reader:
-        observed = post(reader, "NEW-RECORDの保全実績を調べて")
+        observed = post(reader, "EQ10の保全記録は？")
         assert observed.status_code == 200
-        item = observed.json()["data"]["tool_results"][0]["data"]["items"][0]
+        records = next(
+            row["data"]["items"]
+            for row in observed.json()["data"]["tool_results"]
+            if row["tool"] == "search_maintenance_records"
+        )
+        matches = [row for row in records if row["record_code"] == "NEW-RECORD"]
+        assert len(matches) == 1
+        item = matches[0]
         assert item["maintenance_record_id"] == after["maintenance_record_id"]
         assert item["result"] == after["result"] and item["version"] == 1
     assert count(world, "maintenance_record") == 1

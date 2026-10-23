@@ -12,7 +12,7 @@ from linescope.integrations.llm import LLMError, LLMReply, ToolCall
 
 
 class ScriptedLLM:
-    def __init__(self, *replies):
+    def __init__(self, *replies, subjects=()):
         from linescope.agent.read_scope import TOPICS
 
         tools = {call.name for reply in replies for call in reply.tool_calls}
@@ -22,6 +22,7 @@ class ScriptedLLM:
             tuple(name for name, (_, admitted) in TOPICS.items() if tools & admitted)
             or ("ATTRIBUTES",),
         )
+        self.scope_subjects = list(subjects)
         self.replies = iter(replies)
         self.requests = []
         self.planning_requests = []
@@ -50,7 +51,7 @@ class ScriptedLLM:
                         }
                     ],
                     "topics": list(self.scope_topics),
-                    "subjects": [],
+                    "subjects": self.scope_subjects,
                     "requested_fields": [
                         next(
                             (field for field, topic in FIELDS.items() if topic == chosen),

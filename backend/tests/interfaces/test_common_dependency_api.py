@@ -6,6 +6,7 @@ from graph.test_common_dependency_reader import reader_world as reader_world
 from graph.test_neo4j_generation import graph_driver as graph_driver
 from graph.test_rebuild_controller import adapters as adapters
 
+from interfaces.agent_read_support import graph_message, readonly_schemas
 from linescope.integrations.llm import LLMReply
 from linescope.interfaces.api import create_app
 from linescope.settings import Settings
@@ -26,7 +27,7 @@ def test_common_tool_agent_and_http_preserve_paths_and_partial_status(
     with TestClient(create_app(settings, db, llm=llm, graph_driver=adapters[1].driver)) as client:
         response = client.post(
             "/agent",
-            json={"message": "P-100とP-200の共通依存を調べて"},
+            json={"message": graph_message("find_common_dependencies", args)},
             headers={"Authorization": "Bearer token"},
         )
     assert response.status_code == 200
@@ -40,8 +41,8 @@ def test_common_tool_agent_and_http_preserve_paths_and_partial_status(
     evidence = body["evidence"]["tool_results"][0]
     assert evidence["representative_paths"] == result["data"]["representative_paths"]
     assert evidence["graph_generation"] == reader_world[1]
-    assert "find_common_dependencies" in llm.requests[0][1]
-    assert not any(name.startswith("prepare_") for name in llm.requests[0][1])
+    assert "find_common_dependencies" in readonly_schemas(db)
+    assert not any(name.startswith("prepare_") for name in readonly_schemas(db))
     with db.transaction() as connection:
         assert connection.execute("SELECT count(*) AS n FROM update_request").fetchone()["n"] == 0
 
@@ -56,11 +57,11 @@ def test_noncurrent_graph_common_tool_does_not_return_candidate_paths(db, reader
     with TestClient(create_app(settings, db, llm=llm, graph_driver=adapters[1].driver)) as client:
         response = client.post(
             "/agent",
-            json={"message": "共通依存を調べて"},
+            json={"message": graph_message("find_common_dependencies", arguments())},
             headers={"Authorization": "Bearer token"},
         )
     assert response.status_code == 503
     body = response.json()
     assert body["errors"][0]["code"] == "GRAPH_UNAVAILABLE"
-    assert body["data"]["tool_results"] == []
-    assert body["evidence"]["tool_results"] == []
+    assert body["data"] == {}
+    assert body["evidence"] == {}

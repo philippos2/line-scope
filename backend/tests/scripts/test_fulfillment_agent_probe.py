@@ -9,6 +9,7 @@ from graph.test_alternative_facts import M, P
 from graph.test_common_dependency_reader import adapters as adapters
 from graph.test_common_dependency_reader import graph_driver as graph_driver
 from graph.test_common_dependency_reader import reader_world as reader_world
+from interfaces.agent_read_support import graph_message
 
 from linescope.integrations.llm import LLMReply
 from linescope.interfaces.api import create_app
@@ -47,7 +48,9 @@ def test_probe_accepts_real_server_facts_and_rejects_tampered_results(
     with TestClient(create_app(settings, db, llm=llm, graph_driver=adapters[1].driver)) as client:
         response = client.post(
             "/agent",
-            json={"message": "構造成立を調べて"},
+            json={
+                "message": graph_message(tool, {"important_targets": [typed(P)], key: [typed(M)]})
+            },
             headers={"Authorization": "Bearer token"},
         )
     assert response.status_code == 200
