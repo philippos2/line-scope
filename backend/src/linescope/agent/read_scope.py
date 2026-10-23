@@ -162,6 +162,7 @@ class ReadScope:
     scope_issue: str | None = None
     requested_fields: tuple[str, ...] = ()
     source_spans: tuple[dict, ...] = ()
+    validation_stage: str | None = None
 
     def schemas(self, available):
         allowed = IDENTITY_TOOLS | set().union(*(TOPICS[t][1] for t in self.topics))
@@ -190,25 +191,25 @@ def classify(llm, request, session, previous_messages=None):
     reply = complete_scope(llm, messages, {PLAN_TOOL: PLAN_SCHEMA}, session)
     calls = reply.tool_calls
     if len(calls) != 1 or calls[0].name != PLAN_TOOL:
-        raise ToolError("INTERNAL_ERROR", "Question scope could not be determined")
+        return ReadScope((), scope_issue="UNVERIFIABLE", validation_stage="PLAN_SHAPE")
     arguments = calls[0].arguments
     topics = arguments.get("topics") if type(arguments) is dict else None
     if (
         type(arguments) is not dict
         or set(arguments) - {"topics", "subjects", "requested_fields", "source_spans"}
-        or not {"topics", "subjects", "requested_fields"} <= set(arguments)
+        or not {"topics", "subjects", "requested_fields", "source_spans"} <= set(arguments)
         or type(topics) is not list
         or not 1 <= len(topics) <= 15
         or any(type(t) is not str or t not in TOPICS for t in topics)
         or len(topics) != len(set(topics))
     ):
-        raise ToolError("INTERNAL_ERROR", "Question scope could not be determined")
+        return ReadScope((), scope_issue="UNVERIFIABLE", validation_stage="PLAN_SHAPE")
     subjects = arguments["subjects"]
     supplied = reference_key(
         " ".join(item["content"] for item in question_messages(request.message))
     )
     if type(subjects) is not list or len(subjects) > 4:
-        raise ToolError("INTERNAL_ERROR", "Question targets could not be determined")
+        return ReadScope((), scope_issue="UNVERIFIABLE", validation_stage="PLAN_TARGETS")
     for subject in subjects:
         if (
             type(subject) is not dict
@@ -226,22 +227,31 @@ def classify(llm, request, session, previous_messages=None):
             or not subject["reference"].strip()
             or reference_key(subject["reference"]) not in supplied
         ):
-            raise ToolError(
-                "INVALID_ARGUMENT", "Question target must come from the current question"
-            )
+            return ReadScope((), scope_issue="UNVERIFIABLE", validation_stage="PLAN_TARGETS")
     requested = arguments["requested_fields"]
     if (
         type(requested) is not list
         or not 1 <= len(requested) <= 16
         or any(type(field) is not str or not 1 <= len(field) <= 100 for field in requested)
     ):
-        raise ToolError("INTERNAL_ERROR", "Requested information could not be determined")
+        return ReadScope((), scope_issue="UNVERIFIABLE", validation_stage="PLAN_SHAPE")
     # A coarse topic is not evidence that a requested attribute exists.
     # Only catalogued fields can enable a capability; unknown fields stay unsupported.
     admitted = tuple(
         dict.fromkeys(BUSINESS_FIELDS.get(field, "UNSUPPORTED") for field in requested)
     )
+    spans = arguments["source_spans"]
+    if not valid_spans(spans, request.message):
+        return ReadScope(
+            admitted,
+            tuple(subjects),
+            "UNVERIFIABLE",
+            tuple(requested),
+            (),
+            "SOURCE_SPANS",
+        )
     issue = None
+    stage = None
     supported = [field for field in requested if field in BUSINESS_FIELDS]
     if supported:
         from .scope_check import CHECK_SCHEMA, CHECK_TOOL, check_messages, checked_verdict
@@ -253,10 +263,9 @@ def classify(llm, request, session, previous_messages=None):
             session,
         )
         issue = checked_verdict(reply)
-    spans = arguments.get("source_spans", [])
-    if supported and not valid_spans(spans, request.message):
-        issue = "UNVERIFIABLE"
-    return ReadScope(admitted, tuple(subjects), issue, tuple(requested), tuple(spans))
+        if issue:
+            stage = "COVERAGE_SHAPE" if issue == "UNVERIFIABLE" else "COVERAGE"
+    return ReadScope(admitted, tuple(subjects), issue, tuple(requested), tuple(spans), stage)
 
 
 def complete_scope(llm, messages, schemas, session):

@@ -202,9 +202,13 @@ def test_scope_runtime_rejects_provider_call_outside_advertised_capability():
 
 def test_invalid_scope_never_dispatches_or_defaults_to_all_tools():
     dispatcher = Dispatcher()
-    with pytest.raises(ToolError) as error:
-        AdmittedPlanAgent(dispatcher, ScopedLLM(["nonexistent"])).run(context(), request())
-    assert error.value.code == "INTERNAL_ERROR" and dispatcher.calls == 0
+    result = AdmittedPlanAgent(dispatcher, ScopedLLM(["nonexistent"])).run(context(), request())
+    assert dispatcher.calls == 0 and not result.observations
+    assert not result.answer_sections["facts"]
+    assert result.answer_sections["verification"]["stage"] == "PLAN_SHAPE"
+    assert any(
+        row["code"] == "QUESTION_SCOPE_UNCONFIRMED" for row in result.answer_sections["unavailable"]
+    )
 
 
 def test_valid_selection_has_only_actual_request_references():
@@ -310,6 +314,7 @@ def test_question_scope_review_malformed_response_never_dispatches_domain_reads(
     llm = ReviewedLLM(call(CHECK_TOOL, {"verdict": "MATCH", "answer": "任意文"}))
     result = AdmittedPlanAgent(dispatcher, llm).run(context(), request())
     assert dispatcher.calls == 1
+    assert result.answer_sections["verification"]["stage"] == "COVERAGE_SHAPE"
     assert {row["predicate"] for row in result.answer_sections["facts"]} == {"equipment.identity"}
     assert "任意文" not in result.answer
     assert any(

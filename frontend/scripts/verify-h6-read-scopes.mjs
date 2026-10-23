@@ -2,6 +2,7 @@
 import { readFileSync } from "node:fs";
 import { URL } from "node:url";
 import { expect } from "playwright/test";
+import { identityOnlyResult } from "./h6-result-policy.mjs";
 
 export const h6Fixture = JSON.parse(
   readFileSync(
@@ -9,6 +10,22 @@ export const h6Fixture = JSON.parse(
     "utf8",
   ),
 );
+const round = process.env.LINESCOPE_BROWSER_H6_ROUND ?? "original";
+if (!["original", "recovery"].includes(round))
+  throw new Error("Unknown H6 evaluation round");
+const recoveryRound = round === "recovery";
+const recoveryFixture = JSON.parse(
+  readFileSync(
+    new URL("./fixtures/h6-recovery-questions.json", import.meta.url),
+    "utf8",
+  ),
+);
+const evaluationCases = recoveryRound
+  ? [
+      ...h6Fixture.cases.filter((row) => row.group === "tuning"),
+      ...recoveryFixture.cases,
+    ]
+  : h6Fixture.cases;
 export function h6AllowedRequest(body) {
   if (!body || typeof body.message !== "string") return false;
   if (
@@ -27,7 +44,7 @@ export function h6AllowedRequest(body) {
     /^調査対象の設備コードは[^\n]+です。\n/u,
     "",
   );
-  return h6Fixture.cases.some(
+  return evaluationCases.some(
     (row) => row.expected !== "SEARCH" && row.question === question,
   );
 }
@@ -99,18 +116,13 @@ export async function runH6(page, base, token, report) {
     throw new Error(
       "An explicitly approved current H6 time window is required",
     );
-  const cases = h6Fixture.cases;
-  expect(cases).toHaveLength(20);
-  expect(new Set(cases.map((row) => row.id)).size).toBe(20);
-  expect(cases.reduce((sum, row) => sum + row.repeat, 0)).toBe(44);
-  const identityTools = new Set([
-    "search_equipment",
-    "get_equipment",
-    "get_process",
-    "get_product",
-    "get_production_operation",
-    "get_infrastructure_resource",
-  ]);
+  const cases = evaluationCases;
+  const expectedTypes = recoveryRound ? 12 : 20;
+  const expectedRuns = recoveryRound ? 36 : 44;
+  expect(cases).toHaveLength(expectedTypes);
+  expect(new Set(cases.map((row) => row.id)).size).toBe(expectedTypes);
+  expect(cases.reduce((sum, row) => sum + row.repeat, 0)).toBe(expectedRuns);
+  report.h6_round = recoveryRound ? "recovery" : "original";
   report.h6_cases = [];
   report.model_call_count = null; // Obtain from server llm.call.completed, not HTTP count.
   let timeoutStreak = 0;
@@ -170,22 +182,20 @@ export async function runH6(page, base, token, report) {
         expect(response.status()).toBe(200);
         inspectFacts(body);
         expect(sample.outcome).toBe(row.expected);
+        if (row.expected_unavailable)
+          expect(
+            body.data.answer_sections.unavailable.some(
+              (item) => item.code === row.expected_unavailable,
+            ),
+          ).toBe(true);
+        for (const tool of row.forbidden_tools ?? [])
+          expect(
+            body.data.tool_results.some((item) => item.tool === tool),
+          ).toBe(false);
         if (
           ["UNSUPPORTED", "TARGET_AMBIGUOUS", "CONFIRM"].includes(row.expected)
         ) {
-          expect(
-            body.data.tool_results.every((tool) =>
-              identityTools.has(tool.tool),
-            ),
-          ).toBe(true);
-          expect(
-            body.data.answer_sections.facts.every(
-              (fact) =>
-                fact.predicate === "equipment.identity" ||
-                (row.expected === "TARGET_AMBIGUOUS" &&
-                  fact.predicate === "equipment.identity_candidate"),
-            ),
-          ).toBe(true);
+          expect(identityOnlyResult(body, row.expected)).toBe(true);
         }
         if (row.expected === "CONFIRM") {
           expect(body.data.read_clarification?.status).toBe("PENDING");

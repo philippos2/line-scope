@@ -84,7 +84,7 @@ class LiteralRead:
         )
 
 
-def literal_read(message):
+def literal_reads(message):
     text = question_messages(message)[-1]["content"].strip()
     matches = set()
     for field, terms in TERMS.items():
@@ -119,7 +119,22 @@ def literal_read(message):
                     value,
                 )
             )
-    return next(iter(matches)) if len(matches) == 1 else None
+    return tuple(
+        sorted(
+            matches,
+            key=lambda item: (
+                item.field,
+                item.kind,
+                item.subject or "",
+                item.predicate_value or "",
+            ),
+        )
+    )
+
+
+def literal_read(message):
+    matches = literal_reads(message)
+    return matches[0] if len(matches) == 1 else None
 
 
 def valid_spans(spans, message):

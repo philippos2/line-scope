@@ -1,0 +1,66 @@
+{
+  "version": 1,
+  "status": "FROZEN_BEFORE_EXECUTION",
+  "product_diff_sha256": "657fca3e97ad8213580b3d73c0d6055f81f74165607e4debb4f726ed98127f29",
+  "note": "H6-R製品コードの修正後に固定。同じ失敗種類の別表現による新留出で、未知の業務領域への一般化の証拠とはしない。実行前のラベルを保ち、調整に使った場合は留出から外す。実行の時間帯は別了承。",
+  "cases": [
+    {
+      "id": "H01",
+      "group": "holdout",
+      "repeat": 3,
+      "question": "第二加工機の設備の種類は何ですか？",
+      "expected": "AUTO",
+      "equipment_code": "M-208",
+      "expected_tool": "search_equipment",
+      "failure_class": "registered_attribute_vs_unregistered_attribute"
+    },
+    {
+      "id": "H02",
+      "group": "holdout",
+      "repeat": 3,
+      "question": "m-208の購入価格は分かる？",
+      "expected": "UNSUPPORTED",
+      "equipment_code": "M-208",
+      "failure_class": "registered_attribute_vs_unregistered_attribute"
+    },
+    {
+      "id": "H03",
+      "group": "holdout",
+      "repeat": 3,
+      "question": "第１加工機、今は休んでいるのか？",
+      "expected": "CONFIRM",
+      "equipment_code": "M-204",
+      "expected_state": "STOPPED",
+      "failure_class": "operation_state_vs_contract_state"
+    },
+    {
+      "id": "H04",
+      "group": "holdout",
+      "repeat": 3,
+      "question": "Ｍ－２０４の保守契約は今も有効なのか？",
+      "expected": "UNSUPPORTED",
+      "equipment_code": "M-204",
+      "failure_class": "operation_state_vs_contract_state"
+    },
+    {
+      "id": "H05",
+      "group": "holdout",
+      "repeat": 3,
+      "question": "第2加工機の前回の保全実施日はいつ？",
+      "expected": "AUTO",
+      "equipment_code": "M-208",
+      "expected_tool": "search_maintenance_records",
+      "failure_class": "registered_record_vs_external_visit"
+    },
+    {
+      "id": "H06",
+      "group": "holdout",
+      "repeat": 3,
+      "question": "m-208の外注点検員の到着日はいつ？",
+      "expected": "UNSUPPORTED",
+      "equipment_code": "M-208",
+      "failure_class": "registered_record_vs_external_visit"
+    }
+  ],
+  "product_base_commit": "92c209adce1147f0aa7b0dce1c0fddb5f054e307"
+}

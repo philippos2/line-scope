@@ -134,8 +134,6 @@ def build_answer(
 ):
     """Only server adapters create facts. Selection names existing request-local fact IDs."""
     scope_blocked = bool(scope and scope.scope_issue)
-    if scope_blocked and not identification_only:
-        observations = ()
     facts, unavailable = [], []
     truncated = False
     question_mode = bool(scope and question)
@@ -152,6 +150,10 @@ def build_answer(
     )
 
     def missing(code, text, references=()):
+        for existing in unavailable:
+            if existing["code"] == code and existing["text"] == text:
+                existing["references"] = list(dict.fromkeys([*existing["references"], *references]))
+                return
         item = {"code": code, "text": text, "references": list(references)}
         if item not in unavailable:
             unavailable.append(item)
@@ -176,7 +178,26 @@ def build_answer(
             }
         )
 
-    identity = tuple(o for o in observations if o.tool in {"search_equipment", "get_equipment"})
+    references = (
+        {
+            reference_key(subject["reference"])
+            for subject in scope.subjects
+            if subject["entity_type"] == "Equipment"
+        }
+        if scope
+        else set()
+    )
+    visible = tuple(
+        item
+        for item in observations
+        if not (
+            references
+            and item.tool == "search_equipment"
+            and isinstance((item.arguments or {}).get("filter", {}).get("reference"), str)
+            and reference_key(item.arguments["filter"]["reference"]) not in references
+        )
+    )
+    identity = tuple(o for o in visible if o.tool in {"search_equipment", "get_equipment"})
     lookup_groups = equipment_lookup_view(identity)
     if identification_only or question_mode:
         for group in lookup_groups:
@@ -205,7 +226,11 @@ def build_answer(
                 identity_answered = bool(
                     requested_attributes & {"equipment_name", "equipment_code"}
                 )
-            elif group["status"] == "MULTIPLE_MATCHES":
+            elif group["status"] == "MULTIPLE_MATCHES" or (
+                group["status"] == "FOUND"
+                and errors
+                and all(error["code"] == "TARGET_AMBIGUOUS" for error in errors)
+            ):
                 for label in dict.fromkeys(labels):
                     add("SEARCH_RESULT", label, refs, "equipment.identity_candidate")
                 missing(
@@ -246,7 +271,9 @@ def build_answer(
                 identity_answered = bool(
                     requested_attributes & {"equipment_name", "equipment_code"}
                 )
-    answer_observations = () if identification_only else observations
+    # A rejected interpretation does not invalidate a completed identity lookup.
+    # Preserve its evidence, but never render business values from a blocked scope.
+    answer_observations = () if identification_only or scope_blocked else visible
     record_queries = set()
     for observation in answer_observations:
         if observation.tool != "search_maintenance_records":
@@ -442,6 +469,28 @@ def build_answer(
                 or "この版で参照できる情報の範囲外の事項があります。登録の有無や、その値・場所・可否は判断できません。",
             )
         elif required and not any(o.tool in required for o in observations):
+            preparation = [
+                item
+                for item in observations
+                if item.tool == "trace_downstream_impact"
+                and item.result.data.get("complete") is True
+                and item.result.data.get("graph_sync_state") == "CURRENT"
+                and isinstance(item.result.data.get("reached_nodes"), list)
+                and all(isinstance(node, dict) for node in item.result.data["reached_nodes"])
+                and not any(
+                    node.get("entity_type") == "Product"
+                    for node in item.result.data["reached_nodes"]
+                )
+            ]
+            if topic in {"ALTERNATIVES", "SINGLE_POINT_FAILURE"} and preparation and not errors:
+                missing(
+                    "ANALYSIS_TARGET_REQUIRED",
+                    "評価する製品を今回の関係図から特定できないため、"
+                    + TOPICS[topic][0]
+                    + "の判定は実施していません。評価対象を特定する追加情報が必要です。",
+                    tuple(item.tool_call_id for item in preparation),
+                )
+                continue
             missing(
                 "NOT_RETRIEVED",
                 f"{TOPICS[topic][0]}に必要な情報は取得できていません。対象の識別だけでは回答できません。",
@@ -484,7 +533,11 @@ def build_answer(
         )
     scope_labels = scope.labels() if scope else []
     if scope_blocked:
-        scope_labels = ["質問との対応を確認できなかった解釈：" + "、".join(scope_labels)]
+        scope_labels = [
+            "質問との対応を確認できなかった解釈：" + "、".join(scope_labels)
+            if scope_labels
+            else "質問の読み取りを確定できませんでした。"
+        ]
     if scope and scope.subjects:
         subjects = "、".join(subject["reference"] for subject in scope.subjects)
         scope_labels = [public_answer(f"抽出した対象表現：{subjects}", observations), *scope_labels]
@@ -497,5 +550,7 @@ def build_answer(
         "unavailable": unavailable,
         "notice": "AIは質問の解釈と情報の整理を担当します。事実は取得した登録情報からサーバが表示しています。",
     }
+    if scope and scope.validation_stage:
+        sections["verification"] = {"stage": scope.validation_stage}
     paragraphs = [fact["text"] for fact in facts] + [item["text"] for item in unavailable]
     return "\n".join(paragraphs), sections

@@ -1,7 +1,7 @@
 {
   "version": 1,
-  "status": "FROZEN_BEFORE_MODEL_EXECUTION",
-  "note": "実文の保存は実装着手後。モデル評価前に固定し、holdoutを調整に使わない。失敗を見て修正へ使った場合はholdoutから外した事実と新評価案を報告する。実行済みを意味しない。",
+  "status": "HISTORICAL_EXECUTED_CORPUS",
+  "note": "原実測は14/44。旧holdoutは修正検討に使ったためregression_after_reviewへ分類し、独立評価としない。元の質問・期待結果・実測は削除しない。",
   "cases": [
     {
       "id": "B01",
@@ -142,55 +142,65 @@
     },
     {
       "id": "V01",
-      "group": "holdout",
+      "group": "regression_after_review",
       "repeat": 3,
       "question": "M-208の登録上の状態を教えて",
       "expected": "AUTO",
       "equipment_code": "M-208",
       "expected_state": "RUNNING",
-      "expected_tool": "get_equipment_state"
+      "expected_tool": "get_equipment_state",
+      "original_group": "holdout"
     },
     {
       "id": "V02",
-      "group": "holdout",
+      "group": "regression_after_review",
       "repeat": 3,
       "question": "M-208の保守契約の有効状態を教えて",
       "expected": "UNSUPPORTED",
-      "equipment_code": "M-208"
+      "equipment_code": "M-208",
+      "original_group": "holdout"
     },
     {
       "id": "V03",
-      "group": "holdout",
+      "group": "regression_after_review",
       "repeat": 3,
       "question": "第2加工機の構造上の代替候補を見せて",
       "expected": "AUTO",
       "equipment_code": "M-208",
-      "expected_tool": "find_alternative_paths"
+      "expected_tool": "trace_downstream_impact",
+      "original_group": "holdout",
+      "original_expected_tool": "find_alternative_paths",
+      "expected_unavailable": "ANALYSIS_TARGET_REQUIRED",
+      "forbidden_tools": ["find_alternative_paths"],
+      "oracle_note": "必須のimportant_targetsをM-208の下流から特定できないため分析は未実施。AUTOの構文解釈は維持し、不足理由と分析しないことを検査する。原14/44は変更しない。"
     },
     {
       "id": "V04",
-      "group": "holdout",
+      "group": "regression_after_review",
       "repeat": 3,
       "question": "第2加工機の予備ユニットの置き場所を見せて",
       "expected": "UNSUPPORTED",
-      "equipment_code": "M-208"
+      "equipment_code": "M-208",
+      "original_group": "holdout"
     },
     {
       "id": "V05",
-      "group": "holdout",
+      "group": "regression_after_review",
       "repeat": 3,
       "question": "M-208はいま息してる？",
       "expected": "CONFIRM",
       "equipment_code": "M-208",
-      "expected_state": "RUNNING"
+      "expected_state": "RUNNING",
+      "original_group": "holdout"
     },
     {
       "id": "V06",
-      "group": "holdout",
+      "group": "regression_after_review",
       "repeat": 3,
       "question": "M-208の保証契約はいま息してる？",
       "expected": "UNSUPPORTED",
-      "equipment_code": "M-208"
+      "equipment_code": "M-208",
+      "original_group": "holdout"
     }
   ]
 }

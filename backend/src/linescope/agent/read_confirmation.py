@@ -8,13 +8,14 @@ from .answer_text import public_answer
 from .equipment_reference import question_messages
 from .grounded_answer import build_answer
 from .read_catalog import (
+    BUSINESS_FIELDS,
     CATALOG_VERSION,
     FIELD_MEANINGS,
     definitions_answer,
-    literal_read,
+    literal_reads,
     subjects_sufficient,
 )
-from .read_scope import classify
+from .read_scope import ReadScope, classify
 from .scoped_reads import collect_scope
 
 
@@ -52,6 +53,8 @@ def _result(
         if errors and all(e["code"] == "TARGET_NOT_FOUND" for e in errors)
         else "INCOMPLETE"
         if errors
+        else "UNVERIFIABLE"
+        if scope.scope_issue == "UNVERIFIABLE"
         else "UNSUPPORTED"
         if "UNSUPPORTED" in scope.topics or scope.scope_issue == "UNSUPPORTED"
         else "TARGET_REQUIRED"
@@ -88,7 +91,53 @@ def interpreted_read(agent, request, session, previous):
     # Explicit structured comparison remains on its existing validated route.
     if set(session.schemas()) == {"compare_registered_inputs"}:
         return None
-    literal = literal_read(request.message)
+    candidates = literal_reads(request.message)
+    literal = candidates[0] if len(candidates) == 1 else None
+    resolved = None
+    if (
+        len(candidates) > 1
+        and not request.explicit_as_of
+        and all(item.subject for item in candidates)
+        and len({(item.field, item.kind, item.predicate_value) for item in candidates}) == 1
+    ):
+        observations, trace, failures, choices = [], [], [], {}
+        for candidate in candidates:
+            targets = []
+            values, attempts, errors = collect_scope(
+                candidate.scope(), session, identification_only=True, identified_targets=targets
+            )
+            observations.extend(values)
+            trace.extend(attempts)
+            if errors and any(error["code"] != "TARGET_NOT_FOUND" for error in errors):
+                failures.extend(errors)
+                break  # An incomplete candidate cannot be discarded as a non-match.
+            if not errors and len(targets) == 1:
+                key = (targets[0]["entity_type"], targets[0]["entity_id"])
+                choices[key] = (candidate, targets)
+        if not failures and len(choices) == 1:
+            # Equivalent parses resolved to the same operation on the same real ID.
+            literal, targets = next(iter(choices.values()))
+            resolved = (tuple(observations), tuple(trace), (), targets)
+        else:
+            if not failures:
+                failures = [
+                    {
+                        "code": "TARGET_AMBIGUOUS" if choices else "TARGET_NOT_FOUND",
+                        "message": "Literal target selection is required"
+                        if choices
+                        else "No literal target found",
+                        "details": {},
+                    }
+                ]
+            scope = ReadScope(
+                (BUSINESS_FIELDS[candidates[0].field],),
+                tuple(
+                    {"entity_type": "Equipment", "reference": item.subject} for item in candidates
+                ),
+                requested_fields=(candidates[0].field,),
+                validation_stage="LITERAL_TARGETS",
+            )
+            return _result(scope, request, tuple(observations), tuple(trace), tuple(failures))
     if literal and literal.kind == "definition":
         from .read_agent import ReadAgentResult
 
@@ -99,9 +148,12 @@ def interpreted_read(agent, request, session, previous):
         # The grammar does not assert a historic state can be reconstructed.
         literal = None
     targets = []
-    observations, trace, errors = collect_scope(
-        scope, session, identification_only=True, identified_targets=targets
-    )
+    if resolved is None:
+        observations, trace, errors = collect_scope(
+            scope, session, identification_only=True, identified_targets=targets
+        )
+    else:
+        observations, trace, errors, targets = resolved
     if errors or not subjects_sufficient(scope) or len(targets) != len(scope.subjects):
         return _result(scope, request, observations, trace, errors)
     if literal:
@@ -131,7 +183,7 @@ def interpreted_read(agent, request, session, previous):
                         result, answer=f"登録状態の照会条件には{verdict}。\n" + result.answer
                     )
         return result
-    if scope.scope_issue == "UNVERIFIABLE" or "UNSUPPORTED" in scope.topics:
+    if scope.scope_issue in {"UNVERIFIABLE", "UNSUPPORTED"} or "UNSUPPORTED" in scope.topics:
         return _result(scope, request, observations, trace, errors)
     # A model can suggest a new, limited read; it cannot declare its interpretation correct.
     clarification = {

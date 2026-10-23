@@ -123,6 +123,7 @@ def test_u01_invalid_source_span_never_grants_read():
     context, reads, _, app, request = setup(invalid=True)
     result = app.run(context, request)
     assert result.analysis.read_clarification is None
+    assert result.analysis.answer_sections["verification"]["stage"] == "SOURCE_SPANS"
     assert all(tool == "search_equipment" for tool, _ in reads.calls)
 
 

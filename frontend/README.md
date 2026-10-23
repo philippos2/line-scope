@@ -48,4 +48,6 @@ docker run --rm --pull never --network host --env-file /private/browser.env \
 
 主シナリオrunnerへ`LINESCOPE_BROWSER_H6=1`を渡すと、固定した`frontend/scripts/fixtures/h6-questions.json`に従い20種類・44項目（43質問と左検索1）を実行します。`verify-h6-read-scopes.mjs`はこのrunnerの補助モジュールで、独立した追加runnerではありません。通常の主シナリオや他の追加モードとは同時に実行しません。
 
+H6-Rは追加で`LINESCOPE_BROWSER_H6_ROUND=recovery`を指定し、旧調整6種類＋`fixtures/h6-recovery-questions.json`の新留出6種類を各3回、計36項目として実行します。元の44項目は削除せず、旧留出は修正検討後の回帰として区別します。件数・時間帯の了承前に実行せず、未知のround指定は停止します。
+
 実モデル実行は開発者が了承した負荷・時間帯だけとし、私有envへ`LINESCOPE_BROWSER_H6_WINDOW_START`と`LINESCOPE_BROWSER_H6_WINDOW_END`をtimezone付きISO日時で指定します。既定の時間帯はありません。終了までに2応答分の余裕がない場合や連続2回の応答期限超過では停止します。確認が必要な問いは、確認前に業務値を取得しないことと、明示受理後の実Readを分けて検査します。業務書込は許可しません。各結果・所要時間・失敗は私有outputに保存し、反復を別の試験種類として水増ししません。留出に失敗して調整へ利用した場合は、留出のまま合格扱いにしません。
