@@ -17,6 +17,10 @@ description: LineScopeのReact component、表示モデル、API client、Graph�
 - Analysis、Prepare、Approval、Executeの操作主体と状態を分ける。LLMに確定操作を許可しない。Snapshotの確定afterと最新currentを混同しない。
 - 抽象化や追加libraryは具体的な変更負担を減らす場合に採用する。Middlewareの差し替えを理由に形式だけのlayerを増やさない。
 
+## アドホック実装・テストの禁止
+
+[共通の設計規則](../backend-architecture/SKILL.md#アドホック実装テストの禁止)をFrontendにも適用する。特定の質問・設備・画面例だけに効く条件分岐や表示の特例で解決しない。要件と共通の状態・データ契約から表示と操作を設計する。Componentの共通化だけで一般化・統一ができたと判断しない。検証は[test-design](../test-design/SKILL.md#アドホックなテストの禁止)に従い、例題だけを通す試験や、実装から逆算した期待値を作らない。
+
 ## レビュー
 
 Public contract、サーバの権限検証、UIの状態、読みやすさ・keyboard操作を確認する。取得できない情報を表示上の推測で埋めない。実装済み・mock・未確認を分けて報告する。PR運用は[CONTRIBUTING](../../../CONTRIBUTING.md)を参照し、ここで再定義しない。
