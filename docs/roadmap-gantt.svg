@@ -1,12 +1,12 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1700" height="2470" viewBox="0 0 1700 2470" role="img" aria-labelledby="title desc">
+<svg xmlns="http://www.w3.org/2000/svg" width="1700" height="2740" viewBox="0 0 1700 2740" role="img" aria-labelledby="title desc">
 <title id="title">LineScope 残り3PRの時間軸ガント</title>
-<desc id="desc">#275 merge済み。残りはハルシネーション対応H、M-208電源依存F2、範囲一覧F3の3PR。上段は10月21日から26日の報告予定期間、下段は実装承認後の10作業日のH見積もり。H6は新たな承認U0後の追加5作業日を独立した時間軸で表示。未見積もりと判断待ちは時間軸の外に明示し、架空の期間を描かない。</desc>
+<desc id="desc">#275 merge済み。残りはハルシネーション対応H、M-208電源依存F2、範囲一覧F3の3PR。上段は10月21日から26日の報告予定期間、下段は実装承認後の10作業日のH見積もり。H6は新たな承認U0後の追加5作業日を独立した時間軸で表示。未見積もりと判断待ちは時間軸の外に明示し、架空の期間を描かない。末尾はH7案の承認日S0を起点にした追加3作業日の上限側配分で、未承認の計画。</desc>
 <defs><marker id="arrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0 0L8 4L0 8" fill="#64748b"/></marker></defs>
-<rect width="1700" height="2470" fill="#f8fafc"/>
+<rect width="1700" height="2740" fill="#f8fafc"/>
 <g font-family="sans-serif" fill="#183247">
 <text x="30" y="43" font-size="28" font-weight="bold">LineScope：残り3PRの時間軸ガント</text>
 <text x="30" y="77" font-size="21" font-weight="bold">順序：H ハルシネーション対応 → F2 M-208電源依存 → F3 やること／やらないこと</text>
-<text x="30" y="107" font-size="18">#276 H未達。原文63応答を保存。誤った確認誘導と取りこぼしが残る。補助6問は未実行。Agent245成功・20skip。</text>
+<text x="30" y="107" font-size="18">#276 H未達。81応答を保存、誤誘導5・取りこぼし3。Agent252成功・20skip。H7は設計案。</text>
 <text x="30" y="147" font-size="22" font-weight="bold">1．報告計画（暦日・日本時間）</text>
 <text x="30" y="175" font-size="17">棒は作成開始から報告期限までの予定期間。実働工数ではない。灰色は土日。</text>
 <path d="M450 210L450 385" fill="none" stroke="#cbd5e1"/>
@@ -90,7 +90,7 @@
 <text x="440" y="1018" font-size="16">旧版と候補の比較は履歴で分離。偽の受理・確認頻度の評価をH6へ追加し、完了扱いしない。</text>
 <text x="30" y="1040" font-size="17">矢印は前工程の終了後に着手する依存。半日の境界も棒幅へ反映。実績・確定納期ではない。</text>
 <text x="35" y="1068" font-size="17" font-weight="bold">H5回帰：全12組→ペアワイズ6組。H6の具体設計・実装承認前にコードへ進まない。</text>
-<text x="30" y="1104" font-size="22" font-weight="bold">追加H6：曖昧な解釈の確認（同じ#276・実装中／検証未完）</text>
+<text x="30" y="1104" font-size="22" font-weight="bold">追加H6：曖昧な解釈の確認（同じ#276・実評価未達／追加実装停止）</text>
 <text x="30" y="1129" font-size="16">U0＝本設計の実装承認。追加3〜5作業日の上限配分。旧T0計画とは別。待ち時間・実績ではない。</text>
 <rect x="620" y="1160" width="840" height="143" fill="white" stroke="#cbd5e1"/>
 <path d="M620 1160V1303M788 1160V1303M956 1160V1303M1124 1160V1303M1292 1160V1303M1460 1160V1303" fill="none" stroke="#cbd5e1"/>
@@ -107,7 +107,7 @@
 <g transform="translate(0 260)">
 <text x="30" y="1092" font-size="22" font-weight="bold">3．依存待ち・期間未確定（時間軸へ未配置）</text>
 <text x="30" y="1122" font-size="17">ここには期間の棒を描かない。F2の影響調査後、開始・終了・期間を見積もって時間軸へ配置する。</text>
-<text x="45" y="1144" font-size="14">判断待ち：H6 閉じた選択方式の検討。採否・範囲・工数は未確定。追加実装は停止。</text>
+<text x="45" y="1144" font-size="14">H7 判断待ち：明示選択の登録照会。API追加・自動26／ブラウザ6の案。追加2〜3日、開始未定。</text>
 <text x="45" y="1167" font-size="18" font-weight="bold">H6-R 実API再評価（同じ#276／81回完了・受入未達）</text>
 <text x="45" y="1196" font-size="17">H6-R：誤誘導5回・口語の取りこぼし3回。構文上限7と事前基準を維持。H未完、F2・F3未着手。</text>
 <text x="45" y="1218" font-size="14">H6-R未解決：最新等を含む保全照会の対象誤分割。受入前に確認／期間未見積もり。</text>
@@ -159,8 +159,22 @@
 <text x="30" y="1990" font-size="17">残PRはH → F2 → F3の3本。設計専用の4本目は作らない。分割が必要なら事前に計画変更を報告。</text>
 <text x="30" y="2025" font-size="17">青＝予定期間（上段は報告窓、下段は暫定実働）。未配置は未完了であり、期間ゼロ・完了ではない。</text>
 <text x="30" y="2060" font-size="17">出典：docs/roadmap.md、docs/design/grounded-answer-plan.md。新規タスク・状態・見積もり変更時に同時更新。</text>
-<text x="30" y="2095" font-size="16">更新：2026-10-23 ／ 原文63回の実応答を保存、再修正が必要。補助0/18。H→F2→F3、Draft維持。</text>
+<text x="30" y="2095" font-size="16">更新：2026-10-23 ／ 第2回81応答を保存・受入未達。H7は設計案、H→F2→F3・Draft維持。</text>
 </g>
 </g>
 </g>
+<text x="30" y="2498" font-size="22" font-weight="bold">5．H7案：明示選択の登録照会（未承認／採用後S0起点の相対工数）</text>
+<text x="30" y="2525" font-size="16">追加2〜3作業日。棒は上限3日の配分。S0は未確定の承認・着手日であり、暦日は決めていない。</text>
+<rect x="620" y="2552" width="840" height="130" fill="white" stroke="#cbd5e1"/>
+<path d="M620 2552V2682M900 2552V2682M1180 2552V2682M1460 2552V2682" fill="none" stroke="#cbd5e1"/>
+<text x="620" y="2546" font-size="15" text-anchor="middle">S0</text><text x="900" y="2546" font-size="15" text-anchor="middle">S1</text><text x="1180" y="2546" font-size="15" text-anchor="middle">S2</text><text x="1460" y="2546" font-size="15" text-anchor="middle">S3</text>
+<text x="40" y="2579" font-size="17">カタログ・型付きRead・表示境界（0.75〜1.25日）</text>
+<rect x="620" y="2559" width="350" height="26" fill="#b45309"/><text x="795" y="2578" font-size="15" fill="white" text-anchor="middle">1.25日</text>
+<text x="40" y="2621" font-size="17">原問と選択照会を分けるUI（0.5〜0.75日）</text>
+<rect x="970" y="2601" width="210" height="26" fill="#b45309"/><text x="1075" y="2620" font-size="15" fill="white" text-anchor="middle">0.75日</text>
+<path d="M970 2585V2593H970V2601" fill="none" stroke="#64748b" marker-end="url(#arrow)"/>
+<text x="40" y="2663" font-size="17">回帰・実測・記録（0.75〜1日、了承後）</text>
+<rect x="1180" y="2643" width="280" height="26" fill="#b45309"/><text x="1320" y="2662" font-size="15" fill="white" text-anchor="middle">1日</text>
+<path d="M1180 2627V2635H1180V2643" fill="none" stroke="#64748b" marker-end="url(#arrow)"/>
+<text x="30" y="2715" font-size="17">橙＝未承認の追加案。採用・API契約・試験件数の了承前に実装しない。Hのmerge後にF2→F3。</text>
 </svg>

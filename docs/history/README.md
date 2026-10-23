@@ -707,3 +707,4 @@ Dockerで追加36テスト成功、ruff check / format、git diff --check成功�
 - [追加の突拍子もない質問6種類・期待・未実行](2026-10-23-unexpected-question-cases.md)
 
 - [質問の直接API回帰・第2回](2026-10-23-agent-question-round2.md)：原文21＋補助6を各3回、81応答の前後比較。誤誘導5・取りこぼし3で受入未達、追加実装停止。
+- [H7 明示選択の登録照会の設計案](2026-10-23-explicit-read-proposal.md)：原問と別照会、型付きAPI追加、field単位の取得・表示、26自動／6ブラウザと追加2〜3日の未承認案。
