@@ -183,7 +183,7 @@ def interpreted_read(agent, request, session, previous):
                         result, answer=f"登録状態の照会条件には{verdict}。\n" + result.answer
                     )
         return result
-    if scope.scope_issue in {"UNVERIFIABLE", "UNSUPPORTED"} or "UNSUPPORTED" in scope.topics:
+    if scope.scope_issue not in {None, "UNCERTAIN"} or "UNSUPPORTED" in scope.topics:
         return _result(scope, request, observations, trace, errors)
     # A model can suggest a new, limited read; it cannot declare its interpretation correct.
     clarification = {
@@ -261,6 +261,8 @@ def confirmed_read(agent, context, request, saved):
     observations, trace, errors = collect_scope(
         saved["scope"], session, identification_only=True, identified_targets=targets
     )
+    if saved["scope"].scope_issue not in {None, "UNCERTAIN"}:
+        return _result(saved["scope"], request, observations, trace, errors)
     if errors or targets != saved["targets"]:
         if not errors:
             errors = (
