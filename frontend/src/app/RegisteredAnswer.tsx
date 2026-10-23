@@ -95,10 +95,16 @@ export function RegisteredAnswer({ response }: { response: Envelope }) {
         </section>
       )}
       <details>
-        <summary>回答に使った情報</summary>
-        <p>
-          登録情報から確認できた内容を表示しています。実際の稼働や運転許可を保証するものではありません。
-        </p>
+        <summary>
+          {facts.length > 0 ? "回答に使った情報" : "質問の処理情報"}
+        </summary>
+        {facts.length > 0 ? (
+          <p>
+            登録情報から確認できた内容を表示しています。実際の稼働や運転許可を保証するものではありません。
+          </p>
+        ) : (
+          <p>回答として示せる登録情報は取得・確認できていません。</p>
+        )}
         {scope.length > 0 && <p>質問の読み取り：{scope.join("、")}</p>}
       </details>
     </div>
