@@ -11,21 +11,26 @@ export const h6Fixture = JSON.parse(
   ),
 );
 const round = process.env.LINESCOPE_BROWSER_H6_ROUND ?? "original";
-if (!["original", "recovery"].includes(round))
+if (!["original", "recovery", "diagnostic"].includes(round))
   throw new Error("Unknown H6 evaluation round");
 const recoveryRound = round === "recovery";
+const diagnosticRound = round === "diagnostic";
 const recoveryFixture = JSON.parse(
   readFileSync(
     new URL("./fixtures/h6-recovery-questions.json", import.meta.url),
     "utf8",
   ),
 );
-const evaluationCases = recoveryRound
-  ? [
-      ...h6Fixture.cases.filter((row) => row.group === "tuning"),
-      ...recoveryFixture.cases,
-    ]
-  : h6Fixture.cases;
+const evaluationCases = diagnosticRound
+  ? h6Fixture.cases
+      .filter((row) => ["T02", "T03", "T04"].includes(row.id))
+      .map((row) => ({ ...row, repeat: 1 }))
+  : recoveryRound
+    ? [
+        ...h6Fixture.cases.filter((row) => row.group === "tuning"),
+        ...recoveryFixture.cases,
+      ]
+    : h6Fixture.cases;
 export function h6AllowedRequest(body) {
   if (!body || typeof body.message !== "string") return false;
   if (
@@ -117,12 +122,13 @@ export async function runH6(page, base, token, report) {
       "An explicitly approved current H6 time window is required",
     );
   const cases = evaluationCases;
-  const expectedTypes = recoveryRound ? 12 : 20;
-  const expectedRuns = recoveryRound ? 36 : 44;
+  const expectedTypes = diagnosticRound ? 3 : recoveryRound ? 12 : 20;
+  const expectedRuns = diagnosticRound ? 3 : recoveryRound ? 36 : 44;
   expect(cases).toHaveLength(expectedTypes);
   expect(new Set(cases.map((row) => row.id)).size).toBe(expectedTypes);
   expect(cases.reduce((sum, row) => sum + row.repeat, 0)).toBe(expectedRuns);
-  report.h6_round = recoveryRound ? "recovery" : "original";
+  report.h6_round = round;
+  const diagnosticEnd = Date.now() + 300000;
   report.h6_cases = [];
   report.model_call_count = null; // Obtain from server llm.call.completed, not HTTP count.
   let timeoutStreak = 0;
@@ -142,6 +148,10 @@ export async function runH6(page, base, token, report) {
       // Reserve two response deadlines and UI time. Never silently run past the window.
       if (Date.now() + 270000 >= end)
         throw new Error("H6 time window has insufficient remaining time");
+      if (diagnosticRound && Date.now() + 135000 >= diagnosticEnd)
+        throw new Error(
+          "Diagnostic five-minute budget has insufficient remaining time",
+        );
       const sample = { ...row, repeat, elapsed_ms: null };
       report.h6_cases.push(sample);
       const began = Date.now();
@@ -270,7 +280,7 @@ export async function runH6(page, base, token, report) {
       questions.filter((row) => row.outcome === "CONFIRM").length,
       questions.length,
     ),
-    planned: 44,
+    planned: expectedRuns,
     completed: report.h6_cases.length,
     passed: report.h6_cases.filter((row) => row.pass).length,
     failed: report.h6_cases.filter((row) => !row.pass).length,
@@ -285,6 +295,6 @@ export async function runH6(page, base, token, report) {
       (row) => row.expected === "AUTO" && row.outcome !== "AUTO",
     ).length,
   };
-  expect(report.h6_cases).toHaveLength(44);
+  expect(report.h6_cases).toHaveLength(expectedRuns);
   expect(report.h6_cases.every((row) => row.pass)).toBe(true);
 }

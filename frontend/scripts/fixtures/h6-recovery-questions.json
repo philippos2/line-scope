@@ -1,8 +1,8 @@
 {
   "version": 1,
-  "status": "FROZEN_BEFORE_EXECUTION",
+  "status": "EXECUTED_ONCE_BEFORE_TEXT_POSITION_FIX",
   "product_diff_sha256": "657fca3e97ad8213580b3d73c0d6055f81f74165607e4debb4f726ed98127f29",
-  "note": "H6-R製品コードの修正後に固定。同じ失敗種類の別表現による新留出で、未知の業務領域への一般化の証拠とはしない。実行前のラベルを保ち、調整に使った場合は留出から外す。実行の時間帯は別了承。",
+  "note": "H6-R製品コードの修正後に固定。同じ失敗種類の別表現による新留出で、未知の業務領域への一般化の証拠とはしない。実行前のラベルを保ち、調整に使った場合は留出から外す。実行の時間帯は別了承。 2026-10-23に18項目を実行済み。元の期待値・固定時のdiff hashは保持する。今後調整に利用する場合は回帰として扱う。",
   "cases": [
     {
       "id": "H01",
@@ -62,5 +62,6 @@
       "failure_class": "registered_record_vs_external_visit"
     }
   ],
-  "product_base_commit": "92c209adce1147f0aa7b0dce1c0fddb5f054e307"
+  "product_base_commit": "92c209adce1147f0aa7b0dce1c0fddb5f054e307",
+  "execution_commit": "30022e88fc6b2d045da9cb4225ac1a3aad3b6bb5"
 }

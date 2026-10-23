@@ -93,7 +93,7 @@ class Plan:
                         "topics": ["MAINTENANCE"],
                         "subjects": [{"entity_type": "Equipment", "reference": "e-7"}],
                         "requested_fields": ["maintenance_plans"],
-                        "source_spans": [{"text": text, "start": 0, "end": len(text)}],
+                        "source_spans": [{"text": text}],
                     },
                 ),
             ),

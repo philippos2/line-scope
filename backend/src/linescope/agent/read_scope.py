@@ -112,12 +112,10 @@ PLAN_SCHEMA = {
                 "additionalProperties": False,
                 "properties": {
                     "text": {"type": "string"},
-                    "start": {"type": "integer"},
-                    "end": {"type": "integer"},
                 },
-                "required": ["text", "start", "end"],
+                "required": ["text"],
             },
-            "description": "最後の質問本文の尋ねている語句を原文のまま抽出。start/endはUnicode文字の0始まり・終端を含まない位置。対象以外の属性・修飾・疑問を落とさない。",
+            "description": "最後の質問本文の尋ねている語句を原文のまま抽出。文字位置はコードが照合して計算するため出力しない。対象以外の属性・修飾・疑問を落とさない。",
         },
         "topics": {
             "type": "array",
@@ -163,6 +161,7 @@ class ReadScope:
     requested_fields: tuple[str, ...] = ()
     source_spans: tuple[dict, ...] = ()
     validation_stage: str | None = None
+    validation_reason: str | None = None
 
     def schemas(self, available):
         allowed = IDENTITY_TOOLS | set().union(*(TOPICS[t][1] for t in self.topics))
@@ -173,7 +172,7 @@ class ReadScope:
 
 
 def classify(llm, request, session, previous_messages=None):
-    from .read_catalog import BUSINESS_FIELDS, valid_spans
+    from .read_catalog import BUSINESS_FIELDS, locate_spans
 
     messages = [
         {
@@ -240,8 +239,8 @@ def classify(llm, request, session, previous_messages=None):
     admitted = tuple(
         dict.fromkeys(BUSINESS_FIELDS.get(field, "UNSUPPORTED") for field in requested)
     )
-    spans = arguments["source_spans"]
-    if not valid_spans(spans, request.message):
+    spans, problem = locate_spans(arguments["source_spans"], request.message)
+    if problem:
         return ReadScope(
             admitted,
             tuple(subjects),
@@ -249,6 +248,7 @@ def classify(llm, request, session, previous_messages=None):
             tuple(requested),
             (),
             "SOURCE_SPANS",
+            problem,
         )
     issue = None
     stage = None

@@ -137,22 +137,29 @@ def literal_read(message):
     return matches[0] if len(matches) == 1 else None
 
 
-def valid_spans(spans, message):
+def locate_spans(spans, message):
+    """Validate verbatim extraction and calculate positions without model arithmetic.
+
+    Repeated phrases are not assigned an arbitrary first occurrence. This checks
+    provenance only; semantic coverage is still checked separately.
+    """
     text = question_messages(message)[-1]["content"]
-    return (
-        type(spans) is list
-        and 1 <= len(spans) <= 16
-        and all(
-            type(span) is dict
-            and set(span) == {"text", "start", "end"}
-            and type(span["start"]) is int
-            and type(span["end"]) is int
-            and 0 <= span["start"] < span["end"] <= len(text)
-            and type(span["text"]) is str
-            and text[span["start"] : span["end"]] == span["text"]
-            for span in spans
-        )
-    )
+    if type(spans) is not list or not 1 <= len(spans) <= 16:
+        return (), "SPAN_FORMAT"
+    located = []
+    for span in spans:
+        if type(span) is not dict or set(span) != {"text"}:
+            return (), "SPAN_FORMAT"
+        phrase = span["text"]
+        if type(phrase) is not str or not phrase:
+            return (), "SPAN_FORMAT"
+        start = text.find(phrase)
+        if start < 0:
+            return (), "SPAN_TEXT_ABSENT"
+        if text.find(phrase, start + 1) >= 0:
+            return (), "SPAN_AMBIGUOUS"
+        located.append({"text": phrase, "start": start, "end": start + len(phrase)})
+    return tuple(located), None
 
 
 def definitions_answer(field):

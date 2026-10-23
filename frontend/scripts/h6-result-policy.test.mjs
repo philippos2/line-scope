@@ -12,8 +12,6 @@ test("U19 permits real identity candidates only at the ambiguity boundary", () =
   };
   expect(identityOnlyResult(body, "TARGET_AMBIGUOUS")).toBe(true);
   expect(identityOnlyResult(body, "UNSUPPORTED")).toBe(false);
-  body.data.answer_sections.facts = [
-    { predicate: "get_equipment_state" },
-  ];
+  body.data.answer_sections.facts = [{ predicate: "get_equipment_state" }];
   expect(identityOnlyResult(body, "TARGET_AMBIGUOUS")).toBe(false);
 });

@@ -9,7 +9,7 @@ import pytest
 
 from linescope.agent.agent_input import AgentInput, ConversationStore
 from linescope.agent.read_agent import ReadAgent
-from linescope.agent.read_catalog import BUSINESS_FIELDS, TERMS, literal_read
+from linescope.agent.read_catalog import BUSINESS_FIELDS, TERMS, literal_read, locate_spans
 from linescope.agent.read_scope import PLAN_TOOL
 from linescope.agent.scope_check import CHECK_TOOL
 from linescope.application.agent_service import AgentApplication
@@ -78,8 +78,6 @@ class Hint:
                         "source_spans": [
                             {
                                 "text": "invented" if self.invalid else text,
-                                "start": 0,
-                                "end": len(text),
                             }
                         ],
                     },
@@ -120,10 +118,16 @@ def pending(**kwargs):
 
 
 def test_u01_invalid_source_span_never_grants_read():
+    spans, problem = locate_spans([{"text": "尋ねる内容"}], "対象の尋ねる内容は？")
+    assert problem is None and spans == ({"text": "尋ねる内容", "start": 3, "end": 8},)
+    assert locate_spans([{"text": "同じ"}], "同じ、同じ")[1] == "SPAN_AMBIGUOUS"
+    assert locate_spans([{"text": ""}], "質問")[1] == "SPAN_FORMAT"
+    assert locate_spans([{"text": "質問", "start": 0, "end": 2}], "質問")[1] == "SPAN_FORMAT"
     context, reads, _, app, request = setup(invalid=True)
     result = app.run(context, request)
     assert result.analysis.read_clarification is None
     assert result.analysis.answer_sections["verification"]["stage"] == "SOURCE_SPANS"
+    assert result.analysis.answer_sections["verification"]["reason"] == "SPAN_TEXT_ABSENT"
     assert all(tool == "search_equipment" for tool, _ in reads.calls)
 
 

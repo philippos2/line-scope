@@ -569,6 +569,6 @@ H6実装候補の`answer_sections.read_outcome`は任意の診断項目として
 
 ### 質問の解釈検証の診断（H6-R）
 
-`data.answer_sections.verification` は省略可能な技術情報で、`stage`だけを持つ。値は `PLAN_SHAPE` / `PLAN_TARGETS` / `SOURCE_SPANS` / `COVERAGE_SHAPE` / `COVERAGE` / `LITERAL_TARGETS` の有限集合。原文・抽出値・prompt・内部例外を追加するものではなく、取得値の正しさや実運転許可を保証しない。モデルの解釈が不正な場合、業務値を返さず `read_outcome=UNVERIFIABLE` と確認不能の案内を返す。通信・認可・deadlineのエラーはこれに読み替えない。
+`data.answer_sections.verification` は省略可能な技術情報で、`stage`を持つ。SOURCE_SPANSの場合は省略可能な`reason`で`SPAN_FORMAT` / `SPAN_TEXT_ABSENT` / `SPAN_AMBIGUOUS`を返す（旧診断実行では`SPAN_RANGE` / `SPAN_OFFSET`も使用）。値は `PLAN_SHAPE` / `PLAN_TARGETS` / `SOURCE_SPANS` / `COVERAGE_SHAPE` / `COVERAGE` / `LITERAL_TARGETS` の有限集合。原文・抽出値・prompt・内部例外を追加するものではなく、取得値の正しさや実運転許可を保証しない。モデルの解釈が不正な場合、業務値を返さず `read_outcome=UNVERIFIABLE` と確認不能の案内を返す。通信・認可・deadlineのエラーはこれに読み替えない。
 
 解釈を確定できなくても、別に完了した対象の識別・Evidenceは保持する。確認前の識別を質問への回答や業務値へ昇格させず、未取得・不明・未登録を区別する。構造分析の重要対象を取得できない場合は `ANALYSIS_TARGET_REQUIRED` と判定未実施を表示し、仮の対象で分析を実行しない。

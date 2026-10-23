@@ -552,5 +552,7 @@ def build_answer(
     }
     if scope and scope.validation_stage:
         sections["verification"] = {"stage": scope.validation_stage}
+        if scope.validation_reason:
+            sections["verification"]["reason"] = scope.validation_reason
     paragraphs = [fact["text"] for fact in facts] + [item["text"] for item in unavailable]
     return "\n".join(paragraphs), sections

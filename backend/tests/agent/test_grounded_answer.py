@@ -125,8 +125,6 @@ class ScopedLLM(ScriptedLLM):
                     "source_spans": [
                         {
                             "text": messages[-1]["content"],
-                            "start": 0,
-                            "end": len(messages[-1]["content"]),
                         }
                     ],
                     "topics": self.topics,
