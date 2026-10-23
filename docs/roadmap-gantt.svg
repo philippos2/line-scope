@@ -1,12 +1,12 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1700" height="2390" viewBox="0 0 1700 2390" role="img" aria-labelledby="title desc">
+<svg xmlns="http://www.w3.org/2000/svg" width="1700" height="2470" viewBox="0 0 1700 2470" role="img" aria-labelledby="title desc">
 <title id="title">LineScope 残り3PRの時間軸ガント</title>
 <desc id="desc">#275 merge済み。残りはハルシネーション対応H、M-208電源依存F2、範囲一覧F3の3PR。上段は10月21日から26日の報告予定期間、下段は実装承認後の10作業日のH見積もり。H6は新たな承認U0後の追加5作業日を独立した時間軸で表示。未見積もりと判断待ちは時間軸の外に明示し、架空の期間を描かない。</desc>
 <defs><marker id="arrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0 0L8 4L0 8" fill="#64748b"/></marker></defs>
-<rect width="1700" height="2390" fill="#f8fafc"/>
+<rect width="1700" height="2470" fill="#f8fafc"/>
 <g font-family="sans-serif" fill="#183247">
 <text x="30" y="43" font-size="28" font-weight="bold">LineScope：残り3PRの時間軸ガント</text>
 <text x="30" y="77" font-size="21" font-weight="bold">順序：H ハルシネーション対応 → F2 M-208電源依存 → F3 やること／やらないこと</text>
-<text x="30" y="107" font-size="18">#276 H6は検証中。Backend4,080成功・1skip、Frontend73成功。実モデル44項目を実行中、5174反映済み。口語全般の理解は対象外。</text>
+<text x="30" y="107" font-size="18">#276 H6は検証中。Backend4,080成功・1skip、Frontend73成功。実モデル14/44成功、H6-R未完了。5174反映済み。口語全般の理解は対象外。</text>
 <text x="30" y="147" font-size="22" font-weight="bold">1．報告計画（暦日・日本時間）</text>
 <text x="30" y="175" font-size="17">棒は作成開始から報告期限までの予定期間。実働工数ではない。灰色は土日。</text>
 <path d="M450 210L450 385" fill="none" stroke="#cbd5e1"/>
@@ -103,10 +103,13 @@
 <text x="40" y="1276" font-size="18">回帰・実モデル・文書（0.75〜1.5日）</text>
 <rect x="1208" y="1256" width="252" height="30" fill="#2563eb"/><text x="1334" y="1277" font-size="16" fill="white" text-anchor="middle">1.5日</text>
 <path d="M1208 1241V1249H1208V1256" fill="none" stroke="#64748b" marker-end="url(#arrow)"/>
-<text x="30" y="1325" font-size="16">新自動13＋評価6＝追加19種類（総55）。承認済み。ブラウザ44項目を実行中。完了・合格とは別。</text>
+<text x="30" y="1325" font-size="16">新自動13＋評価6＝追加19種類（総55）。承認済み。実評価14/44成功。追加6自動＋新留出6は未承認（総67種類案）。</text>
 <g transform="translate(0 260)">
 <text x="30" y="1092" font-size="22" font-weight="bold">3．依存待ち・期間未確定（時間軸へ未配置）</text>
 <text x="30" y="1122" font-size="17">ここには期間の棒を描かない。F2の影響調査後、開始・終了・期間を見積もって時間軸へ配置する。</text>
+<text x="45" y="1167" font-size="18" font-weight="bold">H6-R 実評価の不備修正・再評価（同じ#276／追加件数の承認待ち）</text>
+<text x="45" y="1196" font-size="17">コード不備0.5〜1日案。解釈の停止原因・残工数は未見積もり。H合格までF2を開始しない。</text>
+<g transform="translate(0 80)">
 <rect x="30" y="1145" width="1600" height="126" fill="white" stroke="#cbd5e1"/>
 <text x="45" y="1175" font-size="20" font-weight="bold">F2 M-208の必須電源依存</text>
 <text x="45" y="1205" font-size="18">Hのmerge後 → 影響調査・設計承認 → 実装・検証・merge。工数未見積もり／暫定1PR。</text>
@@ -154,7 +157,8 @@
 <text x="30" y="1990" font-size="17">残PRはH → F2 → F3の3本。設計専用の4本目は作らない。分割が必要なら事前に計画変更を報告。</text>
 <text x="30" y="2025" font-size="17">青＝予定期間（上段は報告窓、下段は暫定実働）。未配置は未完了であり、期間ゼロ・完了ではない。</text>
 <text x="30" y="2060" font-size="17">出典：docs/roadmap.md、docs/design/grounded-answer-plan.md。新規タスク・状態・見積もり変更時に同時更新。</text>
-<text x="30" y="2095" font-size="16">更新：2026-10-22 ／ H6は曖昧な場合だけ確認。H6未完了：全結合6失敗を切り分け。件数承認済み、実モデル未実施。H→F2→F3、Draft維持。</text>
+<text x="30" y="2095" font-size="16">更新：2026-10-23 ／ 自動4,080成功・1skip。実モデル14/44成功。H6-R未完了、追加試験は承認待ち。H→F2→F3、Draft維持。</text>
 </g>
-</g><text x="30" y="2355" font-size="16">旧3〜5日は再評価。9:30枠は見送り、再開・完了日は未定。F2はH merge後、F3はF2 merge後。</text>
+</g>
+</g>
 </svg>

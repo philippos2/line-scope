@@ -180,7 +180,10 @@ export async function runH6(page, base, token, report) {
           ).toBe(true);
           expect(
             body.data.answer_sections.facts.every(
-              (fact) => fact.predicate === "equipment.identity",
+              (fact) =>
+                fact.predicate === "equipment.identity" ||
+                (row.expected === "TARGET_AMBIGUOUS" &&
+                  fact.predicate === "equipment.identity_candidate"),
             ),
           ).toBe(true);
         }
