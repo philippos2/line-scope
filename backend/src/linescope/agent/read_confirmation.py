@@ -5,7 +5,7 @@ from dataclasses import replace
 from ..application.reads import ToolError
 from ..domain.canonical import canonical_hash
 from .answer_text import public_answer
-from .equipment_reference import question_messages
+from .equipment_reference import question_messages, selected_reference, unresolved_selection
 from .grounded_answer import build_answer
 from .read_catalog import (
     BUSINESS_FIELDS,
@@ -46,7 +46,9 @@ def _result(
         identity_verified=identity_verified,
     )
     sections["read_outcome"] = (
-        "CONFIRM"
+        "TARGET_REQUIRED"
+        if scope.scope_issue == "TARGET_REQUIRED"
+        else "CONFIRM"
         if clarification
         else "TARGET_AMBIGUOUS"
         if any(e["code"] == "TARGET_AMBIGUOUS" for e in errors)
@@ -79,7 +81,8 @@ def _result(
         observations,
         trace,
         errors,
-        bool(clarification and clarification["status"] == "PENDING")
+        scope.scope_issue == "TARGET_REQUIRED"
+        or bool(clarification and clarification["status"] == "PENDING")
         or (not subjects_sufficient(scope) and "UNSUPPORTED" not in scope.topics and not errors)
         or any(row["code"] == "TARGET_AMBIGUOUS" for row in errors),
         sections,
@@ -145,6 +148,25 @@ def interpreted_read(agent, request, session, previous):
         sections = definitions_answer(literal.field)
         return ReadAgentResult(FIELD_MEANINGS[literal.field], (), (), (), False, sections)
     scope = literal.scope() if literal else classify(agent.llm, request, session, previous)
+    if any(unresolved_selection(request.message, s["reference"]) for s in scope.subjects):
+        scope = replace(scope, scope_issue="TARGET_REQUIRED", validation_stage="TARGET_CONTEXT")
+        result = _result(scope, request, (), (), ())
+        text = (
+            "対象の設備が指定されていません。設備名・コードを書くか、画面で設備を選んでください。"
+        )
+        result.answer_sections["unavailable"] = [
+            {"code": "TARGET_REQUIRED", "text": text, "references": []}
+        ]
+        return replace(result, answer=text)
+    scope = replace(
+        scope,
+        subjects=tuple(
+            {**s, "reference": selected_reference(request.message, s["reference"])}
+            if s["entity_type"] == "Equipment"
+            else s
+            for s in scope.subjects
+        ),
+    )
     if literal and request.explicit_as_of:
         # The grammar does not assert a historic state can be reconstructed.
         literal = None
@@ -168,7 +190,7 @@ def interpreted_read(agent, request, session, previous):
     ):
         scope = replace(
             scope,
-            scope_issue="MISMATCH",
+            scope_issue="UNSUPPORTED",
             validation_stage="REQUEST_FIELD",
             validation_reason="UNBOUND_ATTRIBUTE",
             unbound_attribute=attribute,
@@ -287,7 +309,7 @@ def confirmed_read(agent, context, request, saved):
     ):
         scope = replace(
             saved["scope"],
-            scope_issue="MISMATCH",
+            scope_issue="UNSUPPORTED",
             validation_stage="REQUEST_FIELD",
             validation_reason="UNBOUND_ATTRIBUTE",
             unbound_attribute=attribute,

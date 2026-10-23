@@ -48,7 +48,7 @@ def test_model_agreement_cannot_substitute_an_explicit_unbound_attribute(questio
     reads = Reads()
     result = ReadAgent(reads, AgreeingModel()).run(context(), request(question))
     assert result.read_clarification is None and result.pending_read is None
-    assert result.answer_sections["read_outcome"] == "UNVERIFIABLE"
+    assert result.answer_sections["read_outcome"] == "UNSUPPORTED"
     assert result.answer_sections["verification"]["stage"] == "REQUEST_FIELD"
     assert {f["predicate"] for f in result.answer_sections["facts"]} == {"equipment.identity"}
     assert (
@@ -103,6 +103,6 @@ def test_saved_model_agreement_cannot_bypass_attribute_binding_on_accept():
     saved = {**first.pending_read, "hash": original_hash(original)}
     result = confirmed_read(reader, context(), replace(original, read_confirmation="ACCEPT"), saved)
     assert result.read_clarification is None and result.pending_read is None
-    assert result.answer_sections["read_outcome"] == "UNVERIFIABLE"
+    assert result.answer_sections["read_outcome"] == "UNSUPPORTED"
     assert all(tool == "search_equipment" for tool, _ in reads.calls)
     assert "保証期限" in result.answer

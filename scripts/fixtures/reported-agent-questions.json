@@ -9,7 +9,10 @@
       "origin": "開発者の会話報告（原文）",
       "expected": {
         "kind": "needs_context",
-        "equipment_codes": []
+        "equipment_codes": [],
+        "read_outcomes": [
+          "TARGET_REQUIRED"
+        ]
       },
       "before": {
         "reported_excerpt": "情報を取得できませんでした。接続と質問内容を確認してください。"
@@ -23,7 +26,10 @@
       "origin": "開発者の会話報告（原文）",
       "expected": {
         "kind": "unsupported",
-        "equipment_codes": []
+        "equipment_codes": [],
+        "read_outcomes": [
+          "UNSUPPORTED"
+        ]
       },
       "before": {
         "reported_excerpt": "対象を特定できる設備コード・IDなどを指定してください。"
@@ -38,6 +44,9 @@
         "kind": "maintenance",
         "equipment_codes": [
           "M-204"
+        ],
+        "read_outcomes": [
+          "AUTO"
         ]
       },
       "before": {
@@ -53,6 +62,9 @@
         "kind": "maintenance",
         "equipment_codes": [
           "M-204"
+        ],
+        "read_outcomes": [
+          "AUTO"
         ]
       },
       "before": {
@@ -68,6 +80,9 @@
         "kind": "maintenance",
         "equipment_codes": [
           "M-204"
+        ],
+        "read_outcomes": [
+          "AUTO"
         ]
       },
       "before": {
@@ -83,6 +98,9 @@
         "kind": "maintenance",
         "equipment_codes": [
           "M-204"
+        ],
+        "read_outcomes": [
+          "AUTO"
         ]
       },
       "before": {
@@ -99,6 +117,9 @@
         "equipment_codes": [
           "M-204",
           "M-208"
+        ],
+        "read_outcomes": [
+          "UNSUPPORTED"
         ]
       },
       "before": {
@@ -114,6 +135,9 @@
         "kind": "maintenance",
         "equipment_codes": [
           "M-208"
+        ],
+        "read_outcomes": [
+          "AUTO"
         ]
       },
       "before": {
@@ -129,6 +153,9 @@
         "kind": "unsupported",
         "equipment_codes": [
           "M-204"
+        ],
+        "read_outcomes": [
+          "UNSUPPORTED"
         ]
       },
       "before": {
@@ -144,6 +171,9 @@
         "kind": "unsupported",
         "equipment_codes": [
           "M-204"
+        ],
+        "read_outcomes": [
+          "UNSUPPORTED"
         ]
       },
       "before": {
@@ -159,6 +189,9 @@
         "kind": "unsupported",
         "equipment_codes": [
           "M-208"
+        ],
+        "read_outcomes": [
+          "UNSUPPORTED"
         ]
       },
       "before": {
@@ -174,6 +207,9 @@
         "kind": "unsupported",
         "equipment_codes": [
           "M-204"
+        ],
+        "read_outcomes": [
+          "UNSUPPORTED"
         ]
       },
       "before": {
@@ -189,6 +225,9 @@
         "kind": "unsupported",
         "equipment_codes": [
           "M-204"
+        ],
+        "read_outcomes": [
+          "UNSUPPORTED"
         ]
       },
       "before": {
@@ -204,6 +243,9 @@
         "kind": "unsupported",
         "equipment_codes": [
           "M-204"
+        ],
+        "read_outcomes": [
+          "UNSUPPORTED"
         ]
       },
       "before": {
@@ -219,6 +261,9 @@
         "kind": "registered_state",
         "equipment_codes": [
           "M-204"
+        ],
+        "read_outcomes": [
+          "CONFIRM"
         ]
       },
       "before": {
@@ -235,6 +280,9 @@
         "equipment_codes": [
           "M-204",
           "M-208"
+        ],
+        "read_outcomes": [
+          "UNSUPPORTED"
         ]
       },
       "before": {
@@ -250,6 +298,9 @@
         "kind": "unsupported",
         "equipment_codes": [
           "M-208"
+        ],
+        "read_outcomes": [
+          "UNSUPPORTED"
         ]
       },
       "before": {
@@ -265,6 +316,9 @@
         "kind": "unsupported",
         "equipment_codes": [
           "M-204"
+        ],
+        "read_outcomes": [
+          "UNSUPPORTED"
         ]
       },
       "before": {
@@ -280,6 +334,9 @@
         "kind": "unsupported",
         "equipment_codes": [
           "M-204"
+        ],
+        "read_outcomes": [
+          "UNSUPPORTED"
         ]
       },
       "before": {
@@ -295,6 +352,9 @@
         "kind": "unsupported",
         "equipment_codes": [
           "M-208"
+        ],
+        "read_outcomes": [
+          "UNSUPPORTED"
         ]
       },
       "before": {
@@ -310,6 +370,9 @@
         "kind": "unsupported",
         "equipment_codes": [
           "M-204"
+        ],
+        "read_outcomes": [
+          "UNSUPPORTED"
         ]
       },
       "before": {

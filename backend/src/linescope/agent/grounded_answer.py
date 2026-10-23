@@ -447,7 +447,7 @@ def build_answer(
                 refs,
             )
 
-    if errors:
+    if any(error["code"] not in {"TARGET_NOT_FOUND", "TARGET_AMBIGUOUS"} for error in errors):
         missing(
             "READ_FAILED",
             "一部の登録情報を取得できませんでした。取得失敗を未登録や記録なしとは判断していません。",

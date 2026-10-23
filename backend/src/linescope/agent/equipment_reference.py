@@ -4,13 +4,20 @@ import re
 
 from ..domain.reference_normalization import reference_key as reference_key
 
+DEICTIC_REFERENCE = r"(?:この|その|選択(?:中|した)|調査中)(?:の)?(?:設備|機械|機材|装置)"
+
+
+def unresolved_selection(message, reference):
+    return (
+        bool(re.fullmatch(DEICTIC_REFERENCE, reference))
+        and selected_reference(message, reference) == reference
+    )
+
 
 def selected_reference(message, reference):
     """A deictic subject may use the UI hint; all codes remain untrusted lookup input."""
     match = re.match(r"調査対象の設備コードは([^\n]+)です。\n(.+)\Z", message, re.DOTALL)
-    if match and re.fullmatch(
-        r"(?:この|その|選択(?:中|した)|調査中)(?:の)?(?:設備|機械|機材|装置)", reference
-    ):
+    if match and re.fullmatch(DEICTIC_REFERENCE, reference):
         return match[1]
     return reference
 
@@ -23,9 +30,7 @@ def question_messages(message):
     question = match[2]
     # Only an explicit reference to the screen selection admits that context.
     # Do not offer an unrelated equipment code as a competing question target.
-    if not re.search(
-        r"(?:この|その|選択(?:中|した)|調査中)(?:の)?(?:設備|機械|機材|装置)", question
-    ):
+    if not re.search(DEICTIC_REFERENCE, question):
         return [{"role": "user", "content": question}]
     return [
         {

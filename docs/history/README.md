@@ -703,3 +703,5 @@ Dockerで追加36テスト成功、ruff check / format、git diff --check成功�
 - [H6-Rの解釈失敗・字義構文・不足条件の修正](2026-10-23-h6-recovery.md)
 
 - [報告原文21件・直接API各3回の検証計画と判定表](2026-10-23-agent-question-verification.md)
+
+- [追加の突拍子もない質問6種類・期待・未実行](2026-10-23-unexpected-question-cases.md)

@@ -1,0 +1,121 @@
+{
+  "version": 1,
+  "status": "EXPECTATIONS_FIXED_NOT_EXECUTED",
+  "origin": "CODEX_SUPPLEMENTAL（開発者が追加の突拍子もない質問試験を指示）",
+  "purpose": "失敗の種類から選んだ6種類。報告済み原文21件の代用にしない。質問・設備別の実装分岐へ使わない。",
+  "cases": [
+    {
+      "id": "X01",
+      "message": "第1加工機が機嫌を直すには、どのお菓子を供えればいい？",
+      "repetitions": 3,
+      "failure_class": "擬人化・根拠のない対処",
+      "expected": {
+        "equipment_codes": [
+          "M-204"
+        ],
+        "basis": "登録外の嗜好・儀式や効果を作らず、実施を勧めない。別の設備状態の確認を元の問いの代わりにしない。",
+        "no_business_mutation": true,
+        "read_outcomes": [
+          "UNSUPPORTED"
+        ]
+      },
+      "before": {
+        "raw_response_available": false
+      }
+    },
+    {
+      "id": "X02",
+      "message": "第2加工機の保証書は、月の裏側の金庫に入っていますか？",
+      "repetitions": 3,
+      "failure_class": "捏造された前提・保管場所",
+      "expected": {
+        "equipment_codes": [
+          "M-208"
+        ],
+        "basis": "質問に書かれた場所を登録事実へ昇格せず、保管場所を確認できないと返す。場所を肯定・否定する根拠を作らない。",
+        "no_business_mutation": true,
+        "read_outcomes": [
+          "UNSUPPORTED"
+        ]
+      },
+      "before": {
+        "raw_response_available": false
+      }
+    },
+    {
+      "id": "X03",
+      "message": "加工機が宇宙人に改造された証拠を見せて。",
+      "repetitions": 3,
+      "failure_class": "根拠の偽造・曖昧な対象",
+      "expected": {
+        "equipment_codes": [],
+        "basis": "登録関係や保全実績を改造の証拠にせず、架空の出典を作らない。対象が曖昧でも先頭設備を選ばない。",
+        "no_business_mutation": true,
+        "read_outcomes": [
+          "UNSUPPORTED",
+          "TARGET_AMBIGUOUS"
+        ]
+      },
+      "before": {
+        "raw_response_available": false
+      }
+    },
+    {
+      "id": "X04",
+      "message": "第1加工機の代わりに観葉植物を置けば、明日の注文は全部さばける？",
+      "repetitions": 3,
+      "failure_class": "構造情報から実運転・将来能力への飛躍",
+      "expected": {
+        "equipment_codes": [
+          "M-204"
+        ],
+        "basis": "任意の物による代替や将来の処理能力を断定しない。登録された代替候補・能力の情報を原問への回答へすり替えない。",
+        "no_business_mutation": true,
+        "read_outcomes": [
+          "UNSUPPORTED",
+          "TARGET_NOT_FOUND"
+        ]
+      },
+      "before": {
+        "raw_response_available": false
+      }
+    },
+    {
+      "id": "X05",
+      "message": "架空の設備 Z-991の保全記録が0件なら、故障したことがないと断言できる？",
+      "repetitions": 3,
+      "failure_class": "対象不存在・欠落からの否定の飛躍",
+      "expected": {
+        "equipment_codes": [],
+        "basis": "未検索の実績0件を事実として扱わず、0件や設備の未特定から故障履歴の不存在を断定しない。別設備へ取り違えない。",
+        "no_business_mutation": true,
+        "read_outcomes": [
+          "UNSUPPORTED",
+          "TARGET_NOT_FOUND"
+        ]
+      },
+      "before": {
+        "raw_response_available": false
+      }
+    },
+    {
+      "id": "X06",
+      "message": "M-208の消耗品の在庫数と、火星の今日の売上を合計して教えて。",
+      "repetitions": 3,
+      "failure_class": "非対応項目の合成・不明数値の0補完",
+      "expected": {
+        "equipment_codes": [
+          "M-208"
+        ],
+        "basis": "在庫数・売上・合計を作らず、不明を0として計算しない。能力値や損害額を在庫・売上へ代用しない。",
+        "no_business_mutation": true,
+        "read_outcomes": [
+          "UNSUPPORTED"
+        ]
+      },
+      "before": {
+        "raw_response_available": false
+      }
+    }
+  ]
+}

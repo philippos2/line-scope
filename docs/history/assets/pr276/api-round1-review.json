@@ -1,0 +1,684 @@
+{
+  "product_revision": "fd45a9bdf5834dfc2da6db8fae3d37e08cdd9fa3",
+  "api": "http://127.0.0.1:8003",
+  "model": "qwen3:30b-a3b-instruct-2507-q4_K_M",
+  "classification": {
+    "一部": 3,
+    "直った": 15,
+    "直っていない": 3
+  },
+  "cases": [
+    {
+      "id": "Q01",
+      "verdict": "一部",
+      "reason": "対象を推測しないが、単独の「この設備」を登録名として検索し、取得失敗も併記。needs_input=false。元の画面選択は不明。",
+      "semantic_variants_including_scope_display": 1,
+      "responses": [
+        {
+          "repeat": 1,
+          "request_id": "93266c71-ce15-4a6f-9d1a-5c62212929df",
+          "response_file": "Q01-1.response.body",
+          "response_sha256": "b3080e6e75f973164a075f188b8c63c78367d6558842c69fd1d177ca76aee70d",
+          "read_outcome": "TARGET_NOT_FOUND",
+          "elapsed_ms": 49243
+        },
+        {
+          "repeat": 2,
+          "request_id": "4944e261-07e9-4c93-929c-2e3522561de3",
+          "response_file": "Q01-2.response.body",
+          "response_sha256": "3179e3e6ff18e17cda3367ee8c0215c097d8588f555f74774e81170f0c201d7e",
+          "read_outcome": "TARGET_NOT_FOUND",
+          "elapsed_ms": 11194
+        },
+        {
+          "repeat": 3,
+          "request_id": "a35577df-0efe-4048-9d84-bbb053cf5d90",
+          "response_file": "Q01-3.response.body",
+          "response_sha256": "8045da53c743934da9eb572ed6c5e84e988223cae4a463578affad0e9079cc00",
+          "read_outcome": "TARGET_NOT_FOUND",
+          "elapsed_ms": 8157
+        }
+      ]
+    },
+    {
+      "id": "Q02",
+      "verdict": "直った",
+      "reason": "3回とも事前の期待に適合。原問にない業務値・場所・設備の断定なし。",
+      "semantic_variants_including_scope_display": 1,
+      "responses": [
+        {
+          "repeat": 1,
+          "request_id": "a2622e3d-26b8-4c38-bfa3-9d721f7f6ae2",
+          "response_file": "Q02-1.response.body",
+          "response_sha256": "5a18e33290735941e92e9c24fdfe37f1782f653dd3180f9208b934c7df4e8dbd",
+          "read_outcome": "UNSUPPORTED",
+          "elapsed_ms": 7422
+        },
+        {
+          "repeat": 2,
+          "request_id": "7234d657-8cf7-44c3-ba63-9e2a76608d0d",
+          "response_file": "Q02-2.response.body",
+          "response_sha256": "dc0e60e346d028bd3b35158a2687b0119f719d959b5a6563b3c1493f4566273f",
+          "read_outcome": "UNSUPPORTED",
+          "elapsed_ms": 6186
+        },
+        {
+          "repeat": 3,
+          "request_id": "c650a77e-dae7-45c6-b39c-b98d40c462ad",
+          "response_file": "Q02-3.response.body",
+          "response_sha256": "7e3cf903b7dd06bc91d44c55f1867047903ebca979c5201519b5a56f2e4b3569",
+          "read_outcome": "UNSUPPORTED",
+          "elapsed_ms": 6333
+        }
+      ]
+    },
+    {
+      "id": "Q03",
+      "verdict": "直っていない",
+      "reason": "3回とも実績を取得せず確認へ進む。以前の通常回答からの退行。",
+      "semantic_variants_including_scope_display": 1,
+      "responses": [
+        {
+          "repeat": 1,
+          "request_id": "aa59940b-8623-43fb-b73c-8863ce2d0f6b",
+          "response_file": "Q03-1.response.body",
+          "response_sha256": "035cd4b8984f67a43fbc63d7738b21d6030400d51c699bf70e5c0253de2cbc1a",
+          "read_outcome": "CONFIRM",
+          "elapsed_ms": 8642
+        },
+        {
+          "repeat": 2,
+          "request_id": "297cd743-af40-4bb3-9077-d2b24e8edb6c",
+          "response_file": "Q03-2.response.body",
+          "response_sha256": "33c9cc1d342acb937824e805812e95a016d7531a0e61e732b4a9b70707d1045e",
+          "read_outcome": "CONFIRM",
+          "elapsed_ms": 10214
+        },
+        {
+          "repeat": 3,
+          "request_id": "c8576125-ed09-40eb-bb76-29d3e64ef8b3",
+          "response_file": "Q03-3.response.body",
+          "response_sha256": "50394a4977732be03f0507973abb1e8c3e52ccc2376364d2206a8e23a16bbe2f",
+          "read_outcome": "CONFIRM",
+          "elapsed_ms": 6074
+        }
+      ]
+    },
+    {
+      "id": "Q04",
+      "verdict": "直っていない",
+      "reason": "対象はM-204へ解決するが、3回とも日時の回答に進まない。",
+      "semantic_variants_including_scope_display": 1,
+      "responses": [
+        {
+          "repeat": 1,
+          "request_id": "b0e4ad8d-e227-4367-94df-504219b864a3",
+          "response_file": "Q04-1.response.body",
+          "response_sha256": "48956ede8fac0e80ccb89ee9ed1c34420bbeb0f0c86b0d5483466db487d8c05a",
+          "read_outcome": "CONFIRM",
+          "elapsed_ms": 6487
+        },
+        {
+          "repeat": 2,
+          "request_id": "5dce43fa-e356-4f68-8d95-b2e7ee51cf6f",
+          "response_file": "Q04-2.response.body",
+          "response_sha256": "40c97bb3de0c168acd3ea5da0fb959b27d6c570a9cba03a3f9385a4fd8415bb9",
+          "read_outcome": "CONFIRM",
+          "elapsed_ms": 6690
+        },
+        {
+          "repeat": 3,
+          "request_id": "c806977f-a5ef-4fbc-aaa2-823797951843",
+          "response_file": "Q04-3.response.body",
+          "response_sha256": "f84fba9e0eafcb09e296e35c31a41becebbda684a0dfae864ab1f8a5fa612cb5",
+          "read_outcome": "CONFIRM",
+          "elapsed_ms": 8139
+        }
+      ]
+    },
+    {
+      "id": "Q05",
+      "verdict": "直った",
+      "reason": "3回とも事前の期待に適合。原問にない業務値・場所・設備の断定なし。",
+      "semantic_variants_including_scope_display": 1,
+      "responses": [
+        {
+          "repeat": 1,
+          "request_id": "9125eb20-d6bf-462f-a0ef-ee3dbb929baa",
+          "response_file": "Q05-1.response.body",
+          "response_sha256": "c482c544e2338f2785c70ddec9956ec4dbfb84d879cf1de1619b36ca1b44db64",
+          "read_outcome": "AUTO",
+          "elapsed_ms": 28
+        },
+        {
+          "repeat": 2,
+          "request_id": "8454ffc3-2400-4a86-869d-fa17e2d66d55",
+          "response_file": "Q05-2.response.body",
+          "response_sha256": "3f4e6a1c6991774a58afb5887aa2ed8e258fafc3867d79b29ed5b341dee28d6f",
+          "read_outcome": "AUTO",
+          "elapsed_ms": 31
+        },
+        {
+          "repeat": 3,
+          "request_id": "e971bc6c-3474-4f3b-939e-bb6cb406e48d",
+          "response_file": "Q05-3.response.body",
+          "response_sha256": "309c011c179f099d62b20d3ea15e9e4a3ea80a06015a0b2b8eff17a97bd0c121",
+          "read_outcome": "AUTO",
+          "elapsed_ms": 29
+        }
+      ]
+    },
+    {
+      "id": "Q06",
+      "verdict": "直った",
+      "reason": "3回とも事前の期待に適合。原問にない業務値・場所・設備の断定なし。",
+      "semantic_variants_including_scope_display": 1,
+      "responses": [
+        {
+          "repeat": 1,
+          "request_id": "a54e93f6-6846-4e4d-b3cc-63357af4076c",
+          "response_file": "Q06-1.response.body",
+          "response_sha256": "27f91190a0b224d7b8966cc38ce43b0ca4f03e5ff9599742910d518f4205329b",
+          "read_outcome": "AUTO",
+          "elapsed_ms": 26
+        },
+        {
+          "repeat": 2,
+          "request_id": "8e7604a8-243f-4036-b6d7-9f66ddc25592",
+          "response_file": "Q06-2.response.body",
+          "response_sha256": "1a71a461d0a29eb7a36418cf205354d030c27a6406e31c8e3fa0dd8158cc5c6d",
+          "read_outcome": "AUTO",
+          "elapsed_ms": 27
+        },
+        {
+          "repeat": 3,
+          "request_id": "4021a599-70ad-4202-934e-d8b6e4a32628",
+          "response_file": "Q06-3.response.body",
+          "response_sha256": "875f0157db2e0876577c10af2a8b87ea87a5d2f379c2b112d86376ba3ecefa58",
+          "read_outcome": "AUTO",
+          "elapsed_ms": 28
+        }
+      ]
+    },
+    {
+      "id": "Q07",
+      "verdict": "直った",
+      "reason": "3回とも事前の期待に適合。原問にない業務値・場所・設備の断定なし。",
+      "semantic_variants_including_scope_display": 1,
+      "responses": [
+        {
+          "repeat": 1,
+          "request_id": "07caccae-fde3-445b-9411-88a3e298c7d2",
+          "response_file": "Q07-1.response.body",
+          "response_sha256": "94f5e607cdbd4949d9de663d18a3d96c9df75b658acb2cdc41e2da644f8e6dec",
+          "read_outcome": "UNSUPPORTED",
+          "elapsed_ms": 7459
+        },
+        {
+          "repeat": 2,
+          "request_id": "f11e1faf-0dc6-48da-bdd8-cf525cfc1da7",
+          "response_file": "Q07-2.response.body",
+          "response_sha256": "0ce9e1ab65a0a499d2d8b384c5c9c4dbe6dce1565f1ed854e75b13bf6db5f577",
+          "read_outcome": "UNSUPPORTED",
+          "elapsed_ms": 8480
+        },
+        {
+          "repeat": 3,
+          "request_id": "d80347f0-5dc9-46bc-9087-01aee274e308",
+          "response_file": "Q07-3.response.body",
+          "response_sha256": "d11b504c5bcfae65b43966caba183f1840002638078f64f4490f9ca5e8fe3d0f",
+          "read_outcome": "UNSUPPORTED",
+          "elapsed_ms": 5885
+        }
+      ]
+    },
+    {
+      "id": "Q08",
+      "verdict": "直った",
+      "reason": "3回とも事前の期待に適合。原問にない業務値・場所・設備の断定なし。",
+      "semantic_variants_including_scope_display": 1,
+      "responses": [
+        {
+          "repeat": 1,
+          "request_id": "0595a2dc-31d3-4959-b48d-34e6f9c47005",
+          "response_file": "Q08-1.response.body",
+          "response_sha256": "5c7dfce50883aaa532ba2a6a73ebcdfcaaea2c363788adcd748b14d7c40210b2",
+          "read_outcome": "AUTO",
+          "elapsed_ms": 30
+        },
+        {
+          "repeat": 2,
+          "request_id": "ae101b3e-ec9b-4567-aa71-fc7084a26efd",
+          "response_file": "Q08-2.response.body",
+          "response_sha256": "02e4b8c5170ebb86e9dd3df11e20b99db1489b8a252f622ed6f4c580c2184fac",
+          "read_outcome": "AUTO",
+          "elapsed_ms": 26
+        },
+        {
+          "repeat": 3,
+          "request_id": "4da07fec-2e9d-4084-a752-6a4eb0fdeaae",
+          "response_file": "Q08-3.response.body",
+          "response_sha256": "940fe432fde43c486e1947569fb98d565e91fc0a1aaa25a69eae6d0e069ed906",
+          "read_outcome": "AUTO",
+          "elapsed_ms": 26
+        }
+      ]
+    },
+    {
+      "id": "Q09",
+      "verdict": "直った",
+      "reason": "3回とも事前の期待に適合。原問にない業務値・場所・設備の断定なし。",
+      "semantic_variants_including_scope_display": 1,
+      "responses": [
+        {
+          "repeat": 1,
+          "request_id": "3d830f48-f0e6-48c5-9113-a7a4fc9b43ad",
+          "response_file": "Q09-1.response.body",
+          "response_sha256": "00d2e9b13c70bc98df7fc01fa84bddadd82fa831b89b54dfe288cda4db1872ba",
+          "read_outcome": "UNSUPPORTED",
+          "elapsed_ms": 5740
+        },
+        {
+          "repeat": 2,
+          "request_id": "97522482-9e00-4a63-afc6-1b1bbfc1d34c",
+          "response_file": "Q09-2.response.body",
+          "response_sha256": "e8331db779df373f9e9c75c304a27367dbdea45925dc4cecd6ab5401616fdb09",
+          "read_outcome": "UNSUPPORTED",
+          "elapsed_ms": 6370
+        },
+        {
+          "repeat": 3,
+          "request_id": "f30ed5e2-d942-4236-9bff-642430def685",
+          "response_file": "Q09-3.response.body",
+          "response_sha256": "c4814ef8c54e49a0d3696ac42d5c69f45dac8a25a6df5ad74fc9fd5e713f5fb9",
+          "read_outcome": "UNSUPPORTED",
+          "elapsed_ms": 5769
+        }
+      ]
+    },
+    {
+      "id": "Q10",
+      "verdict": "直った",
+      "reason": "3回とも事前の期待に適合。原問にない業務値・場所・設備の断定なし。",
+      "semantic_variants_including_scope_display": 1,
+      "responses": [
+        {
+          "repeat": 1,
+          "request_id": "59cfbee4-8c8f-440a-a8e2-4fe0fc251323",
+          "response_file": "Q10-1.response.body",
+          "response_sha256": "f7a84c3d4d5257a8265a3a094873ae2a2d009b1d64c836e54cc07dcb11a4a022",
+          "read_outcome": "UNSUPPORTED",
+          "elapsed_ms": 8271
+        },
+        {
+          "repeat": 2,
+          "request_id": "b933d68e-b160-4d72-a784-946e71ce2805",
+          "response_file": "Q10-2.response.body",
+          "response_sha256": "3194eaa7f83cd0aeca7f1b9f70130f3fe56334e6e76a83cd9dfe70d10f4167c3",
+          "read_outcome": "UNSUPPORTED",
+          "elapsed_ms": 8310
+        },
+        {
+          "repeat": 3,
+          "request_id": "2fdba2da-4052-4a81-912b-b5ecffa2cdec",
+          "response_file": "Q10-3.response.body",
+          "response_sha256": "00eed28ecb273512bbc379b8437d75a155e2bfd224378349ab04bed0499c4854",
+          "read_outcome": "UNSUPPORTED",
+          "elapsed_ms": 5720
+        }
+      ]
+    },
+    {
+      "id": "Q11",
+      "verdict": "直った",
+      "reason": "3回とも事前の期待に適合。原問にない業務値・場所・設備の断定なし。",
+      "semantic_variants_including_scope_display": 1,
+      "responses": [
+        {
+          "repeat": 1,
+          "request_id": "4b15782b-2929-4350-b4fa-fe230d4d0b4d",
+          "response_file": "Q11-1.response.body",
+          "response_sha256": "2a2beb677f96cb3e182732496d61949d127ccb972318fcd3d6725013ea414eab",
+          "read_outcome": "UNSUPPORTED",
+          "elapsed_ms": 8435
+        },
+        {
+          "repeat": 2,
+          "request_id": "cfe18098-cd2c-4b5f-b5b1-0c1a37150763",
+          "response_file": "Q11-2.response.body",
+          "response_sha256": "2de694f2296d912962830c14c3099092e4721e1c25d48ea2ee7df5d30640d46f",
+          "read_outcome": "UNSUPPORTED",
+          "elapsed_ms": 10609
+        },
+        {
+          "repeat": 3,
+          "request_id": "7faaaff1-9428-4492-9e5a-e10f911c66eb",
+          "response_file": "Q11-3.response.body",
+          "response_sha256": "8e36e23dd565f5029cc69b92a054d65b6f5547e8999d071c76006cc67f80490e",
+          "read_outcome": "UNSUPPORTED",
+          "elapsed_ms": 8072
+        }
+      ]
+    },
+    {
+      "id": "Q12",
+      "verdict": "直った",
+      "reason": "3回とも事前の期待に適合。原問にない業務値・場所・設備の断定なし。",
+      "semantic_variants_including_scope_display": 1,
+      "responses": [
+        {
+          "repeat": 1,
+          "request_id": "45690d1c-bc43-4d9d-b7d4-6a5911cd7abc",
+          "response_file": "Q12-1.response.body",
+          "response_sha256": "4ed4545b3a922a3791ca470dd47eb2e98322ce87fa9d0f258c3dd0c2f1ce871b",
+          "read_outcome": "UNSUPPORTED",
+          "elapsed_ms": 7375
+        },
+        {
+          "repeat": 2,
+          "request_id": "6aa34186-eb9c-48c7-8d57-3a2fef90f935",
+          "response_file": "Q12-2.response.body",
+          "response_sha256": "e12c8bde7dee8dd90cfe96871ca257f6f5faf187c14889a3d4ebf5cb1894510e",
+          "read_outcome": "UNSUPPORTED",
+          "elapsed_ms": 6281
+        },
+        {
+          "repeat": 3,
+          "request_id": "83251802-301e-43db-ba90-800c37ccfbe9",
+          "response_file": "Q12-3.response.body",
+          "response_sha256": "d4e79e68c7204d19d359a078cdae3dc085610072d46799facd920d7dc101da27",
+          "read_outcome": "UNSUPPORTED",
+          "elapsed_ms": 10482
+        }
+      ]
+    },
+    {
+      "id": "Q13",
+      "verdict": "直った",
+      "reason": "3回とも事前の期待に適合。原問にない業務値・場所・設備の断定なし。",
+      "semantic_variants_including_scope_display": 1,
+      "responses": [
+        {
+          "repeat": 1,
+          "request_id": "f4410e6b-ae7d-4bda-b7c8-6224c6727496",
+          "response_file": "Q13-1.response.body",
+          "response_sha256": "7e7e6129989eaec196855faff98a91cd4b92dad938f2d9ea0c781db10bddf0c9",
+          "read_outcome": "UNSUPPORTED",
+          "elapsed_ms": 3993
+        },
+        {
+          "repeat": 2,
+          "request_id": "8898f263-8d8c-4ded-9a75-25fb3bc8f345",
+          "response_file": "Q13-2.response.body",
+          "response_sha256": "b6bf4e9dc06e564cb2c7e38ad001d7b15e67b07b340fc086123ec13dd7188d01",
+          "read_outcome": "UNSUPPORTED",
+          "elapsed_ms": 9333
+        },
+        {
+          "repeat": 3,
+          "request_id": "208a3d01-e3e3-4f47-9a1f-2d2f53c15d6d",
+          "response_file": "Q13-3.response.body",
+          "response_sha256": "2c2317f5508de57ff12a2be317c4cb74efa000d7a7aa67b9f8cb684c97a8043f",
+          "read_outcome": "UNSUPPORTED",
+          "elapsed_ms": 6925
+        }
+      ]
+    },
+    {
+      "id": "Q14",
+      "verdict": "一部",
+      "reason": "1回目は保証を確認不能と回答。2・3回目は登録状態を調べる候補へ誤誘導。",
+      "semantic_variants_including_scope_display": 2,
+      "responses": [
+        {
+          "repeat": 1,
+          "request_id": "2ebb86e4-536c-49b4-89f6-ed5004b67a7e",
+          "response_file": "Q14-1.response.body",
+          "response_sha256": "61adb6a32a4f70a1a8f513682505ff1278ba4c5b243f9b93d1982a81e1954d88",
+          "read_outcome": "UNSUPPORTED",
+          "elapsed_ms": 6066
+        },
+        {
+          "repeat": 2,
+          "request_id": "91a74d82-634d-4200-8749-1811c73a2b60",
+          "response_file": "Q14-2.response.body",
+          "response_sha256": "7d59fddfa529362a68c83983f0afc4cbf8433c3de6ed21a8a1a459497a8fd5e9",
+          "read_outcome": "CONFIRM",
+          "elapsed_ms": 8167
+        },
+        {
+          "repeat": 3,
+          "request_id": "365a929c-9aa8-472f-8653-e34412879a0a",
+          "response_file": "Q14-3.response.body",
+          "response_sha256": "610cdf58a2f93639ba9d345ed7cc988f84288c9f02d3da9a3c5c5dc7e356d713",
+          "read_outcome": "CONFIRM",
+          "elapsed_ms": 8951
+        }
+      ]
+    },
+    {
+      "id": "Q15",
+      "verdict": "一部",
+      "reason": "1回目は登録状態の解釈確認。2・3回目は対応外とする。意味解釈が揺れる。",
+      "semantic_variants_including_scope_display": 2,
+      "responses": [
+        {
+          "repeat": 1,
+          "request_id": "d852d21c-e185-4f33-89f3-0ce73c54996f",
+          "response_file": "Q15-1.response.body",
+          "response_sha256": "8423ae92f4d0f454c677f2adaffba2c9f55d7633ed302c75cb32d53476f7859e",
+          "read_outcome": "CONFIRM",
+          "elapsed_ms": 9378
+        },
+        {
+          "repeat": 2,
+          "request_id": "b2b8401c-8034-4d15-bebe-8e8f09666c64",
+          "response_file": "Q15-2.response.body",
+          "response_sha256": "32fc8618b38a9a42b82eba6d74b8d027bc8f4b1e54281ebb743953d17c30760a",
+          "read_outcome": "UNSUPPORTED",
+          "elapsed_ms": 7710
+        },
+        {
+          "repeat": 3,
+          "request_id": "8e2b319b-9077-4dcd-8545-0436fc5fb304",
+          "response_file": "Q15-3.response.body",
+          "response_sha256": "7c2dce61130454c1b56e9b71582145f90c945f8ce2131e88b29e665224d7e699",
+          "read_outcome": "UNSUPPORTED",
+          "elapsed_ms": 7321
+        }
+      ]
+    },
+    {
+      "id": "Q16",
+      "verdict": "直っていない",
+      "reason": "3回ともメーカーを答えず、無関係な16項目の確認を提示。",
+      "semantic_variants_including_scope_display": 1,
+      "responses": [
+        {
+          "repeat": 1,
+          "request_id": "8abf8d25-bfa5-45a1-b664-aadd813cae62",
+          "response_file": "Q16-1.response.body",
+          "response_sha256": "87ec3af1162fd250f05ab7c0765f44df59881e4f0535a251c2358e764cec9173",
+          "read_outcome": "CONFIRM",
+          "elapsed_ms": 21979
+        },
+        {
+          "repeat": 2,
+          "request_id": "ffe0cd23-e09b-4bb2-a304-44a6b8aa8ede",
+          "response_file": "Q16-2.response.body",
+          "response_sha256": "ea74f87158de42f8f4b1149989f2e428697e174c44f2c2e6d0039a5ba90da761",
+          "read_outcome": "CONFIRM",
+          "elapsed_ms": 17206
+        },
+        {
+          "repeat": 3,
+          "request_id": "5cc477c3-68a7-4262-8d77-cc99dc15dbf3",
+          "response_file": "Q16-3.response.body",
+          "response_sha256": "b95529b44ded1ed4dc3931ab3fde219fd04949f42b9a20104443f47432d45703",
+          "read_outcome": "CONFIRM",
+          "elapsed_ms": 19770
+        }
+      ]
+    },
+    {
+      "id": "Q17",
+      "verdict": "直った",
+      "reason": "3回とも事前の期待に適合。原問にない業務値・場所・設備の断定なし。",
+      "semantic_variants_including_scope_display": 1,
+      "responses": [
+        {
+          "repeat": 1,
+          "request_id": "97e165f4-54c3-4666-92b2-3a76c9910345",
+          "response_file": "Q17-1.response.body",
+          "response_sha256": "5884a8b15abc090047117f62868fc41764c584927c0a518b1f151d2b0b3a9742",
+          "read_outcome": "UNSUPPORTED",
+          "elapsed_ms": 13233
+        },
+        {
+          "repeat": 2,
+          "request_id": "45983504-cf3a-4a1c-a558-76b5b067a110",
+          "response_file": "Q17-2.response.body",
+          "response_sha256": "dcd86ff4fc342bcf46d991b1d4f8945eb9530a58b9938976c54e590e3cab0769",
+          "read_outcome": "UNSUPPORTED",
+          "elapsed_ms": 13407
+        },
+        {
+          "repeat": 3,
+          "request_id": "e6e485be-93eb-4313-8d8a-94247b2eb405",
+          "response_file": "Q17-3.response.body",
+          "response_sha256": "798585ad84f8889aaf89b8ecbe12ebc325c6833e47b5184da7e8dbe2de796028",
+          "read_outcome": "UNSUPPORTED",
+          "elapsed_ms": 16207
+        }
+      ]
+    },
+    {
+      "id": "Q18",
+      "verdict": "直った",
+      "reason": "3回とも事前の期待に適合。原問にない業務値・場所・設備の断定なし。",
+      "semantic_variants_including_scope_display": 1,
+      "responses": [
+        {
+          "repeat": 1,
+          "request_id": "ba6c23b1-fb28-4fbc-9068-1bcd7ecd7c80",
+          "response_file": "Q18-1.response.body",
+          "response_sha256": "1c2285d45f33355b0ac851f954e37cd982f3f7cccb844f9ddcd3e2452da6d086",
+          "read_outcome": "UNSUPPORTED",
+          "elapsed_ms": 14366
+        },
+        {
+          "repeat": 2,
+          "request_id": "d5d97780-9e94-4006-80a1-1ded7f7d8e04",
+          "response_file": "Q18-2.response.body",
+          "response_sha256": "1be26ba9dd3ba4b000a6dcdd3d69b68ecfbd3adb7d721c2743a6efad57d9f8dc",
+          "read_outcome": "UNSUPPORTED",
+          "elapsed_ms": 13496
+        },
+        {
+          "repeat": 3,
+          "request_id": "697e88e5-732f-4ecb-a047-138d694cdb3b",
+          "response_file": "Q18-3.response.body",
+          "response_sha256": "2d4d20f9ba158b01bf99d06629aafb4c69234cfaaba30b41c83d5889644e9b77",
+          "read_outcome": "UNSUPPORTED",
+          "elapsed_ms": 9355
+        }
+      ]
+    },
+    {
+      "id": "Q19",
+      "verdict": "直った",
+      "reason": "3回とも事前の期待に適合。原問にない業務値・場所・設備の断定なし。",
+      "semantic_variants_including_scope_display": 1,
+      "responses": [
+        {
+          "repeat": 1,
+          "request_id": "6726049e-3416-413f-b074-05eebc139987",
+          "response_file": "Q19-1.response.body",
+          "response_sha256": "600137ff4d956c00bc0a6ed21f780017048a4fc5e7d8b0d9700295024d7f0195",
+          "read_outcome": "UNSUPPORTED",
+          "elapsed_ms": 13721
+        },
+        {
+          "repeat": 2,
+          "request_id": "d53dcc58-8c58-4635-8b8a-8e21776e8992",
+          "response_file": "Q19-2.response.body",
+          "response_sha256": "442e998cb2b586a2651950fd6439689ad715d58401e475d725161d9aeaf32ffa",
+          "read_outcome": "UNSUPPORTED",
+          "elapsed_ms": 13684
+        },
+        {
+          "repeat": 3,
+          "request_id": "71f2e7bf-f7a7-485c-a049-031b568a4e04",
+          "response_file": "Q19-3.response.body",
+          "response_sha256": "2bbdb311edbb700fee0ff1f87f403e52662a078c2946eaa8f7b354a339da6de9",
+          "read_outcome": "UNSUPPORTED",
+          "elapsed_ms": 14765
+        }
+      ]
+    },
+    {
+      "id": "Q20",
+      "verdict": "直った",
+      "reason": "3回とも事前の期待に適合。原問にない業務値・場所・設備の断定なし。",
+      "semantic_variants_including_scope_display": 1,
+      "responses": [
+        {
+          "repeat": 1,
+          "request_id": "5c677133-9d84-44db-aec0-7d7cb7ebb958",
+          "response_file": "Q20-1.response.body",
+          "response_sha256": "04f83828b3d9adea79eb5149ab6f866bb0b9313656fd92e020eed11c6bda0007",
+          "read_outcome": "UNSUPPORTED",
+          "elapsed_ms": 7339
+        },
+        {
+          "repeat": 2,
+          "request_id": "edd47cdf-843b-4b7d-a152-94bc07ff42f4",
+          "response_file": "Q20-2.response.body",
+          "response_sha256": "9398e32cb0c0a623da53b816114f96e8deb980a7881c962fe001b7dfdf20a58e",
+          "read_outcome": "UNSUPPORTED",
+          "elapsed_ms": 11988
+        },
+        {
+          "repeat": 3,
+          "request_id": "745645fa-62a5-483d-bb1f-d6e7e99b9863",
+          "response_file": "Q20-3.response.body",
+          "response_sha256": "e00e464145cc6d4c8af64e25c5b4b880704a77050551fa1f4ffffb149ca0b50e",
+          "read_outcome": "UNSUPPORTED",
+          "elapsed_ms": 8617
+        }
+      ]
+    },
+    {
+      "id": "Q21",
+      "verdict": "直った",
+      "reason": "3回とも事前の期待に適合。原問にない業務値・場所・設備の断定なし。",
+      "semantic_variants_including_scope_display": 1,
+      "responses": [
+        {
+          "repeat": 1,
+          "request_id": "0801ce2e-73f6-4f22-aa37-d38c39562858",
+          "response_file": "Q21-1.response.body",
+          "response_sha256": "e1ee08e0b94a52687d42e9d3d356d009d847b1226fa808d218fbb7618dedd34e",
+          "read_outcome": "UNVERIFIABLE",
+          "elapsed_ms": 12865
+        },
+        {
+          "repeat": 2,
+          "request_id": "803334a5-072c-4f85-a250-906123a3b4a9",
+          "response_file": "Q21-2.response.body",
+          "response_sha256": "973ccd4c36d092fd295ddb0d145db3b9e08a1c4cbeca2389703d641c88524b64",
+          "read_outcome": "UNVERIFIABLE",
+          "elapsed_ms": 10437
+        },
+        {
+          "repeat": 3,
+          "request_id": "83faa479-3348-4dcd-8d67-217fae2a1d66",
+          "response_file": "Q21-3.response.body",
+          "response_sha256": "47b968ccd3bc04cd7fc87e3b01fd15bfdd1e261e7d29e7c846ba84fcf45adf97",
+          "read_outcome": "UNVERIFIABLE",
+          "elapsed_ms": 8721
+        }
+      ]
+    }
+  ]
+}

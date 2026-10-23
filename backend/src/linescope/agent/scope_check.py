@@ -17,7 +17,7 @@ CHECK_SCHEMA = {
         }
     },
     "required": ["verdict"],
-    "description": "質問全体が提案された参照情報で答えられるかを照合する。事実・値・回答文は生成しない。",
+    "description": "質問が求める観点と提案された参照情報の意味の対応を照合する。事実・値・回答文は生成しない。",
 }
 
 # These describe registered data semantics, not examples of accepted questions.
@@ -54,6 +54,9 @@ def check_messages(message, fields, subjects):
                 "MATCHは、質問の求める全ての情報と提案能力の意味が対応するときだけです。"
                 "対象の一致、共通の単語、何らかの関係があるだけではMATCHにしません。"
                 "質問が対応範囲外の情報を求める場合はUNSUPPORTED、提案が別の問いに答える場合はMISMATCH、"
+                "同じ観点でも登録上の情報として調べるという限定が暗黙ならUNCERTAINです。"
+                "登録情報では実世界を完全に保証できないことだけを理由にUNSUPPORTEDにしません。"
+                "別の属性への置き換えはMISMATCHであり、限定への確認では救済しません。"
                 "照合を確定できなければUNCERTAINです。複合質問の一部だけを満たしてもMATCHにしません。"
                 "登録値が存在するかは未検索なので判断しません。事実・値・回答文を生成しません。"
             ),

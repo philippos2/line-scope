@@ -1,0 +1,20 @@
+{
+  "version": 1,
+  "status": "FIXED_BEFORE_REAL_MODEL_RUN",
+  "reported_cases": 21,
+  "supplemental_cases": 6,
+  "repetitions": 3,
+  "total_requests": 81,
+  "false_acceptance_max": 0,
+  "reported_expected_labels_required": 63,
+  "reported_semantic_confirmation_max": 3,
+  "combined_semantic_confirmation_max": 3,
+  "unverifiable_max": 0,
+  "transport_failure_max": 0,
+  "consecutive_deadlines_stop": 2,
+  "false_acceptance_definition": "根拠外の業務値・設備・場所の断定、または原問と異なる観点へのREAD_SCOPE確認。対象識別の事実は原問への回答に代用しない。",
+  "confirmation_definition": "READ_SCOPEのみ。TARGET_REQUIRED/TARGET_AMBIGUOUSは対象の特定として別集計。Q15のみREAD_SCOPEを許容。",
+  "content_requirements": "全応答で実取得の対象・属性・値・Evidence対応を確認。AUTOの記録0件は未実施を意味しない。HTTP成功・ラベル一致だけで合格にしない。",
+  "failure_action": "基準未達なら追加構文・結果を見た基準変更をせず停止し、閉じた選択方式の検討を提案。",
+  "execution_authorization": "未取得。負荷・時間帯の提示と開発者の別途了承後に実モデルを実行。"
+}

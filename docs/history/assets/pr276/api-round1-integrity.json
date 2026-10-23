@@ -1,0 +1,518 @@
+{
+  "source_revision": "fd45a9bdf5834dfc2da6db8fae3d37e08cdd9fa3",
+  "model": "qwen3:30b-a3b-instruct-2507-q4_K_M",
+  "api": "http://127.0.0.1:8003",
+  "started": "2026-10-23T12:26:09.688817+00:00",
+  "finished": "2026-10-23T12:35:27.007881+00:00",
+  "requests": 63,
+  "archive_sha256": "76785c83ac64d4562fb13ca229e511868160dbb623e3f15842b23e353172da44",
+  "archive_bytes": 94347,
+  "integrity": [
+    {
+      "id": "Q01",
+      "repeat": 1,
+      "verbatim_request": true,
+      "raw_response_sha256_verified": true,
+      "published_facts": 0,
+      "fact_reference_check": "NOT_APPLICABLE"
+    },
+    {
+      "id": "Q01",
+      "repeat": 2,
+      "verbatim_request": true,
+      "raw_response_sha256_verified": true,
+      "published_facts": 0,
+      "fact_reference_check": "NOT_APPLICABLE"
+    },
+    {
+      "id": "Q01",
+      "repeat": 3,
+      "verbatim_request": true,
+      "raw_response_sha256_verified": true,
+      "published_facts": 0,
+      "fact_reference_check": "NOT_APPLICABLE"
+    },
+    {
+      "id": "Q02",
+      "repeat": 1,
+      "verbatim_request": true,
+      "raw_response_sha256_verified": true,
+      "published_facts": 0,
+      "fact_reference_check": "NOT_APPLICABLE"
+    },
+    {
+      "id": "Q02",
+      "repeat": 2,
+      "verbatim_request": true,
+      "raw_response_sha256_verified": true,
+      "published_facts": 0,
+      "fact_reference_check": "NOT_APPLICABLE"
+    },
+    {
+      "id": "Q02",
+      "repeat": 3,
+      "verbatim_request": true,
+      "raw_response_sha256_verified": true,
+      "published_facts": 0,
+      "fact_reference_check": "NOT_APPLICABLE"
+    },
+    {
+      "id": "Q03",
+      "repeat": 1,
+      "verbatim_request": true,
+      "raw_response_sha256_verified": true,
+      "published_facts": 0,
+      "fact_reference_check": "NOT_APPLICABLE"
+    },
+    {
+      "id": "Q03",
+      "repeat": 2,
+      "verbatim_request": true,
+      "raw_response_sha256_verified": true,
+      "published_facts": 0,
+      "fact_reference_check": "NOT_APPLICABLE"
+    },
+    {
+      "id": "Q03",
+      "repeat": 3,
+      "verbatim_request": true,
+      "raw_response_sha256_verified": true,
+      "published_facts": 0,
+      "fact_reference_check": "NOT_APPLICABLE"
+    },
+    {
+      "id": "Q04",
+      "repeat": 1,
+      "verbatim_request": true,
+      "raw_response_sha256_verified": true,
+      "published_facts": 0,
+      "fact_reference_check": "NOT_APPLICABLE"
+    },
+    {
+      "id": "Q04",
+      "repeat": 2,
+      "verbatim_request": true,
+      "raw_response_sha256_verified": true,
+      "published_facts": 0,
+      "fact_reference_check": "NOT_APPLICABLE"
+    },
+    {
+      "id": "Q04",
+      "repeat": 3,
+      "verbatim_request": true,
+      "raw_response_sha256_verified": true,
+      "published_facts": 0,
+      "fact_reference_check": "NOT_APPLICABLE"
+    },
+    {
+      "id": "Q05",
+      "repeat": 1,
+      "verbatim_request": true,
+      "raw_response_sha256_verified": true,
+      "published_facts": 2,
+      "fact_reference_check": "PASS"
+    },
+    {
+      "id": "Q05",
+      "repeat": 2,
+      "verbatim_request": true,
+      "raw_response_sha256_verified": true,
+      "published_facts": 2,
+      "fact_reference_check": "PASS"
+    },
+    {
+      "id": "Q05",
+      "repeat": 3,
+      "verbatim_request": true,
+      "raw_response_sha256_verified": true,
+      "published_facts": 2,
+      "fact_reference_check": "PASS"
+    },
+    {
+      "id": "Q06",
+      "repeat": 1,
+      "verbatim_request": true,
+      "raw_response_sha256_verified": true,
+      "published_facts": 2,
+      "fact_reference_check": "PASS"
+    },
+    {
+      "id": "Q06",
+      "repeat": 2,
+      "verbatim_request": true,
+      "raw_response_sha256_verified": true,
+      "published_facts": 2,
+      "fact_reference_check": "PASS"
+    },
+    {
+      "id": "Q06",
+      "repeat": 3,
+      "verbatim_request": true,
+      "raw_response_sha256_verified": true,
+      "published_facts": 2,
+      "fact_reference_check": "PASS"
+    },
+    {
+      "id": "Q07",
+      "repeat": 1,
+      "verbatim_request": true,
+      "raw_response_sha256_verified": true,
+      "published_facts": 2,
+      "fact_reference_check": "PASS"
+    },
+    {
+      "id": "Q07",
+      "repeat": 2,
+      "verbatim_request": true,
+      "raw_response_sha256_verified": true,
+      "published_facts": 2,
+      "fact_reference_check": "PASS"
+    },
+    {
+      "id": "Q07",
+      "repeat": 3,
+      "verbatim_request": true,
+      "raw_response_sha256_verified": true,
+      "published_facts": 2,
+      "fact_reference_check": "PASS"
+    },
+    {
+      "id": "Q08",
+      "repeat": 1,
+      "verbatim_request": true,
+      "raw_response_sha256_verified": true,
+      "published_facts": 2,
+      "fact_reference_check": "PASS"
+    },
+    {
+      "id": "Q08",
+      "repeat": 2,
+      "verbatim_request": true,
+      "raw_response_sha256_verified": true,
+      "published_facts": 2,
+      "fact_reference_check": "PASS"
+    },
+    {
+      "id": "Q08",
+      "repeat": 3,
+      "verbatim_request": true,
+      "raw_response_sha256_verified": true,
+      "published_facts": 2,
+      "fact_reference_check": "PASS"
+    },
+    {
+      "id": "Q09",
+      "repeat": 1,
+      "verbatim_request": true,
+      "raw_response_sha256_verified": true,
+      "published_facts": 1,
+      "fact_reference_check": "PASS"
+    },
+    {
+      "id": "Q09",
+      "repeat": 2,
+      "verbatim_request": true,
+      "raw_response_sha256_verified": true,
+      "published_facts": 1,
+      "fact_reference_check": "PASS"
+    },
+    {
+      "id": "Q09",
+      "repeat": 3,
+      "verbatim_request": true,
+      "raw_response_sha256_verified": true,
+      "published_facts": 1,
+      "fact_reference_check": "PASS"
+    },
+    {
+      "id": "Q10",
+      "repeat": 1,
+      "verbatim_request": true,
+      "raw_response_sha256_verified": true,
+      "published_facts": 1,
+      "fact_reference_check": "PASS"
+    },
+    {
+      "id": "Q10",
+      "repeat": 2,
+      "verbatim_request": true,
+      "raw_response_sha256_verified": true,
+      "published_facts": 1,
+      "fact_reference_check": "PASS"
+    },
+    {
+      "id": "Q10",
+      "repeat": 3,
+      "verbatim_request": true,
+      "raw_response_sha256_verified": true,
+      "published_facts": 1,
+      "fact_reference_check": "PASS"
+    },
+    {
+      "id": "Q11",
+      "repeat": 1,
+      "verbatim_request": true,
+      "raw_response_sha256_verified": true,
+      "published_facts": 1,
+      "fact_reference_check": "PASS"
+    },
+    {
+      "id": "Q11",
+      "repeat": 2,
+      "verbatim_request": true,
+      "raw_response_sha256_verified": true,
+      "published_facts": 1,
+      "fact_reference_check": "PASS"
+    },
+    {
+      "id": "Q11",
+      "repeat": 3,
+      "verbatim_request": true,
+      "raw_response_sha256_verified": true,
+      "published_facts": 1,
+      "fact_reference_check": "PASS"
+    },
+    {
+      "id": "Q12",
+      "repeat": 1,
+      "verbatim_request": true,
+      "raw_response_sha256_verified": true,
+      "published_facts": 1,
+      "fact_reference_check": "PASS"
+    },
+    {
+      "id": "Q12",
+      "repeat": 2,
+      "verbatim_request": true,
+      "raw_response_sha256_verified": true,
+      "published_facts": 1,
+      "fact_reference_check": "PASS"
+    },
+    {
+      "id": "Q12",
+      "repeat": 3,
+      "verbatim_request": true,
+      "raw_response_sha256_verified": true,
+      "published_facts": 1,
+      "fact_reference_check": "PASS"
+    },
+    {
+      "id": "Q13",
+      "repeat": 1,
+      "verbatim_request": true,
+      "raw_response_sha256_verified": true,
+      "published_facts": 1,
+      "fact_reference_check": "PASS"
+    },
+    {
+      "id": "Q13",
+      "repeat": 2,
+      "verbatim_request": true,
+      "raw_response_sha256_verified": true,
+      "published_facts": 1,
+      "fact_reference_check": "PASS"
+    },
+    {
+      "id": "Q13",
+      "repeat": 3,
+      "verbatim_request": true,
+      "raw_response_sha256_verified": true,
+      "published_facts": 1,
+      "fact_reference_check": "PASS"
+    },
+    {
+      "id": "Q14",
+      "repeat": 1,
+      "verbatim_request": true,
+      "raw_response_sha256_verified": true,
+      "published_facts": 1,
+      "fact_reference_check": "PASS"
+    },
+    {
+      "id": "Q14",
+      "repeat": 2,
+      "verbatim_request": true,
+      "raw_response_sha256_verified": true,
+      "published_facts": 0,
+      "fact_reference_check": "NOT_APPLICABLE"
+    },
+    {
+      "id": "Q14",
+      "repeat": 3,
+      "verbatim_request": true,
+      "raw_response_sha256_verified": true,
+      "published_facts": 0,
+      "fact_reference_check": "NOT_APPLICABLE"
+    },
+    {
+      "id": "Q15",
+      "repeat": 1,
+      "verbatim_request": true,
+      "raw_response_sha256_verified": true,
+      "published_facts": 0,
+      "fact_reference_check": "NOT_APPLICABLE"
+    },
+    {
+      "id": "Q15",
+      "repeat": 2,
+      "verbatim_request": true,
+      "raw_response_sha256_verified": true,
+      "published_facts": 1,
+      "fact_reference_check": "PASS"
+    },
+    {
+      "id": "Q15",
+      "repeat": 3,
+      "verbatim_request": true,
+      "raw_response_sha256_verified": true,
+      "published_facts": 1,
+      "fact_reference_check": "PASS"
+    },
+    {
+      "id": "Q16",
+      "repeat": 1,
+      "verbatim_request": true,
+      "raw_response_sha256_verified": true,
+      "published_facts": 0,
+      "fact_reference_check": "NOT_APPLICABLE"
+    },
+    {
+      "id": "Q16",
+      "repeat": 2,
+      "verbatim_request": true,
+      "raw_response_sha256_verified": true,
+      "published_facts": 0,
+      "fact_reference_check": "NOT_APPLICABLE"
+    },
+    {
+      "id": "Q16",
+      "repeat": 3,
+      "verbatim_request": true,
+      "raw_response_sha256_verified": true,
+      "published_facts": 0,
+      "fact_reference_check": "NOT_APPLICABLE"
+    },
+    {
+      "id": "Q17",
+      "repeat": 1,
+      "verbatim_request": true,
+      "raw_response_sha256_verified": true,
+      "published_facts": 1,
+      "fact_reference_check": "PASS"
+    },
+    {
+      "id": "Q17",
+      "repeat": 2,
+      "verbatim_request": true,
+      "raw_response_sha256_verified": true,
+      "published_facts": 1,
+      "fact_reference_check": "PASS"
+    },
+    {
+      "id": "Q17",
+      "repeat": 3,
+      "verbatim_request": true,
+      "raw_response_sha256_verified": true,
+      "published_facts": 1,
+      "fact_reference_check": "PASS"
+    },
+    {
+      "id": "Q18",
+      "repeat": 1,
+      "verbatim_request": true,
+      "raw_response_sha256_verified": true,
+      "published_facts": 1,
+      "fact_reference_check": "PASS"
+    },
+    {
+      "id": "Q18",
+      "repeat": 2,
+      "verbatim_request": true,
+      "raw_response_sha256_verified": true,
+      "published_facts": 1,
+      "fact_reference_check": "PASS"
+    },
+    {
+      "id": "Q18",
+      "repeat": 3,
+      "verbatim_request": true,
+      "raw_response_sha256_verified": true,
+      "published_facts": 1,
+      "fact_reference_check": "PASS"
+    },
+    {
+      "id": "Q19",
+      "repeat": 1,
+      "verbatim_request": true,
+      "raw_response_sha256_verified": true,
+      "published_facts": 1,
+      "fact_reference_check": "PASS"
+    },
+    {
+      "id": "Q19",
+      "repeat": 2,
+      "verbatim_request": true,
+      "raw_response_sha256_verified": true,
+      "published_facts": 1,
+      "fact_reference_check": "PASS"
+    },
+    {
+      "id": "Q19",
+      "repeat": 3,
+      "verbatim_request": true,
+      "raw_response_sha256_verified": true,
+      "published_facts": 1,
+      "fact_reference_check": "PASS"
+    },
+    {
+      "id": "Q20",
+      "repeat": 1,
+      "verbatim_request": true,
+      "raw_response_sha256_verified": true,
+      "published_facts": 1,
+      "fact_reference_check": "PASS"
+    },
+    {
+      "id": "Q20",
+      "repeat": 2,
+      "verbatim_request": true,
+      "raw_response_sha256_verified": true,
+      "published_facts": 1,
+      "fact_reference_check": "PASS"
+    },
+    {
+      "id": "Q20",
+      "repeat": 3,
+      "verbatim_request": true,
+      "raw_response_sha256_verified": true,
+      "published_facts": 1,
+      "fact_reference_check": "PASS"
+    },
+    {
+      "id": "Q21",
+      "repeat": 1,
+      "verbatim_request": true,
+      "raw_response_sha256_verified": true,
+      "published_facts": 1,
+      "fact_reference_check": "PASS"
+    },
+    {
+      "id": "Q21",
+      "repeat": 2,
+      "verbatim_request": true,
+      "raw_response_sha256_verified": true,
+      "published_facts": 1,
+      "fact_reference_check": "PASS"
+    },
+    {
+      "id": "Q21",
+      "repeat": 3,
+      "verbatim_request": true,
+      "raw_response_sha256_verified": true,
+      "published_facts": 1,
+      "fact_reference_check": "PASS"
+    }
+  ],
+  "semantic_verdict": "個別の判定表を参照。完全な収集・参照整合だけでは合格としない。",
+  "privacy": "架空デモの応答。Authorization headerは収集しておらず、使用Bearer tokenが応答に含まれないことを照合済み。"
+}

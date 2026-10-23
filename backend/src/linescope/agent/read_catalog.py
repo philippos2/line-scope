@@ -11,7 +11,7 @@ from .equipment_reference import question_messages, selected_reference
 from .read_scope import FIELDS, ReadScope
 from .scope_check import FIELD_MEANINGS
 
-CATALOG_VERSION = "h6-1"
+CATALOG_VERSION = "h6-2"
 TECHNICAL_FIELDS = frozenset({"active"})
 BUSINESS_FIELDS = {key: value for key, value in FIELDS.items() if key not in TECHNICAL_FIELDS}
 # Literal vocabulary belongs to capability definitions, not to question routes.
@@ -44,13 +44,14 @@ REGISTERED_VALUES = {
 }
 END = r"(?:は|は何|は何か|は何ですか|を教えて|を教えてください|を見せて|を見せてください)"
 PUNCT = r"[?？。]*"
-# Six grammar shapes. Terms are bound separately from the shared syntax.
+# Seven grammar shapes. Terms are bound separately from the shared syntax.
 SHAPES = {
     "definition": r"{term}(?:とは|とは何|とは何か|って何|って何ですか){punct}",
     "value": r"(?P<subject>.+?)の(?:(?:いま|今|現在)の)?{term}{end}{punct}",
     "boolean": r"(?P<subject>.+?)(?:は|、|,)(?:いま|今|現在)?{term}(?:か|ですか){punct}",
     "relation": r"(?P<subject>.+?)の{term}{end}{punct}",
     "record_list": r"(?P<subject>.+?)の{term}{end}{punct}",
+    "record_event_time": r"(?P<subject>.+?)が(?:最後|前回)に{term}されたのはいつ(?:か|ですか)?{punct}",
     "record_time": r"(?P<subject>.+?)の(?:前回|最後)の{term}(?:日時|実施日時|実施日)(?:はいつ|はいつか|を教えて){punct}",
 }
 RELATION_FIELDS = frozenset(
@@ -66,6 +67,14 @@ RECORD_FIELDS = frozenset({"maintenance_records", "maintenance_plans"})
 RECORD_TERMS = {
     "maintenance_records": ("保全", "メンテナンス"),
     "maintenance_plans": ("保全計画", "メンテナンス計画"),
+}
+
+# Only completed-record capabilities declare an event and its registered time.
+RECORD_EVENTS = {
+    "maintenance_records": {
+        "activities": RECORD_TERMS["maintenance_records"],
+        "time_field": "performed_at",
+    }
 }
 
 
@@ -99,6 +108,7 @@ def literal_reads(message):
             ("definition", terms),
             (shape, terms),
             ("record_time", RECORD_TERMS.get(field, ())),
+            ("record_event_time", RECORD_EVENTS.get(field, {}).get("activities", ())),
         ):
             for term in vocabulary:
                 pattern = SHAPES[kind].format(term=re.escape(term), end=END, punct=PUNCT)
@@ -140,20 +150,55 @@ def literal_read(message):
 def unbound_attribute(scope, message):
     """Bind an explicit nominal attribute to the proposed capability.
 
-    This is the existing whole-question value grammar, not arbitrary-language
-    parsing. Unrecognized colloquial predicates remain on the clarification path.
+    Inspect explicit noun roles against identified subjects and catalog definitions;
+    this does not accept arbitrary-language reads. Colloquial predicates without
+    an explicit nominal attribute remain on the interpretation/clarification path.
     An explicit unbound attribute cannot be replaced by a nearby capability,
     even if both model calls agree. No negative vocabulary is consulted.
     """
-    if len(scope.subjects) != 1 or scope.subjects[0]["entity_type"] != "Equipment":
+    if not scope.subjects or any(s["entity_type"] != "Equipment" for s in scope.subjects):
         return None
     from .equipment_reference import reference_key
 
-    reference = reference_key(selected_reference(message, scope.subjects[0]["reference"]))
+    references = [
+        re.escape(reference_key(selected_reference(message, subject["reference"])))
+        for subject in scope.subjects
+    ]
+    # Subjects come from independently looked-up references, never a greedy noun split.
+    subject = "(?:" + "|".join(references) + ")"
+    subjects = subject + r"(?:(?:と|、|,|及び)" + subject + r")*"
     text = reference_key(question_messages(message)[-1]["content"]).strip()
-    pattern = SHAPES["value"].format(term=r"(?P<attribute>.+?)", end=END, punct=PUNCT)
-    pattern = pattern.replace(r"(?P<subject>.+?)", re.escape(reference))
-    match = re.fullmatch(pattern, text)
+    event = re.fullmatch(
+        SHAPES["record_event_time"]
+        .format(term=r"(?P<activity>.+?)", punct=PUNCT)
+        .replace(r"(?P<subject>.+?)", subjects),
+        text,
+    )
+    if event:
+        bound_events = {
+            field
+            for field, event_definition in RECORD_EVENTS.items()
+            if any(
+                reference_key(term) == event["activity"] for term in event_definition["activities"]
+            )
+        }
+        if not scope.requested_fields or not set(scope.requested_fields) <= bound_events:
+            return event["activity"]
+        return None
+    # Attribute inspection does not grant a read or add an accepted literal shape.
+    nominal = re.fullmatch(
+        subjects
+        + r"の(?P<attribute>.+?)(?:"
+        + END
+        + r"|は(?:いつ|どこ|同じ)(?:まで|です|か|ですか)*|はいつまでか)"
+        + PUNCT,
+        text,
+    )
+    membership = re.fullmatch(
+        subjects + r"は(?:まだ|現在|今)?(?P<attribute>.+?)(?:内|外)(?:か|ですか)" + PUNCT,
+        text,
+    )
+    match = nominal or membership
     if not match:
         return None
     attribute = match["attribute"]
