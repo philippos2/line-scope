@@ -5,10 +5,10 @@ from uuid import UUID, uuid4
 
 import pytest
 from agent.test_agent_tools import Dispatcher, session
-from agent.test_read_agent import ScriptedLLM, call, request
+from agent.test_read_agent import AdmittedPlanAgent, ScriptedLLM, call, request
 from fastapi.testclient import TestClient
+from interfaces.agent_read_support import explicit_message
 
-from linescope.agent.read_agent import ReadAgent
 from linescope.application.reads import ToolError
 from linescope.demo_seed import DEMO_EQUIPMENT, seed_demo
 from linescope.integrations.llm import LLMReply
@@ -32,7 +32,7 @@ def test_llm_failure_metrics_do_not_expose_content_or_change_failure(invalid_rep
     output = io.StringIO()
     context = session().context
     with pytest.raises(ToolError) as error:
-        ReadAgent(
+        AdmittedPlanAgent(
             Dispatcher(lambda: None), Broken(), event_logger=EventLogger("DEBUG", output)
         ).run(context, request(SECRET))
     (entry,) = entries(output)
@@ -178,7 +178,7 @@ def test_retries_share_call_id_and_have_individual_attempt_events():
     output = io.StringIO()
     events = EventLogger("DEBUG", output)
     reply = call()
-    result = ReadAgent(
+    result = AdmittedPlanAgent(
         Dispatcher(action), ScriptedLLM(reply, LLMReply("確認しました", ())), event_logger=events
     ).run(session().context, request())
     logged = [row for row in entries(output) if row["event"] == "tool.call.completed"]
@@ -192,9 +192,9 @@ def test_retries_share_call_id_and_have_individual_attempt_events():
     assert [row["tool_call_id"] for row in logged] == [row["tool_call_id"] for row in result.trace]
     assert SECRET not in output.getvalue()
     model_calls = [row for row in entries(output) if row["event"] == "llm.call.completed"]
-    assert len(model_calls) == 2
-    assert [row["llm_tool_count"] for row in model_calls] == [1, 0]
-    assert all(row["llm_schema_count"] == 1 for row in model_calls)
+    assert len(model_calls) == 4
+    assert [row["llm_tool_count"] for row in model_calls] == [1, 1, 1, 0]
+    assert [row["llm_schema_count"] for row in model_calls] == [1, 1, 1, 2]
     assert all(row["llm_input_bytes"] > 0 and row["llm_output_bytes"] > 0 for row in model_calls)
     assert all(row["duration_ms"] >= 0 and row["result_code"] == "OK" for row in model_calls)
 
@@ -274,6 +274,11 @@ def test_saved_prepare_ids_survive_deadline_without_snapshot_or_retry_key_loggin
 def test_http_threadpool_tool_and_envelope_share_server_request_id(db):
     db.migrate()
     seed_demo(db)
+    with db.transaction() as connection:
+        connection.execute(
+            "UPDATE equipment SET equipment_name=%s WHERE equipment_id=%s",
+            (SECRET, DEMO_EQUIPMENT[0][0]),
+        )
     output = io.StringIO()
     events = EventLogger("DEBUG", output)
     llm = ScriptedLLM(
@@ -284,7 +289,9 @@ def test_http_threadpool_tool_and_envelope_share_server_request_id(db):
     with TestClient(create_app(settings, db, events, llm=llm)) as client:
         result = client.post(
             "/agent",
-            json={"message": SECRET},
+            json=explicit_message(
+                f"{SECRET}の登録状態は？", "registered_state", DEMO_EQUIPMENT[0][0]
+            ),
             headers={"Authorization": "Bearer " + SECRET, "X-Request-ID": SECRET},
         )
     assert result.status_code == 200
@@ -293,10 +300,18 @@ def test_http_threadpool_tool_and_envelope_share_server_request_id(db):
         for row in entries(output)
         if row["event"] in {"http.request.completed", "tool.call.completed"}
     ]
-    assert len(relevant) == 2
+    assert len(relevant) == 3
+    assert [row["tool"] for row in relevant if row["component"] == "tool"] == [
+        "get_equipment",
+        "get_equipment_state",
+    ]
     assert {row["request_id"] for row in relevant} == {result.json()["request_id"]}
     assert all(row["actor_id"] == "floor1" and row["role"] == "floor" for row in relevant)
-    tool = next(row for row in relevant if row["component"] == "tool")
-    assert tool["tool_call_id"] == result.json()["data"]["tool_trace"][0]["tool_call_id"]
+    tool = next(row for row in relevant if row.get("tool") == "get_equipment_state")
+    assert tool["tool_call_id"] == next(
+        row["tool_call_id"]
+        for row in result.json()["data"]["tool_trace"]
+        if row["tool"] == "get_equipment_state"
+    )
     assert tool["equipment_id"] == str(DEMO_EQUIPMENT[0][0])
     assert SECRET not in output.getvalue() and "STOPPED" not in output.getvalue()

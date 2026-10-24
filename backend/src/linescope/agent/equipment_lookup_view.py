@@ -15,7 +15,7 @@ def equipment_lookup_view(observations, failures=()):
         if (
             isinstance(filters, dict)
             and len(filters) == 1
-            and next(iter(filters)) in {"name", "equipment_code"}
+            and next(iter(filters)) in {"name", "equipment_code", "reference"}
             and isinstance(next(iter(filters.values())), str)
         ):
             key = ("LITERAL", reference_key(next(iter(filters.values()))))

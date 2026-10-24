@@ -15,6 +15,7 @@ from pydantic import (
     StrictStr,
     ValidationError,
     create_model,
+    field_validator,
 )
 
 from ..execution import ExecutionContext
@@ -67,6 +68,18 @@ SCHEMAS["get_operation_equipment_assignments"] = create_model(
 
 
 class EquipmentFilter(Arguments):
+    reference: Annotated[StrictStr, Field(min_length=1, max_length=200)] = Field(
+        default=None,
+        description="Equipment name or code with shared lexical normalization. Multiple IDs remain separate candidates.",
+    )
+
+    @field_validator("reference")
+    @classmethod
+    def nonblank_reference(cls, value):
+        if not value.strip():
+            raise ValueError("Reference must not be blank")
+        return value
+
     equipment_code: StrictStr = Field(
         default=None,
         description="Exact equipment code, not the equipment name. Omit when searching by name.",
@@ -150,7 +163,8 @@ class ReadTools:
     def schemas(self):
         schemas = {name: model.model_json_schema() for name, model in SCHEMAS.items()}
         schemas["search_equipment"]["description"] = (
-            "Find equipment by name or code. Use filter.name for a name or name substring; "
+            "Find equipment by name or code. Prefer filter.reference for shared spelling-aware lookup. "
+            "Legacy filters remain strict: use filter.name for a name or name substring; "
             "use filter.equipment_code for an exact code. Filters in one call are AND, not OR. "
             "When unsure, search separately; do not declare a name absent after only a code search. "
             "Use returned equipment_id only after unambiguous identification. "

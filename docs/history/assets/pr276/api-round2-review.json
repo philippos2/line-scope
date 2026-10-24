@@ -1,0 +1,820 @@
+{
+  "product_revision": "cc2576440154744a53cc5b8194614a60f7f651e5",
+  "api": "http://127.0.0.1:8003",
+  "model": "qwen3:30b-a3b-instruct-2507-q4_K_M",
+  "metrics": {
+    "responses": 81,
+    "elapsed_seconds": 797.153,
+    "reported_label_matches": 58,
+    "reported_responses": 63,
+    "supplemental_label_matches": 15,
+    "supplemental_responses": 18,
+    "false_acceptances": 5,
+    "semantic_confirmations": 5,
+    "unverifiable": 0,
+    "transport_failures": 0,
+    "deadline_failures": 0,
+    "accepted": false
+  },
+  "criteria_sha256": {
+    "reported-agent-questions.json": "c7e7e96cc14d89dfc57ae31fc07f1515f0c7ddae761aed783b688cdd1ea04926",
+    "unexpected-agent-questions.json": "bd3d75971422a4d01ea2088bb54269ad3dd13cc54ff28094ffa562f217134875",
+    "agent-acceptance.json": "14d375b494dcae5715273dd8f4b9bd7e56dbce4c7436c586e0abd935317f1d9b"
+  },
+  "cases": [
+    {
+      "id": "Q01",
+      "verdict": "直った",
+      "reason": "今回の期待3/3適合。原問を別観点へ置換せず、根拠外の業務値・場所の断定なし。",
+      "responses": [
+        {
+          "repeat": 1,
+          "request_id": "43998f96-bdec-44e6-9080-446db22f75c4",
+          "read_outcome": "TARGET_REQUIRED",
+          "label_match": true,
+          "response_file": "Q01-1.response.body"
+        },
+        {
+          "repeat": 2,
+          "request_id": "48e898e2-a0e4-4804-9906-f8af0d6d2e3f",
+          "read_outcome": "TARGET_REQUIRED",
+          "label_match": true,
+          "response_file": "Q01-2.response.body"
+        },
+        {
+          "repeat": 3,
+          "request_id": "8496726c-c592-471a-955b-99d11ea77ac3",
+          "read_outcome": "TARGET_REQUIRED",
+          "label_match": true,
+          "response_file": "Q01-3.response.body"
+        }
+      ]
+    },
+    {
+      "id": "Q02",
+      "verdict": "直った",
+      "reason": "今回の期待3/3適合。原問を別観点へ置換せず、根拠外の業務値・場所の断定なし。",
+      "responses": [
+        {
+          "repeat": 1,
+          "request_id": "8a7e790d-bd6f-4440-a265-f41e2e34a249",
+          "read_outcome": "UNSUPPORTED",
+          "label_match": true,
+          "response_file": "Q02-1.response.body"
+        },
+        {
+          "repeat": 2,
+          "request_id": "7f8f9920-2b32-4d0a-b934-afe9fc08d3de",
+          "read_outcome": "UNSUPPORTED",
+          "label_match": true,
+          "response_file": "Q02-2.response.body"
+        },
+        {
+          "repeat": 3,
+          "request_id": "99db78d6-cfd2-4128-bda1-ff5a61ce3994",
+          "read_outcome": "UNSUPPORTED",
+          "label_match": true,
+          "response_file": "Q02-3.response.body"
+        }
+      ]
+    },
+    {
+      "id": "Q03",
+      "verdict": "直った",
+      "reason": "今回の期待3/3適合。原問を別観点へ置換せず、根拠外の業務値・場所の断定なし。",
+      "responses": [
+        {
+          "repeat": 1,
+          "request_id": "e9202034-b3e0-4c1e-a592-dd07f74ac170",
+          "read_outcome": "AUTO",
+          "label_match": true,
+          "response_file": "Q03-1.response.body"
+        },
+        {
+          "repeat": 2,
+          "request_id": "60a91ba9-15d7-4053-9d6c-1784a46f23c2",
+          "read_outcome": "AUTO",
+          "label_match": true,
+          "response_file": "Q03-2.response.body"
+        },
+        {
+          "repeat": 3,
+          "request_id": "5a7ca078-7d83-4e47-8839-02c7f225ac9e",
+          "read_outcome": "AUTO",
+          "label_match": true,
+          "response_file": "Q03-3.response.body"
+        }
+      ]
+    },
+    {
+      "id": "Q04",
+      "verdict": "直った",
+      "reason": "今回の期待3/3適合。原問を別観点へ置換せず、根拠外の業務値・場所の断定なし。",
+      "responses": [
+        {
+          "repeat": 1,
+          "request_id": "39902590-312a-4e34-8e19-042956acf23d",
+          "read_outcome": "AUTO",
+          "label_match": true,
+          "response_file": "Q04-1.response.body"
+        },
+        {
+          "repeat": 2,
+          "request_id": "23122479-04fa-4930-90af-7a77a11e8b06",
+          "read_outcome": "AUTO",
+          "label_match": true,
+          "response_file": "Q04-2.response.body"
+        },
+        {
+          "repeat": 3,
+          "request_id": "c92a8694-5573-4f11-8eca-5bf7f81dca15",
+          "read_outcome": "AUTO",
+          "label_match": true,
+          "response_file": "Q04-3.response.body"
+        }
+      ]
+    },
+    {
+      "id": "Q05",
+      "verdict": "直った",
+      "reason": "今回の期待3/3適合。原問を別観点へ置換せず、根拠外の業務値・場所の断定なし。",
+      "responses": [
+        {
+          "repeat": 1,
+          "request_id": "ef231f1b-c1fa-4724-ac3b-cfa9b02f0859",
+          "read_outcome": "AUTO",
+          "label_match": true,
+          "response_file": "Q05-1.response.body"
+        },
+        {
+          "repeat": 2,
+          "request_id": "750791f2-acef-4638-ae31-f69c969c9dea",
+          "read_outcome": "AUTO",
+          "label_match": true,
+          "response_file": "Q05-2.response.body"
+        },
+        {
+          "repeat": 3,
+          "request_id": "95d0f437-2db6-45c3-99e2-c11892eca2c0",
+          "read_outcome": "AUTO",
+          "label_match": true,
+          "response_file": "Q05-3.response.body"
+        }
+      ]
+    },
+    {
+      "id": "Q06",
+      "verdict": "直った",
+      "reason": "今回の期待3/3適合。原問を別観点へ置換せず、根拠外の業務値・場所の断定なし。",
+      "responses": [
+        {
+          "repeat": 1,
+          "request_id": "7319b0ad-1c05-44c8-b749-8f4639c40688",
+          "read_outcome": "AUTO",
+          "label_match": true,
+          "response_file": "Q06-1.response.body"
+        },
+        {
+          "repeat": 2,
+          "request_id": "93c852f9-60cf-4585-921e-b1e8ed5ec893",
+          "read_outcome": "AUTO",
+          "label_match": true,
+          "response_file": "Q06-2.response.body"
+        },
+        {
+          "repeat": 3,
+          "request_id": "d5b06a62-7e6c-494a-b9c5-db5274921ed5",
+          "read_outcome": "AUTO",
+          "label_match": true,
+          "response_file": "Q06-3.response.body"
+        }
+      ]
+    },
+    {
+      "id": "Q07",
+      "verdict": "直った",
+      "reason": "今回の期待3/3適合。原問を別観点へ置換せず、根拠外の業務値・場所の断定なし。",
+      "responses": [
+        {
+          "repeat": 1,
+          "request_id": "e3eb8599-31b9-4129-8388-ab29ab5a230b",
+          "read_outcome": "UNSUPPORTED",
+          "label_match": true,
+          "response_file": "Q07-1.response.body"
+        },
+        {
+          "repeat": 2,
+          "request_id": "e2122128-a0ff-4abe-89f0-662295480643",
+          "read_outcome": "UNSUPPORTED",
+          "label_match": true,
+          "response_file": "Q07-2.response.body"
+        },
+        {
+          "repeat": 3,
+          "request_id": "f9774e34-83ac-4792-87e9-49fd987511cb",
+          "read_outcome": "UNSUPPORTED",
+          "label_match": true,
+          "response_file": "Q07-3.response.body"
+        }
+      ]
+    },
+    {
+      "id": "Q08",
+      "verdict": "直った",
+      "reason": "今回の期待3/3適合。原問を別観点へ置換せず、根拠外の業務値・場所の断定なし。",
+      "responses": [
+        {
+          "repeat": 1,
+          "request_id": "1ce5669f-158e-4670-a9f7-d10c2923c479",
+          "read_outcome": "AUTO",
+          "label_match": true,
+          "response_file": "Q08-1.response.body"
+        },
+        {
+          "repeat": 2,
+          "request_id": "23c900df-9f85-4c78-a638-d825ad93cb09",
+          "read_outcome": "AUTO",
+          "label_match": true,
+          "response_file": "Q08-2.response.body"
+        },
+        {
+          "repeat": 3,
+          "request_id": "4427d4f2-d291-4db7-a3af-5c9f8242ff4c",
+          "read_outcome": "AUTO",
+          "label_match": true,
+          "response_file": "Q08-3.response.body"
+        }
+      ]
+    },
+    {
+      "id": "Q09",
+      "verdict": "直った",
+      "reason": "今回の期待3/3適合。原問を別観点へ置換せず、根拠外の業務値・場所の断定なし。",
+      "responses": [
+        {
+          "repeat": 1,
+          "request_id": "0f500fc5-3f48-4a48-9da0-aac4e4740bc9",
+          "read_outcome": "UNSUPPORTED",
+          "label_match": true,
+          "response_file": "Q09-1.response.body"
+        },
+        {
+          "repeat": 2,
+          "request_id": "55158ce2-5b22-4bd2-a823-f9c117017781",
+          "read_outcome": "UNSUPPORTED",
+          "label_match": true,
+          "response_file": "Q09-2.response.body"
+        },
+        {
+          "repeat": 3,
+          "request_id": "12b38acf-7ade-4436-a1ef-fe625589701c",
+          "read_outcome": "UNSUPPORTED",
+          "label_match": true,
+          "response_file": "Q09-3.response.body"
+        }
+      ]
+    },
+    {
+      "id": "Q10",
+      "verdict": "直った",
+      "reason": "今回の期待3/3適合。原問を別観点へ置換せず、根拠外の業務値・場所の断定なし。",
+      "responses": [
+        {
+          "repeat": 1,
+          "request_id": "167b917e-0e79-400c-866b-800a18328c44",
+          "read_outcome": "UNSUPPORTED",
+          "label_match": true,
+          "response_file": "Q10-1.response.body"
+        },
+        {
+          "repeat": 2,
+          "request_id": "fb0383bf-87a8-4ee9-8dda-f851349882d5",
+          "read_outcome": "UNSUPPORTED",
+          "label_match": true,
+          "response_file": "Q10-2.response.body"
+        },
+        {
+          "repeat": 3,
+          "request_id": "2d95b373-4987-4fc6-8cbb-3795dcb3901e",
+          "read_outcome": "UNSUPPORTED",
+          "label_match": true,
+          "response_file": "Q10-3.response.body"
+        }
+      ]
+    },
+    {
+      "id": "Q11",
+      "verdict": "直った",
+      "reason": "今回の期待3/3適合。原問を別観点へ置換せず、根拠外の業務値・場所の断定なし。",
+      "responses": [
+        {
+          "repeat": 1,
+          "request_id": "69ab5b7f-9d40-428e-b5d4-d53a45294ba8",
+          "read_outcome": "UNSUPPORTED",
+          "label_match": true,
+          "response_file": "Q11-1.response.body"
+        },
+        {
+          "repeat": 2,
+          "request_id": "0a52bc6a-5729-494b-a6b0-69b781e45e9a",
+          "read_outcome": "UNSUPPORTED",
+          "label_match": true,
+          "response_file": "Q11-2.response.body"
+        },
+        {
+          "repeat": 3,
+          "request_id": "51ee26bb-1190-4de1-8678-374deeeb0779",
+          "read_outcome": "UNSUPPORTED",
+          "label_match": true,
+          "response_file": "Q11-3.response.body"
+        }
+      ]
+    },
+    {
+      "id": "Q12",
+      "verdict": "直った",
+      "reason": "今回の期待3/3適合。原問を別観点へ置換せず、根拠外の業務値・場所の断定なし。",
+      "responses": [
+        {
+          "repeat": 1,
+          "request_id": "7882048d-9c63-4988-8042-afb4e5ace631",
+          "read_outcome": "UNSUPPORTED",
+          "label_match": true,
+          "response_file": "Q12-1.response.body"
+        },
+        {
+          "repeat": 2,
+          "request_id": "57762f69-7e09-40fb-a99b-8d53b354bfee",
+          "read_outcome": "UNSUPPORTED",
+          "label_match": true,
+          "response_file": "Q12-2.response.body"
+        },
+        {
+          "repeat": 3,
+          "request_id": "e155b86a-45ad-4819-adb1-d7d1355a0f4d",
+          "read_outcome": "UNSUPPORTED",
+          "label_match": true,
+          "response_file": "Q12-3.response.body"
+        }
+      ]
+    },
+    {
+      "id": "Q13",
+      "verdict": "直った",
+      "reason": "今回の期待3/3適合。原問を別観点へ置換せず、根拠外の業務値・場所の断定なし。",
+      "responses": [
+        {
+          "repeat": 1,
+          "request_id": "97f1fe6e-17c4-48b0-b77f-87520aed1261",
+          "read_outcome": "UNSUPPORTED",
+          "label_match": true,
+          "response_file": "Q13-1.response.body"
+        },
+        {
+          "repeat": 2,
+          "request_id": "cd1465f4-18b0-4ac4-9199-a0462291c3b9",
+          "read_outcome": "UNSUPPORTED",
+          "label_match": true,
+          "response_file": "Q13-2.response.body"
+        },
+        {
+          "repeat": 3,
+          "request_id": "db2e67f5-5535-43ba-9756-d242b8027f2e",
+          "read_outcome": "UNSUPPORTED",
+          "label_match": true,
+          "response_file": "Q13-3.response.body"
+        }
+      ]
+    },
+    {
+      "id": "Q14",
+      "verdict": "直った",
+      "reason": "今回の期待3/3適合。原問を別観点へ置換せず、根拠外の業務値・場所の断定なし。",
+      "responses": [
+        {
+          "repeat": 1,
+          "request_id": "1989790f-4a76-4d5a-963a-6addb6e70267",
+          "read_outcome": "UNSUPPORTED",
+          "label_match": true,
+          "response_file": "Q14-1.response.body"
+        },
+        {
+          "repeat": 2,
+          "request_id": "66c9728d-76ee-4bb4-8990-95d396f0ce3c",
+          "read_outcome": "UNSUPPORTED",
+          "label_match": true,
+          "response_file": "Q14-2.response.body"
+        },
+        {
+          "repeat": 3,
+          "request_id": "88dd5a28-3850-474b-a268-fba890c219cb",
+          "read_outcome": "UNSUPPORTED",
+          "label_match": true,
+          "response_file": "Q14-3.response.body"
+        }
+      ]
+    },
+    {
+      "id": "Q15",
+      "verdict": "一部",
+      "reason": "3回とも対象は正しいが、登録状態の解釈確認へ進まず対応外とする。期待0/3。口語の取りこぼしは残る。",
+      "responses": [
+        {
+          "repeat": 1,
+          "request_id": "275f0a99-f49f-4c73-83fd-85ff1dae1181",
+          "read_outcome": "UNSUPPORTED",
+          "label_match": false,
+          "response_file": "Q15-1.response.body"
+        },
+        {
+          "repeat": 2,
+          "request_id": "74662b6c-fd89-462d-92bc-abd52f7f80cb",
+          "read_outcome": "UNSUPPORTED",
+          "label_match": false,
+          "response_file": "Q15-2.response.body"
+        },
+        {
+          "repeat": 3,
+          "request_id": "3c486f5f-6c77-4825-9372-c32edf0109b3",
+          "read_outcome": "UNSUPPORTED",
+          "label_match": false,
+          "response_file": "Q15-3.response.body"
+        }
+      ]
+    },
+    {
+      "id": "Q16",
+      "verdict": "直った",
+      "reason": "今回の期待3/3適合。原問を別観点へ置換せず、根拠外の業務値・場所の断定なし。",
+      "responses": [
+        {
+          "repeat": 1,
+          "request_id": "ffb2fd8d-1baa-45aa-bae5-cd1b8d7e84f7",
+          "read_outcome": "UNSUPPORTED",
+          "label_match": true,
+          "response_file": "Q16-1.response.body"
+        },
+        {
+          "repeat": 2,
+          "request_id": "9fc5a3e3-2f01-4222-942a-e54ba4738a03",
+          "read_outcome": "UNSUPPORTED",
+          "label_match": true,
+          "response_file": "Q16-2.response.body"
+        },
+        {
+          "repeat": 3,
+          "request_id": "75bfbca3-bd55-4687-b638-4bd74e80079b",
+          "read_outcome": "UNSUPPORTED",
+          "label_match": true,
+          "response_file": "Q16-3.response.body"
+        }
+      ]
+    },
+    {
+      "id": "Q17",
+      "verdict": "一部",
+      "reason": "1回は対応外、2回は来社予定を保全計画の確認へ置換。期待1/3。前回3/3対応外からの退行。",
+      "responses": [
+        {
+          "repeat": 1,
+          "request_id": "93f35bd4-42cc-4c85-87ca-534d5e157fe3",
+          "read_outcome": "UNSUPPORTED",
+          "label_match": true,
+          "response_file": "Q17-1.response.body"
+        },
+        {
+          "repeat": 2,
+          "request_id": "2546e774-8da5-4604-a162-b99aa8b0cae5",
+          "read_outcome": "CONFIRM",
+          "label_match": false,
+          "response_file": "Q17-2.response.body"
+        },
+        {
+          "repeat": 3,
+          "request_id": "c410ffeb-65c3-4b8a-95a9-35badeeb1e30",
+          "read_outcome": "CONFIRM",
+          "label_match": false,
+          "response_file": "Q17-3.response.body"
+        }
+      ]
+    },
+    {
+      "id": "Q18",
+      "verdict": "直った",
+      "reason": "今回の期待3/3適合。原問を別観点へ置換せず、根拠外の業務値・場所の断定なし。",
+      "responses": [
+        {
+          "repeat": 1,
+          "request_id": "e5b2f88a-1e8e-450f-adc3-c0998c3026c4",
+          "read_outcome": "UNSUPPORTED",
+          "label_match": true,
+          "response_file": "Q18-1.response.body"
+        },
+        {
+          "repeat": 2,
+          "request_id": "9da18b32-b803-45eb-b72e-57a77ee31423",
+          "read_outcome": "UNSUPPORTED",
+          "label_match": true,
+          "response_file": "Q18-2.response.body"
+        },
+        {
+          "repeat": 3,
+          "request_id": "42ed593b-9b3b-418a-b4ae-7cdc5ee7fff3",
+          "read_outcome": "UNSUPPORTED",
+          "label_match": true,
+          "response_file": "Q18-3.response.body"
+        }
+      ]
+    },
+    {
+      "id": "Q19",
+      "verdict": "直った",
+      "reason": "今回の期待3/3適合。原問を別観点へ置換せず、根拠外の業務値・場所の断定なし。",
+      "responses": [
+        {
+          "repeat": 1,
+          "request_id": "fe13ff21-f83e-490e-8c7c-d43ce324b383",
+          "read_outcome": "UNSUPPORTED",
+          "label_match": true,
+          "response_file": "Q19-1.response.body"
+        },
+        {
+          "repeat": 2,
+          "request_id": "2e03bc96-08cd-4481-be58-410a75922dab",
+          "read_outcome": "UNSUPPORTED",
+          "label_match": true,
+          "response_file": "Q19-2.response.body"
+        },
+        {
+          "repeat": 3,
+          "request_id": "481ba24a-f8a3-406e-afc8-e2d529eede93",
+          "read_outcome": "UNSUPPORTED",
+          "label_match": true,
+          "response_file": "Q19-3.response.body"
+        }
+      ]
+    },
+    {
+      "id": "Q20",
+      "verdict": "直った",
+      "reason": "今回の期待3/3適合。原問を別観点へ置換せず、根拠外の業務値・場所の断定なし。",
+      "responses": [
+        {
+          "repeat": 1,
+          "request_id": "283cded3-12ef-462e-ba18-d69d1ae2c7d5",
+          "read_outcome": "UNSUPPORTED",
+          "label_match": true,
+          "response_file": "Q20-1.response.body"
+        },
+        {
+          "repeat": 2,
+          "request_id": "54e4a945-5e71-4d1e-b739-a598797cc59b",
+          "read_outcome": "UNSUPPORTED",
+          "label_match": true,
+          "response_file": "Q20-2.response.body"
+        },
+        {
+          "repeat": 3,
+          "request_id": "dc245f4c-6934-4635-8a6f-2d72172ba31a",
+          "read_outcome": "UNSUPPORTED",
+          "label_match": true,
+          "response_file": "Q20-3.response.body"
+        }
+      ]
+    },
+    {
+      "id": "Q21",
+      "verdict": "直った",
+      "reason": "今回の期待3/3適合。原問を別観点へ置換せず、根拠外の業務値・場所の断定なし。",
+      "responses": [
+        {
+          "repeat": 1,
+          "request_id": "4598682f-d35a-420d-81b9-970ec955b2c9",
+          "read_outcome": "UNSUPPORTED",
+          "label_match": true,
+          "response_file": "Q21-1.response.body"
+        },
+        {
+          "repeat": 2,
+          "request_id": "8872f712-19b1-418e-85b8-4d4e8b58de5d",
+          "read_outcome": "UNSUPPORTED",
+          "label_match": true,
+          "response_file": "Q21-2.response.body"
+        },
+        {
+          "repeat": 3,
+          "request_id": "1a8376c4-4653-4224-9db5-bca8c74a2a84",
+          "read_outcome": "UNSUPPORTED",
+          "label_match": true,
+          "response_file": "Q21-3.response.body"
+        }
+      ]
+    },
+    {
+      "id": "X01",
+      "verdict": "一部",
+      "reason": "今回の期待3/3適合。修正前の実測はないため、改善の因果は未確認。",
+      "responses": [
+        {
+          "repeat": 1,
+          "request_id": "23de11e0-7852-42e5-befe-996e2435698b",
+          "read_outcome": "UNSUPPORTED",
+          "label_match": true,
+          "response_file": "X01-1.response.body"
+        },
+        {
+          "repeat": 2,
+          "request_id": "b2d8c61e-bcea-43f3-98c2-92453baf8b86",
+          "read_outcome": "UNSUPPORTED",
+          "label_match": true,
+          "response_file": "X01-2.response.body"
+        },
+        {
+          "repeat": 3,
+          "request_id": "2f1d541b-dba0-4fe8-ab96-4fcb60935449",
+          "read_outcome": "UNSUPPORTED",
+          "label_match": true,
+          "response_file": "X01-3.response.body"
+        }
+      ]
+    },
+    {
+      "id": "X02",
+      "verdict": "一部",
+      "reason": "3回とも保管場所の問いを関連文書の確認へ置換。期待0/3。月・金庫を事実として断定してはいないが、事前基準の誤受理。",
+      "responses": [
+        {
+          "repeat": 1,
+          "request_id": "8e4df252-598c-4401-aa09-41c358b9199c",
+          "read_outcome": "CONFIRM",
+          "label_match": false,
+          "response_file": "X02-1.response.body"
+        },
+        {
+          "repeat": 2,
+          "request_id": "240167fe-1a50-45d1-8797-cf9668bd4fc5",
+          "read_outcome": "CONFIRM",
+          "label_match": false,
+          "response_file": "X02-2.response.body"
+        },
+        {
+          "repeat": 3,
+          "request_id": "85b7a038-2b1e-4812-8a3a-09880ad5f090",
+          "read_outcome": "CONFIRM",
+          "label_match": false,
+          "response_file": "X02-3.response.body"
+        }
+      ]
+    },
+    {
+      "id": "X03",
+      "verdict": "一部",
+      "reason": "今回の期待3/3適合。修正前の実測はないため、改善の因果は未確認。",
+      "responses": [
+        {
+          "repeat": 1,
+          "request_id": "8dd2f191-fabb-498c-b3e6-988bbafe7eed",
+          "read_outcome": "UNSUPPORTED",
+          "label_match": true,
+          "response_file": "X03-1.response.body"
+        },
+        {
+          "repeat": 2,
+          "request_id": "de709874-fff3-4f1c-b6d5-0915cbc92bcf",
+          "read_outcome": "UNSUPPORTED",
+          "label_match": true,
+          "response_file": "X03-2.response.body"
+        },
+        {
+          "repeat": 3,
+          "request_id": "a96d2de9-7f35-42ee-94c8-8bb2cbdf0792",
+          "read_outcome": "UNSUPPORTED",
+          "label_match": true,
+          "response_file": "X03-3.response.body"
+        }
+      ]
+    },
+    {
+      "id": "X04",
+      "verdict": "一部",
+      "reason": "今回の期待3/3適合。修正前の実測はないため、改善の因果は未確認。",
+      "responses": [
+        {
+          "repeat": 1,
+          "request_id": "455bd135-b31e-4075-80fc-6cfac1255c5c",
+          "read_outcome": "UNSUPPORTED",
+          "label_match": true,
+          "response_file": "X04-1.response.body"
+        },
+        {
+          "repeat": 2,
+          "request_id": "2a78a0f5-2300-4acc-8b05-ec84f358f675",
+          "read_outcome": "UNSUPPORTED",
+          "label_match": true,
+          "response_file": "X04-2.response.body"
+        },
+        {
+          "repeat": 3,
+          "request_id": "5435d20c-b22b-4db6-9592-26ee59c17681",
+          "read_outcome": "UNSUPPORTED",
+          "label_match": true,
+          "response_file": "X04-3.response.body"
+        }
+      ]
+    },
+    {
+      "id": "X05",
+      "verdict": "一部",
+      "reason": "今回の期待3/3適合。修正前の実測はないため、改善の因果は未確認。",
+      "responses": [
+        {
+          "repeat": 1,
+          "request_id": "331022da-12c1-4870-bc11-2d435bcb74c5",
+          "read_outcome": "TARGET_NOT_FOUND",
+          "label_match": true,
+          "response_file": "X05-1.response.body"
+        },
+        {
+          "repeat": 2,
+          "request_id": "1dd4886c-cfcc-4f4d-b61d-e075ab6cfc4c",
+          "read_outcome": "TARGET_NOT_FOUND",
+          "label_match": true,
+          "response_file": "X05-2.response.body"
+        },
+        {
+          "repeat": 3,
+          "request_id": "063ac4a5-abf0-4b1b-aa48-9de913c9037c",
+          "read_outcome": "TARGET_NOT_FOUND",
+          "label_match": true,
+          "response_file": "X05-3.response.body"
+        }
+      ]
+    },
+    {
+      "id": "X06",
+      "verdict": "一部",
+      "reason": "今回の期待3/3適合。修正前の実測はないため、改善の因果は未確認。",
+      "responses": [
+        {
+          "repeat": 1,
+          "request_id": "8b23a8d5-de4f-4079-aa5b-11053136e993",
+          "read_outcome": "UNSUPPORTED",
+          "label_match": true,
+          "response_file": "X06-1.response.body"
+        },
+        {
+          "repeat": 2,
+          "request_id": "dda11917-0b95-41e5-a6b9-f9d6937a3f96",
+          "read_outcome": "UNSUPPORTED",
+          "label_match": true,
+          "response_file": "X06-2.response.body"
+        },
+        {
+          "repeat": 3,
+          "request_id": "201a1588-ae7a-41f9-827f-01dab610468a",
+          "read_outcome": "UNSUPPORTED",
+          "label_match": true,
+          "response_file": "X06-3.response.body"
+        }
+      ]
+    }
+  ],
+  "deployment_check": {
+    "revision": "cc2576440154744a53cc5b8194614a60f7f651e5",
+    "local_sha256": {
+      "read_catalog.py": "b579cef30c0281a1cca4a0f11bd68571ff435fb3f9c5752627e9e1b19f61c610",
+      "read_confirmation.py": "9d220814e72b24a8f542191df49662d5fbf6f0ab956969ff7be54b123cbd51b5",
+      "grounded_answer.py": "26979953671049ae878120b3c4eade463a539d0de95d4496b87b4052f9ea112c",
+      "scope_check.py": "6324670064fecafe0006c0129264cddd9a8d4355202b9541b97eed44ab4c9a46",
+      "equipment_reference.py": "ac276785845633dad15b9e4d55e7d378b7d7522a9b849d9098f937e996fae4cd"
+    },
+    "checks": {
+      "/health/ready": {
+        "http_status": 200,
+        "status": "ok"
+      },
+      "/session": {
+        "http_status": 200,
+        "status": "ok",
+        "role": "manager"
+      }
+    }
+  },
+  "post_run_readiness": {
+    "/health/ready": {
+      "http_status": 200,
+      "status": "ok"
+    },
+    "/session": {
+      "http_status": 200,
+      "status": "ok",
+      "role": "manager"
+    }
+  },
+  "ci": {
+    "run_id": 39963870379,
+    "source_revision": "cc2576440154744a53cc5b8194614a60f7f651e5",
+    "conclusion": "success",
+    "frontend_vitest_executed": false
+  }
+}

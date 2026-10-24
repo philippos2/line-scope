@@ -5,6 +5,7 @@ from dataclasses import dataclass
 from neo4j import GraphDatabase
 
 from .agent.agent_input import ConversationStore
+from .agent.explicit_read import ExplicitReads
 from .agent.read_agent import ReadAgent
 from .application.agent_service import AgentApplication
 from .application.approvals import HumanApproval
@@ -119,15 +120,12 @@ def build_api_services(
                 index,
             )
         proposals = ProposalStore(database)
-        read_agent = (
-            ReadAgent(
-                ToolDispatcher(database, graph=graph, knowledge=knowledge),
-                llm,
-                event_logger=events,
-                deadline_seconds=settings.read_agent_deadline_seconds,
-            )
-            if llm is not None
-            else None
+        read_dispatcher = ToolDispatcher(database, graph=graph, knowledge=knowledge)
+        read_agent = ReadAgent(
+            read_dispatcher,
+            llm,
+            event_logger=events,
+            deadline_seconds=settings.read_agent_deadline_seconds,
         )
         agent = AgentApplication(
             structured=StructuredCommandPrepare(database, event_logger=events),
@@ -139,6 +137,11 @@ def build_api_services(
             production=ProductionCommandPrepare(database, event_logger=events),
             dependency=DependencyCommandPrepare(database, event_logger=events),
             read_agent=read_agent,
+            explicit_reads=ExplicitReads(
+                read_dispatcher,
+                event_logger=events,
+                deadline_seconds=settings.read_agent_deadline_seconds,
+            ),
             decision_flow=RegisteredDecisions(database, graph, knowledge),
         )
         return ApiServices(

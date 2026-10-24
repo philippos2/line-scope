@@ -5,22 +5,89 @@ from application.test_proposals import NOW, context
 
 from agent.test_graph_model_view import restore
 from linescope.agent.agent_input import AgentInput
-from linescope.agent.read_agent import ReadAgent
+from linescope.agent.read_agent import ReadAgent as BoundaryReadAgent
 from linescope.application.reads import ReadResult, ToolError
 from linescope.application.tools import ToolDispatcher
 from linescope.integrations.llm import LLMError, LLMReply, ToolCall
 
 
 class ScriptedLLM:
-    def __init__(self, *replies):
+    def __init__(self, *replies, subjects=()):
+        from linescope.agent.read_scope import TOPICS
+
+        tools = {call.name for reply in replies for call in reply.tool_calls}
+        self.scope_topics = getattr(
+            self,
+            "scope_topics",
+            tuple(name for name, (_, admitted) in TOPICS.items() if tools & admitted)
+            or ("ATTRIBUTES",),
+        )
+        self.scope_subjects = list(subjects)
         self.replies = iter(replies)
         self.requests = []
+        self.planning_requests = []
 
     def complete(self, messages, *, schemas, deadline):
         from copy import deepcopy
 
+        from linescope.agent.read_scope import FIELDS, PLAN_TOOL
+        from linescope.agent.scope_check import CHECK_TOOL
+
+        if CHECK_TOOL in schemas:
+            return call(CHECK_TOOL, {"verdict": "MATCH"})
+
+        if PLAN_TOOL in schemas:
+            # These existing tests exercise retrieval, not model intent accuracy.
+            # Planning is separately recorded and tested in test_grounded_answer.
+            self.planning_requests.append((deepcopy(messages), schemas, deadline))
+            return call(
+                PLAN_TOOL,
+                {
+                    "source_spans": [
+                        {
+                            "text": messages[-1]["content"],
+                        }
+                    ],
+                    "topics": list(self.scope_topics),
+                    "subjects": self.scope_subjects,
+                    "requested_fields": [
+                        next(
+                            (field for field, topic in FIELDS.items() if topic == chosen),
+                            "unsupported",
+                        )
+                        for chosen in self.scope_topics
+                    ],
+                },
+            )
         self.requests.append((deepcopy(messages), schemas, deadline))
         return next(self.replies)
+
+
+class AdmittedPlanAgent(BoundaryReadAgent):
+    """Unit harness for the admitted-plan executor, not the public question gate.
+
+    Existing executor assertions (budget/retry/evidence/Tool admission) stay intact.
+    H6 public admission and confirmation are tested in test_read_confirmation.
+    """
+
+    def run(self, context, request, *, previous_messages=None):
+        from linescope.agent.agent_tools import AgentToolSession
+        from linescope.agent.read_scope import classify
+
+        if request.message.startswith("関係分析 "):
+            return super().run(context, request, previous_messages=previous_messages)
+        session = AgentToolSession(
+            context,
+            request,
+            self.dispatcher,
+            clock=self.clock,
+            event_logger=self.events,
+            deadline_seconds=self.deadline_seconds,
+        )
+        if (request.context_id and previous_messages is None) or request.replace_update_request_id:
+            raise ToolError("INVALID_ARGUMENT", "This read loop requires a valid read context")
+        scope = classify(self.llm, request, session, previous_messages)
+        return self._execute_scope(context, request, session, scope, previous_messages)
 
 
 def call(name="get_equipment", arguments=None):
@@ -53,8 +120,10 @@ class Dispatcher:
 
 def test_read_only_schema_and_server_evidence_are_retained():
     llm = ScriptedLLM(call(), LLMReply("M-204を確認しました。", ()))
-    result = ReadAgent(Dispatcher(), llm).run(context(), request())
-    assert result.answer == "M-204を確認しました。"
+    result = AdmittedPlanAgent(Dispatcher(), llm).run(context(), request())
+    assert "M-204" in result.answer and result.answer != "M-204を確認しました。"
+    assert result.answer_sections["facts"][0]["predicate"] == "equipment.identity"
+    assert result.answer_sections["facts"][0]["references"] == [result.observations[0].tool_call_id]
     assert result.observations[0].result.evidence == {"source": "POSTGRESQL", "version": 1}
     assert not result.needs_input and not result.errors
     assert "prepare_equipment_state_update" not in llm.requests[0][1]
@@ -66,7 +135,7 @@ def test_read_only_schema_and_server_evidence_are_retained():
 def test_two_transient_retries_count_against_budget(code):
     dispatcher = Dispatcher([code, code])
     llm = ScriptedLLM(call(), LLMReply("確認できました", ()))
-    result = ReadAgent(dispatcher, llm).run(context(), request())
+    result = AdmittedPlanAgent(dispatcher, llm).run(context(), request())
     assert dispatcher.calls == 3
     assert [item["code"] for item in result.trace] == [code, code, "OK"]
     assert not result.errors
@@ -75,14 +144,14 @@ def test_two_transient_retries_count_against_budget(code):
 def test_nontransient_error_is_not_retried_or_reported_as_success():
     dispatcher = Dispatcher(["TARGET_NOT_FOUND"])
     llm = ScriptedLLM(call(), LLMReply("存在しません", ()))
-    result = ReadAgent(dispatcher, llm).run(context(), request())
+    result = AdmittedPlanAgent(dispatcher, llm).run(context(), request())
     assert dispatcher.calls == 1 and result.needs_input
     assert result.errors[0]["code"] == "TARGET_NOT_FOUND"
     assert not result.observations
 
 
 def test_no_tools_means_no_fabricated_business_answer():
-    result = ReadAgent(Dispatcher(), ScriptedLLM(LLMReply("設備はすべて安全です", ()))).run(
+    result = AdmittedPlanAgent(Dispatcher(), ScriptedLLM(LLMReply("設備はすべて安全です", ()))).run(
         context(), request()
     )
     assert result.needs_input and "安全" not in result.answer
@@ -92,7 +161,7 @@ def test_call_budget_ends_repeated_calls():
     dispatcher = Dispatcher()
     llm = ScriptedLLM(*[call() for _ in range(13)])
     with pytest.raises(ToolError) as error:
-        ReadAgent(dispatcher, llm).run(context(), request())
+        AdmittedPlanAgent(dispatcher, llm).run(context(), request())
     assert error.value.code == "AGENT_LIMIT_REACHED"
     assert dispatcher.calls == 12
     assert llm.requests[-1][1] == {}
@@ -100,7 +169,7 @@ def test_call_budget_ends_repeated_calls():
 
 def test_final_explanation_allowed_after_last_call():
     llm = ScriptedLLM(*[call() for _ in range(12)], LLMReply("確認した結果です", ()))
-    result = ReadAgent(Dispatcher(), llm).run(context(), request())
+    result = AdmittedPlanAgent(Dispatcher(), llm).run(context(), request())
     assert len(result.observations) == 12
     assert llm.requests[-1][1] == {}
 
@@ -116,9 +185,9 @@ def test_deadline_after_llm_does_not_dispatch(deadline_seconds):
 
     dispatcher = Dispatcher()
     with pytest.raises(ToolError) as error:
-        ReadAgent(dispatcher, Slow(), clock=lambda: now[0], deadline_seconds=deadline_seconds).run(
-            context(), request()
-        )
+        AdmittedPlanAgent(
+            dispatcher, Slow(), clock=lambda: now[0], deadline_seconds=deadline_seconds
+        ).run(context(), request())
     assert error.value.code == "AGENT_LIMIT_REACHED" and dispatcher.calls == 0
 
 
@@ -138,8 +207,12 @@ def test_real_postgres_search_then_state_and_no_business_updates(db):
         call("get_equipment_state"),
         LLMReply("M-204はSTOPPEDです。", ()),
     )
-    result = ReadAgent(ToolDispatcher(db), llm).run(context(), request())
-    assert result.observations[1].result.data["state_code"] == "STOPPED"
+    result = AdmittedPlanAgent(ToolDispatcher(db), llm).run(context(), request())
+    assert [
+        item.result.data["state_code"]
+        for item in result.observations
+        if item.tool == "get_equipment_state"
+    ] == ["STOPPED"]
     assert all(item.result.evidence["source"] == "POSTGRESQL" for item in result.observations)
     with db.transaction() as connection:
         assert connection.execute("SELECT count(*) AS n FROM update_request").fetchone()["n"] == 0
@@ -154,7 +227,7 @@ def test_real_postgres_search_then_state_and_no_business_updates(db):
 def test_exhausted_transient_retry_retains_error():
     dispatcher = Dispatcher(["RESOURCE_BUSY"] * 3)
     llm = ScriptedLLM(call(), LLMReply("取得できませんでした", ()))
-    result = ReadAgent(dispatcher, llm).run(context(), request())
+    result = AdmittedPlanAgent(dispatcher, llm).run(context(), request())
     assert dispatcher.calls == 3
     assert result.errors[0]["code"] == "RESOURCE_BUSY"
     assert len(result.trace) == 3 and not result.needs_input
@@ -163,7 +236,7 @@ def test_exhausted_transient_retry_retains_error():
 def test_prepare_attempt_cannot_reach_dispatcher_even_with_update_message():
     dispatcher = Dispatcher()
     llm = ScriptedLLM(call("prepare_equipment_state_update", {}), LLMReply("変更しました", ()))
-    result = ReadAgent(dispatcher, llm).run(
+    result = AdmittedPlanAgent(dispatcher, llm).run(
         context(), request("設備M-204の状態をSTOPPEDに変更して")
     )
     assert dispatcher.calls == 0
@@ -183,7 +256,7 @@ def test_known_read_and_unresolved_error_remain_distinct():
         call(arguments={"equipment_id": str(UUID(int=2))}),
         LLMReply("取得できた分のみ示します", ()),
     )
-    result = ReadAgent(Partial(), llm).run(context(), request())
+    result = AdmittedPlanAgent(Partial(), llm).run(context(), request())
     assert len(result.observations) == 1
     assert result.errors[0]["code"] == "TARGET_NOT_FOUND"
 
@@ -203,7 +276,7 @@ def test_unconnected_modes_are_not_silently_ignored(field, value):
     )
     llm = ScriptedLLM()
     with pytest.raises(ToolError) as error:
-        ReadAgent(Dispatcher(), llm).run(context(), incoming)
+        AdmittedPlanAgent(Dispatcher(), llm).run(context(), incoming)
     assert error.value.code == "INVALID_ARGUMENT"
     assert not llm.requests
 
@@ -218,7 +291,7 @@ def test_provider_failure_is_translated_without_tool_execution(code):
 
     dispatcher = Dispatcher()
     with pytest.raises(ToolError) as error:
-        ReadAgent(dispatcher, FailedProvider()).run(context(), request())
+        AdmittedPlanAgent(dispatcher, FailedProvider()).run(context(), request())
     assert error.value.code == code
     assert error.value.message == "Sanitized provider failure"
     assert error.value.details == {}
@@ -271,7 +344,7 @@ def test_agent_graph_model_view_and_returned_evidence_are_separate():
             return result
 
     llm = ScriptedLLM(call("trace_downstream_impact", {}), LLMReply("経路を確認しました。", ()))
-    outcome = ReadAgent(GraphDispatcher(), llm).run(context(), request())
+    outcome = AdmittedPlanAgent(GraphDispatcher(), llm).run(context(), request())
     payload = json.loads(llm.requests[-1][0][-1]["content"])
     assert restore(payload["data"], payload)["representative_paths"] == paths
     assert "representative_paths" not in payload["evidence"]
@@ -305,7 +378,7 @@ def test_explicit_graph_selection_preserves_ids_and_evidence_without_llm():
             )
 
     llm = ScriptedLLM()
-    result = ReadAgent(SelectedDispatcher(), llm).run(
+    result = AdmittedPlanAgent(SelectedDispatcher(), llm).run(
         context(),
         explicit_request({"tool": "find_single_point_failure_candidates", "arguments": arguments}),
     )
@@ -327,7 +400,7 @@ def test_explicit_graph_selection_preserves_ids_and_evidence_without_llm():
 def test_explicit_graph_rejects_writes_and_malformed_commands(command):
     dispatcher, llm = Dispatcher(), ScriptedLLM()
     with pytest.raises(ToolError, match="Invalid explicit graph investigation"):
-        ReadAgent(dispatcher, llm).run(context(), explicit_request(command))
+        AdmittedPlanAgent(dispatcher, llm).run(context(), explicit_request(command))
     assert dispatcher.calls == 0 and not llm.requests
 
 
@@ -335,7 +408,7 @@ def test_explicit_graph_uses_existing_authorization_failure():
     dispatcher = Dispatcher(["AUTHORIZATION_DENIED"])
     llm = ScriptedLLM()
     with pytest.raises(ToolError) as error:
-        ReadAgent(dispatcher, llm).run(
+        AdmittedPlanAgent(dispatcher, llm).run(
             context(),
             explicit_request(
                 {
@@ -351,7 +424,7 @@ def test_explicit_graph_uses_existing_authorization_failure():
 def test_explicit_graph_does_not_bypass_uuid_argument_validation():
     llm = ScriptedLLM()
     with pytest.raises(ToolError) as error:
-        ReadAgent(ToolDispatcher(None), llm).run(
+        AdmittedPlanAgent(ToolDispatcher(None), llm).run(
             context(),
             explicit_request(
                 {

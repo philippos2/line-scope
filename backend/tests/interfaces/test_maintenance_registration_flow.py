@@ -2,7 +2,7 @@
 
 import io
 import json
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 import pytest
 from agent.test_read_agent import ScriptedLLM, call
@@ -10,6 +10,7 @@ from application.test_maintenance_prepare import service as maintenance_fixture
 from fastapi.testclient import TestClient
 from sqlalchemy import func, select, table
 
+from interfaces.agent_read_support import explicit_message
 from interfaces.test_controlled_action_scenarios import approve_execute, headers, query
 from interfaces.test_maintenance_plan_approval_api import client_for
 from linescope.agent.agent_input import AgentInput
@@ -85,9 +86,20 @@ def test_plan_registration_approval_execution_and_api_read(world):
         assert client.post(endpoint, headers=headers()).status_code == 409
         confirmed = approve_execute(client, saved)
         assert confirmed["execution_result"]["targets"] == saved["canonical_snapshot"]["targets"]
-        result = post(client, "NEW-PLANの保全予定を調べて")
+        result = client.post(
+            "/agent",
+            json=explicit_message("EQ10の保全計画は？", "maintenance_plans", UUID(int=10)),
+            headers=headers(),
+        )
         assert result.status_code == 200
-        item = result.json()["data"]["tool_results"][0]["data"]["items"][0]
+        plans = next(
+            row["data"]["items"]
+            for row in result.json()["data"]["tool_results"]
+            if row["tool"] == "search_maintenance_plans"
+        )
+        matches = [row for row in plans if row["plan_code"] == "NEW-PLAN"]
+        assert len(matches) == 1
+        item = matches[0]
         assert item["maintenance_plan_id"] == target["target_id"]
         assert item["plan_status"] == "PLANNED" and item["version"] == 1
         assert client.post(endpoint, headers=headers()).status_code == 200
@@ -122,9 +134,20 @@ def test_record_registration_execution_and_current_inspection(world, plan):
             llm=llm,
         )
     ) as reader:
-        observed = post(reader, "NEW-RECORDの保全実績を調べて")
+        observed = reader.post(
+            "/agent",
+            json=explicit_message("EQ10の保全記録は？", "maintenance_records", UUID(int=10)),
+            headers=headers(),
+        )
         assert observed.status_code == 200
-        item = observed.json()["data"]["tool_results"][0]["data"]["items"][0]
+        records = next(
+            row["data"]["items"]
+            for row in observed.json()["data"]["tool_results"]
+            if row["tool"] == "search_maintenance_records"
+        )
+        matches = [row for row in records if row["record_code"] == "NEW-RECORD"]
+        assert len(matches) == 1
+        item = matches[0]
         assert item["maintenance_record_id"] == after["maintenance_record_id"]
         assert item["result"] == after["result"] and item["version"] == 1
     assert count(world, "maintenance_record") == 1

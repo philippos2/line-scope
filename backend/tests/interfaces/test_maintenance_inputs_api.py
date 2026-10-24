@@ -6,13 +6,15 @@ from copy import deepcopy
 from uuid import uuid4
 
 import pytest
-from agent.test_read_agent import ScriptedLLM, call
+from agent.test_read_agent import ScriptedLLM
 from domain.test_maintenance_inputs import payload
 from fastapi.testclient import TestClient
 
+from interfaces.agent_read_support import explicit_message, selected_input_summary
 from linescope.demo_seed import DEMO_EQUIPMENT, seed_demo
 from linescope.domain.canonical import canonical_hash, canonical_json
 from linescope.domain.snapshot import CanonicalSnapshot
+from linescope.execution import ExecutionContext
 from linescope.integrations.llm import LLMReply
 from linescope.interfaces.api import create_app
 from linescope.logging import EventLogger
@@ -128,18 +130,48 @@ def test_create_approve_execute_read_and_retry_keep_fixed_ids_and_atomic_history
         )
         assert connection.execute("SELECT count(*) AS n FROM equipment").fetchone()["n"] > 0
 
-    llm = ScriptedLLM(
-        call("get_maintenance_input", {"maintenance_input_id": identifier(saved)}),
-        LLMReply("調達待ち336時間は全て停止です。将来故障率は90%です。", ()),
-    )
+    llm = ScriptedLLM(LLMReply("将来故障率は90%です", ()))
     with TestClient(create_app(settings(), world, llm=llm)) as agent_client:
         result = agent_client.post(
-            "/agent", json={"message": "登録済み対応計画・故障履歴を確認して"}, headers=headers()
+            "/agent",
+            json=explicit_message(
+                "M-204の対応計画の入力は？", "maintenance_input", DEMO_EQUIPMENT[0][0]
+            ),
+            headers=headers(),
         )
+        assert result.status_code == 200
         data = result.json()
-        assert result.status_code == 200 and "調達待ちと作業・停止時間は別です" in data["answer"]
-        assert "将来故障率は90%です" not in data["answer"]
-        assert data["evidence"]["tool_results"][0]["version"] == 1
+        candidates = next(
+            row["data"]["items"]
+            for row in data["data"]["tool_results"]
+            if row["tool"] == "search_maintenance_inputs"
+        )
+        assert [row["maintenance_input_id"] for row in candidates] == [identifier(saved)]
+        assert not any(
+            row["tool"] == "get_maintenance_input" for row in data["data"]["tool_results"]
+        )
+        # The user chooses the observed ID, then the existing detail GET evaluates it.
+        detail = agent_client.get(f"/maintenance-inputs/{identifier(saved)}", headers=headers())
+        assert detail.status_code == 200
+        summary, selected = selected_input_summary(
+            world,
+            ExecutionContext("requester", "manager", uuid4()),
+            "maintenance",
+            identifier(saved),
+        )
+        # Each call has its own observation/evaluation timestamp; all business
+        # values and the evaluated validity must still agree.
+        actual, expected = selected.data, detail.json()["data"]
+        assert actual["input"] == expected["input"]
+        assert actual["source"] == expected["source"] == "REGISTERED_INPUT"
+        assert {k: v for k, v in actual["calculation"].items() if k != "evaluated_at"} == {
+            k: v for k, v in expected["calculation"].items() if k != "evaluated_at"
+        }
+        assert actual["calculation"]["evaluated_at"] >= expected["calculation"]["evaluated_at"]
+        assert "調達待ちと作業・停止時間は別です" in summary
+        assert "将来故障率は90%です" not in data["answer"] and "将来故障率は90%です" not in summary
+        assert selected.evidence["version"] == 1
+        assert not llm.requests and not llm.planning_requests
 
     # A full decision journey also records the prior incident and repair separately.
     with client_for(world) as client:

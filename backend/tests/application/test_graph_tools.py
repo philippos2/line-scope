@@ -1,7 +1,7 @@
 """Fixed Graph Tool dispatch and Agent handoff against real read adapters."""
 
 import pytest
-from agent.test_read_agent import ScriptedLLM, call
+from agent.test_read_agent import AdmittedPlanAgent, ScriptedLLM, call
 from graph.test_analysis_reader import built as built
 from graph.test_analysis_traversal import chain as chain
 from graph.test_neo4j_generation import graph_driver as graph_driver
@@ -11,7 +11,6 @@ from graph.test_rebuild_control import store as store
 from application.test_graph_analysis import context, service
 from application.test_graph_analysis import world as world
 from linescope.agent.agent_input import AgentInput
-from linescope.agent.read_agent import ReadAgent
 from linescope.application.reads import ToolError
 from linescope.application.tools import ToolDispatcher
 from linescope.integrations.llm import LLMReply
@@ -85,8 +84,11 @@ def test_agent_retains_real_graph_paths_and_server_evidence(world, tool):
     }
     llm = ScriptedLLM(call(tool, {"target": target}), LLMReply("依存経路を確認しました。", ()))
     request = AgentInput.parse(context(), '{"message":"影響経路を調べて"}', received_at=at)
-    result = ReadAgent(ToolDispatcher(db, graph=service(world)), llm).run(context(), request)
-    assert set(TOOLS) <= llm.requests[0][1].keys()
+    dispatcher = ToolDispatcher(db, graph=service(world))
+    result = AdmittedPlanAgent(dispatcher, llm).run(context(), request)
+    assert tool in llm.requests[0][1]
+    assert set(TOOLS) - {tool} <= dispatcher.schemas().keys()
+    assert not (set(TOOLS) - {tool}) & llm.requests[0][1].keys()
     assert not any(name.startswith("prepare_") for name in llm.requests[0][1])
     assert not result.errors and len(result.observations) == 1
     observation = result.observations[0].result
@@ -133,7 +135,9 @@ def test_agent_preserves_partial_search_without_changing_completeness(world):
         LLMReply("返却経路数の上限で分析は不完全です。", ()),
     )
     request = AgentInput.parse(context(), '{"message":"影響を調べて"}', received_at=at)
-    result = ReadAgent(ToolDispatcher(db, graph=service(world)), llm).run(context(), request)
+    result = AdmittedPlanAgent(ToolDispatcher(db, graph=service(world)), llm).run(
+        context(), request
+    )
     observation = result.observations[0].result
     assert observation.data["complete"] is False
     assert observation.data["limit_reason"] == "PATH_COUNT"
@@ -150,7 +154,9 @@ def test_agent_cannot_publish_graph_facts_while_rebuilding(world):
         LLMReply("影響なしです。", ()),
     )
     request = AgentInput.parse(context(), '{"message":"影響を調べて"}', received_at=at)
-    result = ReadAgent(ToolDispatcher(db, graph=service(world)), llm).run(context(), request)
+    result = AdmittedPlanAgent(ToolDispatcher(db, graph=service(world)), llm).run(
+        context(), request
+    )
     assert not result.observations
     assert result.errors[0]["code"] == "GRAPH_REBUILDING"
     assert result.trace[0]["code"] == "GRAPH_REBUILDING"

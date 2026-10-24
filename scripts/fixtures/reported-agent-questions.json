@@ -1,0 +1,398 @@
+{
+  "version": 1,
+  "scope": "開発者が実際に報告した質問。言い換え・句読点・全半角を検証側で変更しない。",
+  "cases": [
+    {
+      "id": "Q01",
+      "message": "この設備が止まるとどんな影響があるか？",
+      "repetitions": 3,
+      "origin": "開発者の会話報告（原文）",
+      "expected": {
+        "kind": "needs_context",
+        "equipment_codes": [],
+        "read_outcomes": [
+          "TARGET_REQUIRED"
+        ]
+      },
+      "before": {
+        "reported_excerpt": "情報を取得できませんでした。接続と質問内容を確認してください。"
+      },
+      "context_note": "報告時の選択設備は不明。同じ原文の単独API実行で、当時の文脈まで再現したとは扱わない。"
+    },
+    {
+      "id": "Q02",
+      "message": "メニューにカレーライスが無い！どこに苦情を言えば良いか？",
+      "repetitions": 3,
+      "origin": "開発者の会話報告（原文）",
+      "expected": {
+        "kind": "unsupported",
+        "equipment_codes": [],
+        "read_outcomes": [
+          "UNSUPPORTED"
+        ]
+      },
+      "before": {
+        "reported_excerpt": "対象を特定できる設備コード・IDなどを指定してください。"
+      }
+    },
+    {
+      "id": "Q03",
+      "message": "M-204が最後にメンテナンスされたのはいつか？",
+      "repetitions": 3,
+      "origin": "開発者の会話報告（原文）",
+      "expected": {
+        "kind": "maintenance",
+        "equipment_codes": [
+          "M-204"
+        ],
+        "read_outcomes": [
+          "AUTO"
+        ]
+      },
+      "before": {
+        "reported_excerpt": "M-204のメンテナンス記録は現在登録されていません。"
+      }
+    },
+    {
+      "id": "Q04",
+      "message": "第1加工機が最後にメンテナンスされたのはいつか？",
+      "repetitions": 3,
+      "origin": "開発者の会話報告（原文）",
+      "expected": {
+        "kind": "maintenance",
+        "equipment_codes": [
+          "M-204"
+        ],
+        "read_outcomes": [
+          "AUTO"
+        ]
+      },
+      "before": {
+        "reported_excerpt": "設備コード「第1加工機」に該当する設備は見つかりませんでした。別のコードや名称で再検索をお試しください。"
+      }
+    },
+    {
+      "id": "Q05",
+      "message": "第一加工機の前回のメンテナンス日時はいつか？",
+      "repetitions": 3,
+      "origin": "開発者の会話報告（原文）",
+      "expected": {
+        "kind": "maintenance",
+        "equipment_codes": [
+          "M-204"
+        ],
+        "read_outcomes": [
+          "AUTO"
+        ]
+      },
+      "before": {
+        "reported_excerpt": "応答の制限時間に達しました。質問を絞って再試行してください。 質問を保ったまま再試行できます。"
+      }
+    },
+    {
+      "id": "Q06",
+      "message": "第1加工機の前回のメンテナンス日時はいつか？",
+      "repetitions": 3,
+      "origin": "開発者の会話報告（原文）",
+      "expected": {
+        "kind": "maintenance",
+        "equipment_codes": [
+          "M-204"
+        ],
+        "read_outcomes": [
+          "AUTO"
+        ]
+      },
+      "before": {
+        "reported_excerpt": "応答の制限時間に達しました。質問を絞って再試行してください。 質問を保ったまま再試行できます。"
+      }
+    },
+    {
+      "id": "Q07",
+      "message": "第一加工機と第二加工機の製造メーカーは同じか？",
+      "repetitions": 3,
+      "origin": "開発者の会話報告（原文）",
+      "expected": {
+        "kind": "unsupported",
+        "equipment_codes": [
+          "M-204",
+          "M-208"
+        ],
+        "read_outcomes": [
+          "UNSUPPORTED"
+        ]
+      },
+      "before": {
+        "reported_excerpt": "設備コードM-208は「第2加工機」を表します。\n「第一加工機」の設備コードまたは名称は、現在のデータベース検索では見つかりませんでした。\n設備名の部分一致検索と設備コードの完全一致検索を実施しましたが、いずれも結果がありませんでした。\n\nしたがって、「第一加工機」の存在やその製造メーカーは確認できません。"
+      }
+    },
+    {
+      "id": "Q08",
+      "message": "第２加工機の前回のメンテナンス日時はいつか？",
+      "repetitions": 3,
+      "origin": "開発者の会話報告（原文）",
+      "expected": {
+        "kind": "maintenance",
+        "equipment_codes": [
+          "M-208"
+        ],
+        "read_outcomes": [
+          "AUTO"
+        ]
+      },
+      "before": {
+        "reported_excerpt": "第1加工機 · M-204の登録済み保全記録は0件のため、前回の実施日時は確認できません。保全作業が未実施という意味ではありません。"
+      }
+    },
+    {
+      "id": "Q09",
+      "message": "第一加工機の製造メーカーはどこか？",
+      "repetitions": 3,
+      "origin": "開発者の会話報告（原文）",
+      "expected": {
+        "kind": "unsupported",
+        "equipment_codes": [
+          "M-204"
+        ],
+        "read_outcomes": [
+          "UNSUPPORTED"
+        ]
+      },
+      "before": {
+        "reported_excerpt": "設備名「第一加工機」、「第1加工機」、「第１加工機」で検索しましたが、該当する設備は見つかりませんでした。"
+      }
+    },
+    {
+      "id": "Q10",
+      "message": "M-204の消耗品のストックはどの倉庫にあるか？",
+      "repetitions": 3,
+      "origin": "開発者の会話報告（原文）",
+      "expected": {
+        "kind": "unsupported",
+        "equipment_codes": [
+          "M-204"
+        ],
+        "read_outcomes": [
+          "UNSUPPORTED"
+        ]
+      },
+      "before": {
+        "reported_excerpt": "M-204の消耗品のストックは、共通電源（R-02）に関連する設備に保管されています。"
+      }
+    },
+    {
+      "id": "Q11",
+      "message": "M-208の交換部品のストックは、どの倉庫に保管されているか？",
+      "repetitions": 3,
+      "origin": "開発者の会話報告（原文）",
+      "expected": {
+        "kind": "unsupported",
+        "equipment_codes": [
+          "M-208"
+        ],
+        "read_outcomes": [
+          "UNSUPPORTED"
+        ]
+      },
+      "before": {
+        "reported_excerpt": "指定対象の上流に0件の依存到達要素を確認しました。"
+      }
+    },
+    {
+      "id": "Q12",
+      "message": "第一加工機って、保証期間内か？",
+      "repetitions": 3,
+      "origin": "開発者の会話報告（原文）",
+      "expected": {
+        "kind": "unsupported",
+        "equipment_codes": [
+          "M-204"
+        ],
+        "read_outcomes": [
+          "UNSUPPORTED"
+        ]
+      },
+      "before": {
+        "reported_excerpt": "質問で求められた情報と、参照できる情報の対応を確認できません。"
+      }
+    },
+    {
+      "id": "Q13",
+      "message": "第一加工機のメーカー保証期間はいつまでか？",
+      "repetitions": 3,
+      "origin": "開発者の会話報告（原文）",
+      "expected": {
+        "kind": "unsupported",
+        "equipment_codes": [
+          "M-204"
+        ],
+        "read_outcomes": [
+          "UNSUPPORTED"
+        ]
+      },
+      "before": {
+        "reported_excerpt": "「第一加工機のメーカー保証期間はいつまでか？」については、現在LineScopeで参照できる情報からは確認できません。登録の有無や実際の状態を断定したものではありません。"
+      }
+    },
+    {
+      "id": "Q14",
+      "message": "第一加工機はまだ保証期間内か？",
+      "repetitions": 3,
+      "origin": "開発者の会話報告（原文）",
+      "expected": {
+        "kind": "unsupported",
+        "equipment_codes": [
+          "M-204"
+        ],
+        "read_outcomes": [
+          "UNSUPPORTED"
+        ]
+      },
+      "before": {
+        "reported_excerpt": "登録設備「第1加工機 · M-204」：名称：第1加工機、コード：M-204、種類：machine、有効：はい、version：1。"
+      }
+    },
+    {
+      "id": "Q15",
+      "message": "第１加工機はいま死んでるか？",
+      "repetitions": 3,
+      "origin": "開発者の会話報告（原文）",
+      "expected": {
+        "kind": "registered_state",
+        "equipment_codes": [
+          "M-204"
+        ],
+        "read_outcomes": [
+          "CONFIRM"
+        ]
+      },
+      "before": {
+        "reported_excerpt": "「第１加工機はいま死んでるか？ 」については、現在LineScopeで参照できる情報からは確認できません。登録の有無や実際の状態を断定したものではありません。"
+      }
+    },
+    {
+      "id": "Q16",
+      "message": "第１加工機と第二加工機の製造メーカーは同じか？",
+      "repetitions": 3,
+      "origin": "開発者の会話報告（原文）",
+      "expected": {
+        "kind": "unsupported",
+        "equipment_codes": [
+          "M-204",
+          "M-208"
+        ],
+        "read_outcomes": [
+          "UNSUPPORTED"
+        ]
+      },
+      "before": {
+        "reported_excerpt": "「第１加工機と第二加工機の製造メーカーは同じか？ 」については、現在LineScopeで参照できる情報からは確認できません。登録の有無や実際の状態を断定したものではありません。\n「第１加工機と第二加工機の製造メーカーは同じか？ 」については、現在LineScopeで参照できる情報からは確認できません。登録の有無や実際の状態を断定したものではありません。"
+      }
+    },
+    {
+      "id": "Q17",
+      "message": "第二加工機のサービスマンはいつ来社するか？",
+      "repetitions": 3,
+      "origin": "開発者の会話報告（原文）",
+      "expected": {
+        "kind": "unsupported",
+        "equipment_codes": [
+          "M-208"
+        ],
+        "read_outcomes": [
+          "UNSUPPORTED"
+        ]
+      },
+      "before": {
+        "reported_excerpt": "「第二加工機のサービスマンはいつ来社するか？ 」については、現在LineScopeで参照できる情報からは確認できません。登録の有無や実際の状態を断定したものではありません。\n「第二加工機のサービスマンはいつ来社するか？ 」については、現在LineScopeで参照できる情報からは確認できません。登録の有無や実際の状態を断定したものではありません。"
+      }
+    },
+    {
+      "id": "Q18",
+      "message": "m-204の保証期間はいつまでか？",
+      "repetitions": 3,
+      "origin": "開発者の会話報告（原文）",
+      "expected": {
+        "kind": "unsupported",
+        "equipment_codes": [
+          "M-204"
+        ],
+        "read_outcomes": [
+          "UNSUPPORTED"
+        ]
+      },
+      "before": {
+        "reported_excerpt": "一部の登録情報を取得できませんでした。取得失敗を未登録や記録なしとは判断していません。"
+      }
+    },
+    {
+      "id": "Q19",
+      "message": "m-204のサービスマンはいつ来社する？",
+      "repetitions": 3,
+      "origin": "開発者の会話報告（原文）",
+      "expected": {
+        "kind": "unsupported",
+        "equipment_codes": [
+          "M-204"
+        ],
+        "read_outcomes": [
+          "UNSUPPORTED"
+        ]
+      },
+      "before": {
+        "reported_excerpt": "抽出した対象表現：m-204、質問との対応を確認できなかった解釈：保全の計画・実績"
+      }
+    },
+    {
+      "id": "Q20",
+      "message": "m-208の消耗部品のストックはどの倉庫に保管されているか？",
+      "repetitions": 3,
+      "origin": "開発者の会話報告（原文）",
+      "expected": {
+        "kind": "unsupported",
+        "equipment_codes": [
+          "M-208"
+        ],
+        "read_outcomes": [
+          "UNSUPPORTED"
+        ]
+      },
+      "before": {
+        "reported_excerpt": "質問の読み取りを確定できませんでした。"
+      }
+    },
+    {
+      "id": "Q21",
+      "message": "第１加工機の故障原因は何か？",
+      "repetitions": 3,
+      "origin": "開発者の会話報告（原文）",
+      "expected": {
+        "kind": "unsupported",
+        "equipment_codes": [
+          "M-204"
+        ],
+        "read_outcomes": [
+          "UNSUPPORTED"
+        ]
+      },
+      "before": {
+        "reported_excerpt": "調べる範囲を確認してください\n元の質問：第１加工機の故障原因は何か？\n対象：第1加工機（M-204）\nこの画面で調べる範囲：設備に紐づく登録済み保全実績・実施日時・記録本文。記録の参照であり、未記載の原因の特定や故障原因の診断ではない。実作業全体の網羅は保証しない"
+      }
+    }
+  ],
+  "excluded_hypothetical_examples": [
+    "コーヒーメーカーによる代替の例示は既存の補助回帰に保持するが、実際の投入原文・実応答が報告されたと捏造しない。"
+  ],
+  "evaluation_note": "21原文×3＝63リクエスト。自動の収集・内部ラベルだけで最終判定せず、毎回の回答・確認・行先・Evidenceをレビューする。旧ブラウザ各1回は直接API各3回の実測に転用しない。",
+  "input_policy": "messageは原文のまま。各回context_id・as_of・画面選択の前置きを付加しない。原報告の画面選択・過去会話との一致は未確認。",
+  "before_capture_default": {
+    "source": "USER_UI_EXCERPT",
+    "raw_api_response_available": false
+  },
+  "expectations": {
+    "needs_context": "対象を推測で確定せず、対象が未特定であることを示す。元の画面選択が不明なため、同文の単独API実行だけで報告時と同条件とは扱わない。",
+    "unsupported": "登録された参照範囲では回答できないことを返し、別の参照項目の確認へ誘導しない。根拠外の業務値・場所・設備を作らない。指定設備は実検索で特定して表示する。",
+    "maintenance": "指定した設備の登録済み保全記録を根拠に答える。取得完了0件は未実施と断定せず、日時を作らない。別設備に取り違えない。",
+    "registered_state": "指定設備の登録運用状態への解釈または明示的な確認。技術的active・保全実績へ代用せず、実運転・安全を保証しない。"
+  }
+}

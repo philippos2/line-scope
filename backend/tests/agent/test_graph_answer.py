@@ -3,9 +3,9 @@ from types import SimpleNamespace
 
 import pytest
 
-from agent.test_read_agent import Dispatcher, ScriptedLLM, call, context, request
+from agent.test_read_agent import AdmittedPlanAgent, Dispatcher, ScriptedLLM, call, context, request
 from linescope.agent.graph_answer import downstream_answer
-from linescope.agent.read_agent import ReadAgent, ReadObservation
+from linescope.agent.read_agent import ReadObservation
 from linescope.application.reads import ReadResult
 from linescope.integrations.llm import LLMReply
 
@@ -78,7 +78,7 @@ def test_agent_does_not_repeat_unsupported_llm_claims_in_downstream_summary():
     llm = ScriptedLLM(
         call("trace_downstream_impact", {}), LLMReply("すべて安全です。損失は0円です。", ())
     )
-    result = ReadAgent(GraphDispatcher(), llm).run(context(), request())
+    result = AdmittedPlanAgent(GraphDispatcher(), llm).run(context(), request())
     assert "2件の依存到達候補" in result.answer
     assert "未評価" in result.answer
     assert "すべて安全" not in result.answer and "0円" not in result.answer
@@ -154,7 +154,7 @@ def test_agent_dependency_summary_does_not_repeat_unsupported_claims(tool):
             return item.result
 
     llm = ScriptedLLM(call(tool, {}), LLMReply("故障原因は確定。すべて安全で損失は0円です。", ()))
-    result = ReadAgent(DependencyDispatcher(), llm).run(context(), request())
+    result = AdmittedPlanAgent(DependencyDispatcher(), llm).run(context(), request())
     assert "上流" in result.answer and "未評価" in result.answer
     assert "故障原因は確定" not in result.answer and "0円" not in result.answer
     assert result.observations[0].result == item.result

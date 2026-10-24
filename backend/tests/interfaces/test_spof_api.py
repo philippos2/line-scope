@@ -10,6 +10,7 @@ from graph.test_common_dependency_reader import reader_world as reader_world
 from sqlalchemy import column, select, table, update
 from sqlalchemy.dialects.postgresql.psycopg import dialect
 
+from interfaces.agent_read_support import graph_message, readonly_schemas
 from linescope.application.graph_analysis import GraphAnalysis
 from linescope.application.graph_request import GraphLimits
 from linescope.application.reads import ToolError
@@ -69,7 +70,7 @@ def test_native_named_tool_http_and_server_evidence_are_connected(
     with TestClient(create_app(settings, db, llm=llm, graph_driver=adapters[1].driver)) as client:
         response = client.post(
             "/agent",
-            json={"message": "M-204を止めた場合、P-100への代替候補を調べて"},
+            json={"message": graph_message("find_single_point_failure_candidates", args)},
             headers={"Authorization": "Bearer token"},
         )
     assert response.status_code == 200
@@ -82,13 +83,13 @@ def test_native_named_tool_http_and_server_evidence_are_connected(
     evidence = body["evidence"]["tool_results"][0]
     assert evidence["representative_paths"] == result["data"]["representative_paths"]
     assert evidence["graph_generation"] == reader_world[1]
-    assert "find_single_point_failure_candidates" in llm.requests[0][1]
-    schema = llm.requests[0][1]["find_single_point_failure_candidates"]
+    assert "find_single_point_failure_candidates" in readonly_schemas(db)
+    schema = readonly_schemas(db)["find_single_point_failure_candidates"]
     assert set(schema["required"]) == {"important_targets"}
     assert schema["additionalProperties"] is False
     assert "relation_types" not in schema["properties"]
     assert "timeout_ms" not in schema["properties"]
-    assert not any(name.startswith("prepare_") for name in llm.requests[0][1])
+    assert not any(name.startswith("prepare_") for name in readonly_schemas(db))
     relation = table("update_request", column("update_request_id"))
     statement = select(relation).compile(dialect=dialect())
     with db.transaction() as connection:
@@ -106,12 +107,14 @@ def test_noncurrent_graph_returns_no_spof_or_evidence(db, reader_world, adapters
     settings = Settings(users={"token": {"user_id": "manager1", "role": "manager"}})
     with TestClient(create_app(settings, db, llm=llm, graph_driver=adapters[1].driver)) as client:
         response = client.post(
-            "/agent", json={"message": "代替を調べて"}, headers={"Authorization": "Bearer token"}
+            "/agent",
+            json={"message": graph_message("find_single_point_failure_candidates", arguments())},
+            headers={"Authorization": "Bearer token"},
         )
     assert response.status_code == 503
     assert response.json()["errors"][0]["code"] == "GRAPH_UNAVAILABLE"
-    assert response.json()["data"]["tool_results"] == []
-    assert response.json()["evidence"]["tool_results"] == []
+    assert response.json()["data"] == {}
+    assert response.json()["evidence"] == {}
 
 
 @pytest.mark.parametrize(

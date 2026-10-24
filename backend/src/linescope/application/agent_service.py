@@ -46,7 +46,9 @@ class AgentApplication:
         dependency=None,
         knowledge=None,
         structured=None,
+        explicit_reads=None,
     ):
+        self.explicit_reads = explicit_reads
         self.proposals = proposals
         self.conversations = conversations
         self.commands = (
@@ -69,6 +71,12 @@ class AgentApplication:
             raise ToolError("AUTHENTICATION_REQUIRED", "Trusted execution context is required")
         if not isinstance(incoming, AgentInput) or type(retry_requested) is not bool:
             raise ToolError("INVALID_ARGUMENT", "Validated Agent input is required")
+        if incoming.read_selection is not None:
+            if self.explicit_reads is None:
+                raise ToolError("DEPENDENCY_UNAVAILABLE", "Explicit reads are unavailable")
+            return AnalyzedAgentResult(self.explicit_reads.run(context, incoming), None)
+        if incoming.read_confirmation is not None:
+            return self._confirmed_read(context, incoming)
         if retry_requested:
             saved = self.proposals.find_by_retry(
                 context, incoming.retry_key, agent_input_hash=incoming.input_hash
@@ -89,8 +97,17 @@ class AgentApplication:
             return self.knowledge.run(context, incoming)
         if self.decision_flow is not None and self.decision_flow.matches(incoming.message):
             return self.decision_flow.run(context, incoming)
+        if not incoming.message.startswith("関係分析 "):
+            from ..agent.explicit_read import selection_required
+
+            result = (
+                self.read_agent.suggest(context, incoming)
+                if self.read_agent is not None
+                else selection_required()
+            )
+            return AnalyzedAgentResult(result, None)
         if self.read_agent is None:
-            raise ToolError("DEPENDENCY_UNAVAILABLE", "LLM is not configured")
+            raise ToolError("DEPENDENCY_UNAVAILABLE", "Explicit graph reads are unavailable")
         read_input = incoming
         if incoming.explicit_as_of is None and conversation.get("explicit_as_of"):
             read_input = replace(incoming, explicit_as_of=conversation["explicit_as_of"])
@@ -99,6 +116,17 @@ class AgentApplication:
             read_input,
             previous_messages=previous if incoming.context_id else None,
         )
+        if result.pending_read is not None:
+            from ..agent.read_confirmation import original_hash
+
+            result.pending_read["hash"] = original_hash(incoming)
+            result.pending_read["effective_as_of"] = read_input.explicit_as_of
+            stored = {
+                "read_scope": result.pending_read,
+                "messages": [],
+                "explicit_as_of": read_input.explicit_as_of,
+            }
+            return AnalyzedAgentResult(result, self.conversations.create(context, stored))
         context_id = incoming.context_id
         if result.needs_input or context_id:
             stored = {
@@ -110,6 +138,23 @@ class AgentApplication:
             else:
                 context_id = self.conversations.create(context, stored)
         return AnalyzedAgentResult(result, context_id)
+
+    def _confirmed_read(self, context, incoming):
+        from ..agent.read_confirmation import confirmed_read
+
+        conversation = self.conversations.get(context, incoming.context_id)
+        if self.read_agent is None:
+            raise ToolError("DEPENDENCY_UNAVAILABLE", "Read Agent is unavailable")
+        result = confirmed_read(
+            self.read_agent, context, incoming, conversation.get("read_scope", {})
+        )
+        if result.read_clarification and result.read_clarification["status"] in {
+            "ACCEPTED",
+            "DECLINED",
+        }:
+            conversation["read_scope"]["closed"] = True
+            self.conversations.update(context, incoming.context_id, conversation)
+        return AnalyzedAgentResult(result, None)
 
     def _prepared(self, context, saved):
         try:

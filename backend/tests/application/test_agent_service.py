@@ -34,9 +34,9 @@ def service(**ports):
 
 
 def test_read_requires_configured_dependency():
-    with pytest.raises(ToolError) as error:
-        service().run(context(), incoming())
-    assert error.value.code == "DEPENDENCY_UNAVAILABLE"
+    result = service().run(context(), incoming())
+    assert result.analysis.answer_sections["read_outcome"] == "SELECTION_REQUIRED"
+    assert result.analysis.observations == ()
 
 
 def test_clarification_messages_are_preserved_across_requests():
@@ -45,6 +45,11 @@ def test_clarification_messages_are_preserved_across_requests():
     seen = []
 
     class Reader:
+        def suggest(self, context, request):
+            from linescope.agent.explicit_read import selection_required
+
+            return selection_required()
+
         def run(self, context, request, *, previous_messages):
             seen.append(previous_messages)
             return ReadAgentResult("対象を確認", (), (), (), True)
@@ -52,12 +57,10 @@ def test_clarification_messages_are_preserved_across_requests():
     application = service(conversations=conversations, read_agent=Reader())
     first = application.run(identity, incoming())
     second = application.run(identity, incoming(first.context_id))
-    assert first.context_id == second.context_id
-    assert seen == [None, ["影響を教えて"]]
-    assert conversations.get(identity, second.context_id)["messages"] == [
-        "影響を教えて",
-        "影響を教えて",
-    ]
+    assert first.context_id is None and second.context_id is None
+    assert seen == []
+    assert first.analysis.answer_sections["facts"] == []
+    assert second.analysis.answer_sections["read_outcome"] == "SELECTION_REQUIRED"
 
 
 def test_retry_precedes_expired_conversation_and_preserves_durable_identity():
@@ -103,6 +106,11 @@ def test_clarification_retains_request_time_and_explicit_change_takes_precedence
     seen = []
 
     class Reader:
+        def suggest(self, context, request):
+            from linescope.agent.explicit_read import selection_required
+
+            return selection_required()
+
         def run(self, context, request, *, previous_messages):
             seen.append(request.explicit_as_of)
             return ReadAgentResult("対象を確認", (), (), (), True)
@@ -112,5 +120,6 @@ def test_clarification_retains_request_time_and_explicit_change_takes_precedence
     first = application.run(identity, replace(incoming(), explicit_as_of=old_time))
     application.run(identity, incoming(first.context_id))
     application.run(identity, replace(incoming(first.context_id), explicit_as_of=new_time))
-    assert seen == [old_time, old_time, new_time]
-    assert conversations.get(identity, first.context_id)["explicit_as_of"] == new_time
+    assert seen == []  # Supplement and historical text do not grant a read.
+    assert first.context_id is None
+    assert first.analysis.answer_sections["read_outcome"] == "SELECTION_REQUIRED"

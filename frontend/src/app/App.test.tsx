@@ -11,12 +11,24 @@ const base: Envelope = {
   context_id: null,
   status: "ok",
   answer: "取得した回答",
-  data: {},
+  data: {
+    read_catalog: { version: "h7-1", entries: [] },
+    answer_sections: {
+      version: 1,
+      facts: [],
+      unavailable: [],
+      scope: [],
+      read_outcome: "SELECTION_REQUIRED",
+    },
+  },
   evidence: { source: "server" },
   warnings: [],
   errors: [],
 };
-const reply = (data = base) => new Response(JSON.stringify(data));
+const reply = (data = base) =>
+  new Response(
+    JSON.stringify({ ...data, data: { ...base.data, ...data.data } }),
+  );
 function stubFetch(fetcher: (url: string, init: RequestInit) => unknown) {
   vi.stubGlobal("fetch", (url: string, init: RequestInit) => {
     if (url === "/api/session")
@@ -185,13 +197,17 @@ it("selects equipment through the common search, loads relationships directly an
   await user.click(screen.getByRole("button", { name: "送信" }));
   await waitFor(() =>
     expect(
-      fetcher.mock.calls.some(([, init]) =>
-        String(init.body).includes("調査対象の設備コードはM-208"),
+      fetcher.mock.calls.some(
+        ([, init]) =>
+          !!init.body &&
+          JSON.parse(String(init.body)).message === "この設備の状態は？",
       ),
     ).toBe(true),
   );
-  const call = fetcher.mock.calls.find(([, init]) =>
-    String(init.body).includes("調査対象の設備コードはM-208"),
+  const call = fetcher.mock.calls.find(
+    ([, init]) =>
+      !!init.body &&
+      JSON.parse(String(init.body)).message === "この設備の状態は？",
   )!;
   expect(JSON.parse(String(call[1].body)).context_id).toBeUndefined();
   const question = "第１加工機の前回のメンテナンス日時はいつか？";
@@ -204,8 +220,7 @@ it("selects equipment through the common search, loads relationships directly an
       fetcher.mock.calls.some(
         ([, init]) =>
           typeof init.body === "string" &&
-          JSON.parse(init.body).message ===
-            `調査対象の設備コードはM-208です。\n${question}`,
+          JSON.parse(init.body).message === question,
       ),
     ).toBe(true),
   );
@@ -320,4 +335,102 @@ it("does not describe a pending question as a pending login in connection settin
       screen.queryByText(/質問への応答を待っています。完了してから接続/),
     ).toBeNull(),
   );
+});
+it("U08 refuses legacy interpretation responses and ignores a late one after editing", async () => {
+  let finish: (value: Response) => void = () => {};
+  const sent: Record<string, unknown>[] = [];
+  const pending: Envelope = {
+    ...base,
+    context_id: "pending-read",
+    data: {
+      read_clarification: {
+        kind: "READ_SCOPE",
+        status: "PENDING",
+        original_question: "対象は動いてる？",
+        targets: ["対象 · E-7"],
+        scope: ["登録上の設備状態"],
+      },
+      answer_sections: { version: 1, facts: [], unavailable: [], scope: [] },
+    },
+  };
+  stubFetch((url, init) => {
+    if (url !== "/api/agent") return Promise.resolve(reply());
+    sent.push(JSON.parse(String(init.body)));
+    if (sent.length === 1) return Promise.resolve(reply(pending));
+    return new Promise<Response>((resolve) => {
+      finish = resolve;
+    });
+  });
+  render(<App />);
+  const user = await connect();
+  const input = screen.getByLabelText("関係や影響について質問する");
+  await user.type(input, "対象は動いてる？");
+  await user.click(screen.getByRole("button", { name: "送信" }));
+  await screen.findByRole("alert");
+  expect(screen.queryByRole("button", { name: "この範囲を調べる" })).toBeNull();
+  await user.click(screen.getByRole("button", { name: "送信" }));
+  await user.type(input, "別の意味です");
+  finish(reply(pending));
+  await waitFor(() =>
+    expect(
+      screen.queryByRole("button", { name: "この範囲を調べる" }),
+    ).toBeNull(),
+  );
+  expect(sent.every((body) => body.read_confirmation === undefined)).toBe(true);
+  expect((input as HTMLTextAreaElement).value).toContain("別の意味です");
+});
+
+it("late model suggestions cannot replace a manual choice made while waiting", async () => {
+  let finish: (r: Response) => void = () => {};
+  const available = {
+    version: "h7-1",
+    entries: [
+      {
+        key: "registered_state",
+        label: "登録状態",
+        description: "登録状態のみ",
+        min_targets: 1,
+        max_targets: 4,
+        action: "EXECUTE",
+      },
+    ],
+  };
+  stubFetch((_url, init) => {
+    const body = JSON.parse(String(init.body || "{}"));
+    if (body.message && !body.read_selection)
+      return new Promise<Response>((resolve) => {
+        finish = resolve;
+      });
+    return Promise.resolve(
+      reply({ ...base, data: { ...base.data, read_catalog: available } }),
+    );
+  });
+  render(<App />);
+  const user = await connect();
+  await user.type(screen.getByLabelText("関係や影響について質問する"), "原文");
+  await user.click(screen.getByRole("button", { name: "照会項目を取得" }));
+  await user.click(screen.getByRole("button", { name: "送信" }));
+  await user.selectOptions(screen.getByLabelText("調べる項目"), "__none__");
+  finish(
+    reply({
+      ...base,
+      data: {
+        ...base.data,
+        read_catalog: available,
+        read_suggestions: {
+          status: "PROPOSED",
+          question: "原文",
+          catalog_version: "h7-1",
+          candidates: [{ key: "registered_state" }],
+        },
+      },
+    }),
+  );
+  await screen.findByText("取得した回答");
+  expect((screen.getByLabelText("調べる項目") as HTMLSelectElement).value).toBe(
+    "__none__",
+  );
+  expect(
+    screen.queryByRole("button", { name: "候補「登録状態」を選ぶ" }),
+  ).toBeNull();
 });

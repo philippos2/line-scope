@@ -6,10 +6,11 @@ from copy import deepcopy
 from uuid import uuid4
 
 import pytest
-from agent.test_read_agent import ScriptedLLM, call
+from agent.test_read_agent import ScriptedLLM
 from domain.test_safety import payload
 from fastapi.testclient import TestClient
 
+from interfaces.agent_read_support import explicit_message, selected_input_summary
 from linescope.application.prepare import EquipmentStatePrepare
 from linescope.application.proposals import ProposalStore
 from linescope.demo_seed import DEMO_EQUIPMENT, seed_demo
@@ -130,18 +131,45 @@ def test_create_approve_execute_read_and_retry_keep_fixed_ids_and_atomic_history
         )
         assert connection.execute("SELECT count(*) AS n FROM equipment").fetchone()["n"] > 0
 
-    llm = ScriptedLLM(
-        call("get_safety_input", {"safety_input_id": identifier(saved)}),
-        LLMReply("安全なので継続してください", ()),
-    )
+    llm = ScriptedLLM(LLMReply("安全なので継続してください", ()))
     with TestClient(create_app(settings(), world, llm=llm)) as agent_client:
         result = agent_client.post(
-            "/agent", json={"message": "登録済み安全入力を確認して"}, headers=headers()
+            "/agent",
+            json=explicit_message("M-204の安全入力は？", "safety_input", DEMO_EQUIPMENT[0][0]),
+            headers=headers(),
         )
+        assert result.status_code == 200
         data = result.json()
-        assert result.status_code == 200 and "継続案を候補から除外" in data["answer"]
-        assert "安全なので継続してください" not in data["answer"]
-        assert data["evidence"]["tool_results"][0]["version"] == 1
+        candidates = next(
+            row["data"]["items"]
+            for row in data["data"]["tool_results"]
+            if row["tool"] == "search_safety_inputs"
+        )
+        assert [row["safety_input_id"] for row in candidates] == [identifier(saved)]
+        assert not any(row["tool"] == "get_safety_input" for row in data["data"]["tool_results"])
+        # The user chooses the observed ID, then the existing detail GET evaluates it.
+        detail = agent_client.get(f"/safety-inputs/{identifier(saved)}", headers=headers())
+        assert detail.status_code == 200
+        summary, selected = selected_input_summary(
+            world, ExecutionContext("requester", "manager", uuid4()), "safety", identifier(saved)
+        )
+        # Each call has its own observation/evaluation timestamp; all business
+        # values and the evaluated validity must still agree.
+        actual, expected = selected.data, detail.json()["data"]
+        assert actual["input"] == expected["input"]
+        assert actual["source"] == expected["source"] == "REGISTERED_INPUT"
+        assert {k: v for k, v in actual["calculation"].items() if k != "evaluated_at"} == {
+            k: v for k, v in expected["calculation"].items() if k != "evaluated_at"
+        }
+        assert actual["calculation"]["evaluated_at"] >= expected["calculation"]["evaluated_at"]
+        assert "継続案を候補から除外" in summary
+        assert (
+            "安全なので継続してください" not in data["answer"]
+            and "安全なので継続してください" not in summary
+        )
+        assert selected.evidence["version"] == 1
+        assert not llm.requests and not llm.planning_requests
+
     # A declared safety stop must not prevent recording the observed operational fact.
     context = ExecutionContext("requester", "manager", uuid4())
     state = EquipmentStatePrepare(world).prepare(

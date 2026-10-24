@@ -1,11 +1,54 @@
+import {
+  acceptReadScope,
+  h6AllowedRequest,
+  h6Fixture,
+  runH6,
+} from "./verify-h6-read-scopes.mjs";
 // Maintained read-only smoke: actual scenario1 API, no mocked business responses.
 import { URL } from "node:url";
-import { chromium, expect } from "@playwright/test";
+import { chromium, expect } from "playwright/test";
 import { mkdir, writeFile } from "node:fs/promises";
 const base = process.env.LINESCOPE_BROWSER_URL;
 const token = process.env.LINESCOPE_BROWSER_TOKEN;
 if (!base || !token) throw new Error("Browser URL and private token required");
+const verifyH6 = process.env.LINESCOPE_BROWSER_H6 === "1";
 const verifyReadFailures = process.env.LINESCOPE_BROWSER_READ_FAILURES === "1";
+const verifyQuestionScope =
+  process.env.LINESCOPE_BROWSER_QUESTION_SCOPE === "1";
+if (verifyH6 && (verifyReadFailures || verifyQuestionScope))
+  throw new Error("Run H6 separately to preserve the approved 44-item count");
+// Pairwise selection: expression(3) x reference(2) x scope(2), 6 of 12.
+// Examples are evaluation inputs, never runtime keyword routes.
+const questionCases = h6Fixture.cases
+  .filter((row) => row.group === "tuning")
+  .map((row) => ({
+    ...row,
+    code: row.equipment_code,
+    state: row.expected_state,
+  }));
+
+function checkQuestionCoverage() {
+  const factors = {
+    expression: ["plain", "colloquial", "figurative"],
+    reference: ["name", "code"],
+    scope: ["state", "unsupported"],
+  };
+  const axes = Object.keys(factors);
+  for (let i = 0; i < axes.length; i++) {
+    for (let j = i + 1; j < axes.length; j++) {
+      for (const a of factors[axes[i]]) {
+        for (const b of factors[axes[j]]) {
+          expect(
+            questionCases.some(
+              (row) => row[axes[i]] === a && row[axes[j]] === b,
+            ),
+          ).toBe(true);
+        }
+      }
+    }
+  }
+}
+
 const output = process.env.LINESCOPE_BROWSER_OUTPUT ?? "/out";
 await mkdir(output, { recursive: true });
 const report = {
@@ -17,7 +60,9 @@ const report = {
   page_errors: [],
   timings_ms: {},
 };
-const browser = await chromium.launch();
+const browser = await chromium.launch({
+  executablePath: process.env.LINESCOPE_BROWSER_EXECUTABLE || undefined,
+});
 const page = await browser.newPage({ viewport: { width: 1600, height: 1050 } });
 page.setDefaultTimeout(30000);
 page.on("pageerror", (error) => report.page_errors.push(error.message));
@@ -40,14 +85,19 @@ await page.route("**/api/**", async (route) => {
     (readPaths.includes(path) ||
       (path === "/api/agent" &&
         (req.postDataJSON()?.message?.startsWith("関係分析 ") ||
-          req.postDataJSON()?.message?.startsWith("文書検索："))))
+          req.postDataJSON()?.message?.startsWith("文書検索：") ||
+          (verifyH6 && h6AllowedRequest(req.postDataJSON())) ||
+          (verifyQuestionScope &&
+            questionCases.some((row) =>
+              req.postDataJSON()?.message?.endsWith(row.question),
+            )))))
   )
     return route.continue();
   report.blocked.push({ method: req.method(), path });
   return route.abort();
 });
-async function search(code) {
-  await page.getByLabel("設備名・コード", { exact: true }).fill(code);
+async function search(code, query = code) {
+  await page.getByLabel("設備名・コード", { exact: true }).fill(query);
   const started = Date.now();
   await page.getByRole("button", { name: "検索", exact: true }).click();
   const candidate = page
@@ -74,7 +124,7 @@ async function searchDocuments(
   expect(result.status()).toBe(status);
 }
 
-try {
+async function runScenario1() {
   await page.goto(base);
   await expect(page.locator(".equipment-search-panel")).toHaveCount(0);
   await page.getByLabel("Bearer token").fill(token);
@@ -162,7 +212,7 @@ try {
       .getByRole("tab", { name: "接続及び影響範囲", exact: true })
       .click();
   }
-  await search("M-204");
+  await search("M-204", verifyH6 ? "M-204" : "ｍ－２０４");
   const loss = page.getByRole("region", { name: "推定損害額", exact: true });
   const alternative = page.getByRole("region", {
     name: "代替の提案",
@@ -290,7 +340,7 @@ try {
   await page
     .getByRole("tab", { name: "接続及び影響範囲", exact: true })
     .click();
-  await search("M-208");
+  await search("M-208", verifyH6 ? "M-208" : "第二加工機");
   await expect(loss).toContainText("稼働中のため、停止損害の算定対象外");
   const inputLink = page.getByRole("button", {
     name: "M-208の比較用入力を確認する",
@@ -324,6 +374,110 @@ try {
     path: `${output}/scenario1-input-guidance.png`,
     fullPage: true,
   });
+  if (verifyQuestionScope) {
+    checkQuestionCoverage();
+    report.question_cases = [];
+    await page.getByRole("tab", { name: "質問する", exact: true }).click();
+    for (const row of questionCases) {
+      await page
+        .getByLabel("関係や影響について質問する", { exact: true })
+        .fill(row.question);
+      const pending = page.waitForResponse(
+        (r) =>
+          r.url().endsWith("/agent") &&
+          r.request().postDataJSON()?.message?.endsWith(row.question),
+        { timeout: 135000 },
+      );
+      await page.getByRole("button", { name: "送信", exact: true }).click();
+      const response = await pending;
+      let body = await response.json();
+      const initial = body;
+      if (row.expected === "CONFIRM") {
+        expect(body.data.read_clarification?.status).toBe("PENDING");
+        expect(
+          body.data.tool_results.every((tool) =>
+            ["search_equipment", "get_equipment"].includes(tool.tool),
+          ),
+        ).toBe(true);
+        body = await acceptReadScope(page, row.question);
+      }
+      report.question_cases.push({
+        ...row,
+        status: response.status(),
+        initial_response: initial,
+        response: body,
+      });
+      try {
+        expect(response.status()).toBe(200);
+        const sections = body.data.answer_sections;
+        expect(sections?.version).toBe(1);
+        expect(body.answer).toContain(row.code);
+        const tools = body.data.tool_results;
+        for (const fact of sections.facts) {
+          expect(fact.references.length).toBeGreaterThan(0);
+          for (const ref of fact.references)
+            expect(tools.some((tool) => tool.tool_call_id === ref)).toBe(true);
+        }
+        if (row.scope === "state") {
+          const states = tools.filter(
+            (tool) => tool.tool === "get_equipment_state",
+          );
+          expect(states).toHaveLength(1);
+          expect(states[0].data.state_code).toBe(row.state);
+          const equipment = tools.flatMap((tool) =>
+            tool.tool === "search_equipment"
+              ? tool.data.items
+              : tool.tool === "get_equipment"
+                ? [tool.data]
+                : [],
+          );
+          expect(
+            equipment.some(
+              (item) =>
+                item.equipment_code === row.code &&
+                item.equipment_id === states[0].data.equipment_id,
+            ),
+          ).toBe(true);
+          expect(
+            sections.facts.some((fact) =>
+              fact.references.includes(states[0].tool_call_id),
+            ),
+          ).toBe(true);
+          expect(body.answer).toContain(row.state);
+        } else {
+          expect(sections.unavailable.length).toBeGreaterThan(0);
+          expect(
+            sections.facts.every(
+              (fact) => fact.predicate === "equipment.identity",
+            ),
+          ).toBe(true);
+          expect(
+            tools.every((tool) =>
+              ["search_equipment", "get_equipment"].includes(tool.tool),
+            ),
+          ).toBe(true);
+        }
+      } catch (error) {
+        report.question_cases.at(-1).failure = error.message;
+      }
+      await expect(
+        page.getByRole("button", { name: "送信", exact: true }),
+      ).toBeEnabled();
+      await page.screenshot({
+        path: `${output}/question-scope-${report.question_cases.length}.png`,
+        fullPage: true,
+      });
+    }
+  }
+  if (verifyQuestionScope)
+    expect(report.question_cases.every((row) => !row.failure)).toBe(true);
+}
+
+try {
+  if (verifyH6) {
+    checkQuestionCoverage();
+    await runH6(page, base, token, report);
+  } else await runScenario1();
   expect(report.blocked).toHaveLength(0);
   expect(report.page_errors).toHaveLength(0);
   report.result = "PASS";

@@ -16,8 +16,8 @@ from graph.test_projection_queue import queued
 from sqlalchemy import column, select, table, update
 from sqlalchemy.dialects.postgresql.psycopg import dialect
 
+from interfaces.agent_read_support import graph_message
 from linescope.graph.administration import GraphAdministration
-from linescope.integrations.llm import LLMReply
 from linescope.interfaces.api import create_app
 from linescope.settings import Settings
 
@@ -37,9 +37,12 @@ def inquire(db, driver, replies, message):
     settings = Settings(
         users={"token": {"user_id": "production1", "role": "production"}}, graph_max_paths=100
     )
-    llm = ScriptedLLM(
-        *replies, LLMReply("登録情報に基づく結果です。能力・安全性・経済影響は未評価です。", ())
-    )
+    # The scenario supplies explicit analysis arguments. It tests the HTTP/Graph
+    # contract; model interpretation is exercised separately through H6 confirmation.
+    assert len(replies) == 1 and len(replies[0].tool_calls) == 1
+    selected = replies[0].tool_calls[0]
+    message = graph_message(selected.name, selected.arguments)
+    llm = ScriptedLLM()
     with TestClient(create_app(settings, db, llm=llm, graph_driver=driver)) as client:
         response = client.post(
             "/agent", json={"message": message}, headers={"Authorization": "Bearer token"}
@@ -101,7 +104,7 @@ def test_bs18_analysis_unavailable_is_distinct_from_no_impact(
     else:
         assert response.status_code == 503
         assert body["errors"][0]["code"] == expected
-        assert body["data"]["tool_results"] == body["evidence"]["tool_results"] == []
+        assert body["data"] == body["evidence"] == {}
 
 
 def test_equipment_investigation_connects_impact_alternatives_and_spof_without_mutation(
@@ -112,26 +115,24 @@ def test_equipment_investigation_connects_impact_alternatives_and_spof_without_m
     Then preserve affected products, verified paths and structural boundaries.
     """
     important = [typed(P), typed(Q)]
-    response = inquire(
-        db,
-        adapters[1].driver,
-        [
-            call("trace_downstream_impact", {"target": typed(M)}),
-            call(
-                "find_alternative_paths",
-                {"important_targets": important, "excluded_nodes": [typed(M)]},
-            ),
-            call(
-                "find_single_point_failure_candidates",
-                {"important_targets": important, "candidate_nodes": [typed(M)]},
-            ),
-        ],
-        "M-204が停止した。影響製品と代替候補を確認し、単一障害点候補か調べて",
-    )
-    assert response.status_code == 200 and response.json()["status"] == "ok"
-    body = response.json()
-    results = [item["data"] for item in body["data"]["tool_results"]]
-    evidence = body["evidence"]["tool_results"]
+    selections = [
+        call("trace_downstream_impact", {"target": typed(M)}),
+        call(
+            "find_alternative_paths", {"important_targets": important, "excluded_nodes": [typed(M)]}
+        ),
+        call(
+            "find_single_point_failure_candidates",
+            {"important_targets": important, "candidate_nodes": [typed(M)]},
+        ),
+    ]
+    results, evidence = [], []
+    for selected in selections:
+        response = inquire(db, adapters[1].driver, [selected], "明示した構造分析")
+        assert response.status_code == 200 and response.json()["status"] == "ok"
+        body = response.json()
+        assert len(body["data"]["tool_results"]) == len(body["evidence"]["tool_results"]) == 1
+        results.append(body["data"]["tool_results"][0]["data"])
+        evidence.append(body["evidence"]["tool_results"][0])
     impact, alternative, spof = results
     assert {
         node["entity_id"] for node in impact["reached_nodes"] if node["entity_type"] == "Product"

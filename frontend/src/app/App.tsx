@@ -1,3 +1,5 @@
+import { ExplicitRead } from "./ExplicitRead";
+import { RegisteredAnswer } from "./RegisteredAnswer";
 import {
   ReadFeedback,
   readProblem,
@@ -60,6 +62,8 @@ export function App() {
   const [comparisonResult, setComparisonResult] = useState<Envelope | null>(
     null,
   );
+  const [documentEquipment, setDocumentEquipment] =
+    useState<EquipmentCandidate | null>(null);
   const [documentResult, setDocumentResult] = useState<Envelope | null>(null);
   const [documentBusy, setDocumentBusy] = useState(false);
   const [documentError, setDocumentError] = useState<ReadProblem | null>(null);
@@ -98,6 +102,7 @@ export function App() {
   const freshContext = useRef(false);
   const messageInput = useRef<HTMLTextAreaElement>(null);
   const [equipment, setEquipment] = useState<EquipmentCandidate | null>(null);
+  const documentSubject = documentEquipment ?? equipment;
   const [decisionEquipment, setDecisionEquipment] =
     useState<EquipmentCandidate | null>(null);
   const retry = useRef<{ body: string; key: string } | null>(null);
@@ -130,9 +135,22 @@ export function App() {
   }, []);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
+  const [readSuggestions, setReadSuggestions] = useState<
+    Envelope | undefined
+  >();
+  const suggestionRevision = useRef(0);
+  function invalidateSuggestions() {
+    suggestionRevision.current++;
+    setReadSuggestions(undefined);
+  }
   const [questionSelection, setQuestionSelection] = useState<JsonObject | null>(
     null,
   );
+  const [pendingRead, setPendingRead] = useState<{
+    body: JsonObject;
+    text: string;
+    response: Envelope;
+  } | null>(null);
   const [result, setResult] = useState<Envelope | null>(null);
   const [error, setError] = useState("");
   const [, setSelected] = useState<NodeRef | null>(null);
@@ -163,6 +181,7 @@ export function App() {
   }, [connected]);
   useEffect(() => {
     documentRequest.current?.abort();
+    setDocumentEquipment(null);
     setDocumentResult(null);
     setDocumentObservation(null);
     setDocumentError(null);
@@ -186,7 +205,9 @@ export function App() {
     setDocumentResult(null);
     setActionDraft("");
     setStateChoice("");
+    setPendingRead(null);
     setResult(null);
+    invalidateSuggestions();
     setGraphResult(null);
     setMessage("");
     setQuestionSelection(null);
@@ -250,7 +271,9 @@ export function App() {
     setActorRole("");
     setShowConnection(false);
     setBusy(false);
+    setPendingRead(null);
     setResult(null);
+    invalidateSuggestions();
     setSelected(null);
     setMessage("");
     setQuestionSelection(null);
@@ -315,7 +338,9 @@ export function App() {
             ? session.data.user_id
             : "認証済み",
         );
+        setPendingRead(null);
         setResult(null);
+        invalidateSuggestions();
         setSelected(null);
         retry.current = null;
         setShowConnection(false);
@@ -355,20 +380,15 @@ export function App() {
     if (!text.startsWith("関係分析 ")) setMessage(text);
     setStale(true);
     const body = {
-      message: selection
-        ? `登録入力で比較 ${JSON.stringify(selection)}`
-        : equipment &&
-            !text.startsWith("関係分析 ") &&
-            !text.startsWith("文書検索：") &&
-            !text.startsWith("登録入力で比較 ")
-          ? `調査対象の設備コードは${equipment.equipment_code}です。\n${text}`
-          : text,
+      message: selection ? `登録入力で比較 ${JSON.stringify(selection)}` : text,
       ...(!text.startsWith("関係分析 ") &&
       !freshContext.current &&
       result?.context_id
         ? { context_id: result.context_id }
         : {}),
     };
+    setPendingRead(null);
+    const proposalRevision = suggestionRevision.current;
     const serialized = JSON.stringify(body);
     if (retry.current?.body !== serialized)
       retry.current = { body: serialized, key: crypto.randomUUID() };
@@ -382,8 +402,36 @@ export function App() {
           retry.current!.key,
         ),
       (value) => {
+        const machineRead =
+          !!selection ||
+          text.startsWith("関係分析 ") ||
+          text.startsWith("文書検索：") ||
+          text.startsWith("登録入力で比較 ");
+        if (
+          !machineRead &&
+          (!object(value.data.read_catalog) ||
+            !object(value.data.answer_sections) ||
+            value.data.answer_sections.read_outcome !== "SELECTION_REQUIRED" ||
+            (Array.isArray(value.data.answer_sections.facts) &&
+              value.data.answer_sections.facts.length > 0) ||
+            (Array.isArray(value.data.tool_results) &&
+              value.data.tool_results.length > 0))
+        ) {
+          throw new ApiError("INVALID_RESPONSE");
+        }
         freshContext.current = false;
+        setReadSuggestions(
+          !machineRead && proposalRevision === suggestionRevision.current
+            ? value
+            : undefined,
+        );
         setResult(value);
+        if (
+          object(value.data.read_clarification) &&
+          value.data.read_clarification.status === "PENDING"
+        ) {
+          setPendingRead({ body, text, response: value });
+        }
         setAnswerEpoch(executionEpoch);
         if (graphAnalyses(value).length) {
           setGraphResult(value);
@@ -405,8 +453,39 @@ export function App() {
       },
     );
   }
+  async function confirmRead(choice: "ACCEPT" | "REJECT") {
+    const pending = pendingRead;
+    if (
+      !pending ||
+      busy ||
+      pending.text !== message ||
+      !pending.response.context_id
+    )
+      return;
+    const body = {
+      ...pending.body,
+      context_id: pending.response.context_id,
+      read_confirmation: choice,
+    };
+    if (choice === "REJECT") {
+      setPendingRead(null);
+      freshContext.current = true;
+      messageInput.current?.focus();
+    }
+    await perform(
+      () => request(token.current, "/agent", body, abort.current?.signal),
+      (value) => {
+        setPendingRead(null);
+        setResult(value);
+        setStale(false);
+        setAnswerEpoch(executionEpoch);
+        freshContext.current = true;
+      },
+    );
+  }
   function draftInvestigation(text: string, focus = true) {
     freshContext.current = true;
+    setPendingRead(null);
     setQuestionSelection(null);
     setMessage(text);
     if (focus) messageInput.current?.focus();
@@ -519,21 +598,21 @@ export function App() {
     setStep("execution");
   }
   async function searchDocuments() {
-    if (documentBusy || !equipment) return;
+    if (documentBusy || !documentSubject) return;
     documentRequest.current?.abort();
     const controller = new AbortController();
     documentRequest.current = controller;
     setDocumentBusy(true);
     setDocumentError(null);
     setEvidenceKind("documents");
-    const target = equipment;
+    const target = documentSubject;
     const epoch = executionEpoch;
     try {
       const value = await request(
         "",
         "/agent",
         {
-          message: `文書検索：${equipment.equipment_code}の保全調査`,
+          message: `文書検索：${target.equipment_code}の保全調査`,
         },
         controller.signal,
       );
@@ -824,13 +903,16 @@ export function App() {
                         : "未選択（設備名・コードを質問に含めるか、上の「設備を選ぶ」を使ってください）"}
                     </p>
                     <p>
-                      質問に設備名・コードを書いた場合は、その設備を優先します。
+                      自由文は補助入力です。登録情報は対象と参照観点を選んで照会します。
                     </p>
                     {questionSelection && (
                       <p>
                         比較タブで選択した登録入力と期間を引き継いでいます。送信すると同じ条件で再比較します。質問文を編集すると通常の質問に切り替わります。
                       </p>
                     )}
+                    <p>
+                      自由文を送るとAIが参照観点の候補を提案します。候補だけでは登録情報を取得しません。
+                    </p>
                     <form onSubmit={investigate}>
                       <label htmlFor="message">
                         関係や影響について質問する
@@ -840,10 +922,19 @@ export function App() {
                         ref={messageInput}
                         value={message}
                         onChange={(event) => {
+                          setPendingRead(null);
+                          freshContext.current = true;
+                          if (busy) {
+                            current.current++;
+                            abort.current?.abort();
+                            setBusy(false);
+                            setActiveOperation(null);
+                          }
+                          invalidateSuggestions();
                           setMessage(event.target.value);
                           setQuestionSelection(null);
                         }}
-                        placeholder="例：この設備が止まったとき、影響する工程と製品は？"
+                        placeholder="補助入力（任意）：調べたいことを残せます"
                         rows={3}
                       />
                       <button
@@ -859,7 +950,7 @@ export function App() {
                           ? "質問への応答を待っています。完了するまで再送できません。"
                           : !message.trim()
                             ? "質問が未入力のため送信できません。質問を入力してください。"
-                            : "質問に明記した設備について調べます。対象を省略した場合は画面の選択を使います。"}
+                            : "送信するとAIの候補を確認できます。対象・項目の確定までは登録情報を取得しません。"}
                       </p>
                     </form>
                   </div>
@@ -898,11 +989,124 @@ export function App() {
                             一部の情報・評価が不足しています
                           </span>
                         )}
-                        <p className="answer">{result.answer}</p>
+                        {object(result.data.read_clarification) && (
+                          <section aria-label="質問の解釈確認">
+                            <h3>
+                              {result.data.read_clarification.status ===
+                              "PENDING"
+                                ? "調べる範囲を確認してください"
+                                : "選んだ照会の範囲"}
+                            </h3>
+                            <p>
+                              元の質問：
+                              {String(
+                                result.data.read_clarification
+                                  .original_question ?? "",
+                              )}
+                            </p>
+                            <p>
+                              対象：
+                              {Array.isArray(
+                                result.data.read_clarification.targets,
+                              )
+                                ? result.data.read_clarification.targets.join(
+                                    "、",
+                                  )
+                                : "未確認"}
+                            </p>
+                            <p>
+                              この画面で調べる範囲：
+                              {Array.isArray(
+                                result.data.read_clarification.scope,
+                              )
+                                ? result.data.read_clarification.scope.join(
+                                    "、",
+                                  )
+                                : "未確認"}
+                            </p>
+                            <p>
+                              この範囲の結果で、元の質問全体に答えられるとは限りません。運転許可や業務変更の承認ではありません。
+                            </p>
+                            {result.data.read_clarification.status ===
+                              "ACCEPTED" && (
+                              <p>
+                                以下は、利用者が選んだ範囲の結果です。元の質問全体への回答を確定したものではありません。
+                              </p>
+                            )}
+                            {pendingRead?.response === result &&
+                              pendingRead.text === message && (
+                                <div>
+                                  <button
+                                    type="button"
+                                    disabled
+                                    aria-busy={busy}
+                                  >
+                                    この範囲を調べる
+                                  </button>
+                                  <button
+                                    type="button"
+                                    disabled={busy}
+                                    onClick={() => void confirmRead("REJECT")}
+                                  >
+                                    違う・質問を直す
+                                  </button>
+                                  <p role="status">
+                                    {busy
+                                      ? "選んだ照会を処理しています。完了まで再送できません。"
+                                      : "この確認は旧方式です。登録情報の選択欄から項目と対象を選んでください。"}
+                                  </p>
+                                </div>
+                              )}
+                            {result.data.read_clarification.status ===
+                              "PENDING" &&
+                              pendingRead?.response !== result && (
+                                <p>
+                                  この確認は終了しました。質問を編集して送信できます。
+                                </p>
+                              )}
+                          </section>
+                        )}
+                        {object(result.data.read_clarification) &&
+                          result.data.read_clarification.status ===
+                            "DECLINED" && <p>{result.answer}</p>}
+                        {object(result.data.read_catalog) &&
+                          object(result.data.answer_sections) &&
+                          result.data.answer_sections.read_outcome ===
+                            "SELECTION_REQUIRED" && <p>{result.answer}</p>}
+                        <RegisteredAnswer response={result} />
                       </section>
                     )}
                   </div>
                 </div>
+                <ExplicitRead
+                  key={`${connected}:${identity}:${equipment?.equipment_id ?? "none"}`}
+                  question={message}
+                  suggestions={readSuggestions}
+                  onInvalidateSuggestions={invalidateSuggestions}
+                  availableCatalog={
+                    result && object(result.data.read_catalog)
+                      ? result
+                      : undefined
+                  }
+                  equipment={equipment}
+                  connected={connected}
+                  executionEpoch={executionEpoch}
+                  onNavigate={(destination, target) => {
+                    if (destination === "comparison") {
+                      setDecisionEquipment(target);
+                      setStep("comparison");
+                    } else if (destination === "documents") {
+                      documentRequest.current?.abort();
+                      setDocumentBusy(false);
+                      setDocumentError(null);
+                      setDocumentResult(null);
+                      setDocumentObservation(null);
+                      setDocumentEquipment(target);
+                      setEvidenceKind("documents");
+                      setStep("evidence");
+                    }
+                  }}
+                />
                 {stateResult && (
                   <details>
                     <summary>取得した設備状態</summary>
@@ -1022,12 +1226,12 @@ export function App() {
                     <h2>関連文書を検索する</h2>
                     <p>
                       検索対象：
-                      {equipment
-                        ? `${equipment.equipment_name} · ${equipment.equipment_code}`
+                      {documentSubject
+                        ? `${documentSubject.equipment_name} · ${documentSubject.equipment_code}`
                         : "左の検索から設備を選んでください。"}
                     </p>
                     <button
-                      disabled={documentBusy || !equipment}
+                      disabled={documentBusy || !documentSubject}
                       aria-busy={documentBusy}
                       onClick={() => void searchDocuments()}
                     >

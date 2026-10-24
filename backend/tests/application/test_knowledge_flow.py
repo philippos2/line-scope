@@ -88,6 +88,8 @@ def test_cli_ingestion_to_authenticated_agent_citation(world, monkeypatch, capsy
 
     from linescope.integrations.llm import LLMReply, ToolCall
 
+    # This fixture uses the whitespace-token mock index, not a vector model.
+    # Keep a literal search token; H6 sends the selected full query without LLM rewriting.
     llm = ScriptedLLM(
         LLMReply("", (ToolCall(str(uuid4()), "retrieve_knowledge", {"query": "M-204"}),)),
         LLMReply("確認した文書抜粋を参照してください。", ()),
@@ -96,13 +98,22 @@ def test_cli_ingestion_to_authenticated_agent_citation(world, monkeypatch, capsy
         model_response = client.post(
             "/agent",
             headers={"Authorization": "Bearer read-token"},
-            json={"message": "M-204の保全資料を調べて"},
+            json={"message": "M-204 保全資料を調べて"},
         )
-    assert model_response.status_code == 200
-    observed = model_response.json()
-    assert observed["status"] == "partial"
-    assert observed["data"]["tool_results"][0]["tool"] == "retrieve_knowledge"
-    assert observed["evidence"]["tool_results"][0]["citations"] == [item["citation"]]
+        assert model_response.status_code == 200
+        pending = model_response.json()
+        assert pending["data"]["answer_sections"]["read_outcome"] == "SELECTION_REQUIRED"
+        assert pending["data"]["tool_results"] == []
+        # The existing explicit document contract remains independently usable.
+        confirmed = client.post(
+            "/agent",
+            headers={"Authorization": "Bearer read-token"},
+            json={"message": "文書検索：M-204"},
+        )
+    assert confirmed.status_code == 200
+    observed = confirmed.json()
+    assert observed["evidence"]["citations"] == [item["citation"]]
+    assert not llm.requests and llm.planning_requests
 
 
 def test_new_version_excludes_old_candidates(world):

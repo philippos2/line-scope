@@ -2,9 +2,9 @@ from copy import deepcopy
 
 import pytest
 
-from agent.test_read_agent import Dispatcher, ScriptedLLM, call, context, request
+from agent.test_read_agent import AdmittedPlanAgent, Dispatcher, ScriptedLLM, call, context, request
 from linescope.agent.graph_answer import fulfillment_answer
-from linescope.agent.read_agent import ReadAgent, ReadObservation
+from linescope.agent.read_agent import ReadObservation
 from linescope.application.reads import ReadResult
 from linescope.integrations.llm import LLMReply
 
@@ -101,7 +101,7 @@ def test_agent_replaces_unfounded_llm_claims_and_preserves_evidence(tool, verdic
         def run(self, *args, **kwargs):
             return item.result
 
-    result = ReadAgent(
+    result = AdmittedPlanAgent(
         GraphDispatcher(),
         ScriptedLLM(call(tool, {}), LLMReply("すべて安全で損失は0円。SPOFはありません。", ())),
     ).run(context(), request())

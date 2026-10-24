@@ -4,6 +4,8 @@ import pytest
 from agent.test_read_agent import ScriptedLLM, call
 from fastapi.testclient import TestClient
 
+from interfaces.agent_read_support import explicit_message, selected_input_summary
+from interfaces.test_capacity_inputs_api import DEMO_EQUIPMENT
 from interfaces.test_economic_inputs_api import (
     approve,
     body,
@@ -121,39 +123,48 @@ def test_tools_keep_server_calculation_source_and_version_evidence(world):
 def test_agent_uses_registered_tools_and_deterministic_unknown_summary_without_prepare(world):
     with client_for(world) as client:
         record = registered(client)
-    llm = ScriptedLLM(
-        call("search_economic_inputs", {"filter": {"input_code": "ECONOMIC"}}),
-        call("get_economic_input", {"economic_input_id": record}),
-        LLMReply("すべて安全で交換が最適です", ()),
-    )
+    llm = ScriptedLLM(LLMReply("すべて安全で交換が最適です", ()))
     with TestClient(create_app(api_settings(), world, llm=llm)) as client:
         result = client.post(
             "/agent",
-            json={"message": "登録済み経済入力ECONOMICの見積と不明事項を確認して"},
+            json=explicit_message("M-204の経済入力は？", "economic_input", DEMO_EQUIPMENT[0][0]),
             headers=headers(),
         )
-    data = result.json()
-    assert result.status_code == 200
-    assert "1900000円" in data["answer"] and "交換総額不明" in data["answer"]
-    assert "安全で交換が最適" not in data["answer"]
-    assert [row["tool"] for row in data["data"]["tool_results"]] == [
-        "search_economic_inputs",
-        "get_economic_input",
-    ]
-    assert not any(
-        "prepare" in name or "execute" in name or "approve" in name for name in llm.requests[0][1]
+        assert result.status_code == 200
+        data = result.json()
+        candidates = next(
+            row["data"]["items"]
+            for row in data["data"]["tool_results"]
+            if row["tool"] == "search_economic_inputs"
+        )
+        assert [row["economic_input_id"] for row in candidates] == [record]
+        assert not any(row["tool"] == "get_economic_input" for row in data["data"]["tool_results"])
+        detail = client.get(f"/economic-inputs/{record}", headers=headers())
+        assert detail.status_code == 200
+    summary, selected = selected_input_summary(
+        world, ExecutionContext("requester", "manager", uuid4()), "economic", record
     )
+    assert selected.data["calculation"] == detail.json()["data"]["calculation"]
+    assert "1900000円" in summary and "交換総額不明" in summary
+    assert "安全で交換が最適" not in summary and "安全で交換が最適" not in data["answer"]
+    assert not llm.requests and not llm.planning_requests
+    with world.transaction() as connection:
+        assert connection.execute("SELECT count(*) AS n FROM update_request").fetchone()["n"] == 1
 
 
 def test_agent_denied_economic_read_cannot_publish_unverified_costs(world):
     llm = ScriptedLLM(call("search_economic_inputs", {"filter": {}}), LLMReply("費用は0円です", ()))
     with TestClient(create_app(api_settings(), world, llm=llm)) as client:
         result = client.post(
-            "/agent", json={"message": "経済入力を検索して"}, headers=headers("floor")
+            "/agent",
+            json=explicit_message("M-204の経済入力は？", "economic_input", DEMO_EQUIPMENT[0][0]),
+            headers=headers("floor"),
         ).json()
-    assert result["answer"] is None
     assert result["errors"][0]["code"] == "AUTHORIZATION_DENIED"
     assert result["data"]["tool_results"] == []
+    assert result["answer"] is None  # Denial publishes neither identity nor costs.
+    assert result["data"]["answer_sections"]["facts"] == []
+    assert result["data"]["answer_sections"]["read_outcome"] == "INCOMPLETE"
 
 
 def test_formal_m204_request_does_not_enter_fixture_comparison(world):

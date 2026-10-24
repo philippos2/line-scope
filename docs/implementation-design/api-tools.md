@@ -7,7 +7,7 @@
   "request_id": "uuid",
   "context_id": "uuid-or-null",
   "status": "ok|partial|error",
-  "answer": "LLM generated natural language or null",
+  "answer": "server-rendered verified read text, workflow explanation, or null",
   "data": {},
   "evidence": {},
   "warnings": [],
@@ -31,9 +31,24 @@
 
 出力は共通Envelope。
 
+### 通常Readの根拠付き回答
+
+通常Readは、LLMで対象表現と要求fieldを構造化し、サーバの対応field一覧へ照合して取得する。粗い情報種別だけで未知の属性を既存の属性へ置換しない。対象のreferenceは今回の質問本文、または対象省略時の画面補足から照合し、LLMが作った設備コード・IDを対象へ昇格させない。本文にない過去対象で上書きしない。
+
+`data.answer_sections`は追加の任意フィールド。version 1、mode `REGISTERED_RESULTS`、scope（サーバの固定表示名の配列）、facts、interpretation（現時点は空配列）、unavailable、noticeを持つ。既存のanswer、tool_results、tool_trace、Evidenceは維持する。
+
+- factsの各項目はid（要求内の`f1`等）、kind、predicate、text、referencesを持つ。kindはREGISTERED_FIELD／SEARCH_RESULT／SERVER_ASSESSMENT／DOCUMENT_REFERENCE。textは実際の取得値または既存のサーバ要約からコードが生成し、LLMの自由文を挿入しない。referencesは同じ要求の実tool_call_idだけを参照する。
+- unavailableはcode、text、referencesを持つ。非対応、未取得、検索失敗、検索0件、複数候補、続き、未対応の表示形式、表示上限を区別する。OUT_OF_SCOPEはDBの未登録を意味しない。
+- 最大80事実。表示省略はDISPLAY_LIMITを明示する。範囲や失敗を、事実の並び替えで消さない。partialは従来のTool結果に加え、取得不完全・失敗・必要情報未取得・表示上限・検証不能を反映する。確認待ち（needs_input）は従来どおり別扱い。
+- コピー等で使うanswerも同じサーバ生成textから組み立てる。HTTP handlerはそれをEnvelopeへ載せるだけで、SQL・計算・意味の判定を実装しない。
+
+`describe_read_request`、`select_answer_facts`はAgent内部のモデル応答契約で、業務Tool・HTTP APIではない。前者は対象と要求fieldを構造化するだけで、実行は既存Tool sessionの認可・総12回・同じ120秒deadlineを通す。後者は要求内の既存fact IDの選択・順序だけ。値・主張文・権限・任意Tool名は受け付けない。主体が特定できる質問ではコードが取得を組み立て、LLMの再選択を繰り返さない。主体未確定の補足探索も同じ広告範囲・実行時の制限に従い、自由文を公開しない。
+
+属性・型・関係を扱う固定adapterがない結果は確認不能とする。属性不在と実際の不存在、記録0件と作業未実施、構造成立と運転許可を区別する。LLMの解釈間違いの可能性は残り、画面に今回の解釈範囲を表示する。
+
 ### Graphで明示選択した対象の調査
 
-`message`が`関係分析 `で始まる場合、後続は`{"tool":"find_common_dependencies","arguments":{"targets":[...]}}`の厳密JSONとする。許可するのは§19〜23の5 Graph分析と`search_equipment`、`get_equipment` / `get_process` / `get_production_operation` / `get_product` / `get_infrastructure_resource`だけ。外側JSONは`tool`と`arguments`のみ、argumentsはobject必須。`search_equipment`のargumentsは既存Read契約の`filter`（`name`部分一致、`equipment_code`大文字小文字を区別する完全一致）・`page_size`・`cursor`を使う。空filterも許可し、複数filterはAND条件。既存の通常設備Readと同じロール認可を適用し、Graph分析の認可とは分ける。LLMによる対象ID・探索引数の再生成を行わず、既存Tool dispatcherの引数検証・認可・Graph同期gate・探索上限をそのまま適用する。
+`message`が`関係分析 `で始まる場合、後続は`{"tool":"find_common_dependencies","arguments":{"targets":[...]}}`の厳密JSONとする。許可するのは§19〜23の5 Graph分析と`search_equipment`、`get_equipment` / `get_process` / `get_production_operation` / `get_product` / `get_infrastructure_resource`だけ。外側JSONは`tool`と`arguments`のみ、argumentsはobject必須。`search_equipment`のargumentsは既存Read契約の`filter`（`name`部分一致、`equipment_code`大文字小文字を区別する完全一致、`reference`は§15の共通表記照合）・`page_size`・`cursor`を使う。空filterも許可し、複数filterはAND条件。既存の通常設備Readと同じロール認可を適用し、Graph分析の認可とは分ける。LLMによる対象ID・探索引数の再生成を行わず、既存Tool dispatcherの引数検証・認可・Graph同期gate・探索上限をそのまま適用する。
 
 新規の個別Tool HTTP endpointは設けない。Prepare・Approval・Execute・任意SQL/Cypher・その他Toolへの汎用dispatchは認めない。新規調査として`context_id`と`replace_update_request_id`を拒否する。明示時刻は既存`as_of`契約で固定し、未知・不完全・EvidenceとTool traceを通常の参照Envelopeに保持する。引数不正や権限不足は通常のToolエラーとし、LLMへのfallbackや成功への変換を行わない。
 
@@ -221,11 +236,30 @@ Tool schemaは未知fieldを拒否し、日時はtimezone付きISO 8601、IDはU
 
 get系は該当ID（equipment_id / maintenance_plan_id / process_id / production_operation_id / product_id / infrastructure_resource_id / dependency_relation_id）を必須とし、一意な正本recordを返す。get_equipment_stateはequipment_idでstate_code / version / updated_at、get_operation_equipment_assignmentsはproduction_operation_idで全active Assignmentと親versionを返す。過去時刻での割当評価が必要な場合はexplicit_as_ofを受け、現在登録情報の期間評価であることを返す。
 
-search系は明示filter、page_size（1〜100、default 20）、cursorを受け、items / next_cursorを返す。安定したID順、cursorは同じfilter・認証主体に拘束する。設備filterはequipment_code / name、保全予定はequipment_id / plan_code / plan_status、保全実績はequipment_id / record_code / maintenance_plan_id、関係はtyped source / target / relation_type / active、履歴はupdate_request_id / category / occurred_from / occurred_to。get_equipment_state_historyはequipment_idと任意の半開期間・pagination。空検索はitems=[]、一意対象なしはTARGET_NOT_FOUND、複数候補からの更新一意化はTARGET_AMBIGUOUS。
+search系は明示filter、page_size（1〜100、default 20）、cursorを受け、items / next_cursorを返す。安定したID順、cursorは同じfilter・認証主体に拘束する。設備filterはequipment_code / name / reference、保全予定はequipment_id / plan_code / plan_status、保全実績はequipment_id / record_code / maintenance_plan_id、関係はtyped source / target / relation_type / active、履歴はupdate_request_id / category / occurred_from / occurred_to。get_equipment_state_historyはequipment_idと任意の半開期間・pagination。空検索はitems=[]、一意対象なしはTARGET_NOT_FOUND、複数候補からの更新一意化はTARGET_AMBIGUOUS。
 
 検索filterはANDで合成し、省略filterは空条件とする。code・ID・状態値・boolは完全一致、設備nameはPostgreSQLのlowerによる大小文字を区別しないリテラル部分一致とし、% / _をwildcardとして扱わない。maintenance_plan_idの明示NULLは「計画との関連なし」、省略は条件なし。その他の非nullable filterの明示NULLはINVALID_ARGUMENT。activeを省略した通常参照はactive / inactive双方を返す。
 
 cursorは署名付き継続tokenとして認証user_id・role・Tool名・正規化filterに拘束する。改ざん・異なる拘束条件はINVALID_ARGUMENT。page_sizeは途中変更できる。v1の単一APIプロセスはランダム署名keyを起動時に生成し、再起動後のcursorは無効とする。cursorは検索継続用で、更新・承認・Prepare retry keyと共用しない。DB queryはID keysetとpage_size+1のLIMITで次ページの有無を判定し、全件取得や全件数の返却を行わない。
+
+### 設備の共通表記照合（reference）
+
+`search_equipment.filter.reference` は1〜200文字の非空文字列（空白のみは禁止）。登録コードへの正規化後の完全一致、または登録名称への正規化後のliteral部分一致を、一つの条件内でOR照合する。他のfilterとの組合せは引き続きAND。従来の `equipment_code` / `name` の意味は変更しない。左ペインと自然文の対象解決はこの共通条件を使う。新しいHTTP経路・DB列・別名登録は追加しない。
+
+| 種類 | 許容する規則 | 同一視しないもの |
+|---|---|---|
+| 文字の互換・結合表記 | 入力・登録値の両方へUnicode NFKC | 音や意味が似るだけの語 |
+| 英字等の大小 | 両側へUnicode casefold（PostgreSQL 18 / UTF-8、DB側はbuiltin `pg_unicode_fast`を明示） | 誤字・文字の脱落・並べ替え |
+| 空白 | 検索入力の前後を除去 | 識別子の内部空白の削除 |
+| 記号 | NFKCで対応する全角／半角 | ハイフンの除去・異なる記号の無条件置換 |
+| 名称中の数 | `第`＋0〜9999の整数の標準的な算用・漢数字（位取り表記／数字列）。複数の数も各トークンで照合 | 任意の漢字語の数値化、ゼロ埋めの除去、コード内の漢数字変換 |
+| 数の境界 | 数字列を途中で一致させない。`第1`は`第11`の候補にしない | 数の接頭部分だけによる別設備への一致 |
+| 別名・同義語 | 登録データにある名称・コードのみ | 業務上の別名をLLMで生成して同一設備とみなすこと |
+
+名称の照合パターンはサーバが原文をescapeして生成し、DBへbindする。呼出元は正規表現を指定できない。各数の候補はパターン内で局所的に表し、複数の数による検索要求の直積を作らない。DB側の条件で絞り、ID順keyset / page_size+1による既存paginationを維持する。正規化したキーや、全件をAgentへ渡す走査結果を保存しない。
+
+正規化により別の登録IDへも一致する場合、両方の実IDを候補として返す。元の表記と一致した先頭行を優先しない。同じIDの重複と別IDの衝突を区別し、cursorの続き・取得失敗・呼出し上限が残るときは一意・0件を確定しない。返却する名称・コード・version・Evidenceは登録された実値である。cursorは原文のfilterへ拘束され、同じ正規化結果でも異なるfilterのcursorを流用しない。
+
 
 履歴検索は最初にaccess-controlの閲覧filterを適用する。全件検索を経由して権限外件数・recordを返さない。recordの返却項目はdata-modelの該当業務列。更新対象解決後もPrepare内で再読込する。
 
@@ -503,3 +537,87 @@ Agentの比較Tool admissionは、元の問い合わせ中のJSON選択とTool�
 - 率はEconomicInput.payloadの任意`incident_losses`から取得する。配列1〜30件、scope_keyは入力内一意・100文字以内。各項目は`scope_key`、`product_id`（UUID）、`loss_per_hour`（既存の非負十進文字列制約、NULL可）、`independent`（boolean）、`source`（既存bounded text）、`certainty`（ESTIMATED / CONFIRMED）を必須とする。省略は既存payloadを維持し、率を修理案から自動転記しない。
 - 入力は正本から再読込し、共通期間の一致・各停止設備の影響製品の網羅を照合する。率が不明、非独立、同一scopeの宣言不一致、期間不一致等は完全合計をNULLにしてpartialで返す。既知小計は完全合計と区別する。Graph・認可等のerrorは既存status対応に従う。
 - `evidence`に各Graphの根拠、世代・時点、PG観測時刻と状態version、正式入力のID・version・出典を残す。金額は登録条件下の推定。`actual_damage_confirmed=false`、`cumulative_loss=null`、`automatic_state_change=false`を保持する。
+
+#### 質問と参照範囲の対応未確認
+
+自然文の範囲照合が不一致・不確実・非対応・検証不能の場合、`answer_sections.unavailable`に`QUESTION_SCOPE_UNCONFIRMED`を返す。質問内容のReadは開始せず、設備の識別用Readのみを許す。`facts`には実際に識別できた名称・コード（predicate=equipment.identity）、または複数候補（equipment.identity_candidate）だけを表示できる。通常は`needs_input=false`とし、識別候補が複数のときだけtrueにする。これは対象候補の選択待ちではないため、拒否した質問を新たな対象選択会話として保存しない。scopeは採用できなかった解釈であることを明示する。登録の有無・0件・未作業を確定した意味ではない。範囲外だけの質問も、対象の識別と質問内容の取得を区別する。識別結果の名前・コードを超えて依存関係等を回答の代わりに公開しない。内部照合Toolは公開Toolとして追加しない。
+
+自然文の`answer_sections`では、`equipment.identity`は対象識別であり、要求内容への回答済みを意味しない。対象識別しか返せず、他の未取得・非対応の理由もない場合は`unavailable`に`QUESTION_NOT_ANSWERED`を返し、HTTP envelopeはpartialとする。質問を明示し、別の登録属性を回答として代入しない。元のTool結果・Evidenceは維持する。
+
+#### Read範囲の確認契約案（H6・未実装／実装承認待ち）
+
+現行のAgentInput・応答では以下の確認操作を利用できない。§13の方針を実装するには、**POST /agentに任意の`read_confirmation`を追加**する。既存のbody項目・通常Read・直接Graph／比較・Prepare経路はこの項目がない場合に維持する。新HTTP経路・永続DB・業務権限は追加しない。
+
+```json
+{"message":"初回に送信した文字列そのもの","context_id":"サーバが返した確認用UUID","read_confirmation":"ACCEPT"}
+```
+
+- choiceは`ACCEPT`／`REJECT`だけ。`context_id`必須。`as_of`がある場合も初回と一致させる。質問の編集後は確認を継続せず、新規の質問として送る。`replace_update_request_id`との併用、未知choice・未知field・不正型はINVALID_ARGUMENT。単なる自然文の「はい」は受理の証拠にしない。
+- 初回の確認待ちはHTTP 200、envelope status=okで受け付け、照会の完了とは扱わない。`data.read_clarification`に`kind=READ_SCOPE`、`status=PENDING`、原文の質問、実対象の名称・コード、サーバが定義する提案範囲の表示、限定、理由codeを追加し、`context_id`と`data.needs_input=true`を返す。表示には既存の内部ID抑制・公開文字列の規則を適用し、hash検証は未加工の送信文字列で行う。原文・表示をHTMLとして実行しない。提案は事実・運転許可ではなく、この時点のfactsは識別だけ。`answer_sections`の現行version 1に未実装の必須fieldを追加しない。
+- ConversationStoreは既存の利用者所有・TTL30分・プロセス内メモリを再利用する。再起動・期限切れはCONTEXT_EXPIRED、別利用者はAUTHORIZATION_DENIED。永続保存・workerをまたぐ共有保証を新設しない。
+- 保留情報は、初回messageとexplicit_as_ofの専用hash、対象の原文参照・実検索のID、サーバ側の提案能力／引数条件、カタログversionを持つ。既存`AgentInput.input_hash`はcontext_idも含むため、そのまま初回と再送の一致比較に使わない。clientに能力・Tool・ID・権限の差替えを許さない。
+- 確認項目がある要求は専用のRead分岐を先に選び、変更要求の再送lookup・Prepare認識へ流さない。Idempotency-Keyがあっても業務変更の再送として扱わず、受理によりPrepare／Approval／Executeを起動しない。業務更新のAPI契約は変えない。
+- ACCEPTは保留情報のowner・期限・原文hash・定義versionを検証し、対象を再照合して同じ対象集合に一意解決するかを確認する。対象変更・複数化・検索失敗・古い定義は実Readへ進まず、理由と再確認を返す。各Readの認可・現在のGraph同期・既存の時点制約も維持し、古い参照値を確定値として再利用しない。
+- ACCEPT後の`read_clarification.status=ACCEPTED`には原文と、利用者が選んだ参照範囲を残す。値・根拠は既存のコード生成を使い、選択範囲の結果として表示する。元の質問全体への正答と自動認定しない。結果取得失敗はReadの失敗として扱い、自動再送しない。再実行する場合も同じ照会への利用者の明示操作とし、書込の再送規則と混同しない。
+- REJECTは質問内容を取得せず、確認を終了して`status=DECLINED`を返す。入力原文を残し編集へ戻す。違うという回答だけで「未登録／非対応」と断定しない。Frontendは編集への復帰を通知の完了待ちにせず、通知失敗でも古い確認を復元・自動再送しない。失敗は確認終了の通知失敗として記録する。
+- この任意項目を知らない既存clientは、通常の質問を再入力して参照範囲を明示できる。確認UI未対応を理由に自由文の「はい」を解釈して実行しない。実装時は既存clientの応答表示・context再利用も互換試験する。
+
+H6の定義照会は、既存`answer_sections` version 1への任意の`definitions`配列（`catalog_key`、`text`、`catalog_version`、`source=CAPABILITY_CATALOG`）として追加する案。コードが能力カタログの定義を表示し、Tool取得のfactsやDB事実へ混在させない。新しい必須field・HTTP経路は作らず、通常Readは維持する。対象のない定義質問へ選択設備を補完せず、設備の値を取得しない。既存の認証と参照範囲を維持する。
+
+H6実装候補の`answer_sections.read_outcome`は任意の診断項目として、AUTO／CONFIRM／UNSUPPORTED／TARGET_AMBIGUOUS／TARGET_REQUIRED／TARGET_NOT_FOUND／INCOMPLETE／UNVERIFIABLE／EXPLICIT_READを区別する。質問の意味が正しいという保証ではなく、コードが選んだ処理の記録。EXPLICIT_READは確認後の別の限定照会であり、元の問いへの正答を意味しない。現在は候補・検証未完了。
+
+
+### 質問の解釈検証の診断（H6-R）
+
+`data.answer_sections.verification` は省略可能な技術情報で、`stage`を持つ。SOURCE_SPANSの場合は省略可能な`reason`で`SPAN_FORMAT` / `SPAN_TEXT_ABSENT` / `SPAN_AMBIGUOUS`を返す（旧診断実行では`SPAN_RANGE` / `SPAN_OFFSET`も使用）。値は `PLAN_SHAPE` / `PLAN_TARGETS` / `SOURCE_SPANS` / `COVERAGE_SHAPE` / `COVERAGE` / `LITERAL_TARGETS` / `REQUEST_FIELD` の有限集合。原文・抽出値・prompt・内部例外を追加するものではなく、取得値の正しさや実運転許可を保証しない。モデルの解釈が不正な場合、業務値を返さず `read_outcome=UNVERIFIABLE` と確認不能の案内を返す。通信・認可・deadlineのエラーはこれに読み替えない。
+
+解釈を確定できなくても、別に完了した対象の識別・Evidenceは保持する。確認前の識別を質問への回答や業務値へ昇格させず、未取得・不明・未登録を区別する。構造分析の重要対象を取得できない場合は `ANALYSIS_TARGET_REQUIRED` と判定未実施を表示し、仮の対象で分析を実行しない。
+
+H6の意味照合でMISMATCHとされた候補はread_clarificationを発行せず、UNVERIFIABLEへ返す。MATCH・UNCERTAINと、不一致・対応外・形式不正を区別する。以前保存された不一致候補への確認でも業務Readは実行しない。
+
+REQUEST_FIELDのreason=UNBOUND_ATTRIBUTEは、明示属性が候補fieldの定義語へ束縛できないことを表す。現行候補cc25764ではUNSUPPORTEDとして解釈確認を発行しない。旧候補のMISMATCH／UNVERIFIABLE分類とは異なり、モデル出力の形式不正までUNSUPPORTEDへ読み替えるものではない。原文の該当語そのものを追加診断へ複製しない。
+
+### H7：利用者が選ぶ登録照会（実装承認済み）
+
+[計画§14](../design/grounded-answer-plan.md#14-h7利用者が観点を選ぶ登録情報照会実装承認済み)に従う追加契約。既存POST /agentに任意のread_selectionを追加する。以下の2形だけを受理する。実装・検証状態は履歴に分けて記録し、契約定義だけで受入済みとはしない。
+
+```json
+{"message":"原文または画面の操作名","read_selection":{"operation":"CATALOG"}}
+```
+
+```json
+{
+  "message":"利用者の元の質問を保持する",
+  "read_selection":{
+    "operation":"EXECUTE",
+    "catalog_version":"サーバから取得した版",
+    "key":"registered_state",
+    "targets":[{"entity_type":"Equipment","entity_id":"00000000-0000-0000-0000-000000000007"}]
+  }
+}
+```
+
+UUIDは説明用の値で、実行時の固定設備ではない。CATALOGは対象不要、EXECUTEはカタログが要求する1〜4対象（共通依存は2〜4）。重複ID・不正UUID・未知operation/key・技術属性・workflow混在・古い版を拒否する。初期の対象選択UIはEquipmentで、既存のGraph経由の別型Readを変更しない。context_id / read_confirmation / replace_update_request_idとの併用を禁止し、旧会話の時点も引き継がない。初期の選択照会は現在登録情報を読むものとし、as_ofの指定も受理しない。過去時点は既存の明示Graph契約で指定できる。通常の自由文からは値を公開しない。
+
+CATALOGはdata.read_catalogへversionとentriesを返す。各entryはkey、label、定義・限定、対象型・対象数、action（EXECUTEまたは既存画面への導線）を持つ。定義はBackendのカタログから生成し、取得した業務事実・権限付与と扱わない。比較と文書は既存画面への導線で、EXECUTEへ渡しても黙って実行しない。
+
+EXECUTEは認証後、対象IDを既存Readで再取得し、選んだ項目だけを参照する。clientからTool名・任意引数・roleを受け取らない。messageは表示・原文保持用で、LLM解釈やPrepareの入力へ転用しない。typed Readは書込の再送照合・Prepare・LLM分岐より先に処理する。Idempotency-Keyの存在を理由に書込の保存要求を再開しない。
+
+結果は既存envelope・answer_sectionsのfacts/unavailable/Evidenceを再利用し、read_outcome=EXPLICIT_READ、data.read_selectionにサーバが確認した項目・対象・catalog version・取得時刻・原文・対象ラベルを返す。元の質問への回答を確定した状態にしない。未知key・古い版・混在等は既存INVALID_ARGUMENTで拒否し、項目を再取得して選び直す案内を表示する。認証・認可・Graph同期・DB障害等の既存エラーは維持し、別のfieldや自然文へfallbackしない。
+
+旧READ_SCOPEのACCEPTは新しい規則版で失効し、CONTEXT_EXPIREDとして再選択を案内する。入力形式を直ちに削除することと、旧候補の業務Readを禁止することを区別する。自由な「はい」や、CATALOG応答を承認・権限の証拠にしない。通常自由文・字義照会はSELECTION_REQUIREDとread_catalogを返し、facts・公開tool_resultsは空。CAPABILITY未確定で業務Readへfallbackしない。認可を持つ既存機械呼出元の構造化Read・比較・文書契約は維持する。
+
+### H7の未確定AI候補（追加承認済み）
+
+通常自由文の既存POST /agent応答にdata.read_suggestionsを追加する。新しいHTTP経路・入力項目は不要。read_outcome=SELECTION_REQUIRED、facts/tool_resultsは空のまま。
+
+| 項目 | 内容 |
+|---|---|
+| status | PROPOSED / NO_CANDIDATE / UNAVAILABLE。候補なしは正常結果 |
+| reason | UNCONFIRMED / NO_MATCH / MODEL_NOT_CONFIGURED / MODEL_FAILURE / DEADLINE / INVALID_OUTPUT。raw例外やモデル自由文は返さない |
+| catalog_version | 既存サーバカタログの版 |
+| question | 原文。照会への実行入力ではない |
+| candidates | {key}の配列。有効カタログkeyだけ。利用者確定前には実行しない |
+| subject_references | {entity_type,reference}の未確定対象表現。設備IDや認可の根拠ではない |
+
+候補欄があっても業務照会や元の問いへの回答成功を意味しない。形式・意味対応を確認できない場合は候補を返さず全カタログによる手動選択を維持する。CATALOGとEXECUTEはLLMを呼ばない。旧READ_SCOPE ACCEPTは復活させない。
