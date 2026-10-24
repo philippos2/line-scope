@@ -7,6 +7,7 @@ from agent.test_read_agent import ScriptedLLM
 from application.test_proposals import NOW, PREPARE_HASH, category_snapshot, context, snapshot
 from fastapi.testclient import TestClient
 
+from interfaces.agent_read_support import explicit_message
 from linescope.agent.agent_input import AgentInput, ConversationStore
 from linescope.application.proposals import ProposalStore
 from linescope.integrations.llm import LLMError, LLMReply, OllamaClient
@@ -43,7 +44,11 @@ def seeded(db):
 def test_agent_api_uses_real_reads_and_server_evidence(seeded):
     llm = ScriptedLLM()
     with TestClient(create_app(settings(), seeded, llm=llm)) as client:
-        result = client.post("/agent", json={"message": "M-204の登録状態は？"}, headers=HEADERS)
+        result = client.post(
+            "/agent",
+            json=explicit_message("M-204の登録状態は？", "registered_state", UUID(int=1)),
+            headers=HEADERS,
+        )
     assert result.status_code == 200
     body = result.json()
     assert body["status"] == "ok"
@@ -60,7 +65,7 @@ def test_agent_api_uses_real_reads_and_server_evidence(seeded):
         if row["tool"] == "get_equipment_state"
     ] == ["POSTGRESQL"]
     assert [row["tool"] for row in body["data"]["tool_trace"]] == [
-        "search_equipment",
+        "get_equipment",
         "get_equipment_state",
     ] and not body["errors"]
     assert not llm.requests and not llm.planning_requests
@@ -98,17 +103,18 @@ def test_no_model_does_not_disable_health():
         assert client.get("/health", headers=HEADERS).status_code == 200
         result = client.post("/agent", json={"message": "query"}, headers=HEADERS)
     assert (
-        result.status_code == 503 and result.json()["errors"][0]["code"] == "DEPENDENCY_UNAVAILABLE"
+        result.status_code == 200
+        and result.json()["data"]["answer_sections"]["read_outcome"] == "SELECTION_REQUIRED"
     )
 
 
 def test_clarification_context_is_owned_and_continues_with_original_message():
-    llm = ScriptedLLM(LLMReply("対象不明", ()), LLMReply("対象不明", ()))
-    with TestClient(create_app(settings(), llm=llm)) as client:
-        first = client.post("/agent", json={"message": "あの設備の状態は？"}, headers=HEADERS)
-        identity = first.json()["context_id"]
-        assert first.status_code == 200 and first.json()["data"]["needs_input"]
-        assert identity
+    llm = ScriptedLLM(LLMReply("対象不明", ()))
+    store = ConversationStore()
+    owner = context()
+    owner = type(owner)("floor1", "floor", owner.request_id)
+    identity = store.create(owner, {"messages": ["あの設備の状態は？"]})
+    with TestClient(create_app(settings(), llm=llm, conversations=store)) as client:
         denied = client.post(
             "/agent",
             json={"message": "M-204", "context_id": identity},
@@ -118,11 +124,9 @@ def test_clarification_context_is_owned_and_continues_with_original_message():
         second = client.post(
             "/agent", json={"message": "M-204", "context_id": identity}, headers=HEADERS
         )
-    assert second.status_code == 200 and second.json()["context_id"] == identity
-    assert [m["content"] for m in llm.planning_requests[1][0] if m["role"] == "user"] == [
-        "あの設備の状態は？",
-        "M-204",
-    ]
+    assert second.status_code == 200 and second.json()["context_id"] is None
+    assert second.json()["data"]["answer_sections"]["read_outcome"] == "SELECTION_REQUIRED"
+    assert not llm.requests and not llm.planning_requests
 
 
 def test_context_expiry_is_409_before_llm():
@@ -195,8 +199,9 @@ def test_llm_failure_envelope(code, status):
 
     with TestClient(create_app(settings(), llm=Broken())) as client:
         result = client.post("/agent", json={"message": "query"}, headers=HEADERS)
-    assert result.status_code == status
-    assert result.json()["errors"][0]["code"] == code and result.json()["answer"] is None
+    assert result.status_code == 200
+    assert result.json()["data"]["answer_sections"]["read_outcome"] == "SELECTION_REQUIRED"
+    assert result.json()["data"]["tool_results"] == []
 
 
 @pytest.mark.parametrize(
@@ -275,7 +280,11 @@ def test_partial_result_retains_evidence_and_warning(seeded):
         )
     llm = ScriptedLLM()
     with TestClient(create_app(settings(), seeded, llm=llm)) as client:
-        result = client.post("/agent", json={"message": "M-204の登録状態は？"}, headers=HEADERS)
+        result = client.post(
+            "/agent",
+            json=explicit_message("M-204の登録状態は？", "registered_state", UUID(int=1)),
+            headers=HEADERS,
+        )
     assert result.status_code == 200
     body = result.json()
     assert body["status"] == "partial" and body["warnings"][0]["code"] == "TARGET_NOT_FOUND"

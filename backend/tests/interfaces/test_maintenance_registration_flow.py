@@ -2,7 +2,7 @@
 
 import io
 import json
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 import pytest
 from agent.test_read_agent import ScriptedLLM, call
@@ -10,6 +10,7 @@ from application.test_maintenance_prepare import service as maintenance_fixture
 from fastapi.testclient import TestClient
 from sqlalchemy import func, select, table
 
+from interfaces.agent_read_support import explicit_message
 from interfaces.test_controlled_action_scenarios import approve_execute, headers, query
 from interfaces.test_maintenance_plan_approval_api import client_for
 from linescope.agent.agent_input import AgentInput
@@ -85,7 +86,11 @@ def test_plan_registration_approval_execution_and_api_read(world):
         assert client.post(endpoint, headers=headers()).status_code == 409
         confirmed = approve_execute(client, saved)
         assert confirmed["execution_result"]["targets"] == saved["canonical_snapshot"]["targets"]
-        result = post(client, "EQ10の保全計画は？")
+        result = client.post(
+            "/agent",
+            json=explicit_message("EQ10の保全計画は？", "maintenance_plans", UUID(int=10)),
+            headers=headers(),
+        )
         assert result.status_code == 200
         plans = next(
             row["data"]["items"]
@@ -129,7 +134,11 @@ def test_record_registration_execution_and_current_inspection(world, plan):
             llm=llm,
         )
     ) as reader:
-        observed = post(reader, "EQ10の保全記録は？")
+        observed = reader.post(
+            "/agent",
+            json=explicit_message("EQ10の保全記録は？", "maintenance_records", UUID(int=10)),
+            headers=headers(),
+        )
         assert observed.status_code == 200
         records = next(
             row["data"]["items"]

@@ -33,7 +33,13 @@ class CollectedRead:
 
 
 def collect_scope(
-    scope, session, *, identification_only=False, identified_targets=None, resolved_targets=None
+    scope,
+    session,
+    *,
+    identification_only=False,
+    identified_targets=None,
+    resolved_targets=None,
+    selected_fields=None,
 ):
     observations, trace, errors = [], [], []
     targets = list(resolved_targets or ())
@@ -159,6 +165,18 @@ def collect_scope(
         for topic in scope.topics:
             if target["entity_type"] == "Equipment":
                 for tool in EQUIPMENT_READS.get(topic, ()):
+                    if (
+                        selected_fields is not None
+                        and topic == "MAINTENANCE"
+                        and tool
+                        not in {
+                            "search_maintenance_records"
+                            if field == "maintenance_records"
+                            else "search_maintenance_plans"
+                            for field in selected_fields
+                        }
+                    ):
+                        continue
                     if tool.startswith("search_"):
                         search(tool, {"equipment_id": identifier})
                     else:

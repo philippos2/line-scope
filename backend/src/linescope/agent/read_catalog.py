@@ -11,7 +11,7 @@ from .equipment_reference import question_messages, selected_reference
 from .read_scope import FIELDS, ReadScope
 from .scope_check import FIELD_MEANINGS
 
-CATALOG_VERSION = "h6-2"
+CATALOG_VERSION = "h7-1"
 TECHNICAL_FIELDS = frozenset({"active"})
 BUSINESS_FIELDS = {key: value for key, value in FIELDS.items() if key not in TECHNICAL_FIELDS}
 # Literal vocabulary belongs to capability definitions, not to question routes.

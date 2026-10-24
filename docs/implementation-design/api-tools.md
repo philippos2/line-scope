@@ -577,11 +577,9 @@ H6の意味照合でMISMATCHとされた候補はread_clarificationを発行せ�
 
 REQUEST_FIELDのreason=UNBOUND_ATTRIBUTEは、明示属性が候補fieldの定義語へ束縛できないことを表す。現行候補cc25764ではUNSUPPORTEDとして解釈確認を発行しない。旧候補のMISMATCH／UNVERIFIABLE分類とは異なり、モデル出力の形式不正までUNSUPPORTEDへ読み替えるものではない。原文の該当語そのものを追加診断へ複製しない。
 
-### H7案：利用者が選ぶ登録照会（契約案・未承認・未実装）
+### H7：利用者が選ぶ登録照会（実装承認済み）
 
-[計画§14](../design/grounded-answer-plan.md#14-h7案利用者が観点を選ぶ登録情報照会検討承認済み実装は未承認)に伴う追加案。以下は現在受理するAPIではない。現行AgentInputはread_selectionを拒否する。新しいHTTP経路を作らないことと、契約変更がないことを混同しない。
-
-既存POST /agentに任意のread_selectionを追加し、次の2形だけを許す案。
+[計画§14](../design/grounded-answer-plan.md#14-h7利用者が観点を選ぶ登録情報照会実装承認済み)に従う追加契約。既存POST /agentに任意のread_selectionを追加する。以下の2形だけを受理する。実装・検証状態は履歴に分けて記録し、契約定義だけで受入済みとはしない。
 
 ```json
 {"message":"原文または画面の操作名","read_selection":{"operation":"CATALOG"}}
@@ -599,12 +597,12 @@ REQUEST_FIELDのreason=UNBOUND_ATTRIBUTEは、明示属性が候補fieldの定�
 }
 ```
 
-UUIDは説明用の値で、実行時の固定設備ではない。CATALOGは対象不要、EXECUTEはカタログが要求する1〜4対象（共通依存は2〜4）。重複ID・不正UUID・未知operation/key・技術属性・workflow混在・古い版を拒否する。初期の対象選択UIはEquipmentで、既存のGraph経由の別型Readを変更しない。context_id / read_confirmation / replace_update_request_idとの併用を禁止し、旧会話の時点も引き継がない。初期の選択照会は現在登録情報を読むものとし、as_ofの指定も受理しない案。過去時点を指定する既存の自然文要求は別契約として維持する。
+UUIDは説明用の値で、実行時の固定設備ではない。CATALOGは対象不要、EXECUTEはカタログが要求する1〜4対象（共通依存は2〜4）。重複ID・不正UUID・未知operation/key・技術属性・workflow混在・古い版を拒否する。初期の対象選択UIはEquipmentで、既存のGraph経由の別型Readを変更しない。context_id / read_confirmation / replace_update_request_idとの併用を禁止し、旧会話の時点も引き継がない。初期の選択照会は現在登録情報を読むものとし、as_ofの指定も受理しない。過去時点は既存の明示Graph契約で指定できる。通常の自由文からは値を公開しない。
 
 CATALOGはdata.read_catalogへversionとentriesを返す。各entryはkey、label、定義・限定、対象型・対象数、action（EXECUTEまたは既存画面への導線）を持つ。定義はBackendのカタログから生成し、取得した業務事実・権限付与と扱わない。比較と文書は既存画面への導線で、EXECUTEへ渡しても黙って実行しない。
 
 EXECUTEは認証後、対象IDを既存Readで再取得し、選んだ項目だけを参照する。clientからTool名・任意引数・roleを受け取らない。messageは表示・原文保持用で、LLM解釈やPrepareの入力へ転用しない。typed Readは書込の再送照合・Prepare・LLM分岐より先に処理する。Idempotency-Keyの存在を理由に書込の保存要求を再開しない。
 
-結果は既存envelope・answer_sectionsのfacts/unavailable/Evidenceを再利用し、read_outcome=EXPLICIT_READ、data.read_selectionにサーバが確認した項目・対象・catalog version・取得時刻を返す案。元の質問への回答を確定した状態にしない。未知key・古い版・混在等は既存INVALID_ARGUMENTで拒否し、項目を再取得して選び直す案内を表示する。認証・認可・Graph同期・DB障害等の既存エラーは維持し、別のfieldや自然文へfallbackしない。
+結果は既存envelope・answer_sectionsのfacts/unavailable/Evidenceを再利用し、read_outcome=EXPLICIT_READ、data.read_selectionにサーバが確認した項目・対象・catalog version・取得時刻・原文・対象ラベルを返す。元の質問への回答を確定した状態にしない。未知key・古い版・混在等は既存INVALID_ARGUMENTで拒否し、項目を再取得して選び直す案内を表示する。認証・認可・Graph同期・DB障害等の既存エラーは維持し、別のfieldや自然文へfallbackしない。
 
-旧READ_SCOPEのACCEPTは新しい規則版で失効し、CONTEXT_EXPIREDとして再選択を案内する案。入力形式を直ちに削除することと、旧候補の業務Readを禁止することを区別する。自由な「はい」や、CATALOG応答を承認・権限の証拠にしない。正確な必須field・上限・互換性は契約の承認と実装試験で固定し、現行APIで検証済みとはしない。
+旧READ_SCOPEのACCEPTは新しい規則版で失効し、CONTEXT_EXPIREDとして再選択を案内する。入力形式を直ちに削除することと、旧候補の業務Readを禁止することを区別する。自由な「はい」や、CATALOG応答を承認・権限の証拠にしない。通常自由文・字義照会はSELECTION_REQUIREDとread_catalogを返し、facts・公開tool_resultsは空。CAPABILITY未確定で業務Readへfallbackしない。認可を持つ既存機械呼出元の構造化Read・比較・文書契約は維持する。

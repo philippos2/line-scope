@@ -533,18 +533,26 @@ def create_app(
             }
             if result.answer_sections is not None:
                 data["answer_sections"] = result.answer_sections
+            if result.read_catalog is not None:
+                data["read_catalog"] = result.read_catalog
+            if result.read_selection is not None:
+                data["read_selection"] = result.read_selection
             if result.read_clarification is not None:
                 data["read_clarification"] = result.read_clarification
             if result.needs_input:
                 data.update(
                     candidates=[],
                     missing_fields=[
-                        "read_confirmation" if result.read_clarification else "target_identifier"
+                        "read_selection"
+                        if result.read_catalog is not None
+                        else "read_confirmation"
+                        if result.read_clarification
+                        else "target_identifier"
                     ],
                 )
             evidence = {
                 "tool_results": [
-                    {"tool_call_id": item.tool_call_id, "tool": item.tool, **item.result.evidence}
+                    {**item.result.evidence, "tool_call_id": item.tool_call_id, "tool": item.tool}
                     for item in result.observations
                 ]
             }
@@ -601,6 +609,16 @@ def create_app(
             )
         except (ProposalError, ToolError) as error:
             data = {}
+            if error.code == "INVALID_ARGUMENT":
+                try:
+                    supplied = strict_json(await request.body())
+                except (ValueError, TypeError):
+                    supplied = None
+                if isinstance(supplied, dict) and "read_selection" in supplied:
+                    from ..agent.explicit_read import catalog
+
+                    data["read_catalog"] = catalog()
+                    data["selection_required"] = True
             for key in ("update_request_id", "approval_id"):
                 value = getattr(error, "details", {}).get(key)
                 if type(value) is str:

@@ -225,31 +225,10 @@ def interpreted_read(agent, request, session, previous):
         return result
     if scope.scope_issue not in {None, "UNCERTAIN"} or "UNSUPPORTED" in scope.topics:
         return _result(scope, request, observations, trace, errors)
-    # A model can suggest a new, limited read; it cannot declare its interpretation correct.
-    clarification = {
-        "kind": "READ_SCOPE",
-        "status": "PENDING",
-        "original_question": public_answer(
-            question_messages(request.message)[-1]["content"], observations
-        ),
-        "scope": [FIELD_MEANINGS[field] for field in scope.requested_fields],
-        "reason": "LITERAL_COVERAGE_NOT_ESTABLISHED",
-        "limitation": "この範囲の結果で、元の質問全体に答えられるとは限りません。",
-        "targets": target_labels(observations, targets)
-        or ["対象指定なし（照会範囲を確認してください）"],
-    }
-    pending = {
-        "kind": "READ_SCOPE",
-        "hash": original_hash(request),
-        "catalog_version": CATALOG_VERSION,
-        "scope": scope,
-        "targets": targets,
-        "clarification": clarification,
-        "closed": False,
-    }
-    return _result(
-        scope, request, observations, trace, errors, clarification=clarification, pending=pending
+    scope = replace(
+        scope, scope_issue="UNSUPPORTED", validation_stage="EXPLICIT_SELECTION_REQUIRED"
     )
+    return _result(scope, request, observations, trace, errors)
 
 
 def target_labels(observations, targets):
@@ -266,7 +245,6 @@ def target_labels(observations, targets):
 
 
 def confirmed_read(agent, context, request, saved):
-    from .agent_tools import AgentToolSession
     from .read_agent import ReadAgentResult
 
     if saved.get("kind") != "READ_SCOPE" or saved.get("closed"):
@@ -288,50 +266,4 @@ def confirmed_read(agent, context, request, saved):
         )
     if saved["catalog_version"] != CATALOG_VERSION:
         raise ToolError("CONTEXT_EXPIRED", "Read capability definition changed; ask again")
-    request = replace(request, explicit_as_of=saved.get("effective_as_of", request.explicit_as_of))
-    session = AgentToolSession(
-        context,
-        request,
-        agent.dispatcher,
-        clock=agent.clock,
-        event_logger=agent.events,
-        deadline_seconds=agent.deadline_seconds,
-    )
-    targets = []
-    observations, trace, errors = collect_scope(
-        saved["scope"], session, identification_only=True, identified_targets=targets
-    )
-    attribute = unbound_attribute(saved["scope"], request.message)
-    if (
-        attribute is not None
-        and saved["scope"].scope_issue in {None, "UNCERTAIN"}
-        and "UNSUPPORTED" not in saved["scope"].topics
-    ):
-        scope = replace(
-            saved["scope"],
-            scope_issue="UNSUPPORTED",
-            validation_stage="REQUEST_FIELD",
-            validation_reason="UNBOUND_ATTRIBUTE",
-            unbound_attribute=attribute,
-        )
-        return _result(scope, request, observations, trace, errors)
-    if saved["scope"].scope_issue not in {None, "UNCERTAIN"}:
-        return _result(saved["scope"], request, observations, trace, errors)
-    if errors or targets != saved["targets"]:
-        if not errors:
-            errors = (
-                {"code": "TARGET_AMBIGUOUS", "message": "Read targets have changed", "details": {}},
-            )
-        return _result(saved["scope"], request, observations, trace, errors)
-    values, more_trace, failures = collect_scope(saved["scope"], session, resolved_targets=targets)
-    result = _result(
-        saved["scope"],
-        request,
-        observations + values,
-        trace + more_trace,
-        failures,
-        identity_verified=True,
-    )
-    result.answer_sections["read_outcome"] = "EXPLICIT_READ"
-    clarification["status"] = "ACCEPTED"
-    return replace(result, read_clarification=clarification)
+    raise ToolError("CONTEXT_EXPIRED", "Choose a registered read item explicitly")

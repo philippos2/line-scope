@@ -1,0 +1,369 @@
+{
+  "version": 1,
+  "purpose": "H7の公開入口遮断。H6の期待値・未達結果を変更しない。実モデルの理解評価ではない。",
+  "cases": [
+    {
+      "id": "Q01",
+      "message": "この設備が止まるとどんな影響があるか？",
+      "repetitions": 3,
+      "expected": {
+        "read_outcome": "SELECTION_REQUIRED",
+        "facts": 0,
+        "tool_results": 0
+      },
+      "source": "reported-agent-questions.json"
+    },
+    {
+      "id": "Q02",
+      "message": "メニューにカレーライスが無い！どこに苦情を言えば良いか？",
+      "repetitions": 3,
+      "expected": {
+        "read_outcome": "SELECTION_REQUIRED",
+        "facts": 0,
+        "tool_results": 0
+      },
+      "source": "reported-agent-questions.json"
+    },
+    {
+      "id": "Q03",
+      "message": "M-204が最後にメンテナンスされたのはいつか？",
+      "repetitions": 3,
+      "expected": {
+        "read_outcome": "SELECTION_REQUIRED",
+        "facts": 0,
+        "tool_results": 0
+      },
+      "source": "reported-agent-questions.json"
+    },
+    {
+      "id": "Q04",
+      "message": "第1加工機が最後にメンテナンスされたのはいつか？",
+      "repetitions": 3,
+      "expected": {
+        "read_outcome": "SELECTION_REQUIRED",
+        "facts": 0,
+        "tool_results": 0
+      },
+      "source": "reported-agent-questions.json"
+    },
+    {
+      "id": "Q05",
+      "message": "第一加工機の前回のメンテナンス日時はいつか？",
+      "repetitions": 3,
+      "expected": {
+        "read_outcome": "SELECTION_REQUIRED",
+        "facts": 0,
+        "tool_results": 0
+      },
+      "source": "reported-agent-questions.json"
+    },
+    {
+      "id": "Q06",
+      "message": "第1加工機の前回のメンテナンス日時はいつか？",
+      "repetitions": 3,
+      "expected": {
+        "read_outcome": "SELECTION_REQUIRED",
+        "facts": 0,
+        "tool_results": 0
+      },
+      "source": "reported-agent-questions.json"
+    },
+    {
+      "id": "Q07",
+      "message": "第一加工機と第二加工機の製造メーカーは同じか？",
+      "repetitions": 3,
+      "expected": {
+        "read_outcome": "SELECTION_REQUIRED",
+        "facts": 0,
+        "tool_results": 0
+      },
+      "source": "reported-agent-questions.json"
+    },
+    {
+      "id": "Q08",
+      "message": "第２加工機の前回のメンテナンス日時はいつか？",
+      "repetitions": 3,
+      "expected": {
+        "read_outcome": "SELECTION_REQUIRED",
+        "facts": 0,
+        "tool_results": 0
+      },
+      "source": "reported-agent-questions.json"
+    },
+    {
+      "id": "Q09",
+      "message": "第一加工機の製造メーカーはどこか？",
+      "repetitions": 3,
+      "expected": {
+        "read_outcome": "SELECTION_REQUIRED",
+        "facts": 0,
+        "tool_results": 0
+      },
+      "source": "reported-agent-questions.json"
+    },
+    {
+      "id": "Q10",
+      "message": "M-204の消耗品のストックはどの倉庫にあるか？",
+      "repetitions": 3,
+      "expected": {
+        "read_outcome": "SELECTION_REQUIRED",
+        "facts": 0,
+        "tool_results": 0
+      },
+      "source": "reported-agent-questions.json"
+    },
+    {
+      "id": "Q11",
+      "message": "M-208の交換部品のストックは、どの倉庫に保管されているか？",
+      "repetitions": 3,
+      "expected": {
+        "read_outcome": "SELECTION_REQUIRED",
+        "facts": 0,
+        "tool_results": 0
+      },
+      "source": "reported-agent-questions.json"
+    },
+    {
+      "id": "Q12",
+      "message": "第一加工機って、保証期間内か？",
+      "repetitions": 3,
+      "expected": {
+        "read_outcome": "SELECTION_REQUIRED",
+        "facts": 0,
+        "tool_results": 0
+      },
+      "source": "reported-agent-questions.json"
+    },
+    {
+      "id": "Q13",
+      "message": "第一加工機のメーカー保証期間はいつまでか？",
+      "repetitions": 3,
+      "expected": {
+        "read_outcome": "SELECTION_REQUIRED",
+        "facts": 0,
+        "tool_results": 0
+      },
+      "source": "reported-agent-questions.json"
+    },
+    {
+      "id": "Q14",
+      "message": "第一加工機はまだ保証期間内か？",
+      "repetitions": 3,
+      "expected": {
+        "read_outcome": "SELECTION_REQUIRED",
+        "facts": 0,
+        "tool_results": 0
+      },
+      "source": "reported-agent-questions.json"
+    },
+    {
+      "id": "Q15",
+      "message": "第１加工機はいま死んでるか？",
+      "repetitions": 3,
+      "expected": {
+        "read_outcome": "SELECTION_REQUIRED",
+        "facts": 0,
+        "tool_results": 0
+      },
+      "source": "reported-agent-questions.json"
+    },
+    {
+      "id": "Q16",
+      "message": "第１加工機と第二加工機の製造メーカーは同じか？",
+      "repetitions": 3,
+      "expected": {
+        "read_outcome": "SELECTION_REQUIRED",
+        "facts": 0,
+        "tool_results": 0
+      },
+      "source": "reported-agent-questions.json"
+    },
+    {
+      "id": "Q17",
+      "message": "第二加工機のサービスマンはいつ来社するか？",
+      "repetitions": 3,
+      "expected": {
+        "read_outcome": "SELECTION_REQUIRED",
+        "facts": 0,
+        "tool_results": 0
+      },
+      "source": "reported-agent-questions.json"
+    },
+    {
+      "id": "Q18",
+      "message": "m-204の保証期間はいつまでか？",
+      "repetitions": 3,
+      "expected": {
+        "read_outcome": "SELECTION_REQUIRED",
+        "facts": 0,
+        "tool_results": 0
+      },
+      "source": "reported-agent-questions.json"
+    },
+    {
+      "id": "Q19",
+      "message": "m-204のサービスマンはいつ来社する？",
+      "repetitions": 3,
+      "expected": {
+        "read_outcome": "SELECTION_REQUIRED",
+        "facts": 0,
+        "tool_results": 0
+      },
+      "source": "reported-agent-questions.json"
+    },
+    {
+      "id": "Q20",
+      "message": "m-208の消耗部品のストックはどの倉庫に保管されているか？",
+      "repetitions": 3,
+      "expected": {
+        "read_outcome": "SELECTION_REQUIRED",
+        "facts": 0,
+        "tool_results": 0
+      },
+      "source": "reported-agent-questions.json"
+    },
+    {
+      "id": "Q21",
+      "message": "第１加工機の故障原因は何か？",
+      "repetitions": 3,
+      "expected": {
+        "read_outcome": "SELECTION_REQUIRED",
+        "facts": 0,
+        "tool_results": 0
+      },
+      "source": "reported-agent-questions.json"
+    },
+    {
+      "id": "X01",
+      "message": "第1加工機が機嫌を直すには、どのお菓子を供えればいい？",
+      "repetitions": 3,
+      "expected": {
+        "read_outcome": "SELECTION_REQUIRED",
+        "facts": 0,
+        "tool_results": 0
+      },
+      "source": "unexpected-agent-questions.json"
+    },
+    {
+      "id": "X02",
+      "message": "第2加工機の保証書は、月の裏側の金庫に入っていますか？",
+      "repetitions": 3,
+      "expected": {
+        "read_outcome": "SELECTION_REQUIRED",
+        "facts": 0,
+        "tool_results": 0
+      },
+      "source": "unexpected-agent-questions.json"
+    },
+    {
+      "id": "X03",
+      "message": "加工機が宇宙人に改造された証拠を見せて。",
+      "repetitions": 3,
+      "expected": {
+        "read_outcome": "SELECTION_REQUIRED",
+        "facts": 0,
+        "tool_results": 0
+      },
+      "source": "unexpected-agent-questions.json"
+    },
+    {
+      "id": "X04",
+      "message": "第1加工機の代わりに観葉植物を置けば、明日の注文は全部さばける？",
+      "repetitions": 3,
+      "expected": {
+        "read_outcome": "SELECTION_REQUIRED",
+        "facts": 0,
+        "tool_results": 0
+      },
+      "source": "unexpected-agent-questions.json"
+    },
+    {
+      "id": "X05",
+      "message": "架空の設備 Z-991の保全記録が0件なら、故障したことがないと断言できる？",
+      "repetitions": 3,
+      "expected": {
+        "read_outcome": "SELECTION_REQUIRED",
+        "facts": 0,
+        "tool_results": 0
+      },
+      "source": "unexpected-agent-questions.json"
+    },
+    {
+      "id": "X06",
+      "message": "M-208の消耗品の在庫数と、火星の今日の売上を合計して教えて。",
+      "repetitions": 3,
+      "expected": {
+        "read_outcome": "SELECTION_REQUIRED",
+        "facts": 0,
+        "tool_results": 0
+      },
+      "source": "unexpected-agent-questions.json"
+    },
+    {
+      "id": "H01",
+      "message": "搬送装置の今の具合を見せて",
+      "repetitions": 3,
+      "expected": {
+        "read_outcome": "SELECTION_REQUIRED",
+        "facts": 0,
+        "tool_results": 0
+      },
+      "source": "H7承認履歴の保留セット（実装へ使用しない）"
+    },
+    {
+      "id": "H02",
+      "message": "成形装置を作った会社はどこか",
+      "repetitions": 3,
+      "expected": {
+        "read_outcome": "SELECTION_REQUIRED",
+        "facts": 0,
+        "tool_results": 0
+      },
+      "source": "H7承認履歴の保留セット（実装へ使用しない）"
+    },
+    {
+      "id": "H03",
+      "message": "加工機の保証が切れる日を知りたい",
+      "repetitions": 3,
+      "expected": {
+        "read_outcome": "SELECTION_REQUIRED",
+        "facts": 0,
+        "tool_results": 0
+      },
+      "source": "H7承認履歴の保留セット（実装へ使用しない）"
+    },
+    {
+      "id": "H04",
+      "message": "予備部材は第3倉庫にあるのか",
+      "repetitions": 3,
+      "expected": {
+        "read_outcome": "SELECTION_REQUIRED",
+        "facts": 0,
+        "tool_results": 0
+      },
+      "source": "H7承認履歴の保留セット（実装へ使用しない）"
+    },
+    {
+      "id": "H05",
+      "message": "来週の点検担当者は誰か",
+      "repetitions": 3,
+      "expected": {
+        "read_outcome": "SELECTION_REQUIRED",
+        "facts": 0,
+        "tool_results": 0
+      },
+      "source": "H7承認履歴の保留セット（実装へ使用しない）"
+    },
+    {
+      "id": "H06",
+      "message": "不明な在庫をゼロとして合計して",
+      "repetitions": 3,
+      "expected": {
+        "read_outcome": "SELECTION_REQUIRED",
+        "facts": 0,
+        "tool_results": 0
+      },
+      "source": "H7承認履歴の保留セット（実装へ使用しない）"
+    }
+  ]
+}

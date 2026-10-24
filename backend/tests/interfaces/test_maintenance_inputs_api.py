@@ -10,7 +10,7 @@ from agent.test_read_agent import ScriptedLLM
 from domain.test_maintenance_inputs import payload
 from fastapi.testclient import TestClient
 
-from interfaces.agent_read_support import selected_input_summary
+from interfaces.agent_read_support import explicit_message, selected_input_summary
 from linescope.demo_seed import DEMO_EQUIPMENT, seed_demo
 from linescope.domain.canonical import canonical_hash, canonical_json
 from linescope.domain.snapshot import CanonicalSnapshot
@@ -133,7 +133,11 @@ def test_create_approve_execute_read_and_retry_keep_fixed_ids_and_atomic_history
     llm = ScriptedLLM(LLMReply("将来故障率は90%です", ()))
     with TestClient(create_app(settings(), world, llm=llm)) as agent_client:
         result = agent_client.post(
-            "/agent", json={"message": "M-204の対応計画の入力は？"}, headers=headers()
+            "/agent",
+            json=explicit_message(
+                "M-204の対応計画の入力は？", "maintenance_input", DEMO_EQUIPMENT[0][0]
+            ),
+            headers=headers(),
         )
         assert result.status_code == 200
         data = result.json()

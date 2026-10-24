@@ -102,23 +102,18 @@ def test_cli_ingestion_to_authenticated_agent_citation(world, monkeypatch, capsy
         )
         assert model_response.status_code == 200
         pending = model_response.json()
-        assert pending["data"]["read_clarification"]["status"] == "PENDING"
+        assert pending["data"]["answer_sections"]["read_outcome"] == "SELECTION_REQUIRED"
         assert pending["data"]["tool_results"] == []
+        # The existing explicit document contract remains independently usable.
         confirmed = client.post(
             "/agent",
             headers={"Authorization": "Bearer read-token"},
-            json={
-                "message": "M-204 保全資料を調べて",
-                "context_id": pending["context_id"],
-                "read_confirmation": "ACCEPT",
-            },
+            json={"message": "文書検索：M-204"},
         )
     assert confirmed.status_code == 200
     observed = confirmed.json()
-    assert observed["data"]["read_clarification"]["status"] == "ACCEPTED"
-    assert observed["status"] == "partial"
-    assert observed["data"]["tool_results"][0]["tool"] == "retrieve_knowledge"
-    assert observed["evidence"]["tool_results"][0]["citations"] == [item["citation"]]
+    assert observed["evidence"]["citations"] == [item["citation"]]
+    assert not llm.requests and not llm.planning_requests
 
 
 def test_new_version_excludes_old_candidates(world):

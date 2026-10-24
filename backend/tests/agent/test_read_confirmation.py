@@ -104,16 +104,31 @@ def setup(*, invalid=False, clock=None):
 
 
 def pending(**kwargs):
+    from linescope.agent.read_catalog import CATALOG_VERSION
+    from linescope.agent.read_confirmation import original_hash
+    from linescope.agent.read_scope import ReadScope
+
     context, reads, store, app, request = setup(**kwargs)
-    first = app.run(context, request)
-    assert first.analysis.needs_input and first.analysis.read_clarification["status"] == "PENDING"
-    assert all(name == "search_equipment" for name, _ in reads.calls)
+    saved = {
+        "kind": "READ_SCOPE",
+        "closed": False,
+        "hash": original_hash(request),
+        "catalog_version": CATALOG_VERSION,
+        "scope": ReadScope(
+            ("STATE",),
+            ({"entity_type": "Equipment", "reference": "E-7"},),
+            requested_fields=("registered_state",),
+        ),
+        "targets": [{"entity_type": "Equipment", "entity_id": EQUIPMENT}],
+        "clarification": {"kind": "READ_SCOPE", "status": "PENDING"},
+    }
+    identity = store.create(context, {"read_scope": saved, "messages": []})
     return (
         context,
         reads,
         store,
         app,
-        replace(request, context_id=first.context_id, read_confirmation="ACCEPT"),
+        replace(request, context_id=identity, read_confirmation="ACCEPT"),
     )
 
 
@@ -126,24 +141,27 @@ def test_u01_invalid_source_span_never_grants_read():
     context, reads, _, app, request = setup(invalid=True)
     result = app.run(context, request)
     assert result.analysis.read_clarification is None
-    assert result.analysis.answer_sections["verification"]["stage"] == "SOURCE_SPANS"
-    assert result.analysis.answer_sections["verification"]["reason"] == "SPAN_TEXT_ABSENT"
+    assert result.analysis.answer_sections["read_outcome"] == "SELECTION_REQUIRED"
+    assert reads.calls == []
     assert all(tool == "search_equipment" for tool, _ in reads.calls)
 
 
 def test_u02_unexplained_attribute_is_not_dropped():
     context, reads, _, app, request = setup()
     result = app.run(context, replace(request, message="E-7の保証の登録状態は？"))
-    assert not result.analysis.answer_sections["facts"]
+    assert all(
+        f["predicate"] == "equipment.identity" for f in result.analysis.answer_sections["facts"]
+    )
     assert all(tool == "search_equipment" for tool, _ in reads.calls)
 
 
-def test_u03_literal_value_uses_code_and_real_target():
+def test_u03_literal_text_does_not_bypass_public_selection():
     context, reads, _, app, request = setup()
     result = app.run(context, replace(request, message="E-7の登録状態は？"))
-    assert not result.analysis.needs_input and result.analysis.read_clarification is None
-    assert any(tool == "get_equipment_state" for tool, _ in reads.calls)
-    assert "STOPPED" in result.analysis.answer
+    assert result.analysis.needs_input and result.analysis.read_clarification is None
+    assert result.analysis.answer_sections["facts"] == []
+    assert result.analysis.answer_sections["read_outcome"] == "SELECTION_REQUIRED"
+    assert reads.calls == []
 
 
 def test_u04_competing_field_meanings_require_confirmation(monkeypatch):
@@ -151,7 +169,8 @@ def test_u04_competing_field_meanings_require_confirmation(monkeypatch):
     assert literal_read("E-7の登録状態は？") is None
     context, reads, _, app, request = setup()
     result = app.run(context, replace(request, message="E-7の登録状態は？"))
-    assert result.analysis.read_clarification["status"] == "PENDING"
+    assert result.analysis.read_clarification is None
+    assert result.analysis.answer_sections["read_outcome"] == "SELECTION_REQUIRED"
     assert all(tool == "search_equipment" for tool, _ in reads.calls)
 
 
@@ -159,8 +178,11 @@ def test_u05_wrong_answer_type_is_not_a_literal_value():
     assert literal_read("E-7の登録状態はいつ？") is None
     context, reads, _, app, request = setup()
     result = app.run(context, replace(request, message="E-7の登録状態はいつ？"))
-    assert result.analysis.read_clarification["status"] == "PENDING"
-    assert not result.analysis.answer_sections["facts"]
+    assert result.analysis.read_clarification is None
+    assert result.analysis.answer_sections["read_outcome"] == "SELECTION_REQUIRED"
+    assert all(
+        f["predicate"] == "equipment.identity" for f in result.analysis.answer_sections["facts"]
+    )
 
 
 def test_u06_technical_flag_excluded_without_changing_direct_read():
@@ -173,7 +195,7 @@ def test_u06_technical_flag_excluded_without_changing_direct_read():
     assert Reads().schemas()["get_equipment"] == {"type": "object"}
 
 
-def test_u07_accept_bypasses_prepare_and_rechecks_current_read():
+def test_u07_legacy_accept_cannot_bypass_policy_with_retry_header():
     context, reads, _, app, request = pending()
     body = {
         "message": request.message,
@@ -181,12 +203,10 @@ def test_u07_accept_bypasses_prepare_and_rechecks_current_read():
         "read_confirmation": "ACCEPT",
     }
     request = AgentInput.parse(context, json.dumps(body), received_at="2026-10-22T00:00:00Z")
-    # proposals has no find_by_retry: reaching it would fail, even with a retry header.
-    result = app.run(context, request, retry_requested=True)
-    assert result.analysis.read_clarification["status"] == "ACCEPTED"
-    assert "元の質問" in result.analysis.read_clarification["limitation"]
-    assert any(tool == "get_equipment_state" for tool, _ in reads.calls)
-    assert not result.analysis.needs_input
+    with pytest.raises(ToolError) as error:
+        app.run(context, request, retry_requested=True)
+    assert error.value.code == "CONTEXT_EXPIRED"
+    assert reads.calls == []
 
 
 def test_u09_other_owner_cannot_accept():
@@ -226,11 +246,11 @@ def test_u12_catalog_version_change_cannot_accept():
     assert error.value.code == "CONTEXT_EXPIRED" and len(reads.calls) == before
 
 
-def test_u13_definition_does_not_read_selected_equipment():
+def test_u13_definition_text_does_not_read_selected_equipment():
     context, reads, _, app, request = setup()
     result = app.run(
         context, replace(request, message="調査対象の設備コードはE-7です。\n登録状態って何？")
     )
-    assert reads.calls == [] and not result.analysis.needs_input
+    assert reads.calls == [] and result.analysis.needs_input
     assert result.analysis.answer_sections["facts"] == []
-    assert result.analysis.answer_sections["definitions"][0]["source"] == "CAPABILITY_CATALOG"
+    assert result.analysis.read_catalog is not None

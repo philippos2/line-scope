@@ -151,8 +151,8 @@ def test_u16_unstructured_model_plan_is_not_an_http_500(equipment):
         )
     assert response.status_code == 200
     data = response.json()["data"]
-    assert data["answer_sections"]["read_outcome"] == "UNVERIFIABLE"
-    assert data["answer_sections"]["verification"]["stage"] == "PLAN_SHAPE"
+    assert data["answer_sections"]["read_outcome"] == "SELECTION_REQUIRED"
+    assert data["read_catalog"]["entries"]
     assert data["tool_results"] == [] and data["answer_sections"]["facts"] == []
 
 

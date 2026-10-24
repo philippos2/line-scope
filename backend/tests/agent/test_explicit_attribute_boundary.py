@@ -81,7 +81,8 @@ def test_ambiguous_predicate_and_registered_record_request_are_not_rejected(ques
     reads = RecordReads()
     result = ReadAgent(reads, AgreeingModel()).run(context(), request(question))
     if confirmation:
-        assert result.read_clarification["status"] == "PENDING"
+        assert result.read_clarification is None
+        assert result.answer_sections["read_outcome"] == "UNSUPPORTED"
         assert all(tool == "search_equipment" for tool, _ in reads.calls)
     else:
         assert result.read_clarification is None
@@ -91,18 +92,13 @@ def test_ambiguous_predicate_and_registered_record_request_are_not_rejected(ques
 
 
 def test_saved_model_agreement_cannot_bypass_attribute_binding_on_accept():
-    from dataclasses import replace
+    from agent.test_read_confirmation import pending
+    from linescope.agent.read_confirmation import confirmed_read
+    from linescope.application.reads import ToolError
 
-    from linescope.agent.read_confirmation import confirmed_read, original_hash
-
-    reads = RecordReads()
-    reader = ReadAgent(reads, AgreeingModel())
-    first = reader.run(context(), request("E-7、調子はどう？"))
-    # Simulate a server-owned pending entry issued by the former policy.
-    original = request("E-7の保証期限は何か？")
-    saved = {**first.pending_read, "hash": original_hash(original)}
-    result = confirmed_read(reader, context(), replace(original, read_confirmation="ACCEPT"), saved)
-    assert result.read_clarification is None and result.pending_read is None
-    assert result.answer_sections["read_outcome"] == "UNSUPPORTED"
-    assert all(tool == "search_equipment" for tool, _ in reads.calls)
-    assert "保証期限" in result.answer
+    context, reads, store, app, original = pending()
+    saved = store.get(context, original.context_id)["read_scope"]
+    with pytest.raises(ToolError) as error:
+        confirmed_read(app.read_agent, context, original, saved)
+    assert error.value.code == "CONTEXT_EXPIRED"
+    assert reads.calls == []

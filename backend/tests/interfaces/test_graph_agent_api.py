@@ -12,7 +12,8 @@ from graph.test_neo4j_generation import graph_driver as graph_driver
 from graph.test_neo4j_generation import target as target
 from graph.test_rebuild_control import store as store
 
-from interfaces.agent_read_support import confirm_read, graph_message, readonly_schemas
+from interfaces.agent_read_support import graph_message, readonly_schemas
+from linescope.agent.read_catalog import CATALOG_VERSION
 from linescope.integrations.llm import LLMReply
 from linescope.interfaces.api import create_app
 from linescope.settings import Settings
@@ -31,16 +32,44 @@ def test_api_past_time_is_server_bound_and_not_a_historical_state_restore(world)
     )
     settings = Settings(users={"token": {"user_id": "manager1", "role": "manager"}})
     with TestClient(create_app(settings, db, llm=llm, graph_driver=driver)) as client:
-        response = confirm_read(
-            client,
-            "M-204の当時の状態と影響を調べて",
-            {"Authorization": "Bearer token"},
-            as_of="2026-10-08T09:00:00+09:00",
+        state_response = client.post(
+            "/agent",
+            json={
+                "message": "M-204の当時の状態と影響を調べて",
+                "read_selection": {
+                    "operation": "EXECUTE",
+                    "catalog_version": CATALOG_VERSION,
+                    "key": "registered_state",
+                    "targets": [{"entity_type": "Equipment", "entity_id": origin}],
+                },
+            },
+            headers={"Authorization": "Bearer token"},
         )
+        response = client.post(
+            "/agent",
+            json={
+                "message": graph_message(
+                    "trace_downstream_impact",
+                    {"target": {"entity_type": "Equipment", "entity_id": origin}},
+                ),
+                "as_of": "2026-10-08T09:00:00+09:00",
+            },
+            headers={"Authorization": "Bearer token"},
+        )
+    assert state_response.status_code == 200
     assert response.status_code == 200
     body = response.json()
     evidence = [
-        row for row in body["evidence"]["tool_results"] if row["tool"] != "search_equipment"
+        next(
+            row
+            for row in state_response.json()["evidence"]["tool_results"]
+            if row["tool"] == "get_equipment_state"
+        ),
+        next(
+            row
+            for row in body["evidence"]["tool_results"]
+            if row["tool"] == "trace_downstream_impact"
+        ),
     ]
     assert evidence[1]["as_of"] == "2026-10-08T00:00:00.000000Z"
     assert evidence[1]["analysis_mode"] == "EXPLICIT_HISTORICAL"
@@ -54,7 +83,7 @@ def test_api_past_time_is_server_bound_and_not_a_historical_state_restore(world)
         )
         == 2
     )
-    assert evidence[0]["request_temporal_scope"] == "CURRENT_STATE_AT_OBSERVATION"
+    assert "requested_as_of" not in evidence[0]  # Typed H7 reads are current, not historical.
     assert evidence[1]["request_temporal_scope"] == "CURRENT_REGISTRATION_AT_AS_OF"
     assert "完全復元ではありません" in body["answer"]
     assert not llm.requests  # The code binds the time; model-written Tool arguments are not used.

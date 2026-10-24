@@ -102,9 +102,10 @@ def test_untrusted_llm_arguments_through_http_do_not_change_sql_structure(world,
         )
     assert response.status_code == 200
     rows = response.json()["data"]["tool_results"]
-    assert len(rows) == 1 and all(row["tool"] == "search_equipment" for row in rows)
-    assert all(row["data"] == {"items": [], "next_cursor": None} for row in rows)
-    assert response.json()["data"]["answer_sections"]["read_outcome"] == "TARGET_NOT_FOUND"
+    # Free text no longer executes model-selected SQL tools. The parameterized
+    # real SQL attack tests above continue to cover the literal search contract.
+    assert rows == [] and not llm.requests and not llm.planning_requests
+    assert response.json()["data"]["answer_sections"]["read_outcome"] == "SELECTION_REQUIRED"
     assert snapshot(world) == before
 
 

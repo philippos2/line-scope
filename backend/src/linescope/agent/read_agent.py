@@ -58,6 +58,8 @@ class ReadAgentResult:
     answer_sections: dict | None = None
     read_clarification: dict | None = None
     pending_read: dict | None = None
+    read_catalog: dict | None = None
+    read_selection: dict | None = None
 
 
 def equipment_search_key(arguments):
@@ -161,6 +163,12 @@ class ReadAgent:
                 ReadObservation(call_id, command["tool"], result, command["arguments"]),
             )
             answer, sections = build_answer(observations)
+            if request.explicit_as_of:
+                note = "指定時刻について現在登録情報を評価しています。当時の状態の完全復元ではありません。"
+                answer = note + "\n" + answer
+                sections["unavailable"].append(
+                    {"code": "CURRENT_REGISTRATION_ONLY", "text": note, "references": []}
+                )
             return ReadAgentResult(
                 answer,
                 observations,

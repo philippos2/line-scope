@@ -30,17 +30,19 @@ class AgentInput:
     replace_update_request_id: str | None
     retry_key: str
     read_confirmation: str | None = None
+    read_selection: dict | None = None
 
     @property
     def input_hash(self):
-        return canonical_hash(
-            {
-                "message": self.message,
-                "explicit_as_of": self.explicit_as_of,
-                "context_id": self.context_id,
-                "replace_update_request_id": self.replace_update_request_id,
-            }
-        )
+        value = {
+            "message": self.message,
+            "explicit_as_of": self.explicit_as_of,
+            "context_id": self.context_id,
+            "replace_update_request_id": self.replace_update_request_id,
+        }
+        if self.read_selection is not None:
+            value["read_selection"] = self.read_selection
+        return canonical_hash(value)
 
     @classmethod
     def parse(cls, context, body, *, received_at, idempotency_key=None):
@@ -53,6 +55,7 @@ class AgentInput:
                 "as_of",
                 "replace_update_request_id",
                 "read_confirmation",
+                "read_selection",
             }:
                 raise ValueError("Invalid Agent fields")
             message = data.get("message")
@@ -74,6 +77,21 @@ class AgentInput:
                 or replacement is not None
             ):
                 raise ValueError("Invalid Read confirmation")
+            selection = None
+            if "read_selection" in data:
+                from .explicit_read import parse_selection
+
+                if any(
+                    field in data
+                    for field in (
+                        "context_id",
+                        "read_confirmation",
+                        "replace_update_request_id",
+                        "as_of",
+                    )
+                ):
+                    raise ValueError("Explicit read cannot mix workflows")
+                selection = parse_selection(data["read_selection"])
             observed = normalize_timestamp(received_at)
             as_of = normalize_timestamp(data["as_of"]) if "as_of" in data else None
             if as_of is not None and datetime.fromisoformat(as_of) > datetime.fromisoformat(
@@ -81,7 +99,7 @@ class AgentInput:
             ):
                 raise ValueError("Future analysis time is not permitted")
             key = normalize_uuid(idempotency_key) if idempotency_key is not None else str(uuid4())
-            return cls(message, context_id, as_of, replacement, key, confirmation)
+            return cls(message, context_id, as_of, replacement, key, confirmation, selection)
         except (ValueError, TypeError) as error:
             raise ProposalError("INVALID_ARGUMENT", "Invalid Agent request") from error
 

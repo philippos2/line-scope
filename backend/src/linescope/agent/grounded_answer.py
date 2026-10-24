@@ -131,6 +131,7 @@ def build_answer(
     question=None,
     identification_only=False,
     identity_verified=False,
+    selected_fields=None,
 ):
     """Only server adapters create facts. Selection names existing request-local fact IDs."""
     scope_blocked = bool(scope and scope.scope_issue)
@@ -138,7 +139,11 @@ def build_answer(
     truncated = False
     question_mode = bool(scope and question)
     requested_attributes = (
-        explicitly_requested_attributes(scope, question) if question_mode else set()
+        set(selected_fields)
+        if selected_fields is not None
+        else explicitly_requested_attributes(scope, question)
+        if question_mode
+        else set()
     )
     identity_answered = False
     public_question = UUID_TEXT.sub("IDで指定した対象", question) if question else None

@@ -11,12 +11,24 @@ const base: Envelope = {
   context_id: null,
   status: "ok",
   answer: "取得した回答",
-  data: {},
+  data: {
+    read_catalog: { version: "h7-1", entries: [] },
+    answer_sections: {
+      version: 1,
+      facts: [],
+      unavailable: [],
+      scope: [],
+      read_outcome: "SELECTION_REQUIRED",
+    },
+  },
   evidence: { source: "server" },
   warnings: [],
   errors: [],
 };
-const reply = (data = base) => new Response(JSON.stringify(data));
+const reply = (data = base) =>
+  new Response(
+    JSON.stringify({ ...data, data: { ...base.data, ...data.data } }),
+  );
 function stubFetch(fetcher: (url: string, init: RequestInit) => unknown) {
   vi.stubGlobal("fetch", (url: string, init: RequestInit) => {
     if (url === "/api/session")
@@ -185,13 +197,17 @@ it("selects equipment through the common search, loads relationships directly an
   await user.click(screen.getByRole("button", { name: "送信" }));
   await waitFor(() =>
     expect(
-      fetcher.mock.calls.some(([, init]) =>
-        String(init.body).includes("調査対象の設備コードはM-208"),
+      fetcher.mock.calls.some(
+        ([, init]) =>
+          !!init.body &&
+          JSON.parse(String(init.body)).message === "この設備の状態は？",
       ),
     ).toBe(true),
   );
-  const call = fetcher.mock.calls.find(([, init]) =>
-    String(init.body).includes("調査対象の設備コードはM-208"),
+  const call = fetcher.mock.calls.find(
+    ([, init]) =>
+      !!init.body &&
+      JSON.parse(String(init.body)).message === "この設備の状態は？",
   )!;
   expect(JSON.parse(String(call[1].body)).context_id).toBeUndefined();
   const question = "第１加工機の前回のメンテナンス日時はいつか？";
@@ -204,8 +220,7 @@ it("selects equipment through the common search, loads relationships directly an
       fetcher.mock.calls.some(
         ([, init]) =>
           typeof init.body === "string" &&
-          JSON.parse(init.body).message ===
-            `調査対象の設備コードはM-208です。\n${question}`,
+          JSON.parse(init.body).message === question,
       ),
     ).toBe(true),
   );
@@ -321,14 +336,13 @@ it("does not describe a pending question as a pending login in connection settin
     ).toBeNull(),
   );
 });
-it("U08 rejects a read scope without reading it and ignores a late reply after editing", async () => {
+it("U08 refuses legacy interpretation responses and ignores a late one after editing", async () => {
   let finish: (value: Response) => void = () => {};
   const sent: Record<string, unknown>[] = [];
   const pending: Envelope = {
     ...base,
     context_id: "pending-read",
     data: {
-      needs_input: true,
       read_clarification: {
         kind: "READ_SCOPE",
         status: "PENDING",
@@ -341,23 +355,20 @@ it("U08 rejects a read scope without reading it and ignores a late reply after e
   };
   stubFetch((url, init) => {
     if (url !== "/api/agent") return Promise.resolve(reply());
-    const body = JSON.parse(String(init.body));
-    sent.push(body);
-    if (body.read_confirmation === "REJECT")
-      return new Promise<Response>((resolve) => {
-        finish = resolve;
-      });
-    return Promise.resolve(reply(pending));
+    sent.push(JSON.parse(String(init.body)));
+    if (sent.length === 1) return Promise.resolve(reply(pending));
+    return new Promise<Response>((resolve) => {
+      finish = resolve;
+    });
   });
   render(<App />);
   const user = await connect();
   const input = screen.getByLabelText("関係や影響について質問する");
   await user.type(input, "対象は動いてる？");
   await user.click(screen.getByRole("button", { name: "送信" }));
-  await screen.findByRole("button", { name: "この範囲を調べる" });
-  await user.click(screen.getByRole("button", { name: "違う・質問を直す" }));
-  expect(document.activeElement).toBe(input);
-  expect((input as HTMLTextAreaElement).value).toBe("対象は動いてる？");
+  await screen.findByRole("alert");
+  expect(screen.queryByRole("button", { name: "この範囲を調べる" })).toBeNull();
+  await user.click(screen.getByRole("button", { name: "送信" }));
   await user.type(input, "別の意味です");
   finish(reply(pending));
   await waitFor(() =>
@@ -365,9 +376,6 @@ it("U08 rejects a read scope without reading it and ignores a late reply after e
       screen.queryByRole("button", { name: "この範囲を調べる" }),
     ).toBeNull(),
   );
-  expect(sent.map((body) => body.read_confirmation)).toEqual([
-    undefined,
-    "REJECT",
-  ]);
+  expect(sent.every((body) => body.read_confirmation === undefined)).toBe(true);
   expect((input as HTMLTextAreaElement).value).toContain("別の意味です");
 });

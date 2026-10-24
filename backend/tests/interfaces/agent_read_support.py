@@ -85,3 +85,18 @@ def selected_input_summary(database, context, family, identifier):
     answer, sections = build_answer((observation,))
     assert sections["facts"]
     return answer, result
+
+
+def explicit_message(message, key, equipment_id):
+    """An independently selected H7 request; text never selects its field or target."""
+    from linescope.agent.read_catalog import CATALOG_VERSION
+
+    return {
+        "message": message,
+        "read_selection": {
+            "operation": "EXECUTE",
+            "catalog_version": CATALOG_VERSION,
+            "key": key,
+            "targets": [{"entity_type": "Equipment", "entity_id": str(equipment_id)}],
+        },
+    }

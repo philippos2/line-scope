@@ -52,30 +52,26 @@ def test_only_plausible_read_meaning_can_be_offered_for_confirmation(
     reads = Reads()
     result = ReadAgent(reads, MeaningReview(verdict)).run(context(), request(question))
     assert all(tool == "search_equipment" for tool, _ in reads.calls)
-    if confirmation:
-        assert result.read_clarification["status"] == "PENDING"
-        assert result.read_clarification["original_question"] == question
-    else:
-        assert result.read_clarification is None
-        assert result.pending_read is None
-        assert result.answer_sections["unavailable"]
-        assert result.answer_sections["read_outcome"] in {"UNSUPPORTED", "UNVERIFIABLE"}
-        assert {f["predicate"] for f in result.answer_sections["facts"]} == {"equipment.identity"}
+    assert result.read_clarification is None
+    assert result.pending_read is None
+    assert result.answer_sections["unavailable"]
+    assert result.answer_sections["read_outcome"] in {"UNSUPPORTED", "UNVERIFIABLE"}
+    assert {f["predicate"] for f in result.answer_sections["facts"]} == {"equipment.identity"}
+    if requested_information:
         assert requested_information in result.answer
 
 
 def test_rejected_saved_scope_cannot_be_executed_by_accepting_it():
     from dataclasses import replace
 
+    from agent.test_read_confirmation import pending
     from linescope.agent.read_confirmation import confirmed_read
+    from linescope.application.reads import ToolError
 
-    reads = Reads()
-    reader = ReadAgent(reads, MeaningReview("MATCH"))
-    original = request("E-7、動いている？")
-    first = reader.run(context(), original)
-    saved = dict(first.pending_read)
+    context, reads, store, app, original = pending()
+    saved = store.get(context, original.context_id)["read_scope"]
     saved["scope"] = replace(saved["scope"], scope_issue="MISMATCH")
-    result = confirmed_read(reader, context(), replace(original, read_confirmation="ACCEPT"), saved)
-    assert result.read_clarification is None and result.pending_read is None
-    assert result.answer_sections["read_outcome"] == "UNVERIFIABLE"
-    assert all(tool == "search_equipment" for tool, _ in reads.calls)
+    with pytest.raises(ToolError) as error:
+        confirmed_read(app.read_agent, context, original, saved)
+    assert error.value.code == "CONTEXT_EXPIRED"
+    assert reads.calls == []

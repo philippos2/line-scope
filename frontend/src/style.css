@@ -1711,3 +1711,21 @@ button[aria-busy="true"] {
 .operation-completion > details {
   margin: 16px 0;
 }
+
+.explicit-read > label {
+  display: grid;
+  gap: 0.5rem;
+  margin: 1rem 0;
+}
+.explicit-read select {
+  font: inherit;
+  color: inherit;
+  background: var(--panel, #172630);
+  padding: 0.65rem;
+  border: 1px solid #344b58;
+  border-radius: 0.35rem;
+  max-width: 100%;
+}
+.explicit-read > button {
+  margin: 0.35rem 0.5rem 0.35rem 0;
+}

@@ -4,7 +4,8 @@ import pytest
 from agent.test_read_agent import ScriptedLLM, call
 from fastapi.testclient import TestClient
 
-from interfaces.agent_read_support import selected_input_summary
+from interfaces.agent_read_support import explicit_message, selected_input_summary
+from interfaces.test_capacity_inputs_api import DEMO_EQUIPMENT
 from interfaces.test_economic_inputs_api import (
     approve,
     body,
@@ -124,7 +125,11 @@ def test_agent_uses_registered_tools_and_deterministic_unknown_summary_without_p
         record = registered(client)
     llm = ScriptedLLM(LLMReply("すべて安全で交換が最適です", ()))
     with TestClient(create_app(api_settings(), world, llm=llm)) as client:
-        result = client.post("/agent", json={"message": "M-204の経済入力は？"}, headers=headers())
+        result = client.post(
+            "/agent",
+            json=explicit_message("M-204の経済入力は？", "economic_input", DEMO_EQUIPMENT[0][0]),
+            headers=headers(),
+        )
         assert result.status_code == 200
         data = result.json()
         candidates = next(
@@ -151,14 +156,14 @@ def test_agent_denied_economic_read_cannot_publish_unverified_costs(world):
     llm = ScriptedLLM(call("search_economic_inputs", {"filter": {}}), LLMReply("費用は0円です", ()))
     with TestClient(create_app(api_settings(), world, llm=llm)) as client:
         result = client.post(
-            "/agent", json={"message": "M-204の経済入力は？"}, headers=headers("floor")
+            "/agent",
+            json=explicit_message("M-204の経済入力は？", "economic_input", DEMO_EQUIPMENT[0][0]),
+            headers=headers("floor"),
         ).json()
-    assert result["status"] == "partial"
-    assert result["warnings"][0]["code"] == "AUTHORIZATION_DENIED"
-    assert {row["tool"] for row in result["data"]["tool_results"]} == {"search_equipment"}
-    assert "費用は0円" not in result["answer"]
-    assert "特定できません" not in result["answer"]
-    assert "Demo machine M-204（M-204）のことですね" in result["answer"]
+    assert result["errors"][0]["code"] == "AUTHORIZATION_DENIED"
+    assert result["data"]["tool_results"] == []
+    assert result["answer"] is None  # Denial publishes neither identity nor costs.
+    assert result["data"]["answer_sections"]["facts"] == []
     assert result["data"]["answer_sections"]["read_outcome"] == "INCOMPLETE"
 
 

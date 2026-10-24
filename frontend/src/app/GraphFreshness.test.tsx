@@ -35,7 +35,17 @@ const envelope = (data: Record<string, unknown>) =>
       context_id: null,
       status: "ok",
       answer: "取得済み",
-      data,
+      data: {
+        read_catalog: { version: "h7-1", entries: [] },
+        answer_sections: {
+          version: 1,
+          facts: [],
+          unavailable: [],
+          scope: [],
+          read_outcome: "SELECTION_REQUIRED",
+        },
+        ...data,
+      },
       evidence: { graph_generation: "g1" },
       warnings: [],
       errors: [],

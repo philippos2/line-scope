@@ -46,7 +46,9 @@ class AgentApplication:
         dependency=None,
         knowledge=None,
         structured=None,
+        explicit_reads=None,
     ):
+        self.explicit_reads = explicit_reads
         self.proposals = proposals
         self.conversations = conversations
         self.commands = (
@@ -69,6 +71,10 @@ class AgentApplication:
             raise ToolError("AUTHENTICATION_REQUIRED", "Trusted execution context is required")
         if not isinstance(incoming, AgentInput) or type(retry_requested) is not bool:
             raise ToolError("INVALID_ARGUMENT", "Validated Agent input is required")
+        if incoming.read_selection is not None:
+            if self.explicit_reads is None:
+                raise ToolError("DEPENDENCY_UNAVAILABLE", "Explicit reads are unavailable")
+            return AnalyzedAgentResult(self.explicit_reads.run(context, incoming), None)
         if incoming.read_confirmation is not None:
             return self._confirmed_read(context, incoming)
         if retry_requested:
@@ -91,8 +97,12 @@ class AgentApplication:
             return self.knowledge.run(context, incoming)
         if self.decision_flow is not None and self.decision_flow.matches(incoming.message):
             return self.decision_flow.run(context, incoming)
+        if not incoming.message.startswith("関係分析 "):
+            from ..agent.explicit_read import selection_required
+
+            return AnalyzedAgentResult(selection_required(), None)
         if self.read_agent is None:
-            raise ToolError("DEPENDENCY_UNAVAILABLE", "LLM is not configured")
+            raise ToolError("DEPENDENCY_UNAVAILABLE", "Explicit graph reads are unavailable")
         read_input = incoming
         if incoming.explicit_as_of is None and conversation.get("explicit_as_of"):
             read_input = replace(incoming, explicit_as_of=conversation["explicit_as_of"])

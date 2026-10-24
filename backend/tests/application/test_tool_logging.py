@@ -7,6 +7,7 @@ import pytest
 from agent.test_agent_tools import Dispatcher, session
 from agent.test_read_agent import AdmittedPlanAgent, ScriptedLLM, call, request
 from fastapi.testclient import TestClient
+from interfaces.agent_read_support import explicit_message
 
 from linescope.application.reads import ToolError
 from linescope.demo_seed import DEMO_EQUIPMENT, seed_demo
@@ -288,7 +289,9 @@ def test_http_threadpool_tool_and_envelope_share_server_request_id(db):
     with TestClient(create_app(settings, db, events, llm=llm)) as client:
         result = client.post(
             "/agent",
-            json={"message": f"{SECRET}の登録状態は？"},
+            json=explicit_message(
+                f"{SECRET}の登録状態は？", "registered_state", DEMO_EQUIPMENT[0][0]
+            ),
             headers={"Authorization": "Bearer " + SECRET, "X-Request-ID": SECRET},
         )
     assert result.status_code == 200
@@ -299,7 +302,7 @@ def test_http_threadpool_tool_and_envelope_share_server_request_id(db):
     ]
     assert len(relevant) == 3
     assert [row["tool"] for row in relevant if row["component"] == "tool"] == [
-        "search_equipment",
+        "get_equipment",
         "get_equipment_state",
     ]
     assert {row["request_id"] for row in relevant} == {result.json()["request_id"]}

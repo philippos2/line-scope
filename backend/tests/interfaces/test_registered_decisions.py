@@ -98,10 +98,9 @@ def test_golden_registered_stop_cost_capacity_plan_and_evidence_without_writes(
             headers=auth(),
         )
         assert result.status_code == 200 and "安全保証" not in result.json()["answer"]
-        assert result.json()["status"] == "partial"
-        assert "候補から除外" in result.json()["answer"]
-        assert result.json()["data"]["tool_results"][0]["tool"] == "compare_registered_inputs"
-    assert len(model.requests) == 1  # The verified comparison needs no second model generation.
+        assert result.json()["data"]["answer_sections"]["read_outcome"] == "SELECTION_REQUIRED"
+        assert result.json()["data"]["tool_results"] == []
+    assert not model.requests and not model.planning_requests
     temporal_model = ScriptedLLM(
         call("compare_registered_inputs", selection), LLMReply("当時の状態を復元しました", ())
     )
@@ -126,7 +125,8 @@ def test_golden_registered_stop_cost_capacity_plan_and_evidence_without_writes(
         ).json()
         assert not response["data"].get("tool_results")
         assert response["data"]["needs_input"] is True
-        assert response["warnings"][0]["code"] == "INVALID_ARGUMENT"
+        assert response["data"]["answer_sections"]["read_outcome"] == "SELECTION_REQUIRED"
+        assert not tampered_model.requests and not tampered_model.planning_requests
     assert counts(db) == before
 
 

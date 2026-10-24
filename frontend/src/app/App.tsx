@@ -1,3 +1,4 @@
+import { ExplicitRead } from "./ExplicitRead";
 import { RegisteredAnswer } from "./RegisteredAnswer";
 import {
   ReadFeedback,
@@ -61,6 +62,8 @@ export function App() {
   const [comparisonResult, setComparisonResult] = useState<Envelope | null>(
     null,
   );
+  const [documentEquipment, setDocumentEquipment] =
+    useState<EquipmentCandidate | null>(null);
   const [documentResult, setDocumentResult] = useState<Envelope | null>(null);
   const [documentBusy, setDocumentBusy] = useState(false);
   const [documentError, setDocumentError] = useState<ReadProblem | null>(null);
@@ -99,6 +102,7 @@ export function App() {
   const freshContext = useRef(false);
   const messageInput = useRef<HTMLTextAreaElement>(null);
   const [equipment, setEquipment] = useState<EquipmentCandidate | null>(null);
+  const documentSubject = documentEquipment ?? equipment;
   const [decisionEquipment, setDecisionEquipment] =
     useState<EquipmentCandidate | null>(null);
   const retry = useRef<{ body: string; key: string } | null>(null);
@@ -169,6 +173,7 @@ export function App() {
   }, [connected]);
   useEffect(() => {
     documentRequest.current?.abort();
+    setDocumentEquipment(null);
     setDocumentResult(null);
     setDocumentObservation(null);
     setDocumentError(null);
@@ -364,14 +369,7 @@ export function App() {
     if (!text.startsWith("関係分析 ")) setMessage(text);
     setStale(true);
     const body = {
-      message: selection
-        ? `登録入力で比較 ${JSON.stringify(selection)}`
-        : equipment &&
-            !text.startsWith("関係分析 ") &&
-            !text.startsWith("文書検索：") &&
-            !text.startsWith("登録入力で比較 ")
-          ? `調査対象の設備コードは${equipment.equipment_code}です。\n${text}`
-          : text,
+      message: selection ? `登録入力で比較 ${JSON.stringify(selection)}` : text,
       ...(!text.startsWith("関係分析 ") &&
       !freshContext.current &&
       result?.context_id
@@ -392,6 +390,23 @@ export function App() {
           retry.current!.key,
         ),
       (value) => {
+        const machineRead =
+          !!selection ||
+          text.startsWith("関係分析 ") ||
+          text.startsWith("文書検索：") ||
+          text.startsWith("登録入力で比較 ");
+        if (
+          !machineRead &&
+          (!object(value.data.read_catalog) ||
+            !object(value.data.answer_sections) ||
+            value.data.answer_sections.read_outcome !== "SELECTION_REQUIRED" ||
+            (Array.isArray(value.data.answer_sections.facts) &&
+              value.data.answer_sections.facts.length > 0) ||
+            (Array.isArray(value.data.tool_results) &&
+              value.data.tool_results.length > 0))
+        ) {
+          throw new ApiError("INVALID_RESPONSE");
+        }
         freshContext.current = false;
         setResult(value);
         if (
@@ -566,21 +581,21 @@ export function App() {
     setStep("execution");
   }
   async function searchDocuments() {
-    if (documentBusy || !equipment) return;
+    if (documentBusy || !documentSubject) return;
     documentRequest.current?.abort();
     const controller = new AbortController();
     documentRequest.current = controller;
     setDocumentBusy(true);
     setDocumentError(null);
     setEvidenceKind("documents");
-    const target = equipment;
+    const target = documentSubject;
     const epoch = executionEpoch;
     try {
       const value = await request(
         "",
         "/agent",
         {
-          message: `文書検索：${equipment.equipment_code}の保全調査`,
+          message: `文書検索：${target.equipment_code}の保全調査`,
         },
         controller.signal,
       );
@@ -871,13 +886,16 @@ export function App() {
                         : "未選択（設備名・コードを質問に含めるか、上の「設備を選ぶ」を使ってください）"}
                     </p>
                     <p>
-                      質問に設備名・コードを書いた場合は、その設備を優先します。
+                      自由文は補助入力です。登録情報は対象と参照観点を選んで照会します。
                     </p>
                     {questionSelection && (
                       <p>
                         比較タブで選択した登録入力と期間を引き継いでいます。送信すると同じ条件で再比較します。質問文を編集すると通常の質問に切り替わります。
                       </p>
                     )}
+                    <p>
+                      自由文の送信では参照結果を公開せず、観点の選択を求めます。
+                    </p>
                     <form onSubmit={investigate}>
                       <label htmlFor="message">
                         関係や影響について質問する
@@ -898,7 +916,7 @@ export function App() {
                           setMessage(event.target.value);
                           setQuestionSelection(null);
                         }}
-                        placeholder="例：この設備が止まったとき、影響する工程と製品は？"
+                        placeholder="補助入力（任意）：調べたいことを残せます"
                         rows={3}
                       />
                       <button
@@ -914,7 +932,7 @@ export function App() {
                           ? "質問への応答を待っています。完了するまで再送できません。"
                           : !message.trim()
                             ? "質問が未入力のため送信できません。質問を入力してください。"
-                            : "質問に明記した設備について調べます。対象を省略した場合は画面の選択を使います。"}
+                            : "送信すると参照観点の選択へ進みます。自由文だけでは登録情報を取得しません。"}
                       </p>
                     </form>
                   </div>
@@ -1002,9 +1020,8 @@ export function App() {
                                 <div>
                                   <button
                                     type="button"
-                                    disabled={busy}
+                                    disabled
                                     aria-busy={busy}
-                                    onClick={() => void confirmRead("ACCEPT")}
                                   >
                                     この範囲を調べる
                                   </button>
@@ -1018,7 +1035,7 @@ export function App() {
                                   <p role="status">
                                     {busy
                                       ? "選んだ照会を処理しています。完了まで再送できません。"
-                                      : "まだこの範囲の値は取得していません。質問を編集することもできます。"}
+                                      : "この確認は旧方式です。登録情報の選択欄から項目と対象を選んでください。"}
                                   </p>
                                 </div>
                               )}
@@ -1034,11 +1051,42 @@ export function App() {
                         {object(result.data.read_clarification) &&
                           result.data.read_clarification.status ===
                             "DECLINED" && <p>{result.answer}</p>}
+                        {object(result.data.read_catalog) &&
+                          object(result.data.answer_sections) &&
+                          result.data.answer_sections.read_outcome ===
+                            "SELECTION_REQUIRED" && <p>{result.answer}</p>}
                         <RegisteredAnswer response={result} />
                       </section>
                     )}
                   </div>
                 </div>
+                <ExplicitRead
+                  key={`${connected}:${identity}:${equipment?.equipment_id ?? "none"}`}
+                  question={message}
+                  availableCatalog={
+                    result && object(result.data.read_catalog)
+                      ? result
+                      : undefined
+                  }
+                  equipment={equipment}
+                  connected={connected}
+                  executionEpoch={executionEpoch}
+                  onNavigate={(destination, target) => {
+                    if (destination === "comparison") {
+                      setDecisionEquipment(target);
+                      setStep("comparison");
+                    } else if (destination === "documents") {
+                      documentRequest.current?.abort();
+                      setDocumentBusy(false);
+                      setDocumentError(null);
+                      setDocumentResult(null);
+                      setDocumentObservation(null);
+                      setDocumentEquipment(target);
+                      setEvidenceKind("documents");
+                      setStep("evidence");
+                    }
+                  }}
+                />
                 {stateResult && (
                   <details>
                     <summary>取得した設備状態</summary>
@@ -1158,12 +1206,12 @@ export function App() {
                     <h2>関連文書を検索する</h2>
                     <p>
                       検索対象：
-                      {equipment
-                        ? `${equipment.equipment_name} · ${equipment.equipment_code}`
+                      {documentSubject
+                        ? `${documentSubject.equipment_name} · ${documentSubject.equipment_code}`
                         : "左の検索から設備を選んでください。"}
                     </p>
                     <button
-                      disabled={documentBusy || !equipment}
+                      disabled={documentBusy || !documentSubject}
                       aria-busy={documentBusy}
                       onClick={() => void searchDocuments()}
                     >
