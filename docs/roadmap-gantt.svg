@@ -1,8 +1,8 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1700" height="2740" viewBox="0 0 1700 2740" role="img" aria-labelledby="title desc">
+<svg xmlns="http://www.w3.org/2000/svg" width="1700" height="3030" viewBox="0 0 1700 3030" role="img" aria-labelledby="title desc">
 <title id="title">LineScope 残り3PRの時間軸ガント</title>
-<desc id="desc">#275 merge済み。残りはハルシネーション対応H、M-208電源依存F2、範囲一覧F3の3PR。上段は10月21日から26日の報告予定期間、下段は実装承認後の10作業日のH見積もり。H6は新たな承認U0後の追加5作業日を独立した時間軸で表示。未見積もりと判断待ちは時間軸の外に明示し、架空の期間を描かない。末尾はH7案の承認日S0を起点にした追加3作業日の上限側配分で、未承認の計画。</desc>
+<desc id="desc">#275 merge済み。残りはハルシネーション対応H、M-208電源依存F2、範囲一覧F3の3PR。上段は10月21日から26日の報告予定期間、下段は実装承認後の10作業日のH見積もり。H6は新たな承認U0後の追加5作業日を独立した時間軸で表示。未見積もりと判断待ちは時間軸の外に明示し、架空の期間を描かない。H7は承認済み。末尾は候補提示の追加承認P0後の2作業日の計画配分で、モデル実行の時間帯は別承認。</desc>
 <defs><marker id="arrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0 0L8 4L0 8" fill="#64748b"/></marker></defs>
-<rect width="1700" height="2740" fill="#f8fafc"/>
+<rect width="1700" height="3030" fill="#f8fafc"/>
 <g font-family="sans-serif" fill="#183247">
 <text x="30" y="43" font-size="28" font-weight="bold">LineScope：残り3PRの時間軸ガント</text>
 <text x="30" y="77" font-size="21" font-weight="bold">順序：H ハルシネーション対応 → F2 M-208電源依存 → F3 やること／やらないこと</text>
@@ -177,4 +177,17 @@
 <rect x="1180" y="2643" width="280" height="26" fill="#0369a1"/><text x="1320" y="2662" font-size="15" fill="white" text-anchor="middle">1日</text>
 <path d="M1180 2627V2635H1180V2643" fill="none" stroke="#64748b" marker-end="url(#arrow)"/>
 <text x="30" y="2715" font-size="17">青＝承認済み計画。自動40・API117・ブラウザ6を検証。Hのmerge後にF2→F3。</text>
+<text x="30" y="2765" font-size="22" font-weight="bold">6．H7追加：既存LLM分類器の未確定候補提示（承認済み）</text>
+<text x="30" y="2790" font-size="16">追加1〜2作業日。P0起点の上限2日の配分。実モデル102要求は時間枠・負荷の別承認待ち。</text>
+<text x="620" y="2815" font-size="15">P0</text><text x="1040" y="2815" font-size="15">1日</text><text x="1460" y="2815" font-size="15">2日</text>
+<path d="M620 2825V2970M1040 2825V2970M1460 2825V2970" fill="none" stroke="#cbd5e1"/>
+<text x="40" y="2850" font-size="17">Backend候補・安全境界（0.5日）</text>
+<rect x="620" y="2830" width="210" height="26" fill="#0369a1"/>
+<text x="40" y="2895" font-size="17">UI・手動選択・旧候補抑止（0.5日）</text>
+<rect x="830" y="2875" width="210" height="26" fill="#0369a1"/>
+<path d="M830 2856V2864H830V2875" fill="none" stroke="#64748b" marker-end="url(#arrow)"/>
+<text x="40" y="2940" font-size="17">回帰・API・モデル・CI・記録（1日）</text>
+<rect x="1040" y="2920" width="420" height="26" fill="#0369a1"/>
+<path d="M1040 2901V2910H1040V2920" fill="none" stroke="#64748b" marker-end="url(#arrow)"/>
+<text x="30" y="2995" font-size="16">意味理解の完成ではなく候補と確定実行を分離。モデル時間枠・CI待ちは工数外。同じ#276→F2→F3。</text>
 </svg>

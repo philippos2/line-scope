@@ -135,6 +135,14 @@ export function App() {
   }, []);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
+  const [readSuggestions, setReadSuggestions] = useState<
+    Envelope | undefined
+  >();
+  const suggestionRevision = useRef(0);
+  function invalidateSuggestions() {
+    suggestionRevision.current++;
+    setReadSuggestions(undefined);
+  }
   const [questionSelection, setQuestionSelection] = useState<JsonObject | null>(
     null,
   );
@@ -199,6 +207,7 @@ export function App() {
     setStateChoice("");
     setPendingRead(null);
     setResult(null);
+    invalidateSuggestions();
     setGraphResult(null);
     setMessage("");
     setQuestionSelection(null);
@@ -264,6 +273,7 @@ export function App() {
     setBusy(false);
     setPendingRead(null);
     setResult(null);
+    invalidateSuggestions();
     setSelected(null);
     setMessage("");
     setQuestionSelection(null);
@@ -330,6 +340,7 @@ export function App() {
         );
         setPendingRead(null);
         setResult(null);
+        invalidateSuggestions();
         setSelected(null);
         retry.current = null;
         setShowConnection(false);
@@ -377,6 +388,7 @@ export function App() {
         : {}),
     };
     setPendingRead(null);
+    const proposalRevision = suggestionRevision.current;
     const serialized = JSON.stringify(body);
     if (retry.current?.body !== serialized)
       retry.current = { body: serialized, key: crypto.randomUUID() };
@@ -408,6 +420,11 @@ export function App() {
           throw new ApiError("INVALID_RESPONSE");
         }
         freshContext.current = false;
+        setReadSuggestions(
+          !machineRead && proposalRevision === suggestionRevision.current
+            ? value
+            : undefined,
+        );
         setResult(value);
         if (
           object(value.data.read_clarification) &&
@@ -894,7 +911,7 @@ export function App() {
                       </p>
                     )}
                     <p>
-                      自由文の送信では参照結果を公開せず、観点の選択を求めます。
+                      自由文を送るとAIが参照観点の候補を提案します。候補だけでは登録情報を取得しません。
                     </p>
                     <form onSubmit={investigate}>
                       <label htmlFor="message">
@@ -913,6 +930,7 @@ export function App() {
                             setBusy(false);
                             setActiveOperation(null);
                           }
+                          invalidateSuggestions();
                           setMessage(event.target.value);
                           setQuestionSelection(null);
                         }}
@@ -932,7 +950,7 @@ export function App() {
                           ? "質問への応答を待っています。完了するまで再送できません。"
                           : !message.trim()
                             ? "質問が未入力のため送信できません。質問を入力してください。"
-                            : "送信すると参照観点の選択へ進みます。自由文だけでは登録情報を取得しません。"}
+                            : "送信するとAIの候補を確認できます。対象・項目の確定までは登録情報を取得しません。"}
                       </p>
                     </form>
                   </div>
@@ -1063,6 +1081,8 @@ export function App() {
                 <ExplicitRead
                   key={`${connected}:${identity}:${equipment?.equipment_id ?? "none"}`}
                   question={message}
+                  suggestions={readSuggestions}
+                  onInvalidateSuggestions={invalidateSuggestions}
                   availableCatalog={
                     result && object(result.data.read_catalog)
                       ? result

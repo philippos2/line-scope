@@ -100,7 +100,12 @@ class AgentApplication:
         if not incoming.message.startswith("関係分析 "):
             from ..agent.explicit_read import selection_required
 
-            return AnalyzedAgentResult(selection_required(), None)
+            result = (
+                self.read_agent.suggest(context, incoming)
+                if self.read_agent is not None
+                else selection_required()
+            )
+            return AnalyzedAgentResult(result, None)
         if self.read_agent is None:
             raise ToolError("DEPENDENCY_UNAVAILABLE", "Explicit graph reads are unavailable")
         read_input = incoming

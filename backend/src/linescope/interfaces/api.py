@@ -537,6 +537,8 @@ def create_app(
                 data["read_catalog"] = result.read_catalog
             if result.read_selection is not None:
                 data["read_selection"] = result.read_selection
+            if result.read_suggestions is not None:
+                data["read_suggestions"] = result.read_suggestions
             if result.read_clarification is not None:
                 data["read_clarification"] = result.read_clarification
             if result.needs_input:

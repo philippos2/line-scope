@@ -379,3 +379,58 @@ it("U08 refuses legacy interpretation responses and ignores a late one after edi
   expect(sent.every((body) => body.read_confirmation === undefined)).toBe(true);
   expect((input as HTMLTextAreaElement).value).toContain("別の意味です");
 });
+
+it("late model suggestions cannot replace a manual choice made while waiting", async () => {
+  let finish: (r: Response) => void = () => {};
+  const available = {
+    version: "h7-1",
+    entries: [
+      {
+        key: "registered_state",
+        label: "登録状態",
+        description: "登録状態のみ",
+        min_targets: 1,
+        max_targets: 4,
+        action: "EXECUTE",
+      },
+    ],
+  };
+  stubFetch((_url, init) => {
+    const body = JSON.parse(String(init.body || "{}"));
+    if (body.message && !body.read_selection)
+      return new Promise<Response>((resolve) => {
+        finish = resolve;
+      });
+    return Promise.resolve(
+      reply({ ...base, data: { ...base.data, read_catalog: available } }),
+    );
+  });
+  render(<App />);
+  const user = await connect();
+  await user.type(screen.getByLabelText("関係や影響について質問する"), "原文");
+  await user.click(screen.getByRole("button", { name: "照会項目を取得" }));
+  await user.click(screen.getByRole("button", { name: "送信" }));
+  await user.selectOptions(screen.getByLabelText("調べる項目"), "__none__");
+  finish(
+    reply({
+      ...base,
+      data: {
+        ...base.data,
+        read_catalog: available,
+        read_suggestions: {
+          status: "PROPOSED",
+          question: "原文",
+          catalog_version: "h7-1",
+          candidates: [{ key: "registered_state" }],
+        },
+      },
+    }),
+  );
+  await screen.findByText("取得した回答");
+  expect((screen.getByLabelText("調べる項目") as HTMLSelectElement).value).toBe(
+    "__none__",
+  );
+  expect(
+    screen.queryByRole("button", { name: "候補「登録状態」を選ぶ" }),
+  ).toBeNull();
+});

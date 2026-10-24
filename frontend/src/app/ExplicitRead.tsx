@@ -45,6 +45,8 @@ export function ExplicitRead({
   connected,
   executionEpoch = 0,
   availableCatalog,
+  suggestions,
+  onInvalidateSuggestions,
   onNavigate,
 }: {
   question: string;
@@ -52,6 +54,8 @@ export function ExplicitRead({
   connected: boolean;
   executionEpoch?: number;
   availableCatalog?: Envelope;
+  suggestions?: Envelope;
+  onInvalidateSuggestions?: () => void;
   onNavigate: (destination: string, equipment: EquipmentCandidate) => void;
 }) {
   const [catalog, setCatalog] = useState<Catalog | null>(null);
@@ -83,7 +87,8 @@ export function ExplicitRead({
   useEffect(() => {
     if (!availableCatalog) return;
     try {
-      setCatalog(catalogOf(availableCatalog));
+      const received = catalogOf(availableCatalog);
+      setCatalog((current) => current ?? received);
     } catch (error) {
       setProblem(readProblem(error));
     }
@@ -125,6 +130,7 @@ export function ExplicitRead({
     }
   }
   function add(target: EquipmentCandidate) {
+    onInvalidateSuggestions?.();
     setProblem(null);
     setTargets((values) =>
       values.some((v) => v.equipment_id === target.equipment_id)
@@ -133,6 +139,7 @@ export function ExplicitRead({
     );
   }
   async function load() {
+    onInvalidateSuggestions?.();
     await run("照会項目を取得", async (signal) => {
       const response = await request(
         "",
@@ -150,6 +157,7 @@ export function ExplicitRead({
     });
   }
   async function search() {
+    onInvalidateSuggestions?.();
     await run("設備候補を検索", async (signal) => {
       const found = await searchEquipment(query, signal);
       if (signal.aborted) return;
@@ -232,6 +240,23 @@ export function ExplicitRead({
     selected && typeof selected.observed_at === "string"
       ? new Date(selected.observed_at)
       : null;
+  const proposal = suggestions?.data.read_suggestions;
+  const proposalCurrent =
+    object(proposal) &&
+    catalog &&
+    proposal.question === question &&
+    proposal.catalog_version === catalog.version;
+  const proposalKeys =
+    proposalCurrent && Array.isArray(proposal.candidates)
+      ? proposal.candidates
+          .filter(object)
+          .map((value) => value.key)
+          .filter(
+            (value): value is string =>
+              typeof value === "string" &&
+              catalog.entries.some((entry) => entry.key === value),
+          )
+      : [];
   return (
     <section className="explicit-read" aria-label="登録情報を選んで調べる">
       <h2>登録情報を選んで調べる</h2>
@@ -240,6 +265,47 @@ export function ExplicitRead({
       </p>
       <p>元の質問とは別の照会です。対象と項目を選んで実行します。</p>
       <p>元の質問：{question || "入力なし"}</p>
+      {proposalCurrent && (
+        <section aria-label="未確定のAI提案">
+          <h3>未確定のAI提案</h3>
+          <p>元の質問：{question}</p>
+          <p>
+            質問に回答できる保証ではありません。参照範囲を確認して選んでください。対象設備は別に検索・選択します。
+          </p>
+          {proposal.status === "PROPOSED" && proposalKeys.length > 0 ? (
+            proposalKeys.map((value) => {
+              const candidate = catalog.entries.find(
+                (entry) => entry.key === value,
+              )!;
+              return (
+                <div key={value}>
+                  <p>{candidate.description}</p>
+                  <button
+                    type="button"
+                    disabled={!!busy}
+                    onClick={() => {
+                      setKey(value);
+                      setProblem(null);
+                      onInvalidateSuggestions?.();
+                    }}
+                  >
+                    候補「{candidate.label}」を選ぶ
+                  </button>
+                </div>
+              );
+            })
+          ) : (
+            <p>
+              {proposal.status === "NO_CANDIDATE"
+                ? "参照観点の候補はありません。全項目から選ぶか、該当する観点がないを選べます。"
+                : "AIの候補を利用できません。全項目から手動で選べます。"}
+            </p>
+          )}
+          <p>
+            候補を選ぶだけでは照会しません。対象・項目を確定して実行してください。
+          </p>
+        </section>
+      )}
       <button
         type="button"
         disabled={!connected || !!busy}
@@ -255,6 +321,7 @@ export function ExplicitRead({
           value={key}
           disabled={!!busy}
           onChange={(e) => {
+            onInvalidateSuggestions?.();
             setKey(e.target.value);
             setProblem(null);
           }}
@@ -290,7 +357,10 @@ export function ExplicitRead({
             <input
               disabled={!!busy}
               value={query}
-              onChange={(e) => setQuery(e.target.value)}
+              onChange={(e) => {
+                onInvalidateSuggestions?.();
+                setQuery(e.target.value);
+              }}
             />
           </label>
           <button type="button" disabled={!!busy} onClick={() => void search()}>
@@ -319,6 +389,7 @@ export function ExplicitRead({
                   type="button"
                   disabled={!!busy}
                   onClick={() => {
+                    onInvalidateSuggestions?.();
                     setProblem(null);
                     setTargets((items) =>
                       items.filter(

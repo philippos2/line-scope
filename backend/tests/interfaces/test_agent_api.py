@@ -126,7 +126,7 @@ def test_clarification_context_is_owned_and_continues_with_original_message():
         )
     assert second.status_code == 200 and second.json()["context_id"] is None
     assert second.json()["data"]["answer_sections"]["read_outcome"] == "SELECTION_REQUIRED"
-    assert not llm.requests and not llm.planning_requests
+    assert not llm.requests and llm.planning_requests
 
 
 def test_context_expiry_is_409_before_llm():

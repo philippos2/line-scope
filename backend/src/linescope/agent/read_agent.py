@@ -1,6 +1,6 @@
 """Internal read-only Agent loop. HTTP, clarification context and Prepare are separate."""
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from time import monotonic
 from uuid import uuid4
 
@@ -60,6 +60,7 @@ class ReadAgentResult:
     pending_read: dict | None = None
     read_catalog: dict | None = None
     read_selection: dict | None = None
+    read_suggestions: dict | None = None
 
 
 def equipment_search_key(arguments):
@@ -117,6 +118,57 @@ class ReadAgent:
         self.dispatcher, self.llm, self.clock = dispatcher, llm, clock
         self.events = event_logger
         self.deadline_seconds = deadline_seconds
+
+    def suggest(self, context, request):
+        """Interpretation is an unconfirmed suggestion, never authority to read."""
+        from .explicit_read import catalog, selection_required
+        from .read_scope import classify
+
+        result = selection_required()
+        proposal = {
+            "status": "UNAVAILABLE",
+            "reason": "MODEL_NOT_CONFIGURED",
+            "catalog_version": catalog()["version"],
+            "question": request.message,
+            "candidates": [],
+            "subject_references": [],
+        }
+        if self.llm is None:
+            return replace(result, read_suggestions=proposal)
+        session = AgentToolSession(
+            context,
+            request,
+            self.dispatcher,
+            clock=self.clock,
+            event_logger=self.events,
+            deadline_seconds=self.deadline_seconds,
+        )
+        try:
+            scope = classify(self.llm, request, session)
+        except ToolError as error:
+            proposal["reason"] = (
+                "DEADLINE" if error.code == "AGENT_LIMIT_REACHED" else "MODEL_FAILURE"
+            )
+            return replace(result, read_suggestions=proposal)
+        allowed = {entry["key"] for entry in catalog()["entries"]}
+        if scope.scope_issue == "UNVERIFIABLE":
+            proposal["reason"] = "INVALID_OUTPUT"
+        elif (
+            scope.scope_issue not in {None, "UNCERTAIN"}
+            or not scope.requested_fields
+            or any(key not in allowed for key in scope.requested_fields)
+            or "UNSUPPORTED" in scope.topics
+        ):
+            proposal.update(status="NO_CANDIDATE", reason="NO_MATCH")
+        else:
+            proposal.update(
+                status="PROPOSED",
+                reason="UNCONFIRMED",
+                candidates=[{"key": key} for key in dict.fromkeys(scope.requested_fields)],
+                subject_references=[dict(subject) for subject in scope.subjects],
+            )
+        # No dispatcher.run, collect_scope, Evidence, context or Prepare here.
+        return replace(result, read_suggestions=proposal)
 
     def run(self, context, request, *, previous_messages=None):
         session = AgentToolSession(

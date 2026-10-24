@@ -266,3 +266,93 @@ it("never accepts or publishes a legacy interpretation response", async () => {
   expect(screen.queryByText("UNRELATED_VALUE")).toBeNull();
   expect(screen.queryByRole("button", { name: "この範囲を調べる" })).toBeNull();
 });
+
+function proposal(
+  status = "PROPOSED",
+  question = props.question,
+  version = "h7-1",
+) {
+  return envelope({
+    read_suggestions: {
+      status,
+      question,
+      catalog_version: version,
+      candidates: status === "PROPOSED" ? [{ key: "registered_state" }] : [],
+      subject_references: [
+        { entity_type: "Equipment", reference: "AIの対象表現" },
+      ],
+    },
+  });
+}
+it("keeps the manual catalog and none option when suggestions are unavailable", async () => {
+  stub();
+  render(
+    <ExplicitRead
+      {...props}
+      availableCatalog={catalog}
+      suggestions={proposal("UNAVAILABLE")}
+    />,
+  );
+  await screen.findByText(
+    "AIの候補を利用できません。全項目から手動で選べます。",
+  );
+  expect(
+    screen.getByRole("option", { name: "該当する観点がない" }),
+  ).toBeTruthy();
+  const user = await ready();
+  await user.click(screen.getByRole("button", { name: "この項目を調べる" }));
+  expect(executes()).toHaveLength(1);
+});
+it("a suggestion selects a field without reading or accepting a model target", async () => {
+  stub();
+  render(
+    <ExplicitRead
+      {...props}
+      availableCatalog={catalog}
+      suggestions={proposal()}
+    />,
+  );
+  const user = userEvent.setup();
+  await user.click(
+    await screen.findByRole("button", { name: "候補「登録状態」を選ぶ" }),
+  );
+  expect(executes()).toHaveLength(0);
+  expect((screen.getByLabelText("調べる項目") as HTMLSelectElement).value).toBe(
+    "registered_state",
+  );
+  expect(
+    (
+      screen.getByRole("button", {
+        name: "この項目を調べる",
+      }) as HTMLButtonElement
+    ).disabled,
+  ).toBe(true);
+  await user.click(screen.getByRole("button", { name: /画面の設備/ }));
+  await user.click(screen.getByRole("button", { name: "この項目を調べる" }));
+  expect(executes()[0][2]?.read_selection).toEqual({
+    operation: "EXECUTE",
+    catalog_version: "h7-1",
+    key: "registered_state",
+    targets: [{ entity_type: "Equipment", entity_id: first.equipment_id }],
+  });
+});
+it("does not expose proposals for another question or catalog version", async () => {
+  stub();
+  const view = render(
+    <ExplicitRead
+      {...props}
+      availableCatalog={catalog}
+      suggestions={proposal("PROPOSED", "別の原文")}
+    />,
+  );
+  await screen.findByRole("option", { name: "登録状態" });
+  expect(screen.queryByRole("region", { name: "未確定のAI提案" })).toBeNull();
+  view.rerender(
+    <ExplicitRead
+      {...props}
+      availableCatalog={catalog}
+      suggestions={proposal("PROPOSED", props.question, "retired")}
+    />,
+  );
+  expect(screen.queryByRole("region", { name: "未確定のAI提案" })).toBeNull();
+});

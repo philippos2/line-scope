@@ -104,7 +104,7 @@ def test_untrusted_llm_arguments_through_http_do_not_change_sql_structure(world,
     rows = response.json()["data"]["tool_results"]
     # Free text no longer executes model-selected SQL tools. The parameterized
     # real SQL attack tests above continue to cover the literal search contract.
-    assert rows == [] and not llm.requests and not llm.planning_requests
+    assert rows == [] and not llm.requests and llm.planning_requests
     assert response.json()["data"]["answer_sections"]["read_outcome"] == "SELECTION_REQUIRED"
     assert snapshot(world) == before
 

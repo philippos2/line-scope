@@ -113,7 +113,7 @@ def test_cli_ingestion_to_authenticated_agent_citation(world, monkeypatch, capsy
     assert confirmed.status_code == 200
     observed = confirmed.json()
     assert observed["evidence"]["citations"] == [item["citation"]]
-    assert not llm.requests and not llm.planning_requests
+    assert not llm.requests and llm.planning_requests
 
 
 def test_new_version_excludes_old_candidates(world):

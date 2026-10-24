@@ -45,6 +45,11 @@ def test_clarification_messages_are_preserved_across_requests():
     seen = []
 
     class Reader:
+        def suggest(self, context, request):
+            from linescope.agent.explicit_read import selection_required
+
+            return selection_required()
+
         def run(self, context, request, *, previous_messages):
             seen.append(previous_messages)
             return ReadAgentResult("対象を確認", (), (), (), True)
@@ -101,6 +106,11 @@ def test_clarification_retains_request_time_and_explicit_change_takes_precedence
     seen = []
 
     class Reader:
+        def suggest(self, context, request):
+            from linescope.agent.explicit_read import selection_required
+
+            return selection_required()
+
         def run(self, context, request, *, previous_messages):
             seen.append(request.explicit_as_of)
             return ReadAgentResult("対象を確認", (), (), (), True)

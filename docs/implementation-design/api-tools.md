@@ -606,3 +606,18 @@ EXECUTEは認証後、対象IDを既存Readで再取得し、選んだ項目だ�
 結果は既存envelope・answer_sectionsのfacts/unavailable/Evidenceを再利用し、read_outcome=EXPLICIT_READ、data.read_selectionにサーバが確認した項目・対象・catalog version・取得時刻・原文・対象ラベルを返す。元の質問への回答を確定した状態にしない。未知key・古い版・混在等は既存INVALID_ARGUMENTで拒否し、項目を再取得して選び直す案内を表示する。認証・認可・Graph同期・DB障害等の既存エラーは維持し、別のfieldや自然文へfallbackしない。
 
 旧READ_SCOPEのACCEPTは新しい規則版で失効し、CONTEXT_EXPIREDとして再選択を案内する。入力形式を直ちに削除することと、旧候補の業務Readを禁止することを区別する。自由な「はい」や、CATALOG応答を承認・権限の証拠にしない。通常自由文・字義照会はSELECTION_REQUIREDとread_catalogを返し、facts・公開tool_resultsは空。CAPABILITY未確定で業務Readへfallbackしない。認可を持つ既存機械呼出元の構造化Read・比較・文書契約は維持する。
+
+### H7の未確定AI候補（追加承認済み）
+
+通常自由文の既存POST /agent応答にdata.read_suggestionsを追加する。新しいHTTP経路・入力項目は不要。read_outcome=SELECTION_REQUIRED、facts/tool_resultsは空のまま。
+
+| 項目 | 内容 |
+|---|---|
+| status | PROPOSED / NO_CANDIDATE / UNAVAILABLE。候補なしは正常結果 |
+| reason | UNCONFIRMED / NO_MATCH / MODEL_NOT_CONFIGURED / MODEL_FAILURE / DEADLINE / INVALID_OUTPUT。raw例外やモデル自由文は返さない |
+| catalog_version | 既存サーバカタログの版 |
+| question | 原文。照会への実行入力ではない |
+| candidates | {key}の配列。有効カタログkeyだけ。利用者確定前には実行しない |
+| subject_references | {entity_type,reference}の未確定対象表現。設備IDや認可の根拠ではない |
+
+候補欄があっても業務照会や元の問いへの回答成功を意味しない。形式・意味対応を確認できない場合は候補を返さず全カタログによる手動選択を維持する。CATALOGとEXECUTEはLLMを呼ばない。旧READ_SCOPE ACCEPTは復活させない。
