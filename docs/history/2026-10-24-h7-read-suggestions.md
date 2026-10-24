@@ -32,3 +32,5 @@ GPU実測ではRTX3060 12,288MiB、使用2,051MiB・空き10,058MiB、GPU14%。W
 Backend初回全件は4,150成功・5失敗・1skip・1warning、389.87秒。失敗5件は旧要件の「自然文でLLM planningも0」というassertionであり、承認された分類だけの呼出しを許す期待へ変更した。SQL文字列の実DB不変、公開tool_resultsなし、owner拒否、明示文書・比較の契約は維持する。API出力・業務経路・モデル品質を変更して成功にしたものではない。再検査とCIの結果は別に記録する。
 
 変更後の関連75件は全成功・1skip・1warning。追加12はBackend8＋Frontend4のまま。制御API・ブラウザの[原文応答・画像・補助ソース](assets/pr276/suggestions-controlled-20261024.zip)を保存し、使用tokenの混入を検査した。実モデルの評価は含まない。
+
+証跡ZIPの初回作成ではroot所有のmode700ディレクトリを列挙できず、直接APIの原文が含まれていなかった。当該検証出力だけの所有者を戻し、18応答と要求・manifestを含めて再作成した。APIの再実行やデータ変更はしていない。
