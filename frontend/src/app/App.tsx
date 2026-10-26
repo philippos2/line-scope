@@ -385,11 +385,11 @@ export function App() {
         setResult(value);
         if (object(value.data.answer_sections)) {
           setQuestionTurns((turns) => [
-            ...turns,
             {
               question: text,
               answer: value.answer ?? "回答を取得できませんでした。",
             },
+            ...turns,
           ]);
         }
         setAnswerEpoch(executionEpoch);
