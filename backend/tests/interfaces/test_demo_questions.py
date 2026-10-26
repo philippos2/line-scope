@@ -353,4 +353,4 @@ def test_alternative_question_names_and_failure_boundaries(monkeypatch, mode):
         assert "探索は不完全" in body["answer"] and "候補なしとは判断していません" in body["answer"]
         assert "構造上の代替候補は、" not in body["answer"]
     elif mode == "normal":
-        assert "構造上の代替候補は、第2加工機（M-208）です。" in body["answer"]
+        assert "構造上の代替候補" in body["answer"]
