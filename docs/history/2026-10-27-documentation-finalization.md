@@ -66,7 +66,8 @@ PR #279はmerge済み（`1b8c5953a9a15e97c90e4821754a724fa9ae17bd`）。mainをf
 - 承認20ファイルの範囲、旧記録・fixtures・製品差分なし、stash保持を差分で確認する。
 - 変更20ファイルのローカル文書リンク431件を検査し、ファイル・見出しアンカーの欠落0件。READMEとdocs全体から変更文書へ向かう流入リンクにも、新たなアンカー切れ0件。
 - `git diff --check`成功。SVGのXMLを解析し、日本語フォントをプロセス内だけに追加した一時レンダリングで、暦日軸・バー・凡例・文字の収まりを確認した。フォントと画像は/tmpのみで、実行環境の設定やRepositoryへの追加はない。製品のブラウザ検証ではない。
-- 既存CIはPR作成後に確認する。現時点では未実施であり、以下の製品検証の過去結果を今回のCI成功とは扱わない。
+- PR [#280](https://github.com/philippos2/line-scope/pull/280)をDraftで作成。最初の文書head `79ecdf4cc0a0ec1aca3370b6f6280d6414cfdc8d`の[CI run 40354851968](https://github.com/philippos2/line-scope/actions/runs/40354851968)は成功。対象判定7秒、Frontend lint・型・整形・build 39秒、集約check 6秒、別workflowのPR title 2秒。Backend・runtimeは文書のみの差分判定により予定どおりskipで、Backend全件を今回成功したとは書かない。Vitestも未実行。
+- 本結果追記と原実測の意味の補足は文書だけの後続commitにする。最新headのCIは追記後に再確認し、PR本文に対象headと結果を記録する。過去headの成功を最新headへ代用せず、Draftのまま最終レビューを待つ。
 
 ## 未確認・残す制約
 
