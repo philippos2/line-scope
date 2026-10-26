@@ -112,6 +112,16 @@ def test_get_exact_record_all_authorized_roles(world, tool, role):
             ),
             (keys[key],),
         ).fetchone()
+    if tool == "get_infrastructure_resource":
+        supply_time = result.data["registered_supply_state"]["observed_at"]
+        assert datetime.fromisoformat(supply_time) == datetime.fromisoformat(
+            result.evidence["observed_at"]
+        )
+        expected["registered_supply_state"] = {
+            "supply_state": "UNKNOWN",
+            "record": None,
+            "observed_at": supply_time,
+        }
     assert result.data == json_value(expected)
     assert result.data[key] == str(keys[key])
     assert result.data["version"] == expected["version"]
@@ -422,6 +432,14 @@ def test_core_read_preserves_all_native_values_and_caller_transaction(world, too
         expected["version"] += 1
         row = get_record_row(c, tool, keys[key])
         observed_at = row.pop("_observed_at")
+        if tool == "get_infrastructure_resource":
+            supply_time = row["registered_supply_state"]["observed_at"]
+            assert datetime.fromisoformat(supply_time) == observed_at
+            expected["registered_supply_state"] = {
+                "supply_state": "UNKNOWN",
+                "record": None,
+                "observed_at": supply_time,
+            }
         assert row == expected
         assert observed_at.tzinfo is not None
         # The bridge sees an uncommitted caller change and leaves the same
@@ -452,7 +470,36 @@ def test_core_read_bind_uuid_kept_out_of_sql(world, tool):
     assert len(calls) == 1
     query, params = calls[0]
     assert str(keys[GET_TOOLS[tool][1]]) not in query
-    assert list(params.values()) == [keys[GET_TOOLS[tool][1]]]
+    identifier = keys[GET_TOOLS[tool][1]]
+    if tool == "get_infrastructure_resource":
+        from collections import Counter
+
+        # Both the resource and supply subquery bind the requested UUID. JSON
+        # keys/defaults are fixed bound values, never caller SQL fragments.
+        expected_values = [
+            identifier,
+            identifier,
+            "supply_state",
+            "infrastructure_resource_id",
+            "supply_state",
+            "version",
+            "registered_at",
+            "source",
+            "record_reference",
+            "infrastructure_resource_id",
+            "version",
+            "supply_state",
+            "UNKNOWN",
+            "record",
+            "observed_at",
+        ]
+        assert Counter(params.values()) == Counter(expected_values)
+        assert [value for value in params.values() if isinstance(value, UUID)] == [
+            identifier,
+            identifier,
+        ]
+    else:
+        assert list(params.values()) == [identifier]
 
 
 @pytest.mark.integration

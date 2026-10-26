@@ -29,9 +29,9 @@ class CountingStates:
         self.delegate = GraphStateReader(db)
         self.calls = []
 
-    def read_availability(self, equipment_ids, operation_ids, budget):
+    def read_availability(self, equipment_ids, operation_ids, budget, **kwargs):
         self.calls.append((equipment_ids, operation_ids))
-        return self.delegate.read_availability(equipment_ids, operation_ids, budget)
+        return self.delegate.read_availability(equipment_ids, operation_ids, budget, **kwargs)
 
 
 def evaluate(
@@ -64,7 +64,7 @@ def test_multiple_targets_use_one_observation_and_available_direct_replacement(r
     assert result.replacements[0].availability == "AVAILABLE"
     assert requested[0] == [M[1], OTHER[1]]
     assert len(requested[1]) == 2 and len(result.observation["operations"]) == 2
-    assert result.missing_states == ()
+    assert result.missing_states == (("InfrastructureResource", str(demo_id("R-02"))),)
 
 
 def test_excluding_running_alternative_prevents_restoration(reader_world, db):
@@ -93,7 +93,9 @@ def test_missing_state_is_partial_knowledge_not_no_alternative(reader_world, db)
         connection.execute(str(stmt), stmt.params)
     result, _ = evaluate(reader_world[0], db)
     assert result.complete  # Graph complete, decision unknown.
-    assert result.missing_states == (OTHER,)
+    assert result.missing_states == tuple(
+        sorted((OTHER, ("InfrastructureResource", str(demo_id("R-02")))))
+    )
     assert all(item.after.determination == "INDETERMINATE" for item in result.targets)
 
 
@@ -119,7 +121,7 @@ def test_inconsistent_whole_analysis_facts_rejected_before_state_io(reader_world
         bad = replace(facts, substitutes=())
 
         class NoRead:
-            def read_availability(self, *args):
+            def read_availability(self, *args, **kwargs):
                 pytest.fail("Mismatched facts must not trigger state I/O")
 
         with pytest.raises(ValueError):
@@ -128,8 +130,8 @@ def test_inconsistent_whole_analysis_facts_rejected_before_state_io(reader_world
 
 def test_end_gate_rejects_evaluated_result_when_rebuild_begins(reader_world, db):
     class RebuildingStates(CountingStates):
-        def read_availability(self, equipment_ids, operation_ids, budget):
-            result = super().read_availability(equipment_ids, operation_ids, budget)
+        def read_availability(self, equipment_ids, operation_ids, budget, **kwargs):
+            result = super().read_availability(equipment_ids, operation_ids, budget, **kwargs)
             control = table("graph_projection_control", column("rebuild_flag"))
             statement = update(control).values(rebuild_flag=True).compile(dialect=dialect())
             with db.transaction() as connection:

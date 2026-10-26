@@ -35,6 +35,7 @@ READ_TABLES = (
     "production_operation",
     "product",
     "infrastructure_resource",
+    "infrastructure_supply_state",
     "production_operation_equipment_assignment",
     "dependency_relation",
 )

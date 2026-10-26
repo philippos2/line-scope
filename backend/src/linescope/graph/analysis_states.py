@@ -16,10 +16,10 @@ class GraphStateReader:
             lambda connection: get_graph_equipment_states(connection, identifiers), budget
         )
 
-    def read_availability(self, equipment_ids, operation_ids, budget):
+    def read_availability(self, equipment_ids, operation_ids, budget, *, resource_ids=()):
         return self._observe(
             lambda connection: get_graph_availability_states(
-                connection, equipment_ids, operation_ids
+                connection, equipment_ids, operation_ids, resource_ids
             ),
             budget,
         )

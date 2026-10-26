@@ -509,3 +509,15 @@ Agentの比較Tool admissionは、元の問い合わせ中のJSON選択とTool�
 `POST /agent`の既存認証・message/context_id契約を維持する。通常の自由文は固定9観点の決定論的照合で処理し、LLMへフォールバックしない。対象の追加確認も同じmessage/context_idで送る。既存の構造化Graph・登録入力比較・明示文書検索・変更準備経路は維持する。
 
 通常照会の出力に`data.answer_sections`を追加する。`version:1`、`read_outcome`（ANSWERED/UNSUPPORTED/TARGET_REQUIRED/TARGET_AMBIGUOUS/TARGET_NOT_FOUND/SEARCH_INCOMPLETE/READ_FAILED）、`selected_field`、根拠参照を持つ`facts`、`unavailable`、`scope`を含む。本文、facts、公開tool_resultsは同じ選択対象・観点に限る。対応外で設備を識別できた場合の公開は名称・コード・IDだけ。業務値の取得失敗は登録なしと扱わず、既存エラーenvelopeを使う。H7のcatalog/execute/suggestion用APIや選択UI契約は追加しない。
+
+## F2：登録供給状態の既存Readへの追加
+
+新HTTP経路・新Tool・要求形式の変更はない。`get_infrastructure_resource`の既存データに`registered_supply_state`を追加する。
+
+- `supply_state`：AVAILABLE / UNAVAILABLE / UNKNOWN。状態行なしはUNKNOWN。
+- `record`：存在すれば`infrastructure_resource_id`、`supply_state`、供給状態の`version`、`registered_at`、`source`、`record_reference`（資源IDと状態version）。状態行なしはnull。
+- `observed_at`：同一SELECTによるDB読取時刻。外側Evidenceのobserved_atと同じであり、通電観測時刻ではない。
+
+代替分析・SPOFのEvidenceに`current_resource_states`を追加し、登録状態・登録時刻・source・record_referenceを保持する。`state_versions["InfrastructureResource:<id>"]`は供給状態のversionであり、マスタversionではない。`state_observed_at`はこれらを同一SQL文で読んだ時刻。未登録の資源は`missing_states`に型付きIDを示し、根拠行を生成しない。接続障害や不整合を正常なUNKNOWNへ変換しない。
+
+構造成立と登録利用可能性を分離する。必須資源UNAVAILABLEならRUNNING候補もUNAVAILABLE、UNKNOWNまたは未登録なら利用可能と断定しない。履歴分析では現在供給状態を過去の値として使用しない。通常の上流・下流到達分析は供給状態の評価を行う処理へ変更しない。

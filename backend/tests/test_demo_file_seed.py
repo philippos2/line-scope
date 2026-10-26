@@ -30,7 +30,7 @@ def test_file_validation_rejects_invalid_input_before_writes(tmp_path, fault):
     if fault == "unknown":
         data["sql"] = "DROP TABLE equipment"
     elif fault == "version":
-        data["schema_version"] = 2
+        data["schema_version"] = 3
     elif fault == "duplicate":
         data["equipment"].append(data["equipment"][0])
     elif fault == "reference":
@@ -249,3 +249,110 @@ def test_json_scenario_real_api_graph_and_comparison(source, adapters):
                 ensure_ascii=False,
             )
         )
+
+
+def test_supply_seed_repeat_preserves_record_and_business_history(source):
+    seed_demo_file(source, FIXTURE)
+    with source.transaction() as connection:
+        before = connection.execute("SELECT * FROM infrastructure_supply_state").fetchall()
+        counts_before = connection.execute(
+            "SELECT count(*) AS n FROM business_update_history"
+        ).fetchone()
+    result = seed_demo_file(source, FIXTURE)
+    assert result["inserted"] == []
+    with source.transaction() as connection:
+        assert connection.execute("SELECT * FROM infrastructure_supply_state").fetchall() == before
+        assert (
+            connection.execute("SELECT count(*) AS n FROM business_update_history").fetchone()
+            == counts_before
+        )
+
+
+def test_supply_seed_conflict_rolls_back_whole_bootstrap(source, tmp_path):
+    seed_demo_file(source, FIXTURE)
+    data = json.loads(FIXTURE.read_text())
+    data["infrastructure_states"][0]["supply_state"] = "UNAVAILABLE"
+    data["equipment"].append(
+        {"equipment_code": "EXTRA", "equipment_name": "Extra", "state_code": "UNKNOWN"}
+    )
+    path = tmp_path / "conflict.json"
+    path.write_text(json.dumps(data))
+    with pytest.raises(SeedConflict):
+        seed_demo_file(source, path)
+    with source.transaction() as connection:
+        assert (
+            connection.execute("SELECT supply_state FROM infrastructure_supply_state").fetchone()[
+                "supply_state"
+            ]
+            == "AVAILABLE"
+        )
+        assert (
+            connection.execute("SELECT * FROM equipment WHERE equipment_code='EXTRA'").fetchone()
+            is None
+        )
+
+
+def test_v1_data_and_migration_preserve_existing_rows(database_factory, tmp_path):
+    from linescope.graph.analysis_budget import GraphAnalysisBudget
+    from linescope.graph.analysis_states import GraphStateReader
+
+    data = json.loads(FIXTURE.read_text())
+    data["schema_version"] = 1
+    del data["infrastructure_states"]
+    path = tmp_path / "v1.json"
+    path.write_text(json.dumps(data))
+    with database_factory() as database:
+        database.migrate()
+        seed_demo_file(database, path)
+        with database.transaction() as connection:
+            before = connection.execute("SELECT * FROM equipment ORDER BY equipment_id").fetchall()
+            control = connection.execute("SELECT * FROM graph_projection_control").fetchone()
+            # Recreate the immediately previous schema to exercise the additive migration.
+            connection.execute("DROP TABLE infrastructure_supply_state")
+            connection.execute(
+                "DELETE FROM schema_migration WHERE version=%s",
+                ("014_infrastructure_supply_state.sql",),
+            )
+        database.migrate()
+        with database.transaction() as connection:
+            assert (
+                connection.execute("SELECT * FROM equipment ORDER BY equipment_id").fetchall()
+                == before
+            )
+            assert (
+                connection.execute("SELECT * FROM graph_projection_control").fetchone() == control
+            )
+            assert connection.execute("SELECT * FROM infrastructure_supply_state").fetchall() == []
+        result = GraphStateReader(database).read_availability(
+            [], [], GraphAnalysisBudget(5000), resource_ids=[str(demo_id("R-02"))]
+        )
+        assert result["resources"] is None
+
+
+def test_published_graph_rejects_new_supply_and_edge(source, adapters, tmp_path):
+    from linescope.graph.administration import GraphAdministration
+
+    data = json.loads(FIXTURE.read_text())
+    data["schema_version"] = 1
+    del data["infrastructure_states"]
+    data["relations"] = [row for row in data["relations"] if row["code"] != "R-02:SUPPLIES:M-208"]
+    path = tmp_path / "old.json"
+    path.write_text(json.dumps(data))
+    seed_demo_file(source, path)
+    generation = GraphAdministration(source, adapters[1].driver).rebuild().generation
+    with pytest.raises(SeedConflict):
+        seed_demo_file(source, FIXTURE)
+    with source.transaction() as connection:
+        assert connection.execute("SELECT * FROM infrastructure_supply_state").fetchall() == []
+        assert (
+            connection.execute(
+                "SELECT * FROM dependency_relation WHERE dependency_relation_id=%s",
+                (demo_id("R-02:SUPPLIES:M-208"),),
+            ).fetchone()
+            is None
+        )
+        assert str(
+            connection.execute("SELECT active_generation FROM graph_projection_control").fetchone()[
+                "active_generation"
+            ]
+        ) == str(generation)

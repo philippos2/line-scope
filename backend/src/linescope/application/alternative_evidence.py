@@ -117,6 +117,23 @@ def build_alternative_result(
             for item in operations
         }
     )
+    resources = evaluation.observation.get("resources") or []
+    resources = [
+        {
+            **item,
+            "record_reference": {
+                "infrastructure_resource_id": item["infrastructure_resource_id"],
+                "version": item["version"],
+            },
+        }
+        for item in resources
+    ]
+    versions.update(
+        {
+            "InfrastructureResource:" + item["infrastructure_resource_id"]: item["version"]
+            for item in resources
+        }
+    )
     evidence = {
         "source": "NEO4J_AND_POSTGRESQL",
         "tool": "find_alternative_paths",
@@ -135,6 +152,7 @@ def build_alternative_result(
         "state_versions": versions,
         "current_states": states,
         "current_operation_states": operations,
+        "current_resource_states": resources,
         "missing_states": [_typed(node) for node in evaluation.missing_states],
         "state_temporal_scope": "CURRENT_STATE_AT_OBSERVATION",
     }

@@ -126,3 +126,9 @@ CAPACITY_INPUTの入力・出典・計算結果・Snapshot・保存要求・履�
 MAINTENANCE_INPUTのCOMPLETED再送は、元requesterかつ現在の対象情報閲覧権限で保存済み結果の参照だけを許可する。新たな確定処理は行わない。
 
 複数設備の明示調査`POST /incidents/investigate`はmanager / maintenance / productionが利用できる。floorには公開しない。`incident_losses`を含む経済入力もECONOMIC_INPUTと同じmanager要求・別manager承認・元requester確定とする。入力JSON内のID・role・出典を業務権限の根拠にしない。
+
+## F2：登録供給状態の読み取り権限
+
+登録供給状態は既存InfrastructureResourceのRead・Graph分析と同じ認証済み読取境界で参照する。DB query/runtime roleには`infrastructure_supply_state`のSELECTだけを与え、INSERT / UPDATE / DELETE / TRUNCATEを与えない。既存の資源マスタversionのロック権限を供給状態表へ拡張しない。
+
+状態変更HTTP API、Tool、業務コマンド、Prepare / Approve / Executeカテゴリは設けない。owner/adminによるmigrationと初期bootstrapは製品の状態変更権限を意味しない。承認付き更新は任意・未採用O-F2-WRITEであり、必要になれば別途仕様判断を行う。

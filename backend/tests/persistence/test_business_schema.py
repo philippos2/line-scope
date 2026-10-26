@@ -62,6 +62,7 @@ def test_schema_boundary_and_upgrade_from_foundation(db):
         "011_maintenance_input.sql",
         "012_economic_cost_recovery.sql",
         "013_incident_loss_snapshot.sql",
+        "014_infrastructure_supply_state.sql",
     ]
     assert db.migrate() == []
     with db.transaction() as c:
@@ -70,6 +71,7 @@ def test_schema_boundary_and_upgrade_from_foundation(db):
         ).fetchall()
         assert {row["tablename"] for row in tables} == TABLES | {
             "schema_migration",
+            "infrastructure_supply_state",
             "knowledge_document",
             "economic_input",
             "capacity_input",

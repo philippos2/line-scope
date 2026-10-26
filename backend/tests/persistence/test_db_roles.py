@@ -587,3 +587,21 @@ def test_query_graph_metadata_grants_do_not_expose_payload_or_mutation(roles, st
     with pytest.raises(psycopg.errors.InsufficientPrivilege):
         with stores[READ_ROLE].transaction() as connection:
             connection.execute(statement)
+
+
+@pytest.mark.parametrize("role", [READ_ROLE, WRITE_ROLE])
+def test_registered_supply_state_is_readonly_for_business_roles(roles, role):
+    _, stores, _ = roles
+    with stores[role].transaction() as connection:
+        assert connection.execute("SELECT * FROM infrastructure_supply_state").fetchall() == []
+        grants = connection.execute(
+            "SELECT has_table_privilege(current_user,'infrastructure_supply_state','INSERT') AS ins, "
+            "has_table_privilege(current_user,'infrastructure_supply_state','UPDATE') AS upd, "
+            "has_table_privilege(current_user,'infrastructure_supply_state','DELETE') AS del, "
+            "has_table_privilege(current_user,'infrastructure_supply_state','TRUNCATE') AS trunc, "
+            "has_schema_privilege(current_user,current_schema(),'CREATE') AS ddl"
+        ).fetchone()
+        assert all(value is False for value in grants.values())
+    with pytest.raises(psycopg.errors.InsufficientPrivilege):
+        with stores[role].transaction() as connection:
+            connection.execute("UPDATE infrastructure_supply_state SET supply_state='AVAILABLE'")

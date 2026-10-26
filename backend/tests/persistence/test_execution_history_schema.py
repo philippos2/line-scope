@@ -90,6 +90,7 @@ def test_upgrade_preserves_pending_requests_without_fabricated_history(db):
         "011_maintenance_input.sql",
         "012_economic_cost_recovery.sql",
         "013_incident_loss_snapshot.sql",
+        "014_infrastructure_supply_state.sql",
     ]
     assert db.migrate() == []
     with db.transaction() as c:

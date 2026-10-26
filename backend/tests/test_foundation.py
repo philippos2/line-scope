@@ -129,6 +129,7 @@ def test_concurrent_migration_once_and_checksum_guard(db):
             "011_maintenance_input.sql",
             "012_economic_cost_recovery.sql",
             "013_incident_loss_snapshot.sql",
+            "014_infrastructure_supply_state.sql",
         ],
     ]
     assert db.migrate() == []

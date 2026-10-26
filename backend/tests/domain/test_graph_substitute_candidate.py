@@ -78,7 +78,7 @@ def test_unmodeled_operational_state_remains_unknown(entity_type):
     candidate = (entity_type, "x")
     result = evaluate({candidate: ()}, {candidate: "AVAILABLE"}, candidate=candidate)
     assert result.structure.determination == "ESTABLISHED"
-    assert result.availability == "UNKNOWN"
+    assert result.availability == ("UNKNOWN" if entity_type == "Process" else "AVAILABLE")
 
 
 def test_historical_does_not_reuse_current_running_or_stopped_state():
@@ -119,3 +119,28 @@ def test_product_is_not_a_substitute_candidate():
     product = ("Product", "p")
     with pytest.raises(ValueError):
         evaluate({product: ()}, {}, candidate=product)
+
+
+@pytest.mark.parametrize(
+    "supply,equipment,complete,historical,expected",
+    [
+        ("AVAILABLE", "RUNNING", True, False, "AVAILABLE"),
+        ("UNAVAILABLE", "RUNNING", True, False, "UNAVAILABLE"),
+        ("UNKNOWN", "RUNNING", True, False, "UNKNOWN"),
+        ("AVAILABLE", "STOPPED", True, False, "UNAVAILABLE"),
+        ("AVAILABLE", "RUNNING", False, False, "UNKNOWN"),
+        ("AVAILABLE", "RUNNING", True, True, "UNKNOWN"),
+    ],
+)
+def test_registered_supply_is_required(supply, equipment, complete, historical, expected):
+    power = ("InfrastructureResource", "power")
+    graph = {CANDIDATE: (power,), power: ()}
+    result = evaluate(
+        graph,
+        {CANDIDATE: equipment_availability(equipment), power: supply},
+        complete=complete,
+        historical=historical,
+    )
+    assert result.availability == expected
+    if complete:
+        assert result.structure.determination == "ESTABLISHED"

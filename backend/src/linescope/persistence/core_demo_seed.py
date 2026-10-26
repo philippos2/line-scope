@@ -1,6 +1,17 @@
 """Bound Core queries for fixed administrative demo fixtures, not runtime Tools."""
 
-from sqlalchemy import Boolean, DateTime, Integer, Text, column, func, select, table, update
+from sqlalchemy import (
+    BigInteger,
+    Boolean,
+    DateTime,
+    Integer,
+    Text,
+    column,
+    func,
+    select,
+    table,
+    update,
+)
 from sqlalchemy.dialects.postgresql import UUID, insert
 from sqlalchemy.dialects.postgresql.psycopg import dialect
 
@@ -19,6 +30,10 @@ FIELDS = {
 def _type(name):
     if name.endswith("_id"):
         return UUID()
+    if name == "version":
+        return BigInteger()
+    if name == "registered_at":
+        return DateTime(timezone=True)
     if name in {"active", "required"}:
         return Boolean()
     if name.startswith(("effective_", "planned_")) and name != "planned_status":
@@ -30,6 +45,19 @@ TABLES = {
     name: table(name, *(column(field, _type(field)) for field in fields.split()))
     for name, fields in FIELDS.items()
 }
+SUPPLY_STATE = table(
+    "infrastructure_supply_state",
+    *(
+        column(field, _type(field))
+        for field in "infrastructure_resource_id supply_state source version registered_at".split()
+    ),
+)
+
+
+def _target(name):
+    return SUPPLY_STATE if name == "infrastructure_supply_state" else TABLES[name]
+
+
 CONTROL = table(
     "graph_projection_control",
     column("control_id", Integer()),
@@ -46,7 +74,7 @@ def _execute(connection, statement):
 
 
 def insert_row(connection, name, values):
-    target = TABLES[name]
+    target = _target(name)
     primary = next(iter(target.c))
     return (
         _execute(
@@ -61,14 +89,14 @@ def insert_row(connection, name, values):
 
 
 def read_row(connection, name, identifier):
-    target = TABLES[name]
+    target = _target(name)
     return _execute(
         connection, select(target).where(next(iter(target.c)) == identifier).with_for_update()
     ).fetchone()
 
 
 def identifiers(connection, name):
-    target = TABLES[name]
+    target = _target(name)
     return {
         next(iter(row.values()))
         for row in _execute(connection, select(next(iter(target.c)))).fetchall()
