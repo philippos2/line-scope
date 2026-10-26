@@ -7,7 +7,7 @@
   "request_id": "uuid",
   "context_id": "uuid-or-null",
   "status": "ok|partial|error",
-  "answer": "LLM generated natural language or null",
+  "answer": "server-generated answer or null",
   "data": {},
   "evidence": {},
   "warnings": [],

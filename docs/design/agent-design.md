@@ -1,5 +1,7 @@
 # LineScope AI Agent設計書
 
+技術検証デモの通常質問欄は、末尾の「技術検証デモの質問欄」と[限定照会設計](demo-question-chat.md)を適用する。以下のLLMによる分類・Tool選択・説明は既存Agentの設計を残したもので、通常質問をその経路へフォールバックさせる要件ではない。
+
 ## 1. Agent責務
 
 - Intent分類

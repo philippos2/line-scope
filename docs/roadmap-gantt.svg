@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1100" height="455" viewBox="0 0 1100 455" role="img" aria-labelledby="title desc">
 <title id="title">質問欄デモ：相対作業日のガントチャート</title><desc id="desc">横軸は承認からの作業日0から4。実装0から2日、回帰試験1から3日、直接APIとブラウザ2から3.5日、CIと引渡し3から4日。F2とF3は先行PRのmerge後で日付未確定。</desc>
-<rect width="1100" height="455" fill="#f8fafc"/><g font-family="sans-serif" fill="#183247"><text x="24" y="36" font-size="23">#277 質問欄デモ — 相対作業日の計画</text><text x="24" y="64" font-size="14">承認から3〜4作業日の計画枠。現在：実装・回帰検証中。暦上の期限・完了実績ではない。</text>
+<rect width="1100" height="455" fill="#f8fafc"/><g font-family="sans-serif" fill="#183247"><text x="24" y="36" font-size="23">#277 質問欄デモ — 相対作業日の計画</text><text x="24" y="64" font-size="14">承認から3〜4作業日の計画枠。現在：実装・回帰・API・ブラウザ完了、CI引渡し確認。暦上の期限・完了実績ではない。</text>
 <g stroke="#cbd5e1"><path d="M310 105V330 M490 105V330 M670 105V330 M850 105V330 M1030 105V330"/></g>
 <g font-size="15"><text x="306" y="96">0</text><text x="486" y="96">1日</text><text x="666" y="96">2日</text><text x="846" y="96">3日</text><text x="1010" y="96">4日</text>
 <text x="24" y="142">最小実装・共通検索</text><rect x="310" y="120" width="360" height="30" fill="#2563eb" rx="4"/>
