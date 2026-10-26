@@ -6,14 +6,12 @@ from copy import deepcopy
 from uuid import uuid4
 
 import pytest
-from agent.test_read_agent import ScriptedLLM, call
 from domain.test_capacity import payload
 from fastapi.testclient import TestClient
 
 from linescope.demo_seed import DEMO_EQUIPMENT, seed_demo
 from linescope.domain.canonical import canonical_hash, canonical_json
 from linescope.domain.snapshot import CanonicalSnapshot
-from linescope.integrations.llm import LLMReply
 from linescope.interfaces.api import create_app
 from linescope.logging import EventLogger
 from linescope.settings import Settings
@@ -152,26 +150,15 @@ def test_create_approve_execute_read_and_retry_keep_fixed_ids_and_atomic_history
         )
         assert connection.execute("SELECT count(*) AS n FROM equipment").fetchone()["n"] > 0
 
-    llm = ScriptedLLM(
-        call("search_capacity_inputs", {"filter": {"input_code": "CAPACITY"}}),
-        call("get_capacity_input", {"capacity_input_id": identifier(saved)}),
-        LLMReply("安全で完全代替できます", ()),
-    )
-    with TestClient(create_app(settings(), world, llm=llm)) as agent_client:
-        result = agent_client.post(
-            "/agent",
-            json={"message": "登録済み能力入力CAPACITYの不足と条件付き復旧期限を確認して"},
-            headers=headers(),
-        )
-        assert result.status_code == 200
-        data = result.json()
-        assert "不足30" in data["answer"] and "条件付き許容停止時間4時間" in data["answer"]
-        assert "安全で完全代替できます" not in data["answer"]
-        assert [row["tool"] for row in data["data"]["tool_results"]] == [
-            "search_capacity_inputs",
-            "get_capacity_input",
-        ]
-        assert data["evidence"]["tool_results"][-1]["version"] == 1
+    from interfaces.demo_read_support import registered_input_observation
+    from linescope.agent.capacity_answer import capacity_answer
+
+    with client_for(world) as reader:
+        observation = registered_input_observation(reader, "capacity", identifier(saved), headers())
+    answer = capacity_answer((observation,))
+    assert "不足30" in answer
+    assert "条件付き許容停止時間4時間" in answer
+    assert observation.result.data["input"]["version"] == 1
 
 
 def test_update_version_conflict_preserves_winning_payload(world):

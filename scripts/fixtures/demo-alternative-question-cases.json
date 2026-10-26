@@ -1,0 +1,42 @@
+{
+  "version": 1,
+  "frozen_before_api_verification": "2026-10-26",
+  "cases": [
+    {
+      "id": "A01",
+      "message": "M-204の代替候補は？",
+      "expected": "alternative_candidates",
+      "repetitions": 3
+    },
+    {
+      "id": "A02",
+      "message": "第１加工機のサービスマンの来社予定日時を教えて",
+      "expected": "UNSUPPORTED",
+      "repetitions": 3
+    },
+    {
+      "id": "A03",
+      "message": " 第１加工機停止の影響範囲はどこまでか？",
+      "expected": "downstream_reachability",
+      "repetitions": 3
+    },
+    {
+      "id": "A04",
+      "message": "第１加工機と第二加工機って、製造メーカー同じだっけ？",
+      "expected": "UNSUPPORTED",
+      "repetitions": 3
+    },
+    {
+      "id": "A05",
+      "message": "第１加工機の製造メーカーの相談窓口の電話番号を教えて",
+      "expected": "UNSUPPORTED",
+      "repetitions": 3
+    },
+    {
+      "id": "A06",
+      "message": "M204の故障原因は何か？",
+      "expected": "UNSUPPORTED",
+      "repetitions": 3
+    }
+  ]
+}

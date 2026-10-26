@@ -130,6 +130,9 @@ export function App() {
   }, []);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
+  const [questionTurns, setQuestionTurns] = useState<
+    { question: string; answer: string }[]
+  >([]);
   const [questionSelection, setQuestionSelection] = useState<JsonObject | null>(
     null,
   );
@@ -187,6 +190,7 @@ export function App() {
     setActionDraft("");
     setStateChoice("");
     setResult(null);
+    setQuestionTurns([]);
     setGraphResult(null);
     setMessage("");
     setQuestionSelection(null);
@@ -251,6 +255,7 @@ export function App() {
     setShowConnection(false);
     setBusy(false);
     setResult(null);
+    setQuestionTurns([]);
     setSelected(null);
     setMessage("");
     setQuestionSelection(null);
@@ -316,6 +321,7 @@ export function App() {
             : "認証済み",
         );
         setResult(null);
+        setQuestionTurns([]);
         setSelected(null);
         retry.current = null;
         setShowConnection(false);
@@ -355,14 +361,7 @@ export function App() {
     if (!text.startsWith("関係分析 ")) setMessage(text);
     setStale(true);
     const body = {
-      message: selection
-        ? `登録入力で比較 ${JSON.stringify(selection)}`
-        : equipment &&
-            !text.startsWith("関係分析 ") &&
-            !text.startsWith("文書検索：") &&
-            !text.startsWith("登録入力で比較 ")
-          ? `調査対象の設備コードは${equipment.equipment_code}です。\n${text}`
-          : text,
+      message: selection ? `登録入力で比較 ${JSON.stringify(selection)}` : text,
       ...(!text.startsWith("関係分析 ") &&
       !freshContext.current &&
       result?.context_id
@@ -384,6 +383,15 @@ export function App() {
       (value) => {
         freshContext.current = false;
         setResult(value);
+        if (object(value.data.answer_sections)) {
+          setQuestionTurns((turns) => [
+            {
+              question: text,
+              answer: value.answer ?? "回答を取得できませんでした。",
+            },
+            ...turns,
+          ]);
+        }
         setAnswerEpoch(executionEpoch);
         if (graphAnalyses(value).length) {
           setGraphResult(value);
@@ -821,10 +829,10 @@ export function App() {
                       画面で選択中の設備：
                       {equipment
                         ? `${equipment.equipment_name} · ${equipment.equipment_code}`
-                        : "未選択（設備名・コードを質問に含めるか、上の「設備を選ぶ」を使ってください）"}
+                        : "未選択（設備名・コードを質問に含めてください）"}
                     </p>
                     <p>
-                      質問に設備名・コードを書いた場合は、その設備を優先します。
+                      設備名・コードと、調べたい内容を質問してください。必要な確認もこの会話で行います。
                     </p>
                     {questionSelection && (
                       <p>
@@ -840,10 +848,16 @@ export function App() {
                         ref={messageInput}
                         value={message}
                         onChange={(event) => {
+                          if (busy) {
+                            current.current++;
+                            abort.current?.abort();
+                            setBusy(false);
+                            setActiveOperation(null);
+                          }
                           setMessage(event.target.value);
                           setQuestionSelection(null);
                         }}
-                        placeholder="例：この設備が止まったとき、影響する工程と製品は？"
+                        placeholder="例：m204停止の影響範囲はどこまでか？"
                         rows={3}
                       />
                       <button
@@ -859,14 +873,14 @@ export function App() {
                           ? "質問への応答を待っています。完了するまで再送できません。"
                           : !message.trim()
                             ? "質問が未入力のため送信できません。質問を入力してください。"
-                            : "質問に明記した設備について調べます。対象を省略した場合は画面の選択を使います。"}
+                            : "質問に設備名・コードを書いてください。対象を省略した場合は会話でお尋ねします。"}
                       </p>
                     </form>
                   </div>
                   <div className="question-response">
                     {busy && (
                       <p role="status">
-                        質問を確認しています。応答に最大120秒程度かかる場合があります。
+                        登録情報を調べています。完了まで再送せずお待ちください。
                       </p>
                     )}
                     {error && (
@@ -898,7 +912,18 @@ export function App() {
                             一部の情報・評価が不足しています
                           </span>
                         )}
-                        <p className="answer">{result.answer}</p>
+                        {object(result.data.answer_sections) ? (
+                          <div role="log" aria-label="質問と回答">
+                            {questionTurns.map((turn, index) => (
+                              <article key={index}>
+                                <p>質問：{turn.question}</p>
+                                <p className="answer">{turn.answer}</p>
+                              </article>
+                            ))}
+                          </div>
+                        ) : (
+                          <p className="answer">{result.answer}</p>
+                        )}
                       </section>
                     )}
                   </div>

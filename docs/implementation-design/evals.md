@@ -67,3 +67,7 @@ STRUCTURED_PASS_REVIEW_REQUIREDは構造化結果の成功であり、文章や�
 ## 10. 検索baseline v1
 
 verify_retrieval_quality.pyで6文書・6質問の合成dataset retrieval-demo-v1を実Embedding／Qdrant／PostgreSQLで測る。正解文書を各質問に1件定め、hit@1、recall@3、MRRと、取得抜粋・title・version・本文hash・サーバ引用の正本一致を記録する。モデル名・digest・次元数、revision・dirty状態、原応答も保存する。これはLLMで生成した回答のgroundingではなく、文書抜粋と引用のgroundingである。1文書だけの疎通確認や本datasetの成功を一般検索・実運用全体の品質保証へ拡張しない。数値合格閾値は§6に従いbaseline確認後にPO承認で固定する。
+
+## 質問欄デモの評価（PR #277）
+
+[固定した範囲と期待](../design/demo-question-chat.md)、`scripts/fixtures/demo-question-cases.json`を評価前の基準とする。固定46問を直接APIへ各3回、モデルなしで送る。Safety（別観点・根拠外事実・空検索からの不存在断定）、Liveness（対応観点と共通表記照合）、Usability（断りと案内の頻度）を別々に報告する。型付き照会の成功をLLMの意味理解の改善と呼ばない。保留4問は既知問と分ける。旧H6/H7の実測はタグ`archive/pr276-20261026`に保存し改変しない。

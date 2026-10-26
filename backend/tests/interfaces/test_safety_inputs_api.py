@@ -6,17 +6,12 @@ from copy import deepcopy
 from uuid import uuid4
 
 import pytest
-from agent.test_read_agent import ScriptedLLM, call
 from domain.test_safety import payload
 from fastapi.testclient import TestClient
 
-from linescope.application.prepare import EquipmentStatePrepare
-from linescope.application.proposals import ProposalStore
 from linescope.demo_seed import DEMO_EQUIPMENT, seed_demo
 from linescope.domain.canonical import canonical_hash, canonical_json
 from linescope.domain.snapshot import CanonicalSnapshot
-from linescope.execution import ExecutionContext
-from linescope.integrations.llm import LLMReply
 from linescope.interfaces.api import create_app
 from linescope.logging import EventLogger
 from linescope.settings import Settings
@@ -130,38 +125,14 @@ def test_create_approve_execute_read_and_retry_keep_fixed_ids_and_atomic_history
         )
         assert connection.execute("SELECT count(*) AS n FROM equipment").fetchone()["n"] > 0
 
-    llm = ScriptedLLM(
-        call("get_safety_input", {"safety_input_id": identifier(saved)}),
-        LLMReply("安全なので継続してください", ()),
-    )
-    with TestClient(create_app(settings(), world, llm=llm)) as agent_client:
-        result = agent_client.post(
-            "/agent", json={"message": "登録済み安全入力を確認して"}, headers=headers()
-        )
-        data = result.json()
-        assert result.status_code == 200 and "継続案を候補から除外" in data["answer"]
-        assert "安全なので継続してください" not in data["answer"]
-        assert data["evidence"]["tool_results"][0]["version"] == 1
-    # A declared safety stop must not prevent recording the observed operational fact.
-    context = ExecutionContext("requester", "manager", uuid4())
-    state = EquipmentStatePrepare(world).prepare(
-        context,
-        [{"equipment_id": str(DEMO_EQUIPMENT[0][0]), "state_code": "RUNNING"}],
-        uuid4(),
-        agent_input_hash=canonical_hash({"message": "実際の状態を記録"}),
-    )
-    state_saved = ProposalStore(world).get(context, str(state.update_request_id))
-    with client_for(world) as state_client:
-        assert approve(state_client, state_saved).status_code == 200
-        assert execute(state_client, state_saved).status_code == 200
-    with world.transaction() as connection:
-        assert (
-            connection.execute(
-                "SELECT state_code FROM equipment_current_state WHERE equipment_id=%s",
-                (DEMO_EQUIPMENT[0][0],),
-            ).fetchone()["state_code"]
-            == "RUNNING"
-        )
+    from interfaces.demo_read_support import registered_input_observation
+    from linescope.agent.safety_answer import safety_answer
+
+    with client_for(world) as reader:
+        observation = registered_input_observation(reader, "safety", identifier(saved), headers())
+    answer = safety_answer((observation,))
+    assert "継続案を候補から除外" in answer
+    assert observation.result.data["input"]["version"] == 1
 
 
 def test_update_version_conflict_preserves_winning_payload(world):

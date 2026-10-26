@@ -89,9 +89,7 @@ export function products(result?: Envelope): NodeRef[] {
     .filter((n) => n.entity_type === "Product");
 }
 export async function searchEquipment(query: string, signal: AbortSignal) {
-  const filters = query.trim()
-    ? [{ name: query.trim() }, { equipment_code: query.trim() }]
-    : [{}];
+  const filters = query.trim() ? [{ reference: query.trim() }] : [{}];
   const replies = await Promise.allSettled(
     filters.map((filter) =>
       direct(

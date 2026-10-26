@@ -100,9 +100,10 @@ def test_cli_ingestion_to_authenticated_agent_citation(world, monkeypatch, capsy
         )
     assert model_response.status_code == 200
     observed = model_response.json()
-    assert observed["status"] == "partial"
-    assert observed["data"]["tool_results"][0]["tool"] == "retrieve_knowledge"
-    assert observed["evidence"]["tool_results"][0]["citations"] == [item["citation"]]
+    assert observed["data"]["answer_sections"]["read_outcome"] == "UNSUPPORTED"
+    assert not llm.requests
+    assert not observed["data"]["tool_results"]
+    assert "execute now" not in observed["answer"]
 
 
 def test_new_version_excludes_old_candidates(world):

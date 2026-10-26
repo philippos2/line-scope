@@ -531,6 +531,8 @@ def create_app(
                 ],
                 "tool_trace": list(result.trace),
             }
+            if result.answer_sections is not None:
+                data["answer_sections"] = result.answer_sections
             if result.needs_input:
                 data.update(candidates=[], missing_fields=["target_identifier"])
             evidence = {
@@ -547,6 +549,7 @@ def create_app(
                     code=code,
                     status_code=error_status(code),
                     errors=list(result.errors),
+                    answer=result.answer if result.answer_sections is not None else None,
                     evidence=evidence,
                     context_id=context_id,
                 )

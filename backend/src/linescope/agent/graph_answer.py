@@ -13,7 +13,7 @@ TYPE_LABELS = {
 }
 
 
-def downstream_answer(observations, *, has_errors=False):
+def downstream_answer(observations, *, has_errors=False, include_detail_link=True):
     """Render only a single supported analysis; preserve all raw data/Evidence."""
     graphs = [item for item in observations if item.tool in GRAPH_TOOLS]
     if len(graphs) != 1 or graphs[0].tool != "trace_downstream_impact":
@@ -56,13 +56,15 @@ def downstream_answer(observations, *, has_errors=False):
         if data["complete"]
         else "探索は不完全で、未取得の対象・経路があり得ます。影響なしとは判断できません。"
     )
-    answer += "実際の停止影響・能力・安全性・経済影響は未評価です。詳細経路と根拠は構造化結果をご確認ください。"
+    answer += "実際の停止影響・能力・安全性・経済影響は未評価です。"
+    if include_detail_link:
+        answer += "詳細経路と根拠は構造化結果をご確認ください。"
     if has_errors:
         answer += "一部の参照は失敗しています。エラー情報をご確認ください。"
     return answer
 
 
-def dependency_answer(observations, *, has_errors=False):
+def dependency_answer(observations, *, has_errors=False, include_detail_link=True):
     """Summarize one upstream/common search without implying cause or impact."""
     graphs = [item for item in observations if item.tool in GRAPH_TOOLS]
     if len(graphs) != 1:
@@ -123,7 +125,9 @@ def dependency_answer(observations, *, has_errors=False):
         if data["complete"]
         else f"探索は不完全で、未取得の対象・経路があり得ます。{unavailable}とは判断できません。"
     )
-    answer += "実際の停止影響・能力・安全性・経済影響は未評価です。詳細経路と根拠は構造化結果をご確認ください。"
+    answer += "実際の停止影響・能力・安全性・経済影響は未評価です。"
+    if include_detail_link:
+        answer += "詳細経路と根拠は構造化結果をご確認ください。"
     if has_errors:
         answer += "一部の参照は失敗しています。エラー情報をご確認ください。"
     return answer

@@ -1,3 +1,5 @@
+import json
+
 import pytest
 from agent.test_read_agent import ScriptedLLM, call
 from fastapi.testclient import TestClient
@@ -35,7 +37,9 @@ def test_seed_requires_rebuild_and_enables_demo_api(db, adapters, direction):
     with TestClient(create_app(settings, db, llm=llm, graph_driver=driver)) as client:
         response = client.post(
             "/agent",
-            json={"message": "M-204の影響を調べて"},
+            json={
+                "message": "関係分析 " + json.dumps({"tool": tool, "arguments": {"target": target}})
+            },
             headers={"Authorization": "Bearer token"},
         )
     assert response.status_code == 200

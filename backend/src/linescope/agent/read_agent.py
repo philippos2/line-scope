@@ -53,6 +53,7 @@ class ReadAgentResult:
     trace: tuple[dict, ...]
     errors: tuple[dict, ...]
     needs_input: bool
+    answer_sections: dict | None = None
 
 
 def equipment_search_key(arguments):
@@ -156,11 +157,20 @@ class ReadAgent:
                 ReadObservation(call_id, command["tool"], result, command["arguments"]),
             )
             return ReadAgentResult(
-                supported_answer(observations)
-                or (
-                    "取得結果と未評価事項は構造化結果をご確認ください。"
-                    if command["tool"] in GRAPH_TOOLS
-                    else "選択したノードの登録属性を取得しました。"
+                (
+                    (
+                        "指定時刻は現在登録された関係の期間評価です。当時の正本・実稼働状態の完全復元ではありません。"
+                        if request.explicit_as_of
+                        else ""
+                    )
+                    + (
+                        supported_answer(observations)
+                        or (
+                            "取得結果と未評価事項は構造化結果をご確認ください。"
+                            if command["tool"] in GRAPH_TOOLS
+                            else "選択したノードの登録属性を取得しました。"
+                        )
+                    )
                 ),
                 observations,
                 ({"tool_call_id": call_id, "tool": command["tool"], "attempt": 1, "code": "OK"},),

@@ -6,6 +6,7 @@ from uuid import UUID
 import pytest
 from agent.test_read_agent import ScriptedLLM, call
 from fastapi.testclient import TestClient
+from interfaces.demo_read_support import graph_message
 from interfaces.test_agent_api import HEADERS, settings
 from psycopg import sql
 
@@ -90,7 +91,11 @@ def test_untrusted_llm_arguments_through_http_do_not_change_sql_structure(world,
     with TestClient(
         create_app(settings(), world, llm=llm, event_logger=EventLogger(stream=io.StringIO()))
     ) as client:
-        response = client.post("/agent", headers=HEADERS, json={"message": "設備を検索して"})
+        response = client.post(
+            "/agent",
+            headers=HEADERS,
+            json={"message": graph_message("search_equipment", {"filter": {"name": attack}})},
+        )
     assert response.status_code == 200 and response.json()["status"] == "ok"
     assert response.json()["data"]["tool_results"][0]["data"] == {"items": [], "next_cursor": None}
     assert snapshot(world) == before

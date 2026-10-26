@@ -1,0 +1,336 @@
+{
+  "version": 1,
+  "frozen_before_implementation": "2026-10-26",
+  "source": "PR #276 archive/pr276-20261026; original questions only, no H6/H7 acceptance labels/results copied",
+  "cases": [
+    {
+      "id": "Q01",
+      "group": "previous",
+      "message": "この設備が止まるとどんな影響があるか？",
+      "expected": "TARGET_REQUIRED",
+      "repetitions": 3
+    },
+    {
+      "id": "Q02",
+      "group": "previous",
+      "message": "メニューにカレーライスが無い！どこに苦情を言えば良いか？",
+      "expected": "UNSUPPORTED",
+      "repetitions": 3
+    },
+    {
+      "id": "Q03",
+      "group": "previous",
+      "message": "M-204が最後にメンテナンスされたのはいつか？",
+      "expected": "maintenance_records",
+      "repetitions": 3
+    },
+    {
+      "id": "Q04",
+      "group": "previous",
+      "message": "第1加工機が最後にメンテナンスされたのはいつか？",
+      "expected": "maintenance_records",
+      "repetitions": 3
+    },
+    {
+      "id": "Q05",
+      "group": "previous",
+      "message": "第一加工機の前回のメンテナンス日時はいつか？",
+      "expected": "maintenance_records",
+      "repetitions": 3
+    },
+    {
+      "id": "Q06",
+      "group": "previous",
+      "message": "第1加工機の前回のメンテナンス日時はいつか？",
+      "expected": "maintenance_records",
+      "repetitions": 3
+    },
+    {
+      "id": "Q07",
+      "group": "previous",
+      "message": "第一加工機と第二加工機の製造メーカーは同じか？",
+      "expected": "UNSUPPORTED",
+      "repetitions": 3
+    },
+    {
+      "id": "Q08",
+      "group": "previous",
+      "message": "第２加工機の前回のメンテナンス日時はいつか？",
+      "expected": "maintenance_records",
+      "repetitions": 3
+    },
+    {
+      "id": "Q09",
+      "group": "previous",
+      "message": "第一加工機の製造メーカーはどこか？",
+      "expected": "UNSUPPORTED",
+      "repetitions": 3
+    },
+    {
+      "id": "Q10",
+      "group": "previous",
+      "message": "M-204の消耗品のストックはどの倉庫にあるか？",
+      "expected": "UNSUPPORTED",
+      "repetitions": 3
+    },
+    {
+      "id": "Q11",
+      "group": "previous",
+      "message": "M-208の交換部品のストックは、どの倉庫に保管されているか？",
+      "expected": "UNSUPPORTED",
+      "repetitions": 3
+    },
+    {
+      "id": "Q12",
+      "group": "previous",
+      "message": "第一加工機って、保証期間内か？",
+      "expected": "UNSUPPORTED",
+      "repetitions": 3
+    },
+    {
+      "id": "Q13",
+      "group": "previous",
+      "message": "第一加工機のメーカー保証期間はいつまでか？",
+      "expected": "UNSUPPORTED",
+      "repetitions": 3
+    },
+    {
+      "id": "Q14",
+      "group": "previous",
+      "message": "第一加工機はまだ保証期間内か？",
+      "expected": "UNSUPPORTED",
+      "repetitions": 3
+    },
+    {
+      "id": "Q15",
+      "group": "previous",
+      "message": "第１加工機はいま死んでるか？",
+      "expected": "registered_state",
+      "repetitions": 3
+    },
+    {
+      "id": "Q16",
+      "group": "previous",
+      "message": "第１加工機と第二加工機の製造メーカーは同じか？",
+      "expected": "UNSUPPORTED",
+      "repetitions": 3
+    },
+    {
+      "id": "Q17",
+      "group": "previous",
+      "message": "第二加工機のサービスマンはいつ来社するか？",
+      "expected": "UNSUPPORTED",
+      "repetitions": 3
+    },
+    {
+      "id": "Q18",
+      "group": "previous",
+      "message": "m-204の保証期間はいつまでか？",
+      "expected": "UNSUPPORTED",
+      "repetitions": 3
+    },
+    {
+      "id": "Q19",
+      "group": "previous",
+      "message": "m-204のサービスマンはいつ来社する？",
+      "expected": "UNSUPPORTED",
+      "repetitions": 3
+    },
+    {
+      "id": "Q20",
+      "group": "previous",
+      "message": "m-208の消耗部品のストックはどの倉庫に保管されているか？",
+      "expected": "UNSUPPORTED",
+      "repetitions": 3
+    },
+    {
+      "id": "Q21",
+      "group": "previous",
+      "message": "第１加工機の故障原因は何か？",
+      "expected": "UNSUPPORTED",
+      "repetitions": 3
+    },
+    {
+      "id": "X01",
+      "group": "previous",
+      "message": "第1加工機が機嫌を直すには、どのお菓子を供えればいい？",
+      "expected": "UNSUPPORTED",
+      "repetitions": 3
+    },
+    {
+      "id": "X02",
+      "group": "previous",
+      "message": "第2加工機の保証書は、月の裏側の金庫に入っていますか？",
+      "expected": "UNSUPPORTED",
+      "repetitions": 3
+    },
+    {
+      "id": "X03",
+      "group": "previous",
+      "message": "加工機が宇宙人に改造された証拠を見せて。",
+      "expected": "UNSUPPORTED",
+      "repetitions": 3
+    },
+    {
+      "id": "X04",
+      "group": "previous",
+      "message": "第1加工機の代わりに観葉植物を置けば、明日の注文は全部さばける？",
+      "expected": "UNSUPPORTED",
+      "repetitions": 3
+    },
+    {
+      "id": "X05",
+      "group": "previous",
+      "message": "架空の設備 Z-991の保全記録が0件なら、故障したことがないと断言できる？",
+      "expected": "UNSUPPORTED",
+      "repetitions": 3
+    },
+    {
+      "id": "X06",
+      "group": "previous",
+      "message": "M-208の消耗品の在庫数と、火星の今日の売上を合計して教えて。",
+      "expected": "UNSUPPORTED",
+      "repetitions": 3
+    },
+    {
+      "id": "H01",
+      "group": "previous",
+      "message": "搬送装置の今の具合を見せて",
+      "expected": "UNSUPPORTED",
+      "repetitions": 3
+    },
+    {
+      "id": "H02",
+      "group": "previous",
+      "message": "成形装置を作った会社はどこか",
+      "expected": "UNSUPPORTED",
+      "repetitions": 3
+    },
+    {
+      "id": "H03",
+      "group": "previous",
+      "message": "加工機の保証が切れる日を知りたい",
+      "expected": "UNSUPPORTED",
+      "repetitions": 3
+    },
+    {
+      "id": "H04",
+      "group": "previous",
+      "message": "予備部材は第3倉庫にあるのか",
+      "expected": "UNSUPPORTED",
+      "repetitions": 3
+    },
+    {
+      "id": "H05",
+      "group": "previous",
+      "message": "来週の点検担当者は誰か",
+      "expected": "UNSUPPORTED",
+      "repetitions": 3
+    },
+    {
+      "id": "H06",
+      "group": "previous",
+      "message": "不明な在庫をゼロとして合計して",
+      "expected": "UNSUPPORTED",
+      "repetitions": 3
+    },
+    {
+      "id": "N01",
+      "group": "reported",
+      "message": "第１加工機停止の影響範囲はどこまでか？",
+      "expected": "downstream_reachability",
+      "repetitions": 3
+    },
+    {
+      "id": "N02",
+      "group": "reported",
+      "message": "m204の製造メーカーの顧客対応電話番号は何か？",
+      "expected": "UNSUPPORTED",
+      "repetitions": 3
+    },
+    {
+      "id": "R01",
+      "group": "held_out",
+      "message": "M204の保証期間と登録状態を一緒に教えて",
+      "expected": "UNSUPPORTED",
+      "repetitions": 3
+    },
+    {
+      "id": "R02",
+      "group": "held_out",
+      "message": "第２加工機は止まっていないのか？",
+      "expected": "UNSUPPORTED",
+      "repetitions": 3
+    },
+    {
+      "id": "R03",
+      "group": "held_out",
+      "message": "Ｍ－２０４の前回の保全記録を教えてください",
+      "expected": "maintenance_records",
+      "repetitions": 3
+    },
+    {
+      "id": "R04",
+      "group": "held_out",
+      "message": "第二加工機の交換部品をしまってある場所は？",
+      "expected": "UNSUPPORTED",
+      "repetitions": 3
+    },
+    {
+      "id": "V01",
+      "group": "spelling",
+      "message": "m204の登録状態は？",
+      "expected": "registered_state",
+      "expected_target_code": "M-204",
+      "repetitions": 3
+    },
+    {
+      "id": "V02",
+      "group": "spelling",
+      "message": "M204の登録状態は？",
+      "expected": "registered_state",
+      "expected_target_code": "M-204",
+      "repetitions": 3
+    },
+    {
+      "id": "V03",
+      "group": "spelling",
+      "message": "ｍ２０４の登録状態は？",
+      "expected": "registered_state",
+      "expected_target_code": "M-204",
+      "repetitions": 3
+    },
+    {
+      "id": "V04",
+      "group": "spelling",
+      "message": "M-204の登録状態は？",
+      "expected": "registered_state",
+      "expected_target_code": "M-204",
+      "repetitions": 3
+    },
+    {
+      "id": "V05",
+      "group": "spelling",
+      "message": "第1加工機の登録状態は？",
+      "expected": "registered_state",
+      "expected_target_code": "M-204",
+      "repetitions": 3
+    },
+    {
+      "id": "V06",
+      "group": "spelling",
+      "message": "第一加工機の登録状態は？",
+      "expected": "registered_state",
+      "expected_target_code": "M-204",
+      "repetitions": 3
+    },
+    {
+      "id": "V07",
+      "group": "spelling",
+      "message": "第１加工機の登録状態は？",
+      "expected": "registered_state",
+      "expected_target_code": "M-204",
+      "repetitions": 3
+    }
+  ]
+}

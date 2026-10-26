@@ -15,6 +15,7 @@ from sqlalchemy import column, func, select, table, update
 from sqlalchemy.dialects.postgresql import UUID as PGUUID
 from sqlalchemy.dialects.postgresql.psycopg import dialect
 
+from interfaces.demo_read_support import graph_message
 from linescope.integrations.llm import LLMReply
 from linescope.interfaces.api import create_app
 from linescope.settings import Settings
@@ -104,7 +105,15 @@ def test_bs14_analysis_then_explicit_prepare_keeps_current_state_unchanged(
         LLMReply("依存関係を確認しました。実際の停止影響は未評価です。", ()),
     )
     with client_for(db, adapters[1].driver, llm) as client:
-        analysis = client.post("/agent", json={"message": "M-204の影響を調べて"}, headers=headers())
+        analysis = client.post(
+            "/agent",
+            json={
+                "message": graph_message(
+                    "trace_downstream_impact", {"target": {"entity_type": M[0], "entity_id": M[1]}}
+                )
+            },
+            headers=headers(),
+        )
         assert analysis.status_code == 200
         assert (
             analysis.json()["evidence"]["tool_results"][0]["state_versions"]["Equipment:" + M[1]]
@@ -129,7 +138,7 @@ def test_bs14_analysis_then_explicit_prepare_keeps_current_state_unchanged(
             ).status_code
             == 409
         )
-    assert len(llm.requests) == 2  # Analysis only; Prepare did not ask the LLM to act.
+    assert not llm.requests  # Explicit Read and Prepare are server-owned.
     assert counts(db) == {
         "business_update_history": 0,
         "equipment_state_history": 0,

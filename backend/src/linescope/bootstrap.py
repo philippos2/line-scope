@@ -6,9 +6,11 @@ from neo4j import GraphDatabase
 
 from .agent.agent_input import ConversationStore
 from .agent.read_agent import ReadAgent
+from .agent.registered_question_read import RegisteredQuestionReads
 from .application.agent_service import AgentApplication
 from .application.approvals import HumanApproval
 from .application.capacity import CapacityInputs
+from .application.demo_questions import DemoQuestions
 from .application.dependency_command import DependencyCommandPrepare
 from .application.economics import EconomicInputs
 from .application.equipment_command import EquipmentCommandPrepare
@@ -119,17 +121,21 @@ def build_api_services(
                 index,
             )
         proposals = ProposalStore(database)
-        read_agent = (
-            ReadAgent(
-                ToolDispatcher(database, graph=graph, knowledge=knowledge),
-                llm,
-                event_logger=events,
-                deadline_seconds=settings.read_agent_deadline_seconds,
-            )
-            if llm is not None
-            else None
+        read_dispatcher = ToolDispatcher(database, graph=graph, knowledge=knowledge)
+        read_agent = ReadAgent(
+            read_dispatcher,
+            llm,
+            event_logger=events,
+            deadline_seconds=settings.read_agent_deadline_seconds,
         )
         agent = AgentApplication(
+            questions=DemoQuestions(
+                RegisteredQuestionReads(
+                    read_dispatcher,
+                    event_logger=events,
+                    deadline_seconds=settings.read_agent_deadline_seconds,
+                )
+            ),
             structured=StructuredCommandPrepare(database, event_logger=events),
             proposals=proposals,
             knowledge=knowledge,
