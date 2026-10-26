@@ -1,5 +1,7 @@
 # LineScope AI評価設計書
 
+以下のLLM・retrieval評価設計と旧baselineは、その経路・版・datasetについての記録である。現行質問欄は末尾の「質問欄デモの評価」を適用し、モデル不使用の決定論的照会として評価する。新方式の成功は旧H6/H7の意味理解の未達を解消したことを意味しない。実測と試行の区別は[検証結果](../demo/verified-findings.md)を参照する。
+
 ## 1. 対象
 
 - Intent
@@ -71,3 +73,5 @@ verify_retrieval_quality.pyで6文書・6質問の合成dataset retrieval-demo-v
 ## 質問欄デモの評価（PR #277）
 
 [固定した範囲と期待](../design/demo-question-chat.md)、`scripts/fixtures/demo-question-cases.json`を評価前の基準とする。固定46問を直接APIへ各3回、モデルなしで送る。Safety（別観点・根拠外事実・空検索からの不存在断定）、Liveness（対応観点と共通表記照合）、Usability（断りと案内の頻度）を別々に報告する。型付き照会の成功をLLMの意味理解の改善と呼ばない。保留4問は既知問と分ける。旧H6/H7の実測はタグ`archive/pr276-20261026`に保存し改変しない。
+
+固定46問の保留R03は初回の不一致後に原因調査へ使用されたため、最終成功を未見データへの一般化の証拠とはしない。初回・再試行・最終試行の件数を合算して成功率の分母を作らず、[各試行の原記録](../history/2026-10-26-demo-question-results.md)を参照する。代替候補名の追加確認は[別記録](../history/2026-10-26-demo-alternative-names.md)。この適用範囲の整理で既存dataset・ラベル・測定結果を変更しない。

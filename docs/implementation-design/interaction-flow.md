@@ -1,11 +1,13 @@
 # LineScope 対話・処理フロー設計書
 
+本書は処理の責務順序を示す。実行・成功の証拠そのものではない。質問欄の語彙と応答境界は[限定照会設計](../design/demo-question-chat.md)、実測範囲は[検証結果](../demo/verified-findings.md)を参照する。
+
 ## 1. Read
-User -> POST /agent -> Agent -> Read Tool -> PostgreSQL -> Envelope -> User
+質問欄 -> POST /agent -> 共通検索で対象解決 -> 限定9観点の全文照合 -> 型付きRead -> PostgreSQL -> Evidence検証・コードの回答生成 -> Envelope -> 同じ質問欄。対象曖昧・対応外は会話で確認／案内し、LLMへフォールバックしない。構造化された既存Readはその契約を維持する。
 
 ## 2. Graph
 User -> /agent -> Agent -> Graph Tool -> Sync Check
-- CURRENT: Neo4j探索 -> structured evidence -> LLM説明 -> Envelope
+- CURRENT: Neo4j探索 -> structured evidence -> コードによる結果表示 -> Envelope
 - 非CURRENT: error -> Envelope。Neo4j結果は返さない
 
 ## 3. Prepare
@@ -42,14 +44,14 @@ Prepareで新Equipment集合をSnapshot化
 -> USESへProjection
 
 ## 8. 代替経路
-Graph構造候補 -> PostgreSQLでEquipment/Operation状態確認 -> 「構造候補」と「現在利用可能」を分けて回答。
+Graph構造候補 -> PostgreSQLでEquipment/Operationと必須インフラの登録状態確認 -> 三値評価 -> 「構造候補」と「登録条件による利用可能性」を分けて回答。実運転可否とはしない。
 
 ## 9. 曖昧対象
 Agent -> candidates + context_id -> User choice -> same context_id -> resolve。
 
 ## 10. 整合境界の具体化
 
-Graph: 認可 → shared mutation lock → CURRENT / generation確認 → 単一Neo4j read Transaction → 必要なPostgreSQL状態のstatement Snapshot → 終了時同期再確認 → サーバEvidence → lock解放 → LLM説明。時刻・temporal_scopeを返す。
+Graph: 認可 → shared mutation lock → CURRENT / generation確認 → 単一Neo4j read Transaction → 必要なPostgreSQL状態のstatement Snapshot → 終了時同期再確認 → サーバEvidence → lock解放 → 結果の契約に従うコードの表示。通常質問の回答をLLMへ再解釈させない。時刻・temporal_scopeを返す。
 
 Prepare: trusted retry key固定 → 同キー既存要求確認 → 単一カテゴリ・業務入力検証 → canonical Snapshot保存 → ID / hash返却。承認者へIDは人が渡す。
 

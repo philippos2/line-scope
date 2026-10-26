@@ -23,7 +23,7 @@ Client
               |
 Application API / Authentication
               |
-        Agent Orchestrator
+  決定論的ルーティング / Application
           /      |       \
  Read Tools   Graph Tools  Prepare Tools
     |            |             |
@@ -82,7 +82,7 @@ v1では再構築中にGraph-affecting更新を共通Advisory Lockで短時間�
 
 ## 10. 障害分離
 
-Neo4j障害はGraph分析、Qdrant障害はRAG、LLM障害は自然言語処理に限定する。PostgreSQL障害時は正本参照・更新を停止する。
+Neo4j障害はGraph分析、Qdrant障害はRAG、LLM障害はLLMを使用する既存経路に限定する。現行9観点の質問欄はLLM分類・生成を使用しない。PostgreSQL障害時は正本参照・更新を停止する。
 
 ## 11. 整合境界
 
@@ -90,38 +90,37 @@ Graph分析はshared、Graph-affecting更新・Projection・Rebuildはexclusive�
 
 Rebuild controllerは単一workerと同じleader lockを取得してOutboxをdrainし、mutation lock下で正本Snapshotから新generationを構築する。順序・復旧はtransaction-design §11・17に従う。
 
-## 12. 技術構成と実装チェックポイント
+## 12. 現行の技術構成
 
-| 層 | 採用技術 | 責務・実装時期 |
+| 層 | 採用技術 | 責務 |
 |---|---|---|
-| Backend | Python / FastAPI | HTTP API、認証済み実行Context、Tool制御。最初の実装チェックポイントで起動基盤を作る |
-| 正本DB | PostgreSQL | 業務データ、Approval、UpdateRequest、履歴、Outbox、文書metadata。最初は接続・migration基盤のみ |
-| DBアクセス標準 | SQLAlchemy Core | 通常の参照・更新・Audit / Outbox等に導入済み。Psycopg 3の明示的Transactionを維持し、PostgreSQL固有処理等の合理的なRaw SQL例外はbind・固定識別子で扱う |
-| DB driver | Psycopg 3 | PostgreSQL接続。Core導入後もdriverとして使用可能 |
-| ASGI server | Uvicorn | FastAPIのHTTP実行 |
-| 構造依存の派生モデル | Neo4j | Projection・Rebuild・分析用読取基盤を内部実装。CURRENT時の公開Graph Tool・Agent接続は後続 |
-| 非構造文書の派生Index | Qdrant | embeddingによる文書検索。後続のRAGチェックポイントで実装する |
-| LLM / embedding model | 評価後に選定 | プロダクト・model versionは未確定。試作アダプターを採用確定・品質承認と扱わない |
-| Client（サーバ実装フェーズ） | HTTP / curl等 | Backendの実装・検証を先に完了する |
-| Frontend（後続フェーズ） | frameworkは後続設計時に確定 | サーバサイド完成後、AIP Analystを参考にLogiScopeよりリッチなUIを構築する。現チェックポイントには含めない |
+| Backend | Python / FastAPI / Uvicorn | HTTP、信頼済みContext、認可、業務処理とTool制御 |
+| 正本DB | PostgreSQL / SQLAlchemy Core / Psycopg 3 | 業務値・登録状態・正式入力・要求・承認・履歴・Outbox・文書metadata |
+| 派生Graph | Neo4j | CURRENTを確認して型付き関係を探索。Projection/Rebuildで正本から構築 |
+| 派生Index | Qdrant | 文書検索。本文と認可は正本へ再照合 |
+| モデル接続 | Ollama adapter | 独立した文書検索のEmbedding等。通常質問はLLMに依存しない。過去のRead Agent評価はevalsの適用範囲を参照 |
+| Frontend | React / TypeScript / Vite / React Flow | 検索・関係図・比較・根拠・入力・変更操作。判定をUIで再計算しない |
 
-pgvectorはこの構成では採用しない。ベクトル検索の責務はQdrantに置く既存設計を維持する。
-LogiScopeの技術構成を継承したものではなく、LineScopeの責務定義に基づく構成とする。
-採用Backend packageのversionはbackend/pyproject.toml、検証環境と起動手順はoperations.md / README.mdに記録する。
-基盤チェックポイントのhealth / readiness成功は、業務API・Graph・RAGの実装完了を意味しない。
+pgvectorは採用しない。小規模データで3ストアが性能上必須という意味ではなく、正本・派生の責務と同期を検証する構成である。packageのversionは依存定義を参照する。正式デモは[環境文書](../demo/environments.md)、別マシンの構築は[起動ガイド](../getting-started.md)を参照する。
 
-## 13. リポジトリ構成
+## 13. 概念から表示までの責務と配置
 
-LineScopeは単一リポジトリとし、ルートにbackend / frontend / docsを置く。
-Python packageはbackend/src/linescope、Backendテストはbackend/tests、package・依存・Tool設定はbackend/pyproject.tomlで管理する。
-frontendは後続UIの配置先とし、サーバサイド完成前は実装を追加しない。
-docsは仕様の正本と変更履歴を保持する。実装ディレクトリの分離でDB・認証・Approval / Executeの責務を変更しない。
+| 層 | 正本・処理 | 次の層へ渡すもの |
+|---|---|---|
+| 概念と関係 | domain-model | endpointの型、関係の方向、必須依存、一段代替の意味 |
+| 登録データ | PostgreSQL | 設備等の実体、関係、正式入力 |
+| 登録状態 | PostgreSQL | 設備状態・供給状態とversion、登録時刻、DB読取時刻。実機の観測証明ではない |
+| 探索・評価 | 派生Graphとサーバの規則 | 到達集合、構造成立、登録条件による三値利用可能性、条件付き計算 |
+| Evidence | サーバ | 取得結果との対応、正本参照、version、generation、完全性、未評価事項 |
+| 表示 | コードの回答生成とFrontend | 検証可能な値と限定。質問とは別の情報を代わりに答えない |
+
+LineScopeは単一リポジトリとし、`backend/src/linescope`に業務・接続処理、`backend/tests`に試験、`frontend`に操作画面、`docs`に仕様・履歴を置く。通常質問の入口は[限定照会設計](demo-question-chat.md)に従う。DBをGraphにしたこと自体の効果と、この意味定義・評価規則の効果を混同しない。実証範囲は[検証結果](../demo/verified-findings.md)を参照する。
 
 ## 14. Decision Packageの責務
 
 PostgreSQLは新しい能力・費用・計画・安全・履歴情報についても業務正本を担う。必要な構造はPO-B01〜07とdata-modelで確定する。Neo4jは依存・経路の派生探索モデル、Qdrantは認可された文書の検索Indexに限定し、費用・安全判定の正本にしない。
 
-アプリケーションの決定論的計算処理が、認可された正本入力と定義済みルールから能力不足・損失・期間計算を行う。Agentは必要なRead / Graph / 計算処理を組み合わせて説明する。現行Tool一覧には計算Toolがないため、api-toolsの拡張契約確定後に実装する。LLMに算術・安全ルールの確定を委任しない。
+アプリケーションの決定論的計算処理が、認可された正本入力と定義済みルールから能力不足・損失・期間計算を行う。現行の構造化比較経路はRead / Graph / 計算処理を組み合わせ、サーバが数値・不足と説明を構築する。具体的な契約はapi-toolsを参照する。通常質問欄は固定9観点に限り、一般のDecision Package要求を推測で組み立てない。LLMに算術・安全ルールの確定を委任しない。
 
 Decision Packageは各結果の観測時刻・version・Graph generation・評価期間を示す。既存のshared / exclusive Graph lockは構造探索の境界であり、全業務情報の同時Snapshotを保証しない。計算入力のversion付き観測結果を固定して評価し、評価後のcurrent valueと混同しない。将来予測・予定の意味と再評価条件は対応するPO判断とAPIで確定する。
 
@@ -199,7 +198,7 @@ ProjectionQueueはworkerの内部claim部品として、専用session leaderを�
 ProjectionQueueの失敗記録 / lease回収はCoreの条件付きUPDATEを使い、専用leaderをcommit前後に確認する短いtransactionで保存する。一時失敗は既定backoffのRETRYABLE、恒久失敗または最終attemptはDEAD。failureの更新条件はPROCESSING / outbox ID / attempt / 開始時刻であり、古い報告を拒否する。lease超過は通常rebuild_flag=falseの領域でRETRYABLEへ戻し、上限済みイベントは次claimでDEADにして追加実処理を開始しない。claim / 回収 / failureだけではGraph適用成功を意味せず、APPLIED保存の境界はProjectionApplication、実Neo4j適用はNeo4jProjectionが担当し、heartbeat・controller drain・専用role・運用構成は後続とする。
 
 
-ProjectionApplicationは通常workerの適用境界を担当する。leader確認後にexclusive mutation lockを取得し、別の短いREAD COMMITTED transactionの単一Core SELECTで保存済みPROCESSING / attempt / 開始時刻 / lease / DEAD / control / generationを確認する。保存payloadを検証して内部adapterへ渡し、adapterのGraph commit後に同条件とgenerationを再確認するCore UPDATEでAPPLIEDを別transactionへ保存する。mutation lockはそのcommitまで保持し、外部I/O中はイベント・controlの行lockを保持しない。adapterは新versionのatomic適用、同versionのhash一致・古いversionの新marker確認を完了してから戻る契約とする。実Neo4j adapterはNeo4jProjectionが担当する。Rebuild drain、worker起動・監視・roleはまだ未実装であり、RecordingAdapterだけを使う試験を実Graph検証と混同しない。
+ProjectionApplicationは通常workerの適用境界を担当する。leader確認後にexclusive mutation lockを取得し、別の短いREAD COMMITTED transactionの単一Core SELECTで保存済みPROCESSING / attempt / 開始時刻 / lease / DEAD / control / generationを確認する。保存payloadを検証して内部adapterへ渡し、adapterのGraph commit後に同条件とgenerationを再確認するCore UPDATEでAPPLIEDを別transactionへ保存する。mutation lockはそのcommitまで保持し、外部I/O中はイベント・controlの行lockを保持しない。adapterは新versionのatomic適用、同versionのhash一致・古いversionの新marker確認を完了してから戻る契約とする。実Neo4j adapterはNeo4jProjectionが担当する。これはProjection内部の適用境界の説明であり、Rebuild drain・worker・roleの現行契約はtransaction-designとoperationsを参照する。RecordingAdapterだけを使う試験を実Graph検証と混同しない。
 
 
 Neo4jProjectionは公式Python driverの明示transactionで、validated generation確認 → 一意markerのwrite lock → source_version / payload_hash比較 → source_record_idによる旧edge除去 → 完全stateの新edge生成 → marker更新 → commitを行う。同version同hashと古いversionはmarker確認後に冪等成功とし、同version異hashや不正marker、端点不存在は成功としない。DISABLEはinactive edgeとmarkerを残す。通常適用で端点ノードやgenerationを推測生成しない。DependencyRelationとAssignmentの同UUID衝突はエッジ種別の固定集合で名前空間を分離する。値はCypher parameter、識別子は閉じたエッジ種別allow-listのみから構築する。任意CypherをAgent / APIへ公開しない。schema設置は管理用の別処理で、通常適用へDDL権限を要求しない。driverとsessionの接続設定・生命周期は呼出し側が所有し、workerのruntime構成・権限・監視は次工程とする。

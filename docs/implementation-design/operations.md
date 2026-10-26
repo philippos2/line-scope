@@ -1,5 +1,7 @@
 # LineScope 運用設計・運用手順書
 
+現在の正式デモの接続先・起動・停止は[正式デモ環境](../demo/environments.md)を参照する。一般構築の既定値と、本マシンの正式5173／API8002を混同しない。本書の基盤導入・LLM probeの説明は対象段階と入力契約を確認して利用し、旧projectやseedを正式環境へ再適用しない。検証済み範囲と未確認は[検証結果](../demo/verified-findings.md)を参照する。
+
 ## 1. 監視
 
 API / PostgreSQL / Neo4j / Qdrant / Projection worker / Outbox / Agentを監視する。
@@ -79,7 +81,7 @@ Rebuildはtransaction-design §11・17のcontroller drain・世代切替手順�
 | lock_timeout_ms / rebuild_timeout_ms | 5000 / 60000 |
 | worker lease / Neo4j transaction timeout | 30秒 / 10秒 |
 | Outbox最大attempt / backoff | 5回 / min(2^(attempt-1), 60)秒 |
-| context TTL / Agent deadline / 最大Tool回数 | 30分 / 60秒 / 12回 |
+| context TTL / Read Agent deadline / 最大Tool回数 | 30分 / 120秒 / 12回（LLM実行経路。通常質問欄の観点判定にLLMは使わない） |
 | Read / Graph一時障害retry | 最大2回、全体deadline内 |
 | RAG limit / system最大 | 5 / 20 |
 
@@ -95,13 +97,13 @@ Restore等でactive_generationが存在せず未処理Outboxが残る場合、co
 
 実装言語・HTTP基盤はPython / FastAPI、PostgreSQL driverはPsycopg 3、ASGI serverはUvicornとする。
 Pythonの対応範囲はbackend/pyproject.tomlで管理し、基盤検証環境はPython 3.14.4 / PostgreSQL 18.6。
-package versionはbackend/pyproject.tomlに記録する。Neo4j / Qdrant / LLMの接続は最初の基盤コミットへ含めない。
+package versionはbackend/pyproject.tomlに記録する。Neo4j / Qdrant / LLMの接続は最初の基盤コミットには含めなかった。その初期の区切りを現在の未実装範囲とは扱わない。
 
 初回基盤PRは管理表と疎通用SQLのみ。現在は業務10テーブルに加え、更新要求・承認・監査・実行履歴・Graph Outbox / 同期管理を実装済み。設備2台のseed、Agent API、更新要求閲覧、Approval / Reject / Execute APIも実装済み。起動可能な範囲と操作例はREADMEを参照する。
 標準起動はDocker Compose。`python3 scripts/create_demo_env.py`でGit管理外の資格情報を生成し、`docker compose up --build -d --wait api`でPostgreSQL → migration → APIの順に起動する。
 API・migrationは非rootコンテナ、DB portは非公開、APIは127.0.0.1に公開。通常の`docker compose down`は正本volumeを保持する。
 テストは独立した`compose.test.yaml`とtmpfs PostgreSQLで実行し、デモの永続volumeを共有しない。
-資格情報・ホストport・volume保持・Dockerテストの具体手順はREADME.mdを正とする。
+正式環境の資格情報の参照場所・port・volume保持・起動停止は[環境文書](../demo/environments.md)、新規構築は[起動ガイド](../getting-started.md)、Docker試験はtest-planとCONTRIBUTINGを参照する。READMEを運用契約の正本とは扱わない。
 `GET /health`はプロセス応答、`GET /health/ready`はPostgreSQL接続を確認する。両方にBearer認証を要求し、共通Envelopeを返す。
 認証なしは401、readinessのDB利用不可は503。接続先・credentialをResponseへ返さない。
 health / readinessは基盤の運用Endpointであり、Agent Toolへ公開しない。詳細な設定・テスト手順はREADME.mdを参照する。
@@ -289,7 +291,7 @@ Raw SQLは管理専用のPostgreSQL DDL例外。passwordはbindしたtransaction
 
 公式根拠: [PostgreSQL role属性](https://www.postgresql.org/docs/18/sql-createrole.html)、[default privilegesの適用範囲](https://www.postgresql.org/docs/18/sql-alterdefaultprivileges.html)。
 
-通常Projection用credentialは`LINESCOPE_PROJECTION_PASSWORD`。migration管理サービスだけがprovision用に受け取り、APIには渡さない。この段階ではworkerサービスは起動しない。既存.envは上記upgradeで不足credentialを追加してから起動する。worker roleはcontroller / Rebuild / heartbeat管理権限を兼ねない。
+通常Projection用credentialは`LINESCOPE_PROJECTION_PASSWORD`。migration管理サービスだけがprovision用に受け取り、APIには渡さない。これはrole導入時の段階的説明であり、現行の常駐worker起動は§16と正式環境文書を参照する。既存.envは上記upgradeで不足credentialを追加してから起動する。worker roleはcontroller / Rebuild / heartbeat管理権限を兼ねない。
 
 ## 15. APIの通常Graph分析接続
 
@@ -305,7 +307,7 @@ APIが構築したdriverはサービス終了時に閉じ、構築途中の失�
 
 `docker compose up --build -d`はNeo4jのhealthとmigration完了後にAPI・projectionを起動する。既存の私有.envは`python scripts/upgrade_demo_env.py`で不足するrole秘密と`LINESCOPE_NEO4J_PASSWORD`を追記でき、既存credential・データは置き換えない。初回.env生成にもこの秘密を含める。Neo4jは専用volumeへ保存し、ホストへポートを公開しない。
 
-workerのPostgreSQL接続はlinescope_projectionを使い、API tokenやLLM設定を渡さない。`linescope project-graph`は既存ProjectionWorkerの反復を行い、各反復ごとに専用session leaderを取得・解放する。BUSY / IDLE / BLOCKED / RETRYABLE等では1秒待機し、APPLIEDでは次の反復へ進む。各eventのclaim・lease・fence・適用・ACK・retry規則は変更しない。未知例外・leader喪失はプロセスを停止し、勝手にDEADへ変更しない。自動再起動は設定していない。
+workerのPostgreSQL接続はlinescope_projectionを使い、API tokenやLLM設定を渡さない。`linescope project-graph`は既存ProjectionWorkerの反復を行い、各反復ごとに専用session leaderを取得・解放する。BUSY / IDLE / BLOCKED / RETRYABLE等では1秒待機し、APPLIEDでは次の反復へ進む。各eventのclaim・lease・fence・適用・ACK・retry規則は変更しない。未知例外・leader喪失はプロセスを停止し、勝手にDEADへ変更しない。worker内部では自己再起動しない。正式デモのComposeには`restart: unless-stopped`があり、プロセス内の再試行とコンテナの再起動方針を区別する。
 
 SIGTERM / SIGINTは終了要求を設定し、待機を解除する。処理中の場合は1反復を終えてから閉じ、途中のcommitを取消済みと扱わない。Composeの停止猶予は45秒とする。強制終了されたPROCESSINGは既存lease回復へ委ねる。Rebuildは次反復のleader取得との間で排他を獲得できる。
 
@@ -344,6 +346,8 @@ seedは初期デモ用の管理操作であり、Approval / 業務履歴 / Outbo
 既存のGraph構築済み環境へのデモ切替は自動resetしない。新しい隔離デモ環境で初期投入するか、別途の明示管理手順を検討する。Graph Rebuild・実LLMの選択品質・業務Scenarioの受入は区別し、seedだけで分析可能と扱わない。
 
 ## 19. 実LLMの通常Graph読取probe
+
+これは旧Read Agentの機械契約を用いる検証手順であり、現行の質問欄9観点の受入手順ではない。過去の実測は履歴に保持する。正式環境で旧自由文の成功を保証せず、今回再実行していない。
 
 初期fixtureとRebuildが完了した隔離デモ環境で、APIに実LLM接続を設定してから実行する。`LINESCOPE_PROBE_TOKEN`には既存のmanagerロールの認証tokenを環境変数で設定し、command引数・ログ・Repositoryへ記載しない。
 
