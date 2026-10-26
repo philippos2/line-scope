@@ -1,29 +1,35 @@
-# ブラウザ確認環境
+# 正式デモ環境
 
-現在の確認先をこの表で区別する。過去の履歴にあるポートは当時の記録であり、現在の接続先を示さない。
+正式な接続先は **http://127.0.0.1:5173**。Compose projectは`linescope-demo`、APIは`127.0.0.1:8002`。#278をmergeしたmain `55965a327366be4300b40d3e3ed8f595d9e6c91a`の固定ソースを使用する。
 
-| ブラウザ | Compose project | API | データ | UI |
-|---|---|---|---|---|
-| http://localhost:5174 | linescope-s1-availability-preview-20261019 | localhost:8003 | A案。M-204停止・M-208稼働中。R-02→M-204のみ必須供給 | A1＋A2＋B確認版（入力候補・日時選択・変更手続き）。左ペイン常設・上部6タブ・要約帯・比較の選択引継ぎ・質問対象の明示。実LLM・実Qdrant文書検索接続あり。右側上部タブをスクロール中も固定表示 |
-| http://localhost:5173 | linescope-scenario1 | localhost:8002 | A案変更前。M-208は稼働中だがR-02への必須依存により利用可能性が不明 | 今回の修正前のUI。比較確認用に保持し、今回切り替えていない |
+| 接続先 | 現在の扱い |
+|---|---|
+| 5173 / API 8002 | 正式版。M-204/M-208の共通必須電源R-02、登録供給状態AVAILABLE、質問欄9観点 |
+| 5174 / API 8003 | 旧確認環境。停止済み |
+| 5178 / API 8178 | #278の隔離プレビュー。正式版へデータを移し、停止済み |
 
-**今回の修正確認には5174番を使う。5173番の切替は開発依頼者への確認後に行う。** 5174番では従来の接続tokenも使用できる。秘密値は私有envから取得し、文書・Git・画面証拠へ記録しない。
+`linescope-scenario1`、`linescope-s1-availability-preview-20261019`、`linescope-f2-api-check`、`linescope-browser-demo`は停止済み。旧コンテナ・永続volume・非公開のDB退避を復旧用に保持する。`prune`や旧volumeの一括削除は行っていない。稼働しているデモは`linescope-demo`だけに統一する。
 
-旧二台停止project `linescope-incident-demo` は削除済みで、上記の5173番とは別物。`linescope-browser-demo` は既存の別projectで、今回起動・停止・再投入していない。
+## 起動・停止
 
-A案のデータ形式と初期投入は[scenario1.md](scenario1.md)、変更順序の記録は[ポートとUIの修正履歴](../history/2026-10-19-ui-availability-and-environments.md)を参照する。
-
-## 5174番の文書検索
-
-`compose.rag.yaml`を重ねた実Qdrant経路を使用する。API用read keyと管理用write keyは私有envで分離し、既存の`embeddinggemma:latest`をdigestと768次元で固定する。参考資料`docs/demo-documents/equipment-investigation.md`を`DEMO-EQUIPMENT-INVESTIGATION`第1版として登録済み。同じ版を再投入しない。
-
-再起動時もRAG構成を外さない。イメージ・DB資格情報・volumeは再作成しない。
+本マシンの私有`.env.demo`と、通常Composeに重ねる`compose.demo.yaml`を使用する。DB/Neo4j/Qdrant/文書本文は専用の永続volume。ソースは`.env.demo`に指定された固定snapshotからread-onlyでmountし、作業ブランチ切替で正式版のコードを変更しない。使用imageは既存のものを再利用するため、旧project名由来のimage名でも削除しない。
 
 ```sh
-docker compose --env-file .env.scenario1-availability-preview \
-  -p linescope-s1-availability-preview-20261019 \
-  -f compose.yaml -f compose.frontend.yaml -f compose.rag.yaml \
-  --profile frontend up -d --no-build --no-deps --wait qdrant api frontend
+docker compose -p linescope-demo --env-file .env.demo \
+  -f compose.yaml -f compose.frontend.yaml -f compose.rag.yaml -f compose.demo.yaml \
+  --profile frontend up -d --no-build --pull never --wait api projection qdrant frontend
 ```
 
-検索は「出典と経路」→「関連文書」で行う。検索対象、処理中、失敗と再試行、本文抜粋と出典を同じ領域に表示する。成功時は検索結果の見出しへフォーカスする。検索失敗で前の成功結果を消さない。
+停止は同じ引数で`stop`。通常の停止に`down --volumes`を使用しない。常駐serviceは`restart: unless-stopped`。DB portはhostへ公開しない。
+
+`.env.demo`はGit管理外・mode0600。固定snapshotと既存imageはこのマシンで準備済みであり、別マシンで上記だけを実行できるという意味ではない。別マシンへの導入では、対応するsource snapshot・image・私有設定を用意する。
+
+## 認証とデータ
+
+5178で使用した一時manager tokenを正式版でも使用できる。従来のデモの登録済み認証も保持している。値は私有`.env.demo`の`LINESCOPE_USERS`、または本マシンの`.git/demo-runtime/access-token.txt`から取得し、Bearer token欄へ**値だけ**を貼り付ける。秘密値はGit・文書・画面証拠へ記録しない。API切替により以前のsession cookieは引き継がれないため、初回は再接続する。
+
+業務データは開発者が確認した5178を基準に復元し、19業務テーブルの件数・内容hashの一致を確認した。新たなseedや状態上書きは行わない。旧5174の変更要求6件等は旧DBの退避に保持し、新しい業務データへ混在させない。Neo4jはPostgreSQL正本から既存の管理Rebuildで再構築した。
+
+旧5174の参考文書`DEMO-EQUIPMENT-INVESTIGATION`第1版、本文volume、Qdrant indexと検索設定も移した。新しいモデルの取得・実行はしていない。質問欄は#277で確定した9観点の定型照会で、LLM分類・生成は使用しない。文書検索のembedding推論を伴う再実行は今回未確認であり、metadata・本文・indexの保持確認と区別する。
+
+切替・再起動・検証と既知の制約は[正式デモ環境への切替履歴](../history/2026-10-26-demo-environment-promotion.md)を参照する。本書の更新は接続先と運用に限定し、「やること／やらないこと」の文書整理は別のF3で行う。
