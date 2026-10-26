@@ -1,31 +1,43 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1240" height="760" viewBox="0 0 1240 760" role="img" aria-labelledby="title desc">
-<title id="title">LineScope 残り1 PR：F3ドキュメント最終整理</title>
-<desc id="desc">暦日2026年10月26日から28日の時間軸。F2と正式環境昇格は完了。F3は27日に承認を受け文書整理に着手。CI、最終レビュー、mergeの完了日は未定。色は工程種別であり進捗ではない。</desc>
-<rect width="1240" height="760" fill="#f8fafc"/>
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="1070" viewBox="0 0 1280 1070" role="img" aria-labelledby="title desc">
+<title id="title">LineScope アプリ・文書完了、動画第1弾から第2弾へ</title>
+<desc id="desc">アプリとF3は完了。第1弾は絵コンテ承認待ち。承認後を0とする相対作業日0から3.5の暫定制作枠を描く。第2弾は第1弾確認後の別指示が開始条件で期間未定。破線バーは未着手の見積もりで、制作開始・納期確約ではない。</desc>
+<rect width="1280" height="1070" fill="#f8fafc"/>
 <g font-family="sans-serif" fill="#183247">
-<text x="24" y="38" font-size="24" font-weight="bold">残り1 PR：F3 ドキュメント最終整理</text>
-<text x="24" y="69" font-size="16">#277・#278・#279 merge済み。F3は承認済み20ファイルの整理・検証・レビュー。</text>
-<rect x="24" y="90" width="1190" height="90" rx="5" fill="white" stroke="#cbd5e1"/>
-<text x="40" y="117" font-size="16" font-weight="bold">凡例：色＝工程種別（進捗・成否・優先度ではない）</text>
+<text x="24" y="38" font-size="24" font-weight="bold">アプリ・F3は完了。追加予定：説明動画 第1弾 → 第2弾</text>
+<text x="24" y="69" font-size="16">現在：V1絵コンテ案の承認待ち。音声・収録・編集と、V2の調査・企画は未着手。</text>
+<rect x="24" y="91" width="1230" height="90" rx="5" fill="white" stroke="#cbd5e1"/>
+<text x="40" y="117" font-size="16" font-weight="bold">凡例：色は工程種別、破線は未着手の暫定枠、◇は承認・開始条件</text>
 <g font-size="14">
-<rect x="40" y="139" width="20" height="18" fill="#2563eb"/><text x="70" y="154">青：設計・実装</text>
-<rect x="295" y="139" width="20" height="18" fill="#0891b2"/><text x="325" y="154">水色：自動試験・回帰</text>
-<rect x="570" y="139" width="20" height="18" fill="#7c3aed"/><text x="600" y="154">紫：直接API・ブラウザ</text>
-<rect x="885" y="139" width="20" height="18" fill="#0f766e"/><text x="915" y="154">緑：文書・CI・記録</text>
+<rect x="40" y="140" width="18" height="18" fill="#2563eb"/><text x="66" y="155">青：構成・準備</text>
+<rect x="268" y="140" width="18" height="18" fill="#0891b2"/><text x="294" y="155">水色：音声・収録</text>
+<rect x="525" y="140" width="18" height="18" fill="#7c3aed"/><text x="551" y="155">紫：編集</text>
+<rect x="715" y="140" width="18" height="18" fill="#0f766e"/><text x="741" y="155">緑：確認・記録</text>
+<rect x="963" y="140" width="18" height="18" fill="#64748b"/><text x="989" y="155">灰：過去工程</text>
 </g>
-<text x="410" y="216" font-size="16">暦日（JST） 2026-10</text>
-<g font-size="16"><text x="410" y="245">26日</text><text x="670" y="245">27日</text><text x="930" y="245">28日</text></g>
-<g stroke="#cbd5e1"><path d="M400 257V526 M660 257V526 M920 257V526 M1180 257V526"/></g>
+<text x="24" y="217" font-size="17" font-weight="bold">完了実績（暦日・JST、終日工数ではない）</text>
+<g font-size="15"><text x="410" y="248">2026-10-26</text><text x="690" y="248">10-27</text><text x="970" y="248">10-28</text></g>
+<g stroke="#cbd5e1"><path d="M400 260V360 M680 260V360 M960 260V360 M1240 260V360"/></g>
 <g font-size="15">
-<text x="24" y="288">F2 実装・自動試験（完了）</text><rect x="400" y="267" width="125" height="28" rx="4" fill="#2563eb"/><rect x="525" y="267" width="135" height="28" rx="4" fill="#0891b2"/>
-<text x="24" y="345">F2 実API・画面（完了）</text><rect x="400" y="324" width="260" height="28" rx="4" fill="#7c3aed"/>
-<text x="24" y="402">#279 正式環境切替・merge済み</text><rect x="400" y="381" width="260" height="28" rx="4" fill="#2563eb"/><text x="675" y="401">◇ 27日JST merge</text>
-<text x="24" y="459">F3 文書整理（整理・静的確認済み）</text><rect x="660" y="438" width="260" height="28" rx="4" fill="#0f766e"/>
-<text x="24" y="516">F3 リンク・CI・レビュー・merge</text><text x="675" y="516">◇ #280 Draft。最新CI・最終レビューへ</text>
+<text x="24" y="290">F2 #278・正式環境切替 完了</text><rect x="400" y="270" width="280" height="28" fill="#64748b" rx="4"/>
+<text x="24" y="340">#279 merge・F3 #280 merge 完了</text><rect x="680" y="320" width="280" height="28" fill="#64748b" rx="4"/>
 </g>
-<text x="24" y="557" font-size="15">バーは工程の実施日を示す。終日工数・日内の所要時間・未確定の将来期間を表さない。</text>
-<rect x="24" y="581" width="1190" height="88" rx="5" fill="white" stroke="#cbd5e1"/>
-<text x="40" y="610" font-size="17" font-weight="bold">任意・未採用：O-F2-WRITE 承認付き供給状態変更</text>
-<text x="40" y="643" font-size="15">◇ 採否・日付・工数・PR数は未確定。残り1 PRには含めず、実装予定として確定しない。</text>
-<text x="24" y="714" font-size="15">正式デモ：5173／API8002。F3で製品・データ・稼働環境は変更しない。mergeは開発者。</text>
+<text x="24" y="401" font-size="17" font-weight="bold">V1制作の概算：絵コンテ承認後の相対作業日（暫定・未着手）</text>
+<text x="24" y="429" font-size="15">◇ 現在の承認ゲート：絵コンテ案を確認。以降の制作を先行しない。</text>
+<g font-size="15"><text x="396" y="468">0</text><text x="505" y="468">0.5</text><text x="631" y="468">1</text><text x="741" y="468">1.5</text><text x="866" y="468">2</text><text x="976" y="468">2.5</text><text x="1101" y="468">3</text><text x="1208" y="468">3.5日</text></g>
+<g stroke="#cbd5e1"><path d="M400 480V718 M517 480V718 M634 480V718 M751 480V718 M868 480V718 M985 480V718 M1102 480V718 M1219 480V718"/></g>
+<g font-size="15" fill-opacity="1">
+<text x="24" y="512">V1 台本・既存資産／収録準備</text><rect x="400" y="491" width="117" height="30" fill="#dbeafe" stroke="#2563eb" stroke-width="2" stroke-dasharray="6 4" rx="4"/>
+<text x="24" y="572">V1 ずんだもん音声・実画面収録</text><rect x="517" y="551" width="234" height="30" fill="#cffafe" stroke="#0891b2" stroke-width="2" stroke-dasharray="6 4" rx="4"/>
+<text x="24" y="632">V1 編集・字幕・共通電源の説明図</text><rect x="751" y="611" width="234" height="30" fill="#ede9fe" stroke="#7c3aed" stroke-width="2" stroke-dasharray="6 4" rx="4"/>
+<text x="24" y="692">V1 事実照合・試聴・レビュー／修正</text><rect x="985" y="671" width="234" height="30" fill="#ccfbf1" stroke="#0f766e" stroke-width="2" stroke-dasharray="6 4" rx="4"/>
+</g>
+<text x="24" y="751" font-size="15">制作2〜3.5作業日程度の仮見積もり（上限側の枠を表示）。レビュー待ち・取り直しは別。</text>
+<rect x="24" y="781" width="1230" height="114" rx="5" fill="white" stroke="#cbd5e1"/>
+<text x="40" y="811" font-size="18" font-weight="bold">V2 アーキテクチャ・設計思想編（予定のみ、未着手）</text>
+<text x="40" y="843" font-size="15">◇ V1の制作・確認 → 開発者の別指示 → V2の企画開始。開始日・制作工数は未確定。</text>
+<text x="40" y="872" font-size="15">想定尺6〜8分も未確定。LLMの境界・技術選定等の追加調査／台本／絵コンテはまだ行わない。</text>
+<rect x="24" y="917" width="1230" height="82" rx="5" fill="white" stroke="#cbd5e1"/>
+<text x="40" y="946" font-size="16" font-weight="bold">任意・未採用 O-F2-WRITE：承認付き供給状態変更</text>
+<text x="40" y="978" font-size="15">◇ 採否・時期・工数未定。動画2本の予定とは別。製品機能の追加予定にしない。</text>
+<text x="24" y="1040" font-size="15">制作PR数は保存・公開方法の決定後。正式デモ5173／API8002の製品・DB・UIは変更しない。</text>
 </g></svg>
