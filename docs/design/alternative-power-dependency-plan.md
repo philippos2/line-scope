@@ -1,96 +1,182 @@
-# F2：代替設備の必須電源依存 — 影響調査と実装案
+# F2：共通必須電源の登録供給状態 — B案の最小実装計画
 
-状態：調査完了・実装未承認。起点mainは#277のmerge commit `334434c2793999c6d2e05ecc71e9417255f4948d`。
+状態：B案の採用・三値管理は承認済み。この差分計画と試験の実装/実行は未承認。起点mainは#277のmerge `334434c2793999c6d2e05ecc71e9417255f4948d`。PR #278を分割しない。
 
-## 目的・制約・完了判定
+## 1. 目的・制約・完了判定
 
-目的は、M-208にも実態に沿う必須電源依存を表示し、登録された電源の供給状態を根拠として代替利用可能性を判定すること。図に辺を描くだけ、または常に利用可能と仮定して完了としない。
+M-208にも共通必須電源R-02を表示し、PostgreSQLに初期登録した供給状態を取得して、既存の代替利用可能性評価とEvidenceへ渡す。三値はAVAILABLE / UNAVAILABLE / UNKNOWN。実測の通電状態・運転許可とは区別する。
 
-- R-02をM-204/M-208の共通電源とする案を採る。これはデモ構成の提案で、PO確定前にデータを変えない。
-- activeは登録上の有効性であり、通電・供給の状態に転用しない。
-- 未登録・UNKNOWN・取得障害・探索不完全を利用可能へ変換しない。M-208のRUNNINGから電源の健全性を推定しない。
-- 構造成立・登録状態による利用可能性と、実際の代替運転・能力・安全・品質・経済影響を分離する。
-- 一般のインフラ状態として実装し、R-02やM-208を条件にした判定分岐を作らない。Processを一緒にAVAILABLEへ変えない。
-- 質問欄の9観点・語彙・質問UI・LLM不使用は維持。新しい質問解析やモデルを追加しない。
-- F2を1 PRとして進める案。F3のstashは適用しない。実装・DB変更・seed再投入・既存環境変更は今回未実施。
+- R-02→M-204/M-208をrequired=trueのSUPPLIESとして登録する。資源コードや設備コードで判定を分岐しない。
+- activeを供給状態へ転用せず、M-208自身のRUNNINGから電源の健全性を推定しない。
+- 欠落/UNKNOWN/不完全をAVAILABLEへ変換しない。取得障害は未登録と区別する。Processは引き続き状態未モデル化としてUNKNOWN。
+- 状態変更の製品UI・HTTP API・業務コマンド・Toolは作らない。Snapshot / Prepare / Approve / Execute / 履歴 / 承認権限を拡張しない。
+- 質問欄の9観点・テキストボックスだけの質問UI・LLM不使用を維持する。
+- 既存5173/5174の環境・DB・seed・認証・volumeを変更しない。検証用の供給状態は独立した初期データとして設定し、稼働中の状態をUPDATEして切り替えない。
 
-受入は、M-208の上流に必須SUPPLIESと供給元の名称が見えること、供給状態が利用可能/不可/不明の場合に既存の必須依存AND評価へ正しく入ること、根拠と更新版が追跡できること。供給が利用可能でも、他の必須依存やM-208自身の状態が満たされなければ代替可能とはしない。
+受入は、必須電源への経路が見え、登録状態・根拠レコード・version・登録時刻・読取時刻を区別でき、供給不可ならM-208を利用可能と判定しないこと。供給可能でも、M-208自身や他の必須条件が満たされなければ利用可能にしない。構造上の候補と実際の代替運転は分離する。
 
-## コードで確認した原因
+A案の承認付き更新は今回の目的の必須条件ではない。旧調査のA案は採用せず、任意タスクとして§8へ残す。R-26等の更新・承認要件は、既存の業務更新に引き続き適用する。seedで既存状態を変更する抜け道は設けない。
 
-| 層・根拠 | 現状 | 影響 |
+## 2. 変更予定ファイル：計32（製品/データ13・試験9・文書10）
+
+以下は予定する全ファイル。追加ファイルや契約差分が必要なら先に報告し、32ファイル・22ケース・3.5日の計画上限を超える拡張を独断で行わない。計画の文書4ファイルは今回更新し、残りは実装承認後に扱う。
+
+### 製品コード・データ：13
+
+| ID | パス | 変更目的 |
 |---|---|---|
-| `docs/demo/data/scenario1.json` | R-02→M-204のrequired=true SUPPLIESだけ。M-208への供給は未登録 | M-208の上流に電源が描かれない |
-| `docs/demo/scenario1.md` | A案として必須供給を外し、M-208のavailability=AVAILABLEを維持した経緯を記載 | 今回はこの不自然な構成を正す。図だけの不具合ではない |
-| `domain-model.md` §15.1、`graph_requirement_rules.py`、`graph_substitute_candidate.py` | statefulはEquipment/ProductionOperationだけ。InfrastructureResourceは必ずUNKNOWN | 辺だけ追加すると構造成立し得るが、代替利用可能性はUNKNOWNになる |
-| `graph/analysis_states.py`、`application/graph_availability.py`、`persistence/core_reads.py` | 設備と生産作業の状態を一括観測。インフラの状態は観測しない | 電源の状態を取得する経路が必要 |
-| `data-model.md` infrastructure_resource | id/code/name/type/version/active。供給状態の列・別表はない | 保存元の追加が必要 |
-| `domain/snapshot.py`、`proposals.py`、`approval_policy.py`、`execute_policy.py` | インフラ状態のTarget/カテゴリ/権限がない | 設備状態の権限を暗黙適用できない |
-| `alternative_analysis.py`、`graph_exclusion_fulfillment.py` | 構造・候補・必須依存の三値評価を分離済み | この仕組みを再利用できる。新しい評価器は不要 |
-| `core_graph_snapshot.py`、`application/execute.py` | Graphは関係とマスター、状態はPostgreSQLで観測。EquipmentState更新自体はGraphへの状態複製をしない | インフラ状態もGraphへ二重保存しない。供給辺は既存DEPENDENCYのOutbox/Projectionを使う |
+| P01 | `backend/src/linescope/migrations/014_infrastructure_supply_state.sql`（新規） | 読取専用供給状態表。既存資源へAVAILABLEを補完しない |
+| P02 | `backend/src/linescope/persistence/db_roles.py` | query/runtimeへ新表SELECTだけを許可。INSERT/UPDATE/DELETE/TRUNCATE等を付与しない |
+| P03 | `backend/src/linescope/persistence/core_reads.py` | 設備/作業/資源状態を一括SELECT。既存get_resourceの追加読取情報として供給状態・根拠を返す |
+| P04 | `backend/src/linescope/graph/analysis_states.py` | read_availabilityへ資源IDの任意keyword引数を追加し、PGの同一statementで観測。従来の呼出形も維持 |
+| P05 | `backend/src/linescope/application/graph_availability.py` | 資源状態の対象ID・enum・version・時刻を検証し、三値mapと欠落情報へ渡す |
+| P06 | `backend/src/linescope/domain/graph_requirement_rules.py` | 供給状態の決定論的な三値変換。activeや設備状態と混同しない |
+| P07 | `backend/src/linescope/domain/graph_substitute_candidate.py` | InfrastructureResourceを状態参照対象へ追加し、既存必須依存ANDへ渡す。評価器は増やさない |
+| P08 | `backend/src/linescope/application/alternative_evidence.py` | 代替判定の根拠へ資源の登録供給状態・記録参照・版・登録時刻を追加 |
+| P09 | `backend/src/linescope/application/spof_evidence.py` | 同じ根拠をSPOF結果にも保持し、経路/世代/状態の対応を維持 |
+| P10 | `backend/src/linescope/demo_file_seed.py` | JSON v1互換を維持し、v2の初期供給状態を検証/投入。同値再投入無変更、異値は原子的に拒否 |
+| P11 | `backend/src/linescope/persistence/core_demo_seed.py` | 新表を固定allow-listへ追加。初期INSERTと一致照合だけ。任意SQL・UPSERT更新なし |
+| P12 | `docs/demo/data/scenario1.json` | v2へ更新し共通必須電源の辺とR-02 AVAILABLEの明示的なデモ初期条件を記載 |
+| P13 | `frontend/src/features/investigation/EquipmentInvestigation.tsx` | 既存の選択項目欄に登録供給状態・根拠/時刻の読取表示を追加。入力やボタンは追加しない |
 
-以上は静的照合。今回、試験・実API・DB照会・実モデルを実行した結果ではない。
+既存GraphCanvasは関係DTOをそのまま描画するため変更しない。上流/下流/共通依存の到達探索自体へ利用可能性の判定を混ぜず、既存の経路Evidenceを維持する。供給状態の根拠はget_resourceと代替/SPOFの読取結果で示す。この範囲のため、新しいHTTP経路やGraph型、Query/Mutation基盤は不要。
 
-## 提案する最小実装
+### 試験ファイル：9（新規ケースは§6の22件だけ）
 
-### 1. 供給状態の業務規則（PO承認が必要）
+| ID | パス | 用途 |
+|---|---|---|
+| T01 | `backend/tests/domain/test_graph_substitute_candidate.py` | C01〜06の6件追加。従来のProcess/資源の期待は承認済み仕様へ合わせ、欠落UNKNOWN等の検査を維持 |
+| T02 | `backend/tests/application/test_infrastructure_supply_state.py`（新規） | C07〜11の5件：実DB読取と障害/Evidence境界 |
+| T03 | `backend/tests/test_demo_file_seed.py` | C12〜15の4件：seedと既存DB/公開Graph互換 |
+| T04 | `backend/tests/persistence/test_db_roles.py` | C16〜17の2件：実DBのquery/runtime権限 |
+| T05 | `backend/tests/interfaces/test_alternative_api.py` | C18〜19の2件：実PG/Neo4jからAPIへ供給不可/不明を反映 |
+| T06 | `backend/tests/application/test_spof_analysis.py` | C20の1件追加と既存試験アダプタのkeyword互換修正 |
+| T07 | `backend/tests/application/test_alternative_analysis.py` | 既存read_availabilityアダプタのkeyword互換修正だけ。ケース追加なし |
+| T08 | `backend/tests/application/test_substitute_analysis.py` | 既存アダプタ/旧呼出形の互換修正だけ。ケース追加なし |
+| T09 | `frontend/src/features/investigation/InfrastructureSupplyState.test.tsx`（新規） | C21〜22の2件。見た目の網羅・全文一致は試験しない |
 
-登録された供給状態を`AVAILABLE / UNAVAILABLE / UNKNOWN`の三値とする案。表示は『登録上：供給可能／供給不可／不明』。電源専用の稼働コードにせず、インフラの供給可能性として定義する。これは通電センサーによる実測や運転許可ではない。
+既存アダプタの所在はread_availabilityの定義/呼出を検索して確認した。新規parametrizeの展開数を22に固定し、関数数で少なく見せない。既存ケース削除・skip追加・安全条件の弱体化はしない。予期しないケース増があれば先に件数と理由を報告する。
 
-- 現在のインフラマスターと別に現在状態・version・更新時刻を持つ。マスターversionと状態versionを混同しない。
-- 既存資源に状態がなければUNKNOWN。migrationでAVAILABLEを補わない。
-- 新しいデモのR-02には、架空工場の明示的な初期条件としてAVAILABLEを登録する案。共有電源を停止した別シナリオは追加しない。
-- 現在状態を過去へ推定せず、既存の過去as_ofではUNKNOWNを維持する。
+### 設計・操作・履歴文書：10
 
-### 2. 状態変更の統制（PO承認が必要）
+| ID | パス | 目的 |
+|---|---|---|
+| D01 | `docs/design/alternative-power-dependency-plan.md` | 本計画と承認範囲 |
+| D02 | `docs/design/data-model.md` | 新表・登録時刻/版・欠落の意味 |
+| D03 | `docs/requirements/domain-model.md` | 資源の登録供給状態の三値評価。Process等のUNKNOWNは維持 |
+| D04 | `docs/requirements/access-control.md` | 参照は従来の資源Read権限、状態の製品更新は禁止。新しい変更権限なし |
+| D05 | `docs/implementation-design/api-tools.md` | 既存Read出力/Evidenceへの追加項目と時刻の意味。新しい書込経路なし |
+| D06 | `docs/requirements/acceptance-criteria.md` | F2の供給状態・依存・非誤判定・Evidence・seedの受入を記載 |
+| D07 | `docs/demo/scenario1.md` | 架空の初期状態、専用環境での検証、公開済みGraphへの適用制限 |
+| D08 | `docs/roadmap.md` | B採用・計画承認待ち、F3と任意タスクの区別 |
+| D09 | `docs/roadmap-gantt.svg` | Bの2〜3.5日枠、工程色の凡例、任意タスクを期間未確定の独立行で表示 |
+| D10 | `docs/history/2026-10-26-alternative-power-investigation.md` | AからBへの決定、実測/未実施、後の結果・残存制約を追記 |
 
-提案は新しい`InfrastructureResourceState` Target / `INFRASTRUCTURE_STATE`カテゴリを、既存Prepare→別操作でApprove→元の依頼者がExecuteする機構へ追加すること。保存済みSnapshot v1〜v5は書き換えず、新Targetの形式を別のschema versionとして追加する案。例外SQLや管理用の直接書換えをUIへ露出しない。Snapshot、expected_version、retry、期限30分、履歴・Auditの原子性、現在権限の再検証を維持する。
+## 3. 状態表・migration・初期seed
 
-権限の推奨案は、参照は認証済み全職務、要求・実行は保全または工場管理者、承認は要求者とは別の工場管理者、自己承認不可。共通電源が複数設備に及ぶため、生産管理・現場の更新要求と自己承認を推測で許可しない。既存EquipmentStateの権限と同一ではなく、POの決定を要する提案である。
+新表`infrastructure_supply_state`を提案する。資源マスターと状態のversionを混同しない。
 
-新しい自然文の変更構文は作らず、既存の構造化変更と変更要求IDによる承認・実行を使う。書込み用HTTP経路を無制限に増やさない。
-
-### 3. 取得・判定・表示
-
-- 同じ観測時刻の一括SELECTへインフラ状態を加え、設備/作業/資源を型付きIDで照合する。欠落はUNKNOWN、取得失敗はエラーとして区別する。
-- InfrastructureResourceだけをstatefulへ加え、既存の候補の必須依存評価へ渡す。ProcessのUNKNOWNは維持する。
-- 代替/SPOFのEvidenceへ資源の現在状態・状態version・観測時刻・欠落情報を追加する。上流/下流にも取得可能な状態の根拠を揃える。Graph同期CURRENTの入口/出口と既存のlock境界を維持する。
-- `get_infrastructure_resource`の既存マスター項目は維持し、登録供給状態を追加項目として取得する案。Graph本体へ供給状態を複製しない。新しい観点選択UIは作らない。
-- 既存のGraph・選択した項目・代替の提案で供給状態と限定を示す。型付きノードIDで設備と資源の状態を区別する。
-- 実行後は既存の更新前表示を付け、明示的な再取得で更新する。質問の対象や取得済み結果を勝手に切り替えない。
-
-## 変更対象の見込み
-
-具体名が未作成のものは『案』。製品変更前に契約と業務規則を承認する。
-
-| 範囲 | 主なファイル・作業 |
+| 列 | 契約 |
 |---|---|
-| DB/Read権限 | 新migration `014_infrastructure_state.sql`（案）、`persistence/db_roles.py`、`core_reads.py`。現在状態と必要な履歴の保存、runtime/queryの最小権限 |
-| 状態変更 | `domain/snapshot.py`、新しい状態入力検証/Prepare（案）、`application/tools.py`、`proposals.py`、`approval_policy.py`、`execute_policy.py`、`execute.py`、対応Core。既存状態更新と同じ承認基盤を再利用 |
-| 組立/構造化入口 | `bootstrap.py`、`agent/update_intent.py`の構造化カテゴリallow-list、`application/structured_command.py`との接続。自然文構文は追加しない |
-| Graph観測 | `graph/analysis_states.py`、`application/graph_availability.py`、`domain/graph_requirement_rules.py`、`graph_substitute_candidate.py` |
-| Evidence | `application/graph_evidence.py`、`alternative_evidence.py`、`spof_evidence.py`。既存Tool出力への追加で、対象・状態version・時刻を検証 |
-| デモ初期条件 | `docs/demo/data/scenario1.json`、`demo_file_seed.py`、`persistence/core_demo_seed.py`、`docs/demo/scenario1.md`。既存JSONとの互換を維持し、新状態の宣言を明示する。既存登録値をseed再実行で無断上書きしない |
-| Frontend | investigationのモデル/表示、Graphの登録状態表示、既存の構造化変更フォームとActionPanelの権限・段階案内。質問欄は維持 |
-| 正本 | requirements/domain-model/access-control/data-model/API/transaction/受入の該当節。承認前は本計画だけに提案として置く |
+| infrastructure_resource_id | UUID PK/FK。資源1件につき状態レコード最大1件 |
+| supply_state | NOT NULL、AVAILABLE / UNAVAILABLE / UNKNOWNだけをCHECK |
+| version | 正のBIGINT、初期値1。Bでは製品経路から変更しない |
+| registered_at | TIMESTAMPTZ。初回INSERT時のDB登録時刻。再投入で書き換えない |
+| source | 初期条件の出典を示すNOT NULLの登録文字列。デモの仮定と明記 |
 
-製品は約25〜35ファイル、設計/操作文書6〜8ファイルを見込む。単純なJSON一行修正の規模ではない。実装確定時に具体的な差分リストを再確認し、不要な共通化・全面改修は含めない。
+migration 014は新表の作成のみ。001〜013のchecksum/既存データ、保存済みSnapshot v1〜v5、承認・履歴・Graphのactive_generationを変更しない。既存資源へ既定AVAILABLEや架空の状態行を挿入しない。状態行がない資源の読取結果はUNKNOWN（record_reference/version/registered_atなし、欠落を明記）。
 
-## 試験・工数・段取り
+供給状態の表にはquery/runtimeともSELECTのみ。既存role未分離環境の設定を今回こっそり修正しない。検証専用環境では既存のrole構成に従って分離し、管理者資格情報はmigration/初期投入だけに使う。DB ownerによる管理権限まで消すものではなく、管理SQLの製品公開はしない。
 
-実装案の見込みは5〜7作業日（レビュー・承認待ちを除く）。範囲/権限の確定とDB/Read 1〜1.5日、変更統制 1.5〜2日、Graph/Evidence 1〜1.5日、表示・デモ・API/ブラウザ・CI/記録 1.5〜2日。合計5〜7日。F3はF2 merge後に開始し、この見積もりへ混ぜない。
+JSON v1は従来通り受理し、供給状態がないまま扱う。v2は`infrastructure_states`配列を明示し、各要素はresource_code / supply_state / sourceを持つ。登録時刻とversionを利用者のJSONから推測/上書きせずDB側で初期確定する。配列は従来と同じ有界・重複/参照/余計なフィールドの検査を行う。
 
-新規自動試験は32〜48ケースの見込み。三値・欠落・取得失敗・過去時点・不完全、認可・自己承認・owner・期限・version競合・再送・rollback/Audit、Graph/Evidence、JSON・UIの境界を含む。既存の共通承認/実行・Graph/質問欄回帰も維持する。全直積にせず同値分割・境界と重大Invariantを選び、権限/transactionの必要条件を件数合わせで削らない。
+初期seedは既存の排他lockと単一transactionを使う。
 
-20件を超えるため、業務規則の決定後に、展開後の正確な件数と防ぐ失敗の対応表を提出し、了承前に追加・実行しない。今回の調査では試験を追加・実行していない。実モデルは不要。
+1. 初期投入可能な未公開Graphにだけ新しい供給状態・関係をINSERTする。
+2. 既存状態が同じID・状態・出典なら無変更で保持。version/registered_atも保持し、偽の業務履歴を作らない。
+3. 状態または出典が違えばSeedConflict。先に挿入した別の辺/状態も含めて全体rollbackする。
+4. 公開済みGraphへの新規辺・状態追加は拒否する。seedを状態変更コマンドや既存データの修復へ転用しない。
 
-同じF2のDraft PRに、調査→規則/試験/負荷承認→実装→実DB/API/ブラウザ/CI→開発者確認を収める。調査文書用に別PRを増やさず、既定の残りはF2・F3の2 PRを維持する。実装で想定を超える変更が必要なら停止して影響を報告する。
+## 4. 取得・三値判定・Evidence・表示
 
-既存5173/5174のDB・seed・認証は今回変更しない。実装後のAPI/書込み確認は使い捨ての専用環境で計画し、操作・認証・負荷を提示する。5174へのデータ変更/状態操作は別途具体的な手順を示して承認を得る。
+接続は`GraphStateReader.read_availability → core_readsの一括SELECT → observe_availability → evaluate_substitute_candidate → 既存required_availability → 代替/SPOF Evidence`。PGの同一statementで設備/作業/資源状態と読取時刻を取得する。型付きID、enum、version、日時を検証し、取得失敗やアダプタ不正はUNKNOWNへの正常化で隠さない。
 
-## 開発者・POへ求める決定
+M-208自身と他の条件が正常、現在時点で探索が完全な場合の受入は次のとおり。
 
-1. R-02を両設備の共通電源とし、登録供給状態を三値で管理する構成・F2の実装範囲（5〜7日）を採るか。
-2. 参照は全職務、要求/実行は保全・工場管理者、承認は別の工場管理者、自己承認不可、という権限案を採るか。
+| R-02の登録供給状態 | M-208の代替利用可能性 |
+|---|---|
+| AVAILABLE | AVAILABLE |
+| UNAVAILABLE | UNAVAILABLE |
+| UNKNOWN/状態行なし | UNKNOWN |
+| 取得失敗 | エラー、AVAILABLEを公開しない |
 
-承認がなければ、辺だけ追加して利用可能性をUNKNOWNへ変えたり、activeを通電扱いしたりしない。JSONだけでは当初受入を満たさないことを踏まえ、ここで実装を停止する。
+探索不完全や過去の実状態を尋ねる場合はUNKNOWNを維持する。UNAVAILABLE/UNKNOWNをAVAILABLEとして表示しない。供給が可能でもM-208自身がSTOPPEDならUNAVAILABLE。構造上の候補名が残る場合も利用不可/不明を同じ塊で示し、能力充足だけで『吸収できる見込み』を出さない。
+
+追加する`current_resource_states`の各根拠は資源ID・supply_state・version・registered_at・sourceと`record_reference`（資源ID＋状態version）を持つ。`state_versions`は型付きInfrastructureResourceの状態versionを指し、マスターversionは別の値として維持する。
+
+**registered_atは初期登録時刻、既存のstate_observed_at/observed_atはPGで読んだ時刻。どちらも現物の通電を測定した時刻ではない。** Graph世代・as_of・経路・completeの既存意味を維持し、現在状態を過去へ推定しない。欠落は記録参照/版を捏造せず明示する。
+
+既存get_infrastructure_resourceはマスター項目を維持し、追加のregistered_supply_stateに状態と記録参照を返す。追加情報にも同じSELECTのobserved_atを含め（Envelope Evidenceの読取時刻と同じ）、UIはそのRead内の登録時刻と読取時刻を対にして示す。別のGraph読取の時刻を混ぜない。新しいHTTP経路・要求フィールドは作らない。新情報は既存資源Readと同じ閲覧権限で扱う案を正本へ記載する。
+
+Frontendは既存の選択項目欄で、型付きの資源IDに対応する『登録上の供給状態』『初期条件の出典・版』『登録/読取時刻』を読取表示する。設備と資源が同じUUIDでも混同しない。Graphの辺・名称は既存描画を使い、入力/選択パネル・状態変更ボタン・質問観点を増やさない。
+
+## 5. 公開済みGraphを含む適用方法
+
+- **今回の計画作業**：既存5173/5174、API、DB、seed、認証、volumeを一切変更しない。
+- **承認後の実装検証**：既存test Compose/DB隔離fixtureを使い、三値ごとに独立した初期データの使い捨てDBを直列で検証する。前の条件をUPDATEして使い回さない。Neo4jも専用の検証用であり、既存Graphを使わない。同じDB/Neo4jを使うsuiteを同時実行しない。
+- **公開済みGraphへのmigration互換検査**：独立した旧版DB・公開Graphを作ってから014だけを適用する。既存レコード/Graph世代を保持し、未登録状態はUNKNOWN。新seedの追加を拒否して全体rollbackすることを確認する。
+- **F2デモの新構成を使う場合**：既存デモをその場で再seedせず、別プロジェクト/別DB・volume・未使用ポートを用意し、migration→role設定→v2初期seed→初回Rebuild→CURRENT確認→Readの順に構成する。R-02は初期条件としてAVAILABLEを登録する。
+- 実際に検証環境/新しいブラウザURLを作る操作は、実装承認後、名称・認証・ポート・負荷・片付けを具体化してから行う。既存ポートの切替、既存volume破棄、稼働DBへの変更、直接SQLによる本番状態の変更は承認に含めない。既存の手元imageを再利用し、新しいimageのbuild/pull/pruneはしない。
+
+## 6. 追加自動試験：22ケース（Backend20・Frontend2）
+
+以下のC01〜22だけを追加する。既存アダプタの互換修正でケース数を増やさず、既存回帰は別途維持する。parametrizeを用いる場合も展開後で22。必要な検証が増えたら、無断追加や件数合わせの省略をせず理由・追加件数を報告する。
+
+| ID | 層/ファイル | 固定する条件・期待 / 防ぐ失敗 |
+|---|---|---|
+| C01 | Domain/T01 | M-208相当と必須資源がAVAILABLE→AVAILABLE。供給状態が取得/評価へ接続されない失敗 |
+| C02 | Domain/T01 | 必須資源UNAVAILABLE→候補UNAVAILABLE。稼働中の候補を優先して電源停止を無視する失敗 |
+| C03 | Domain/T01 | 必須資源UNKNOWN→UNKNOWN。不明を利用可能とする失敗 |
+| C04 | Domain/T01 | 資源AVAILABLE、候補自身STOPPED→UNAVAILABLE。電源だけで候補を利用可能にする失敗 |
+| C05 | Domain/T01 | 既知値はAVAILABLEでも探索不完全→UNKNOWN。未取得の必須条件を免除する失敗 |
+| C06 | Domain/T01 | 過去as_ofでは現在AVAILABLEを流用しない。過去の供給状態を捏造する失敗 |
+| C07 | DB/Read/T02 | 同一SELECTで設備/資源ID・状態version・出典を照合し、固定した過去registered_atを保ち読取時刻と区別。ID/版/時刻の混同 |
+| C08 | DB/Read/T02 | 資源は存在し状態行なし→UNKNOWN＋欠落表示、架空の版/根拠を作らない |
+| C09 | DB/Read/T02 | 資源状態の取得障害→失敗。欠落/初期AVAILABLEへフォールバックしない |
+| C10 | DB/Read/T02 | 異なる資源IDの観測結果→拒否。別設備・別資源の状態を流用しない |
+| C11 | DB/Read/T02 | 不正な供給状態enum→拒否。設備のRUNNING等を供給状態として受理しない |
+| C12 | Seed/T03 | 同一v2の再投入で状態・version・registered_at・既存行・業務履歴が無変更 |
+| C13 | Seed/T03 | 異なる供給状態の再投入を拒否し、先行した追加も全体rollback |
+| C14 | Migration/Seed/T03 | v1 DBへ014を追加しても既存行/Graph世代を保持。旧v1 JSONが読め、状態はUNKNOWN。旧migrationの書換えやAVAILABLE補完を防ぐ |
+| C15 | Seed/T03 | 公開済みGraphにv2の新規辺/状態を追加しようとすると拒否/全体rollback。既存seedの初期投入制限を回避しない |
+| C16 | DB権限/T04 | query roleはSELECT可、書込/DDL権限なし、実UPDATE拒否。readonly transactionだけへの依存を防ぐ |
+| C17 | DB権限/T04 | runtime roleも新表SELECTだけ、書込/DDL権限なし、実UPDATE拒否。既存のruntime更新権限の波及を防ぐ |
+| C18 | 実DB/Graph/API/T05 | R-02 UNAVAILABLE、M-208 RUNNINGでもAPIの候補availabilityがUNAVAILABLE。Evidenceの根拠/versionが初期レコードと一致 |
+| C19 | 実DB/Graph/API/T05 | R-02 UNKNOWNならAPIの候補availabilityもUNKNOWN。構造成立を利用可能へ読み替えない |
+| C20 | 実DB/Graph/SPOF/T06 | 同じ資源状態がSPOF評価/Evidenceにも使われ、代替APIだけを直す不整合を防ぐ |
+| C21 | Frontend/T09 | 資源の登録供給状態と出典・版・登録/読取時刻を読取表示し、同UUIDの設備状態と混同しない |
+| C22 | Frontend/T09 | 候補の能力充足・自身RUNNINGがあっても、供給不可の判定を上書きして利用可能/吸収見込みを表示しない |
+
+C16/C17は職務数×SQL全直積を作るのではなく、DB roleごとに実際のSELECT、全更新/DDL権限の検査、実UPDATE拒否を検証する各1ケース。C13は単一の不一致seedについて原子性を検証し、別の意味の失敗を一件に隠すための入力ループを作らない。
+
+20件を超える根拠：純粋な三値6、実DB読取5、初期投入/互換4、DB権限2、API2、SPOF1、表示2は異なる失敗箇所。権限や実DBの原子性をformatterのfake試験で代替できない。pairwiseは不要な直積回避の原則として使い、今回の22は同値分割・境界・重要な相互作用を明示選定した。実装前の承認対象はこの22件。
+
+既存のGraph/認可/承認/実行/質問欄の回帰は維持し、BackendはDocker内、Frontendは必要最小限のチェックで確認する。新しい実モデル評価はない。承認後の手動確認案は、各独立初期DBの実API ReadでAVAILABLE/UNAVAILABLE/UNKNOWNを各3回（計9要求）と、専用Frontendで依存辺/読取表示/代替判定を確認する。これは自動22ケースと別の確認方法で、今回実行していない。所要時間/資源/認証は環境の実行計画とともに提示する。
+
+## 7. 見積もり・残存リスク・停止条件
+
+製品/データ13＋試験9＋文書10＝32ファイル。新規自動試験22、2〜3.5作業日（DB/Read/三値0.75〜1.25、初期seed/Evidence/表示0.5〜0.75、試験/API/ブラウザ/CI/記録0.75〜1.5）。レビュー/実行承認待ちとF3は含めない。単一PRで実装と検証を完了し、mergeは開発者が行う。
+
+残存リスクは、初期状態を実測と誤認すること、旧公開Graphへ新seedを適用できないこと、Bではデモ中に供給状態を画面で変更できないこと、既存Read出力の追加項目に対する呼出元互換。時刻・出典の明示、初期seed制約、独立DB検証、既存回帰で確認する。管理者権限によるDB操作まで物理的に不可能とは主張しない。
+
+正確な追加case数が22を超える、変更ファイルが32を超える、3.5日を超える追加作業が必要、または新しい状態変更経路/サービス/モデルが必要と分かったら、理由・差分・工数を報告して承認前に進めない。件数合わせで安全性検証を削らない。
+
+## 8. 任意の後続：承認付き供給状態変更（未採用）
+
+A案は必須の残作業から外し、必要性が出た場合に改めて採否を判断する任意項目O-F2-WRITEとして記録する。依頼者/承認者の権限、自己承認、Snapshot、version競合、再送/原子性、UI・HTTP契約をその時点で承認する。現在の推奨権限案を確定仕様として継承しない。
+
+Bの状態表・Read・三値評価・Evidence・表示・検査は将来再利用できる。仮のApproval/履歴を作らず、登録データと版から接続する。任意項目はガントへ採否未定の独立行で示し、期間バーや確定PR数へ加えない。既定の残計画はF2→F3の2 PRのまま。F3のstashは保持する。
+
+## 9. 今回の区切り
+
+今回は本計画とロードマップ/ガント/履歴の文書更新のみ。製品コード・JSON・API・UI・DB・seed・認証・既存環境を変更せず、手動試験・モデル評価は実行しない。開発者の追加指示に従い文書をPR #278へcommit/pushする。pushで起動する既存CIは文書差分の対象判定/既存チェックとして区別し、新規22ケースや製品実装の検証とは報告しない。計画を報告したら停止し、実装承認を待つ。
