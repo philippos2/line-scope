@@ -5,7 +5,7 @@ No natural-language classification or LLM is reachable from this executor.
 
 from dataclasses import replace
 from datetime import datetime
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 from ..application.reads import ReadResult, ToolError
 from .agent_tools import AgentToolSession
@@ -97,6 +97,88 @@ def response(text, outcome, observations=(), *, needs_input=False, errors=(), ke
             "unavailable": [],
             "scope": [],
         },
+    )
+
+
+def alternative_answer(data, target, label, read):
+    """Name only candidates from the requested replacement result, using verified reads."""
+    groups = data.get("alternatives")
+    if (
+        data.get("excluded_nodes") != [target]
+        or type(groups) is not list
+        or len(groups) != 1
+        or type(groups[0]) is not dict
+        or groups[0].get("excluded_node") != target
+        or type(groups[0].get("candidates")) is not list
+    ):
+        raise ToolError("INTERNAL_ERROR", "Alternative result target mismatch")
+    candidates = groups[0]["candidates"]
+    established, rejected, unknown, seen = [], [], [], set()
+    for item in candidates:
+        if (
+            type(item) is not dict
+            or type(item.get("candidate")) is not dict
+            or type(item.get("structure")) is not dict
+        ):
+            raise ToolError("INTERNAL_ERROR", "Invalid replacement shape")
+        node = item.get("candidate", {})
+        structure = item.get("structure", {}).get("determination")
+        availability = item.get("availability")
+        if (
+            node.get("entity_type") != "Equipment"
+            or node == target
+            or structure not in {"ESTABLISHED", "NOT_ESTABLISHED", "INDETERMINATE"}
+            or availability not in {"AVAILABLE", "UNAVAILABLE", "UNKNOWN"}
+        ):
+            raise ToolError("INTERNAL_ERROR", "Invalid replacement candidate")
+        identity = str(UUID(node["entity_id"]))
+        if identity in seen:
+            raise ToolError("INTERNAL_ERROR", "Duplicate replacement candidate")
+        seen.add(identity)
+        if len(seen) > 12:
+            continue
+        equipment = read("get_equipment", {"equipment_id": identity})
+        if not all(
+            isinstance(equipment.get(field), str) and equipment[field].strip()
+            for field in ("equipment_name", "equipment_code")
+        ):
+            raise ToolError("INTERNAL_ERROR", "Invalid candidate name")
+        name = f"{equipment['equipment_name']}（{equipment['equipment_code']}）"
+        if not data["complete"] or structure == "INDETERMINATE":
+            unknown.append(name)
+        elif structure == "NOT_ESTABLISHED":
+            rejected.append(name)
+        else:
+            if availability == "UNAVAILABLE":
+                name += "（登録状態では利用不可）"
+            elif availability == "UNKNOWN":
+                name += "（登録状態による利用可否は不明）"
+            established.append(name)
+    scope = "表示した候補" if len(candidates) > 12 else "今回の探索範囲"
+    text = (
+        f"{label}の構造上の代替候補は、" + "、".join(established) + "です。"
+        if established
+        else f"{label}について、{scope}では構造上の代替候補の成立を確認できませんでした。"
+    )
+    if rejected:
+        text += (
+            "登録された代替関係にある"
+            + "、".join(rejected)
+            + "は、構造条件が成立しないため、成立した候補には含めません。"
+        )
+    if unknown:
+        text += "構造成立を確認できない登録候補：" + "、".join(unknown) + "。"
+    if not candidates and data["complete"]:
+        text += "登録された関係から候補は見つかりませんでした。実際に代替設備が存在しないと断定したものではありません。"
+    if not data["complete"]:
+        text += (
+            "探索は不完全で、候補の全件や構造成立を確定できません。候補なしとは判断していません。"
+        )
+    if len(candidates) > 12:
+        text += "候補名は先頭12件だけを表示しています。"
+    return (
+        text
+        + "ただし、実際に代替運転できるかは未評価です。能力・安全性・経済影響も評価していません。"
     )
 
 
@@ -205,7 +287,7 @@ class RegisteredQuestionReads:
                     if not graph.get("complete") or not products:
                         text = f"{label}の構造上の代替候補を評価するための製品範囲を確定できません。代替設備が存在しないという意味ではありません。"
                     else:
-                        read(
+                        alternatives = read(
                             "find_alternative_paths",
                             {"important_targets": products, "excluded_nodes": [target]},
                         )
@@ -213,13 +295,26 @@ class RegisteredQuestionReads:
                         summary = fulfillment_answer(chosen)
                         if not summary:
                             raise ToolError("INTERNAL_ERROR", "Invalid alternative result")
-                        text = label + "について、" + summary
+                        try:
+                            if sorted(
+                                alternatives.get("important_targets", []),
+                                key=lambda n: (n["entity_type"], n["entity_id"]),
+                            ) != sorted(products, key=lambda n: (n["entity_type"], n["entity_id"])):
+                                raise ToolError("INTERNAL_ERROR", "Alternative product mismatch")
+                            text = alternative_answer(alternatives, target, label, read)
+                        except ToolError as error:
+                            return response(
+                                "代替候補の情報・名称を取得または検証できませんでした。候補がないとは判断していません。時間をおいて同じ質問を送ってください。",
+                                "READ_FAILED",
+                                errors=(error.as_dict(),),
+                                key=key,
+                            )
                 else:
                     chosen = [o for o in observations if o.tool == tool]
                     summary = (
-                        dependency_answer(chosen)
+                        dependency_answer(chosen, include_detail_link=False)
                         if key == "upstream_dependencies"
-                        else downstream_answer(chosen)
+                        else downstream_answer(chosen, include_detail_link=False)
                     )
                     if not summary:
                         raise ToolError("INTERNAL_ERROR", "Invalid graph result")

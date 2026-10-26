@@ -79,6 +79,8 @@ class Reads:
                 ]
             data = {"items": rows, "next_cursor": None}
         elif tool == "get_equipment":
+            if args["equipment_id"] == SECOND and self.mode == "alternative_name_error":
+                raise ToolError("DEPENDENCY_UNAVAILABLE", "Controlled name failure")
             data = dict(equip)
             if args["equipment_id"] == SECOND:
                 data.update(equipment_id=SECOND, equipment_name="第2加工機", equipment_code="M-208")
@@ -108,9 +110,44 @@ class Reads:
             data = {"product_id": PRODUCT, "product_name": "製品A", "product_code": "P-100"}
         elif tool == "find_alternative_paths":
             data = observation(tool, "ESTABLISHED").result.data
+            data.update(
+                important_targets=args["important_targets"], excluded_nodes=args["excluded_nodes"]
+            )
+            data["alternatives"] = [
+                {
+                    "excluded_node": args["excluded_nodes"][0],
+                    "availability": "AVAILABLE",
+                    "candidates": [
+                        {
+                            "candidate": {"entity_type": "Equipment", "entity_id": SECOND},
+                            "availability": "AVAILABLE",
+                            "structure": {"determination": "ESTABLISHED"},
+                        }
+                    ],
+                }
+            ]
+            group = data["alternatives"][0]
+            if self.mode in {"alternative_unavailable", "alternative_unknown"}:
+                group["candidates"][0]["availability"] = (
+                    "UNAVAILABLE" if self.mode.endswith("unavailable") else "UNKNOWN"
+                )
+            if self.mode == "alternative_rejected":
+                group["candidates"][0]["structure"]["determination"] = "NOT_ESTABLISHED"
+            if self.mode in {"alternative_empty", "alternative_partial_empty"}:
+                group["candidates"] = []
+            if self.mode in {"alternative_partial", "alternative_partial_empty"}:
+                data["complete"] = False
+            if self.mode == "alternative_wrong_target":
+                group["excluded_node"] = {"entity_type": "Equipment", "entity_id": SECOND}
         else:
             raise AssertionError(tool)
         evidence = {"tool": tool, "source": "CONTROLLED", "observed_at": NOW}
+        if (
+            tool == "get_equipment"
+            and args["equipment_id"] == SECOND
+            and self.mode == "alternative_name_evidence"
+        ):
+            evidence["tool"] = "get_product"
         if tool == "get_equipment_state" and self.mode == "evidence":
             evidence = {}
         if tool == "get_equipment_state" and self.mode == "evidence_mismatch":
@@ -183,6 +220,8 @@ def test_demo_direct_registered_read(monkeypatch, key, question):
     for row in data["tool_results"]:
         if row["tool"] == "get_equipment":
             assert not {"active", "version"} & row["data"].keys()
+    if key in {"downstream_reachability", "upstream_dependencies"}:
+        assert "構造化結果" not in body["answer"]
     if key == "registered_state":
         assert "登録上" in body["answer"] and "実稼働状態を確認したものではなく" in body["answer"]
 
@@ -261,3 +300,57 @@ def test_demo_state_security_and_evidence(monkeypatch, mode):
         assert "STOPPED" not in result.text
         if mode in {"owner", "ttl"}:
             assert svc.reads.calls == []
+
+
+@pytest.mark.parametrize(
+    "mode",
+    [
+        "normal",
+        "alternative_unavailable",
+        "alternative_unknown",
+        "alternative_rejected",
+        "alternative_empty",
+        "alternative_partial",
+        "alternative_partial_empty",
+        "alternative_name_error",
+        "alternative_name_evidence",
+        "alternative_wrong_target",
+    ],
+)
+def test_alternative_question_names_and_failure_boundaries(monkeypatch, mode):
+    api_client, svc, _ = client(monkeypatch, mode)
+    with api_client:
+        result = api_client.post("/agent", json={"message": "M-204の代替候補は？"}, headers=HEADERS)
+    body = result.json()
+    if mode in {"alternative_name_error", "alternative_name_evidence", "alternative_wrong_target"}:
+        assert result.status_code in {500, 503}
+        assert body["data"]["answer_sections"]["read_outcome"] == "READ_FAILED"
+        assert "候補がないとは判断していません" in body["answer"]
+        assert not body["data"]["tool_results"] and not body["data"]["answer_sections"]["facts"]
+        return
+    assert result.status_code == 200
+    assert "構造化結果" not in body["answer"]
+    assert "実際に代替運転できるかは未評価" in body["answer"]
+    assert "能力・安全性・経済影響も評価していません" in body["answer"]
+    if mode in {"alternative_empty", "alternative_partial_empty"}:
+        assert "第2加工機" not in body["answer"]
+        assert "存在しない" not in body["answer"] or "断定したものではありません" in body["answer"]
+    else:
+        assert "第2加工機（M-208）" in body["answer"]
+        assert any(
+            row["tool"] == "get_equipment" and row["data"]["equipment_id"] == SECOND
+            for row in body["data"]["tool_results"]
+        )
+        assert any(e["tool"] == "get_equipment" for e in body["evidence"]["tool_results"])
+    if mode == "alternative_unavailable":
+        assert "登録状態では利用不可" in body["answer"]
+    elif mode == "alternative_unknown":
+        assert "利用可否は不明" in body["answer"]
+    elif mode == "alternative_rejected":
+        assert "構造条件が成立しない" in body["answer"]
+        assert "構造上の代替候補は、" not in body["answer"]
+    elif mode.startswith("alternative_partial"):
+        assert "探索は不完全" in body["answer"] and "候補なしとは判断していません" in body["answer"]
+        assert "構造上の代替候補は、" not in body["answer"]
+    elif mode == "normal":
+        assert "構造上の代替候補は、第2加工機（M-208）です。" in body["answer"]
