@@ -95,7 +95,11 @@ POはUC-B01〜15とBusiness Scenarioの意図を既存仕様との不整合時�
 
 以下は19文書の正本体系を案内する補助資料。FAQやREADMEの説明で業務仕様・設計契約を変更しない。
 
-- [README](../README.md)：目的、代表操作、構成と資料一覧。
+- [README](../README.md)：技術検証の目的と、以下の資料への入口。
+- [デモの範囲](requirements/requirements.md#91-今回のデモでやること)：§9.1のやること、§11.2のやらないこと・主張しないこと。範囲の正本は引き続きrequirements。
+- [本デモアプリで検証したこと](demo/verified-findings.md)：目的・方法・観測・結論・限界・根拠の整理。仕様を新たに定義する文書ではない。
+- [正式デモ環境](demo/environments.md)：現行の接続先・起動停止。過去の履歴にあるportを現行手順として使わない。
+- [質問欄の限定照会設計](design/demo-question-chat.md)：現行9観点・共通検索・質問欄のみの対話契約。
 - [起動・操作ガイド](getting-started.md)：環境構築とブラウザ操作。
 - [M-204停止と代替候補のデモ構成](demo/scenario1.md)：架空データ、初期投入と調査API。
 - [設計FAQ](design-faq.md)：設計理由、制約、正本への案内。
@@ -103,3 +107,9 @@ POはUC-B01〜15とBusiness Scenarioの意図を既存仕様との不整合時�
 - [Frontend README](../frontend/README.md)：画面の起動・検証手順。
 - [ロードマップ](roadmap.md)：到達点と残項目。
 - [履歴一覧](history/README.md)：個別作業・判断・検証の記録。
+
+## 10. 現行仕様と計画・履歴の区別
+
+上記の正本責務を維持する。`frontend-console.md`と承認済みの`post265-ui-correction-plan.md` §11.2は画面の補足規約、`demo-question-chat.md`は現行質問欄の補足契約として読む。既存の業務・API・認可の正本を上書きしない。
+
+`frontend-redesign-proposal.md`、`alternative-power-dependency-plan.md`、`ui-operation-audit.md`等の提案・実装計画・静的監査は、策定時点の範囲や所見を含む。全行を現在の未実装・未解決一覧として扱わず、適用済み部分は現行設計と検証結果を参照する。`docs/history/`とPR #276のアーカイブは過去時点の記録であり、仕様正本ではない。古い結果・失敗・旧環境の記述は書き換えず保持する。

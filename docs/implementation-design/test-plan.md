@@ -1,5 +1,7 @@
 # LineScope テスト計画・テスト仕様書
 
+本書は試験の設計と必要な不変条件を定める。記載されたケースの存在を、その版での実行成功・実API／実ブラウザ確認と同一視しない。現行質問は[9観点設計](../design/demo-question-chat.md)、過去の実行結果・確認方法・未実施は[検証結果](../demo/verified-findings.md)から辿る。今回の文書整理では試験ケース・期待値を変更しない。
+
 ## 1. テストレベル
 
 Unit / Integration / API Contract / Transaction / Concurrency / Projection / Graph / RAG / Security / E2E / Recovery

@@ -2,7 +2,7 @@
 
 通常の永続環境を起動し、調査・比較・承認付き変更をcurlで試す手順です。Docker Engine、Compose v2、ホストのPython 3、必要に応じてOllamaを使用します。ブラウザ画面でも調査・比較・根拠を確認できます。
 
-開発中の継続プレビューを確認するときは、先に[現在のブラウザ確認環境](demo/environments.md)を参照してください。以下の5173番は新規環境の既定値です。
+正式デモは[正式デモ環境](demo/environments.md)の5173／API8002です。起動・停止は同文書の手順だけを使います。以下の構築コマンドとAPI8000は、別マシン／新規環境の既定値です。既存の正式環境へenv生成・seed・Rebuildを再適用しないでください。検証結果・限界は[本デモアプリで検証したこと](demo/verified-findings.md)を参照してください。
 
 ## 最短で通し検証する
 
@@ -51,11 +51,11 @@ docker compose -f compose.yaml -f compose.frontend.yaml --profile frontend up --
 
 接続後は「設備調査」から進みます。
 
-1. 設備名の一部、または大文字・小文字を区別する設備コード全体で検索します。検索前に固定設備は表示しません。
+1. 設備名の一部、または設備コードで検索します。名称・コードの正規化は質問欄と共通で、大小文字・全半角・許可した記号・序数表記の揺れを吸収します。未登録の別名を推測する機能ではありません。検索前に固定設備は表示しません。
 2. M-204を選ぶと、登録状態「停止中」、下流の影響先、推定損害額200,000円／時間を取得します。上流の依存先にも切り替えられます。
 3. 稼働中のM-208が代替候補として自動表示されます。P-100の必要能力60・空き能力80と、安全・品質などの未確認条件を確認します。P-200は今回選択した能力入力では未評価です。
 4. M-208を調査対象にすると「稼働中」と表示し、停止損害の算定対象外という理由を示します。
-5. 下段の補助タブから、質問・比較・出典・入力の登録訂正・変更承認へ進めます。変更は明示準備、別の承認者による承認、元依頼者の実行を経て確定します。
+5. 右側主領域の上部6タブから、接続及び影響範囲・対応案を比べる・質問する・出典と経路・入力を登録訂正・変更承認へ進めます。左検索ペインは保持します。変更は明示準備、別の承認者による承認、元依頼者の実行を経て確定します。
 
 FrontendのproxyがAPIへ接続するため、ブラウザへDB資格情報を渡しません。Frontendはloopbackの5173番で、`LINESCOPE_FRONTEND_PORT`により変更できます。変更後は同じComposeファイルとprofileで再作成します。通常の停止でvolumeを削除しないでください。
 
@@ -67,6 +67,8 @@ Tabで「調査領域へ移動」へ進み、Enterで中央の調査領域へ移
 
 ### ローカルLLM
 
+現在の質問欄は[固定9観点](design/demo-question-chat.md)をコードで照合・回答するため、LLM設定は不要です。以下は既存のLLM使用経路を検証する場合の設定で、通常質問の必須手順ではありません。Embeddingを使う独立した文書検索とは区別します。
+
 ホストのOllamaにTool calling可能なモデルを用意し、`.env`へ`LINESCOPE_LLM_MODEL=<用意したmodel名>`を設定してAPIを再作成します。
 
 ```sh
@@ -75,7 +77,7 @@ docker compose up -d --no-deps api
 
 コンテナの既定接続先は`http://host.docker.internal:11434`です。Ollamaはコンテナから接続できる待ち受け設定が必要です。必要に応じて`LINESCOPE_LLM_BASE_URL`を指定してください。モデルの自動取得は行わず、具体モデルの採用・日本語回答品質は別途評価します。実Embedding / Qdrantは`compose.rag.yaml`の追加構成で使用します。まず下記の専用環境による実Vector検証で疎通を確認できます。
 
-Read Agent全体の上限は既定120秒です。`LINESCOPE_READ_AGENT_DEADLINE_SECONDS`で正の整数秒を設定できます。初回モデルロードや複数の参照で待ち時間が増え、形式不正・Tool選択ミスもあり得ます。一般質問の失敗と、画面の明示的な比較・Graph操作の結果を区別してください。
+Read Agent全体の上限は既定120秒です。`LINESCOPE_READ_AGENT_DEADLINE_SECONDS`で正の整数秒を設定できます。初回モデルロードや複数の参照で待ち時間が増え、形式不正・Tool選択ミスもあり得ます。LLMを使う経路の失敗を、通常質問欄や画面の明示的な比較・Graph操作の失敗と混同しないでください。
 
 ### ログ・停止・再起動
 
@@ -109,11 +111,11 @@ curl -sS "$BASE_URL/health" \
 curl -sS "$BASE_URL/health/ready" \
   -H "Authorization: Bearer $LINESCOPE_TOKEN"
 
-# 自然言語調査には上記のOllama設定が必要
+# 固定9観点の照会はLLM設定不要
 curl -sS "$BASE_URL/agent" \
   -H "Authorization: Bearer $LINESCOPE_TOKEN" \
   -H 'Content-Type: application/json' \
-  -d '{"message":"M-204の現在状態を調べて"}'
+  -d '{"message":"M-204の登録状態は？"}'
 
 # floor / maintenance / managerのいずれかで設備状態の変更準備を作成
 # この呼出しだけでは業務値は変わらず、LLM設定も不要
@@ -151,18 +153,11 @@ curl -sS -X POST "$BASE_URL/update-requests/$UPDATE_REQUEST_ID/execute" \
 
 承認／拒否は`POST /approvals/{approval_id}/approve`・`/reject`、実行は`POST /update-requests/{update_request_id}/execute`です。approveは`{"snapshot_hash":"<保存済みhash>"}`をJSONで送り、reject / executeはBodyなしです。承認者とrequesterのtokenは権限要件に従って使い分けます。Agentから承認・実行はできません。再送・状態遷移・error codeは[API契約](implementation-design/api-tools.md)を参照してください。
 
-次の質問でDecision Packageを取得できます。LLM未設定でもサーバ側の決定論的経路で動きます。
-
-```sh
-curl -sS "$BASE_URL/agent" \
-  -H "Authorization: Bearer $LINESCOPE_TOKEN" \
-  -H 'Content-Type: application/json' \
-  -d '{"message":"M-204の異常について影響・修理・交換・代替を比較して"}'
-```
-
-`data.decision_package`に実Graphの影響候補、現在設備状態、選択した正式入力の比較、Evidenceとunknownsを返します。未選択時は候補と不明を返し、固定値で補完しません。LLMは明示選択した比較Toolを参照でき、数値・制約・要約はサーバが構築します。
+正式入力の比較は、画面の「対応案を比べる」または[API契約](implementation-design/api-tools.md)の構造化比較要求で行います。通常質問欄は固定9観点の照会であり、任意の比較文をDecision Package要求へ自動変換する経路ではありません。未選択の入力は不明として保持します。
 
 ## 実モデルを含む一括デモ受入
+
+これは旧経路を含む専用検証スクリプトの説明です。PR #277以降の質問欄の受入とは別であり、現行版でこの全経路を再実行済みとは扱いません。過去の結果と適用版は[検証結果](demo/verified-findings.md)から確認してください。
 
 ホストOllamaへTool callingモデルとEmbeddingモデルを事前に用意し、コンテナから接続可能にします。モデルの自動取得は行いません。Embeddingの正確なdigestはOllamaの`/api/tags`で確認し、モデル名と対応付けて指定します。以下のモデル名は検証済みの例であり、採用モデルを固定する要件ではありません。
 
@@ -189,6 +184,8 @@ python3 scripts/verify_demo_acceptance.py \
 
 ## Read Agentの実モデル評価
 
+旧Read Agentの評価手順です。現行の質問欄9観点の照会を実モデル評価と呼ばず、過去のprobeが現在の自由文入力で同じ経路を通るとは保証しません。通常質問の確認は[PR #277の原記録](history/2026-10-26-demo-question-results.md)を参照してください。
+
 ```sh
 python3 scripts/verify_read_agent_quality.py \
   --model qwen3:30b-a3b-instruct-2507-q4_K_M \
@@ -201,24 +198,8 @@ python3 scripts/verify_read_agent_quality.py \
 
 ## 全部品を含む常設環境
 
-実文書検索には `compose.rag.yaml` も重ねます。私有envへAPI用read keyと管理用write key、導入済みEmbeddingモデル名・正確なdigest・次元数を設定します（変数名は追加Composeを参照）。通常起動・再起動でも同じ3ファイルを使い、Vector構成を外さないでください。既存のDB資格情報を生成し直したりvolumeを消したりしません。
+正式環境は[正式デモ環境](demo/environments.md)の`linescope-demo`です。起動・停止・私有設定の参照先は同文書に集約しています。旧preview projectの起動コマンドは現在の操作手順として使用しません。
 
-```sh
-docker compose --env-file .env.browser-demo -p linescope-browser-demo \
-  -f compose.yaml -f compose.frontend.yaml -f compose.rag.yaml \
-  --profile frontend up --build -d --wait frontend projection qdrant
-```
+別マシンで新規構築する場合は、通常起動の後に`compose.frontend.yaml`と`compose.rag.yaml`を重ね、対応する私有設定を用意します。文書の取込み・Index再構築は[運用設計](implementation-design/operations.md)と[RAG設計](implementation-design/rag-design.md)に従う明示の管理操作です。正式デモへ無条件に再seed・再取込みする手順ではありません。
 
-検索用参考資料は `docs/demo-documents/equipment-investigation.md` です。業務の安全規則や実工場の保全手順ではありません。管理用CLIで取り込む例：
-
-```sh
-docker compose --env-file .env.browser-demo -p linescope-browser-demo \
-  -f compose.yaml -f compose.frontend.yaml -f compose.rag.yaml \
-  run --build --rm --no-deps -v "$PWD/docs/demo-documents:/demo-documents:ro" \
-  knowledge-admin linescope ingest-knowledge \
-  --code DEMO-EQUIPMENT-INVESTIGATION --version 1 \
-  --title '設備状態と保全調査の参考資料（デモ）' \
-  --file /demo-documents/equipment-investigation.md
-```
-
-取込みは管理操作です。既に同じcode/versionを取り込んだ環境では無条件に再実行せず、登録済み文書を確認してください。新規環境は通常起動節のenv生成・seed・Graph構築も先に実施します。
+参考資料は[設備調査のデモ文書](demo-documents/equipment-investigation.md)です。実工場の安全規則・保全手順ではありません。正式移行時のmetadata・本文・Index保持確認と、新たなEmbedding検索の実行成功は区別します。
