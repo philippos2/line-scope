@@ -37,3 +37,41 @@ Backend全4113ケース：4101成功・11失敗・1skip、389.92秒。内訳は�
 既存Readの全項目一致・SQL bind期待と、5つのmigration固定一覧試験が新しい追加契約に追随しておらず、計6ファイル・11ケースが失敗した。6ファイルは承認済み32ファイルに含まれないため変更せず停止した。32→38ファイルへの承認を求める。追加試験は0、承認22ケースは維持する。計画時の依存試験の洗い出し不足であり、失敗を隠すための製品変更や試験の弱体化は行わない。
 
 直接API9要求・独立環境のブラウザ確認・CIは未実施。現在の5173/5174は従前の版であり、F2最新版を配備したとは案内しない。使い捨て自動試験環境だけを片付け、追加の互換修正は承認待ちとする。PR #278はDraftのまま、mergeしない。
+
+## 既存6試験ファイルの互換修正承認
+
+開発者は32→38ファイルを条件付き承認した。修正は報告済みの既存試験6ファイルだけ、追加ケース0、製品コードの再変更なし。`f384e95`を保持する。以下は前回の実ログにある11件を個別に照合した表であり、成功にするための検証削除・skip/xfail化はしない。
+
+| # | 失敗したassertion／ケース | 旧期待値 | 実際の値（f384e95） | 契約に従う修正理由・保持する検証 |
+|---|---|---|---|---|
+| 1 | test_reads：get_exact_record、floor、資源Readの全項目一致 | 資源マスタの全列のみ | 旧全列と同値＋registered_supply_state（UNKNOWN / record=null / DB読取時刻） | 未登録状態の追加読取項目。旧全列の完全一致を保持し、新項目とEvidenceの時刻一致も検証 |
+| 2 | 同上、maintenance | 同上 | 同上 | 同上。maintenanceの認可・ID・version・Evidence検証を維持 |
+| 3 | 同上、manager | 同上 | 同上 | 同上。managerの認可・ID・version・Evidence検証を維持 |
+| 4 | 同上、production | 同上 | 同上 | 同上。productionの認可・ID・version・Evidence検証を維持 |
+| 5 | test_reads：native値保持、資源Readのrow == expected | 同一transactionで更新した資源マスタ全列 | 旧全列と同値＋上記の供給状態項目 | 全列一致と未commit変更の可視性を維持。供給状態のDB読取時刻が同じSELECTの_observed_atと一致することを検証 |
+| 6 | test_reads：UUID bind、list(params.values()) | 要求UUIDのbind 1個のみ | 要求UUIDのbind 2個＋固定JSONキー/defaultのbind 13個 | マスタと供給状態subqueryの両方が同じUUIDをbind。15値の厳密な多重集合一致、UUID 2個、SQLへのUUID文字列非埋込、execute 1回を検証。他Toolは従来の1bindの完全一致を維持 |
+| 7 | test_projection_storage：db.migrate()の完全一致 | 006〜013 | 006〜014 | 新migration014追加のみ。一覧の順序・再適用なし・既存要求保持・架空Outboxなしを維持 |
+| 8 | test_business_schema：db.migrate()の完全一致 | 002〜013 | 002〜014 | migration一覧と、その後の厳密なテーブル一覧に新表を追加。既存業務データ・schema境界の検証を維持 |
+| 9 | test_execution_history_schema：db.migrate()の完全一致 | 005〜013 | 005〜014 | 同上。既存の承認待ち要求・架空履歴なしの検証を維持 |
+| 10 | test_update_request_schema：db.migrate()の完全一致 | 003〜013 | 003〜014 | 同上。既存業務行保持とpackaged migrationの検証を維持 |
+| 11 | test_foundation：並行migration結果の完全一致 | 一方は空、もう一方は001〜013 | 一方は空、もう一方は001〜014 | 新migration014追加のみ。一回適用・順序・checksum変更拒否の検証を維持 |
+
+### Read契約の後方互換性の確認範囲
+
+`get_infrastructure_resource`は既存の要求形式・認証認可・主キー・マスタversion・名称・種別・active・時刻の型/値を変更せず、`registered_supply_state`だけを追加する。状態行なしはUNKNOWN/record=nullで、既存フィールドへ既定値を上書きしない。外側Envelope/Evidenceの形式も維持する。
+
+RepositoryのFrontend `Envelope.data`は`Record<string, unknown>`、envelope検査はdataがobjectかを確認し、追加fieldを拒否しない。Graphのdetail/labelとAgentのregistered_question_readは既存field名を参照し、追加キーの存在で意味を変更しない。旧fieldの全項目一致を維持した上記試験と既存回帰で照合する。Repository外の未知の厳密なconsumerまでは確認できず、その互換性を保証したとはしない。既存の公開契約に削除・型変更・要求変更は確認されていない。
+
+再検証は公開portなしの専有tmpfs DB/Neo4j/Qdrantと既存image、現行source mountを使用する。5173/5174へ配備・再seed・認証変更は行わない。CI・独立HTTP9要求・製品ブラウザ確認はこの再検証と区別し、未実施を成功扱いしない。
+
+
+全件再検証の初回実行中、既知のtest_schema_boundary_and_upgrade_from_foundationの後続assertionにも新表を追加する必要があるとコードレビューで確認した。同じ承認済みファイル・同じ既知失敗ケースの範囲でテーブル一覧の完全一致を維持する修正を行うため、専有runnerを停止し、専有DB/Graphを初期化して全件を最初から再実行する。中断した部分実行を全件成功の根拠にしない。製品コードと追加ケース数は変えていない。
+
+### 互換修正後の最終ローカル検証
+
+- Backend全4113ケース：**4112成功・失敗0・既存skip1**、397.63秒。JUnitでもfailures/errors=0を確認。承認済み追加20ケースを名前で抽出して20成功、既存回帰4092成功・skip1と分けて確認した。先の11件はいずれも成功し、11件以外の新たな退行はなかった。skipは既存のopt-in実モデル試験であり、今回追加していない。
+- Frontend全78ケース：**追加2成功・既存76成功**。Docker内`npm test -- --run`を再実行。`npm run check`のlint・型・整形・buildも成功。既存の大きなchunk警告は残る。
+- Backend Docker内ruff check/format：成功（406ファイル整形済み）。diff check・SVG XML検査も成功。6試験ファイルのASTで試験関数・parametrizeがf384e95と同じであることを確認し、追加ケース0を照合した。
+- 修正した試験コードは承認済み6ファイルだけ。製品コード・Frontendコードはf384e95から無変更。履歴・計画・ロードマップ・ガントは結果に追随させる。f384e95の履歴は維持する。
+- 前回同様、既存TestClient非推奨警告と終了時の`LineScope logging output failed`が出た。これを今回原因調査・修正済みとはしない。pytestの終了コード0とJUnit件数とは分けて記録する。
+- 検証専用container/network/tmpfsを削除する。5173/5174のcontainer・DB・volume・認証・seedは変更していない。CI・独立HTTP9要求・製品ブラウザ確認は**未実施**。5173/5174がF2最新版とは案内しない。PRはDraftのまま、mergeしない。今回の互換修正はローカルcheckpointに保存し、push/CIは未実施として報告する。
