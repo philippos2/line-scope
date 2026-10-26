@@ -236,3 +236,12 @@ DBは専用PostgreSQL 18.6（tmpfs）とNeo4j 5.26.31-community（data/logsと�
 
 
 実装2コミットは開発者の指示により通常push済み。実装head fba058aのCIはBackend合計4112成功・skip1、Frontend lint/型/整形/build、runtime startup/migrations、対象判定・集約とも成功（run 40302308261）。ローカルVitest78件とは区別する。直接API9要求・ブラウザ確認の環境操作は別承認待ち、未実施。
+
+
+## 独立環境の最終確認結果と維持
+
+開発者の別承認を得て、既存image/試験Composeを再利用し三状態を各別の初期DBで確認した。直接APIはAVAILABLE / UNAVAILABLE / UNKNOWN各3、全9要求が期待一致。AVAILABLEの実ブラウザでM-204/M-208の共通電源、状態/出典/version/登録時刻と読取時刻、Evidence、代替提案を確認した。UNAVAILABLE/UNKNOWNの実ブラウザは未確認で、実API結果と自動表示試験を区別する。
+
+初期化の検証設定不備、実測資源、9要求の結果は履歴へ記録した。現在はAVAILABLEの`linescope-f2-api-check`をFrontend5178/API8178で維持し、終了指示まで削除しない。一時認証はprivate fileのみ、DB/Neo4jは独立tmpfsである。常設上限はPostgreSQL512MiB/0.5CPU、Neo4j1280MiB/1CPU、API256MiB/0.5CPU、Frontend512MiB/0.5CPU、合計2.5GiB・2.5CPU。検証中の同時採取最大は約1.71GiB・1.29論理CPU。5GiB/8CPUは使用前提にしなかった。
+
+既存15コンテナのID/image/Mounts/ports不変、既存5173/5174のデータ・認証・seed操作なし。製品コード変更なし。今後は開発者のブラウザ確認を待ち、Draftを維持する。文書追記のCIは実装headの成功と区別して確認する。

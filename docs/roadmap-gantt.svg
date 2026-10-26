@@ -1,10 +1,10 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1240" height="800" viewBox="0 0 1240 800" role="img" aria-labelledby="title desc">
 <title id="title">F2電源依存とF3範囲一覧のガントチャート</title>
-<desc id="desc">#277はmerge済み。F2は読取専用のB案採用、互換修正と自動回帰は成功、実装headのCIは成功、直接API・ブラウザは未実施。横軸はF2実装承認後の相対作業日0から3.5、2〜3.5日の計画上限を表示する。青は設計実装、水色は自動試験、紫は直接APIとブラウザ、緑はCIと記録。色は進捗ではない。F3はF2 merge後で日付と工数未確定。承認付き更新は任意・未採用で期間未確定。</desc>
+<desc id="desc">#277はmerge済み。F2は読取専用のB案採用、互換修正と自動回帰は成功、実装headのCIは成功、実API9要求・通常画面は確認済み、開発者確認待ち。横軸はF2実装承認後の相対作業日0から3.5、2〜3.5日の計画上限を表示する。青は設計実装、水色は自動試験、紫は直接APIとブラウザ、緑はCIと記録。色は進捗ではない。F3はF2 merge後で日付と工数未確定。承認付き更新は任意・未採用で期間未確定。</desc>
 <rect width="1240" height="800" fill="#f8fafc"/>
 <g font-family="sans-serif" fill="#183247">
 <text x="24" y="36" font-size="24" font-weight="bold">残り2 PR：F2 電源依存 → F3 やること／やらないこと</text>
-<text x="24" y="65" font-size="16">完了：#277（2026-10-26 merge）。現在：F2は38ファイル。追加22件・既存回帰が成功。実装headのCIは成功、直接API・ブラウザは未実施。</text>
+<text x="24" y="65" font-size="16">完了：#277（2026-10-26 merge）。現在：F2は38ファイル。追加22件・既存回帰が成功。実装headのCIは成功、実API9要求・通常画面は確認済み、開発者確認待ち。</text>
 <text x="24" y="94" font-size="15">F2は2〜3.5作業日の計画。以下は上限3.5日の計画枠で、実績・暦上の締切ではありません。</text>
 <rect x="24" y="115" width="1190" height="83" fill="white" stroke="#cbd5e1" rx="5"/>
 <text x="40" y="140" font-size="16" font-weight="bold">凡例：バーの色＝工程の種類（進捗・成否・優先度ではない）</text>
@@ -14,13 +14,13 @@
 <rect x="600" y="158" width="22" height="18" fill="#7c3aed"/><text x="632" y="173">紫：直接API・ブラウザ</text>
 <rect x="920" y="158" width="22" height="18" fill="#0f766e"/><text x="952" y="173">緑：CI・記録・引渡し</text>
 </g>
-<text x="330" y="226" font-size="15">F2実装承認後の相対作業日（計画枠。自動回帰成功、実APIは別承認待ち）</text>
+<text x="330" y="226" font-size="15">F2実装承認後の相対作業日（計画枠。自動回帰成功、実API確認済み、プレビューで開発者確認待ち）</text>
 <g stroke="#cbd5e1"><path d="M330 265V510 M450 265V510 M570 265V510 M690 265V510 M810 265V510 M930 265V510 M1050 265V510 M1170 265V510"/></g>
 <g font-size="15"><text x="326" y="252">0</text><text x="440" y="252">0.5</text><text x="566" y="252">1</text><text x="680" y="252">1.5</text><text x="806" y="252">2</text><text x="920" y="252">2.5</text><text x="1046" y="252">3</text><text x="1154" y="252">3.5日</text>
 <text x="24" y="300">F2 読取専用DB・Graph・表示</text><rect x="330" y="279" width="480" height="30" fill="#2563eb" rx="4"/>
 <text x="24" y="358">F2 追加22・既存回帰 成功</text><rect x="570" y="337" width="420" height="30" fill="#0891b2" rx="4"/>
-<text x="24" y="416">F2 実API・画面（別承認待ち）</text><rect x="990" y="395" width="120" height="30" fill="#7c3aed" rx="4"/>
-<text x="24" y="474">F2 CI成功・実API承認待ち</text><rect x="1110" y="453" width="60" height="30" fill="#0f766e" rx="4"/>
+<text x="24" y="416">F2 実API9・通常画面 確認済み</text><rect x="990" y="395" width="120" height="30" fill="#7c3aed" rx="4"/>
+<text x="24" y="474">F2 CI・記録／開発者確認待ち</text><rect x="1110" y="453" width="60" height="30" fill="#0f766e" rx="4"/>
 </g>
 <rect x="24" y="532" width="1190" height="88" fill="white" stroke="#cbd5e1" rx="5"/>
 <text x="40" y="560" font-size="17" font-weight="bold">F3 やること／やらないこと一覧の更新（未着手・保留stashを維持）</text>
@@ -28,5 +28,5 @@
 <rect x="24" y="634" width="1190" height="94" fill="white" stroke="#cbd5e1" rx="5"/>
 <text x="40" y="662" font-size="17" font-weight="bold">任意・未採用 O-F2-WRITE：承認付き供給状態変更</text>
 <text x="40" y="694" font-size="15">◇ 採否・時期・工数・PR数は未確定。今回F2の完了条件ではなく、既定の残り2 PRへ加えません。</text>
-<text x="24" y="766" font-size="15">F2は読取専用のB案。直接API9要求は別承認後。既存5173/5174環境は変更しません。mergeは開発者。</text>
+<text x="24" y="766" font-size="15">F2は読取専用のB案。実API9要求確認済み。5178プレビューを維持。既存5173/5174環境は変更しません。mergeは開発者。</text>
 </g></svg>

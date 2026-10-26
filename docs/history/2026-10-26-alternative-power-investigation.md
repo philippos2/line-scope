@@ -85,3 +85,53 @@ RepositoryのFrontend `Envelope.data`は`Record<string, unknown>`、envelope検�
 FrontendのCIはVitestを実行しない。78件と追加22件の個別確認は前段のローカル結果であり、CIと混同しない。既に成功したローカル全件試験は重複実行していない。
 
 直接API9要求とブラウザは未実施。独立環境の名称・ポート・DB・一時認証・資源上限・初期化と片付けを実装計画へ具体化した。操作は別承認待ち。今回、既存5173/5174にも新しい検証環境にも環境操作を行っていない。今回の文書追記headの対象判定・CIは実装headのBackend実行と区別して確認する。
+
+## 隔離環境の直接API・ブラウザ最終確認
+
+開発者が、既存image/試験Composeの再利用、三値それぞれ独立した初期DBによる9要求、AVAILABLEのブラウザ確認、確認後のプレビュー維持を承認した。製品版は9145f13（製品ソースはfba058aと同じ）。APIのmodule pathも`/repo/backend/src/linescope/__init__.py`で現行source mountを確認した。製品コードは変更していない。
+
+### 環境と保全
+
+専用projectは`linescope-f2-api-check`、APIは127.0.0.1:8178、Frontendは127.0.0.1:5178。PostgreSQL 18.6とNeo4j 5.26.31-communityは専用network/tmpfs、DB port非公開。API/Frontend/ブラウザも既存imageを使い、build/pullしない。DB初期化はadmin接続、APIはruntime/Readはquery、一時manager tokenで認証。LLM・GPU・Qdrantは使用しない。
+
+UNAVAILABLE→UNKNOWN→AVAILABLEの順に検証し、条件間で専用container/network/tmpfsを破棄して新規初期化した。各状態の一時v2 JSONを初回seed・初回Rebuildへ渡し、既存状態のUPDATEやseedによる上書きはしていない。AVAILABLE環境だけを最後に残した。APIの正常性確認GETやUIから発生するReadは、以下の9件とは別。
+
+初回の検証設定には一時DBパスワードの桁数不備（既存の64桁要件）と、初期JSONのコンテナ読取権限不備があった。いずれも検証用設定だけを修正し、製品コード・共有環境は変更しなかった。業務Readの9要求開始前の失敗で、成功9件へ含めていない。初期投入用adminだけを管理用UIDで実行し、業務APIに初期投入用秘密ファイルをmountしていない。
+
+作業前後で既存15コンテナのID・image・Mounts・公開portが一致。5173/5174のコンテナ・DB・volume・seed・認証・データに操作を行っていない。prune・既存image削除・既存volume操作はしていない。
+
+### 実HTTPの直接API9要求（模擬応答ではない）
+
+各行とも、同じ初期状態の専用APIへPOST /agentの明示find_alternative_pathsを3回。重要対象P-100/P-200、除外M-204、候補M-208で検証した。M-208は全条件でRUNNING。
+
+| R-02の初期登録状態 | 実行回数 | 毎回のM-208構造 | 毎回の利用可能性 | 応答時間（秒・実行順） | 判定 |
+|---|---:|---|---|---|---|
+| AVAILABLE | 3 | ESTABLISHED | AVAILABLE | 1.881 / 0.199 / 0.114 | 期待一致 |
+| UNAVAILABLE | 3 | ESTABLISHED | UNAVAILABLE | 1.766 / 0.124 / 0.121 | 期待一致 |
+| UNKNOWN | 3 | ESTABLISHED | UNKNOWN | 1.949 / 0.272 / 0.136 | 期待一致 |
+
+全9回でR-02のcurrent_resource_states・supply_state・record_reference（資源IDとversion1）・state_versionsを照合。各状態の3回でversion・registered_at・sourceは不変で、DB読取時刻state_observed_atは別に保持された。構造候補を削除せず、供給不可・不明を利用可能へ昇格させていない。これらの時刻を実通電観測とは扱わない。
+
+### ブラウザ確認（AVAILABLEの実API・応答置換なし）
+
+- M-204とM-208それぞれの上流Graphで共通電源R-02を確認した。双方の選択欄で供給可能・出典・状態version1・登録時刻・DB読取時刻を確認した。供給状態の入力/選択/更新buttonがないことも確認した。
+- M-204の代替提案でM-208が利用可能と表示され、P-100の能力充足と運転許可ではない限定が維持された。
+- ブラウザが受信した代替分析Evidenceのcurrent_resource_statesを確認し、資源の技術情報を実際に開いてregistered_supply_state・record_reference・登録/読取時刻を照合した。JavaScript例外0。
+- UNAVAILABLE/UNKNOWNの画面表示は今回の実ブラウザでは未確認。両状態の業務判定は上記実APIで確認し、表示の自動試験結果と区別する。全画面や書込み機能の実通し確認をしたとは報告しない。
+
+### 資源の実測と維持するプレビュー
+
+最初はPostgreSQL512MiB/0.5CPU、Neo4j1024MiB/1CPU、API256MiB/0.5CPU、Frontend384MiB/0.5CPU、ブラウザ512MiB/0.5CPUを上限として実施した。docker statsの採取値は次のとおり（厳密な瞬間最大値の保証ではない）。
+
+| component | 採取したメモリ最大MiB | 採取したCPU最大%（100%=1論理CPU） |
+|---|---:|---:|
+| PostgreSQL | 85.29 | 6.19 |
+| Neo4j | 1003.0 | 106.66 |
+| 初期投入admin（一時） | 78.87 | 4.87 |
+| API | 102.2 | 28.65 |
+| Frontend | 376.0 | 26.25 |
+| headless Chromium（一時） | 368.3 | 50.08 |
+
+同時採取分の合計最大は1752.35MiB、CPU129.45%（約1.29論理CPU）。個別componentの最大値を足した同時値ではない。OOM kill・再起動は0。Neo4jとFrontendが当初上限へ近づいたため、データを変えずdocker updateで当該コンテナだけ1280MiB/512MiBへ増やし、ID・再起動回数が不変であることを確認した。現プレビューの上限合計は2.5GiB・2.5CPU枠であり、5GiB・8CPU前提にはしていない。
+
+検証runner・ブラウザは終了済み。AVAILABLEのAPI・Frontend・PostgreSQL・Neo4j、一時認証は開発者のブラウザ確認用に維持する。終了指示を受けるまで削除しない。秘密値は公開履歴に載せず、privateな検証記録/一時認証ファイルに保持する。ブラウザURLと認証ファイルの場所を開発者へ案内する。PRはDraftのまま、mergeしない。
