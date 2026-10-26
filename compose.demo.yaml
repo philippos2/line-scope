@@ -1,0 +1,53 @@
+# Existing runtime images plus a fixed source snapshot; no image build on promotion.
+# Overlay compose.yaml, compose.frontend.yaml and compose.rag.yaml.
+x-demo-backend: &demo-backend
+  image: ${LINESCOPE_DEMO_API_IMAGE:?Select an existing backend image}
+  pull_policy: never
+  environment:
+    PYTHONPATH: /opt/linescope/src
+  volumes:
+    - ${LINESCOPE_DEMO_SOURCE_DIR:?Select a fixed source snapshot}/backend/src:/opt/linescope/src:ro
+services:
+  postgres:
+    restart: unless-stopped
+    cpus: 0.5
+    mem_limit: 512m
+  neo4j:
+    restart: unless-stopped
+    cpus: 1
+    mem_limit: 1280m
+    environment:
+      NEO4J_server_memory_heap_initial__size: 128m
+      NEO4J_server_memory_heap_max__size: 256m
+      NEO4J_server_memory_pagecache_size: 64m
+  migrate:
+    <<: *demo-backend
+  api:
+    restart: unless-stopped
+    <<: *demo-backend
+    cpus: 0.5
+    mem_limit: 256m
+  graph-admin:
+    <<: *demo-backend
+  knowledge-admin:
+    <<: *demo-backend
+  projection:
+    restart: unless-stopped
+    <<: *demo-backend
+    cpus: 0.25
+    mem_limit: 192m
+  qdrant:
+    restart: unless-stopped
+    cpus: 0.5
+    mem_limit: 256m
+  frontend:
+    restart: unless-stopped
+    image: ${LINESCOPE_DEMO_FRONTEND_IMAGE:?Select an existing frontend image}
+    pull_policy: never
+    cpus: 0.5
+    mem_limit: 512m
+    volumes:
+      - ${LINESCOPE_DEMO_SOURCE_DIR}/frontend/src:/app/src:ro
+      - ${LINESCOPE_DEMO_SOURCE_DIR}/frontend/vite.config.ts:/app/vite.config.ts:ro
+      - ${LINESCOPE_DEMO_SOURCE_DIR}/frontend/index.html:/app/index.html:ro
+      - ${LINESCOPE_DEMO_SOURCE_DIR}/frontend/package.json:/app/package.json:ro
