@@ -75,3 +75,13 @@ RepositoryのFrontend `Envelope.data`は`Record<string, unknown>`、envelope検�
 - 修正した試験コードは承認済み6ファイルだけ。製品コード・Frontendコードはf384e95から無変更。履歴・計画・ロードマップ・ガントは結果に追随させる。f384e95の履歴は維持する。
 - 前回同様、既存TestClient非推奨警告と終了時の`LineScope logging output failed`が出た。これを今回原因調査・修正済みとはしない。pytestの終了コード0とJUnit件数とは分けて記録する。
 - 検証専用container/network/tmpfsを削除する。5173/5174のcontainer・DB・volume・認証・seedは変更していない。CI・独立HTTP9要求・製品ブラウザ確認は**未実施**。5173/5174がF2最新版とは案内しない。PRはDraftのまま、mergeしない。今回の互換修正はローカルcheckpointに保存し、push/CIは未実施として報告する。
+
+## 実装pushとGitHub CIの確認
+
+開発者の指示により、clean tree・origin・対象枝`fix/alternative-power-dependency`・PR #278の接続先を確認し、f384e95とfba058aを通常pushした。履歴書換え・force push・mergeはしていない。PRはDraft。
+
+実装head fba058aa69153b6aa445ac1866b3ac0570e56811の[GitHub CI](https://github.com/philippos2/line-scope/actions/runs/40302308261)は全成功。Backend shard1は1982成功・skip1（315.06秒）、shard2は2130成功（228.42秒）、合計4112成功・skip1。両shardのcollectionは4113、SHA256はともに540446288d8b84b2ac505674ab9d7bc828ed8632388fc4c9a6aa9374dcb09a65で一致した。Backend lint/format、Frontend lint/型/整形/build、runtime startup/migrations、対象判定、集約check、PR titleも成功。
+
+FrontendのCIはVitestを実行しない。78件と追加22件の個別確認は前段のローカル結果であり、CIと混同しない。既に成功したローカル全件試験は重複実行していない。
+
+直接API9要求とブラウザは未実施。独立環境の名称・ポート・DB・一時認証・資源上限・初期化と片付けを実装計画へ具体化した。操作は別承認待ち。今回、既存5173/5174にも新しい検証環境にも環境操作を行っていない。今回の文書追記headの対象判定・CIは実装headのBackend実行と区別して確認する。

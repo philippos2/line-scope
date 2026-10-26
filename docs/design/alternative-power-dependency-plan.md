@@ -193,7 +193,7 @@ Bの状態表・Read・三値評価・Evidence・表示・検査は将来再利�
 - データ：初期JSONのR-02状態だけを各AVAILABLE / UNAVAILABLE / UNKNOWNへ設定し、M-208はRUNNING、共通必須電源辺を維持する。製品seedの値変更や既存環境への再seedは行わない。
 - 直接API：各状態で`POST /agent`の明示`find_alternative_paths`を3回、合計9要求。候補M-208の構造成立、三値利用可能性、R-02の根拠ID・version・登録時刻と読取時刻を照合する。期待は順にAVAILABLE / UNAVAILABLE / UNKNOWN。同一状態の3回で登録時刻・versionが不変であることを確認する。
 - ブラウザ：同じ専用Frontendで上流Graphの共通電源辺、資源の読取専用表示、利用不可・不明の候補表示を確認する。画面の通常Readは9件の定型API検証とは別に記録する。既存9観点・質問欄の設計を変更しない。
-- 資源：既存imageを再利用しbuild/pullしない。GPU・実モデルは使用しない。API最大2 CPU/1GiB、PostgreSQL1GiB、Neo4j768MiB、Frontend256MiB、ブラウザ1GiBを上限目安とする（並列モデル評価なし）。初期化・画面確認・片付け込み10〜20分見込み、保証時間ではない。
+- 資源：既存imageを再利用しbuild/pullしない。GPU・実モデルは使用しない。API最大2 CPU/1GiB、PostgreSQL最大1 CPU/1GiB、Neo4j最大2 CPU/1.5GiB、Frontend最大1 CPU/512MiB、ブラウザ最大2 CPU/1GiB（同時上限合計8 CPU枠・5GiB）を予定する。Neo4jはheap512MiB・page cache128MiBに加えてnative領域を確保する（並列モデル評価なし）。初期化・画面確認・片付け込み10〜20分見込み、保証時間ではない。
 - 片付け：本作業専有のcontainer/network/tmpfsと一時token・初期データを削除する。共有container・image・volumeを削除せず、pruneもしない。5173/5174のcontainer ID・公開ポート・volumeが前後一致することを確認する。最新Frontendを継続公開する必要があれば、使い捨て検証環境との扱いを別途確認する。
 
 自動試験のTestClientによるHTTP確認と、上記独立HTTPサーバへの9要求は別の検証である。前者の成功を後者の実施と数えない。
@@ -222,3 +222,17 @@ Backend/Frontend lint・型・整形・buildは成功。CI、独立HTTP9要求�
 
 
 互換修正後の再検証：Backend4112成功/失敗0/既存skip1（追加20成功・既存4092成功）、Frontend78成功（追加2/既存76）、Backend lint/整形とFrontend lint/型/整形/build成功。試験追加0、製品コードの再変更なし。CI・独立HTTP9要求・ブラウザ確認は未実施。詳細と11件の個別照合は履歴を参照する。元の失敗結果をこの結果で削除・上書きしない。
+
+
+### push後の実行計画の具体化（操作未承認）
+
+DBは専用PostgreSQL 18.6（tmpfs）とNeo4j 5.26.31-community（data/logsともtmpfs）。公開APIとは別の初期投入専用admin接続でmigration014まで適用し、一時生成したquery/runtime用DB認証を設定する。APIの業務DB接続はruntime、Readはqueryとし、既存デモの認証はコピーしない。UIは当該環境だけの一時manager tokenでログインする。QdrantとLLMは今回使用しない。
+
+三条件は並列に起動せず、各条件の専用初期DBへ一時JSONを投入して初回Rebuildする。3要求の間で状態をUPDATEしたり、同一seedを状態変更用に再投入したりしない。各条件終了後に専用DB/Graphを破棄し、次条件を新規初期化する。9件の定型要求と、readiness・ID照合・UIに伴うReadは別に記録する。承認後、予定ポートの空きと使用可能な資源を確認し、不足・競合があれば環境を操作せず報告する。
+
+ブラウザは既存imageのChromiumをGPU無効で使用し、M-204/M-208それぞれの上流に共通R-02が描かれること、資源の供給状態・出典・状態version・登録時刻/DB読取時刻を編集不可で示すこと、供給不可/不明の候補が利用可能や能力吸収見込みへ昇格しないことを確認する。アプリの通常のReadだけを実行し、変更準備・承認・実行は行わない。
+
+証跡は秘密値を除いた要求/応答・画面と結果を保持し、一時認証ファイル・初期データは削除する。終了後は8178/5178を閉じる。ブラウザで継続試用できる常設環境への変更はこの計画に含めない。既存5173/5174には一切配備しない。
+
+
+実装2コミットは開発者の指示により通常push済み。実装head fba058aのCIはBackend合計4112成功・skip1、Frontend lint/型/整形/build、runtime startup/migrations、対象判定・集約とも成功（run 40302308261）。ローカルVitest78件とは区別する。直接API9要求・ブラウザ確認の環境操作は別承認待ち、未実施。
