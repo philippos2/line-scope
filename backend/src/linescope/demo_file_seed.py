@@ -67,9 +67,13 @@ def load_demo_file(filename):
     if len(body) > MAX_BYTES:
         raise ValueError("Demo JSON exceeds size limit")
     value = strict_json(body)
-    exact(value, {"schema_version", "equipment", *GROUPS, "economic_inputs", "capacity_inputs"})
-    if type(value["schema_version"]) is not int or value["schema_version"] != 1:
+    if type(value.get("schema_version")) is not int or value["schema_version"] not in {1, 2}:
         raise ValueError("Unsupported demo schema version")
+    extra = {"infrastructure_states"} if value["schema_version"] == 2 else set()
+    exact(
+        value,
+        {"schema_version", "equipment", *GROUPS, "economic_inputs", "capacity_inputs", *extra},
+    )
     codes = {}
     for group in ("equipment", *GROUPS, "economic_inputs", "capacity_inputs"):
         rows = value[group]
@@ -158,6 +162,28 @@ def load_demo_file(filename):
                 else None
             )
             fixtures.append((table, label, row, identity))
+    supply_rows = value.get("infrastructure_states", [])
+    if type(supply_rows) is not list or len(supply_rows) > 200:
+        raise ValueError("Bounded infrastructure states required")
+    seen_resources = set()
+    for item in supply_rows:
+        exact(item, {"resource_code", "supply_state", "source"})
+        identifier = reference("infrastructure", item["resource_code"])
+        if identifier in seen_resources or item["supply_state"] not in {
+            "AVAILABLE",
+            "UNAVAILABLE",
+            "UNKNOWN",
+        }:
+            raise ValueError("Duplicate resource or invalid supply state")
+        seen_resources.add(identifier)
+        row = {
+            "infrastructure_resource_id": identifier,
+            "supply_state": item["supply_state"],
+            "source": text(item["source"]),
+        }
+        fixtures.append(
+            ("infrastructure_supply_state", "supply:" + item["resource_code"], row, tuple(row))
+        )
     records = []
     for group, kind in (("economic_inputs", "economic"), ("capacity_inputs", "capacity")):
         for row in value[group]:

@@ -2,8 +2,8 @@
 
 The caller supplies active, effective, validated relations and PostgreSQL state.
 No authority, capacity, safety, cyclic fulfillment or substitution closure is
-inferred. Product has no operational-state rule here. Process/Infrastructure
-operational availability remains UNKNOWN in v1, independently of structure.
+inferred. Product has no operational-state rule here. Process operational availability remains UNKNOWN. Infrastructure uses its
+separate registered supply state, independently of structural reachability.
 """
 
 FLAG_REQUIRED_RELATIONS = frozenset({"DEPENDS_ON", "SUPPLIES"})
@@ -91,3 +91,12 @@ def substitute_availability(values, *, complete):
     if "AVAILABLE" in values:
         return "AVAILABLE"
     return "UNKNOWN" if "UNKNOWN" in values else "UNAVAILABLE"
+
+
+def infrastructure_availability(state):
+    """Registered supply condition; absent records never imply available supply."""
+    if state is None:
+        return "UNKNOWN"
+    if state not in AVAILABILITIES:
+        raise ValueError("Invalid infrastructure supply state")
+    return state

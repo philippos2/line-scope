@@ -26,7 +26,7 @@ APIは初期投入前でも起動するが、正常な関係分析は投入と�
 
 ## ファイル形式と制約
 
-- schema_version=1。ルートはequipment、processes、products、infrastructure、operations、assignments、relations、economic_inputs、capacity_inputs。
+- 公開JSONはschema_version=2。従来のルート配列にinfrastructure_statesを追加する。旧schema_version=1も受け付けるが供給状態は補完しない。
 - 最大1,000,000 bytes、各配列最大200件。未知field・重複キー・未知版・コード重複・存在しない参照・不正な宣言型は拒否する。数量は既存domainと同じ十進文字列。
 - コードは全区分で一意。IDは既存demo_idのnamespaceでコードからuuid5生成する。旧シードの固定設備UUIDは変更しない。
 - 設備種別は既存bootstrapと同じmachine。equipmentはequipment_code・equipment_name・state_codeを持つ。
@@ -44,10 +44,16 @@ APIは初期投入前でも起動するが、正常な関係分析は投入と�
 4. 下流到達製品すべてをimportant_targets、選択設備をexcluded_nodesとしてfind_alternative_pathsを送る。candidates内の候補、representative_paths、evidence.current_statesを確認する。
 5. 候補のequipment_idで能力入力を検索・取得し、元設備IDと候補の入力IDをPOST /decisions/compareへ送る。安全・保全の入力IDは空配列、期間は入力と同じ値。
 
-期待値は損害額200000、P-100のrequired_rate=60、available_rate=80、capacity_status=SUFFICIENT。A案ではR-02→M-204のみ必須供給とし、R-02→M-208を登録しない。再測定で候補のstructure.determination=ESTABLISHED、availability=AVAILABLE、比較のstructural_basis.status=AVAILABLEを確認した。能力は充足するが安全・品質・運用許可・全体の代替成立を保証しない。利用可能は運転許可ではない。
+期待値は損害額200000、P-100のrequired_rate=60、available_rate=80、capacity_status=SUFFICIENT。F2の初期JSONではR-02→M-204およびR-02→M-208を必須供給とし、R-02の登録供給状態をAVAILABLEとする（架空の初期条件であり通電実測ではない）。構造成立と利用可能性は別に判定し、供給不可・不明ならM-208のRUNNINGだけで利用可能としない。能力は充足するが安全・品質・運用許可・全体の代替成立を保証しない。利用可能は運転許可ではない。
 
 製品別未評価の一覧は返らない。P-200の表示は、下流の到達製品IDと今回選択した能力入力のproduct_idを照合した「今回選択した能力入力ではP-200を評価していません」という選択範囲の説明に限る。not_evaluatedを製品一覧と解釈しない。
 
 ### 比較費用のデモ範囲
 
 JSONの修理・交換・継続使用の費用項目は、金額未設定（amount=null）かつ全項目未完備（complete=false）。暫定対応の費用項目・安全入力・対応計画は登録しない。製品別の毎時損害額200,000円が算定できても、各対応案の総費用が算定できることを意味しない。代替案の総額は現実装では比較結果に含まれない。画面表示を埋めるためのデータ追加は今回行わない。
+
+### F2構成の適用境界
+
+既存5173/5174へmigration・再seed・Graph追加・volume操作を実施しない。F2を表示するには、新しい専用環境でmigration→v2初期JSON投入→初回Rebuildを行う。既存の公開Graphへv2を再投入して追加・上書きする方法は拒否される。既存環境を移行する際は、別途環境名・ポート・認証・影響・片付け方針を提示し承認を得る。
+
+供給状態の編集機能はない。三値の確認には独立した初期テストデータを使用する。「選択した項目」の資源表示は登録供給状態・出典・供給状態version・登録時刻・DB読取時刻を読み取り専用で示す。

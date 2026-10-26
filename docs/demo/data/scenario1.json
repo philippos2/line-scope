@@ -1,5 +1,5 @@
 {
-  "schema_version": 1,
+  "schema_version": 2,
   "equipment": [
     {
       "equipment_code": "M-204",
@@ -266,6 +266,18 @@
       "effective_from": "2026-01-01T00:00:00Z",
       "effective_to": null,
       "active": true
+    },
+    {
+      "code": "R-02:SUPPLIES:M-208",
+      "source_entity_type": "InfrastructureResource",
+      "source_code": "R-02",
+      "target_entity_type": "Equipment",
+      "target_code": "M-208",
+      "relation_type": "SUPPLIES",
+      "required": true,
+      "effective_from": "2026-01-01T00:00:00Z",
+      "effective_to": null,
+      "active": true
     }
   ],
   "economic_inputs": [
@@ -371,6 +383,13 @@
         "certainty": "ESTIMATED",
         "recovery": null
       }
+    }
+  ],
+  "infrastructure_states": [
+    {
+      "resource_code": "R-02",
+      "supply_state": "AVAILABLE",
+      "source": "架空デモの初期登録条件。実際の通電を観測した情報ではありません。"
     }
   ]
 }

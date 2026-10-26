@@ -12,7 +12,7 @@ from .graph_reachability import Node
 from .graph_requirement_rules import AVAILABILITIES, required_availability
 
 SUBSTITUTE_TYPES = frozenset({"Equipment", "Process", "InfrastructureResource"})
-STATEFUL_TYPES = frozenset({"Equipment", "ProductionOperation"})
+STATEFUL_TYPES = frozenset({"Equipment", "ProductionOperation", "InfrastructureResource"})
 
 
 @dataclass(frozen=True)
@@ -27,7 +27,7 @@ def evaluate_substitute_candidate(
 ):
     """Require every mandatory prerequisite without substituting any of them.
 
-    Missing operational facts remain UNKNOWN. Process/InfrastructureResource
+    Missing operational facts remain UNKNOWN. Process
     lack authoritative operational states in v1; Product has no operational
     rule here. Historical availability is never inferred from current values.
     """

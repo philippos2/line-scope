@@ -10,6 +10,7 @@ from sqlalchemy.dialects.postgresql.psycopg import dialect
 
 from linescope.application.reads import ToolError
 from linescope.application.substitute_analysis import evaluate_substitute_facts
+from linescope.demo_graph_seed import demo_id
 from linescope.graph.analysis_budget import GraphAnalysisBudget
 from linescope.graph.analysis_states import GraphStateReader
 from linescope.graph.substitute_facts import collect_substitute_facts
@@ -40,7 +41,7 @@ def execute(db, stmt):
 def test_real_graph_and_postgres_states_produce_available_direct_substitute(reader_world, db):
     result = evaluate(reader_world[0], db)
     assert result.selection.availability == "AVAILABLE"
-    assert result.missing_states == ()
+    assert result.missing_states == (("InfrastructureResource", str(demo_id("R-02"))),)
     assert result.observation["observed_at"].tzinfo is not None
     assert {item["state_code"] for item in result.observation["states"]} == {"RUNNING", "STOPPED"}
 
@@ -56,7 +57,9 @@ def test_missing_state_is_unknown_and_identified(reader_world, db):
     execute(db, delete(state).where(state.c.equipment_id == OTHER[1]))
     result = evaluate(reader_world[0], db)
     assert result.selection.availability == "UNKNOWN"
-    assert result.missing_states == (OTHER,)
+    assert result.missing_states == tuple(
+        sorted((OTHER, ("InfrastructureResource", str(demo_id("R-02")))))
+    )
 
 
 def test_historical_does_not_infer_past_from_current_running_state(reader_world, db):
@@ -76,8 +79,8 @@ def test_invalid_state_adapter_facts_fail_closed(reader_world, db, damage):
     delegate = GraphStateReader(db)
 
     class DamagedStates:
-        def read_availability(self, equipment_ids, operation_ids, budget):
-            observation = delegate.read_availability(equipment_ids, operation_ids, budget)
+        def read_availability(self, equipment_ids, operation_ids, budget, **kwargs):
+            observation = delegate.read_availability(equipment_ids, operation_ids, budget, **kwargs)
             if damage == "version":
                 observation["states"][0]["version"] = True
             elif damage == "status":
@@ -155,7 +158,7 @@ def test_excluded_candidate_is_unavailable_even_when_postgres_says_running(reade
 )
 def test_bad_exclusions_fail_before_state_read(reader_world, db, excluded):
     class NoStateRead:
-        def read_availability(self, *args):
+        def read_availability(self, *args, **kwargs):
             pytest.fail("Invalid exclusions must be rejected before state I/O")
 
     with pytest.raises(ValueError):

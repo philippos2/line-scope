@@ -147,3 +147,48 @@ def test_missing_exclusion_rejects_entire_tool(db, reader_world):
             arguments(excluded_nodes=[M, {"entity_type": "Equipment", "entity_id": str(uuid4())}]),
         )
     assert caught.value.code == "TARGET_NOT_FOUND"
+
+
+def supply_world(db, adapters, state):
+    """Independent initial fixture, never a product state-change command."""
+    from linescope.demo_file_seed import seed_demo_file
+    from linescope.graph.administration import GraphAdministration
+
+    db.migrate()
+    seed_demo_file(db, "docs/demo/data/scenario1.json")
+    with db.transaction() as connection:
+        connection.execute("UPDATE infrastructure_supply_state SET supply_state=%s", (state,))
+    GraphAdministration(db, adapters[1].driver).rebuild()
+    return {
+        "important_targets": [{"entity_type": "Product", "entity_id": str(demo_id("P-100"))}],
+        "excluded_nodes": [{"entity_type": "Equipment", "entity_id": str(demo_id("M-204"))}],
+    }
+
+
+@pytest.mark.parametrize("state", ["UNAVAILABLE", "UNKNOWN"])
+def test_registered_common_power_prevents_available_substitute(db, adapters, state):
+    args = supply_world(db, adapters, state)
+    settings = Settings(users={"token": {"user_id": "reader", "role": "manager"}})
+    with TestClient(create_app(settings, db, graph_driver=adapters[1].driver)) as api:
+        response = api.post(
+            "/agent",
+            headers={"Authorization": "Bearer token"},
+            json={
+                "message": graph_message("find_alternative_paths", args),
+            },
+        )
+    assert response.status_code == 200, response.text
+    body = response.json()
+    candidate = body["data"]["tool_results"][0]["data"]["alternatives"][0]["candidates"][0]
+    assert candidate["candidate"]["entity_id"] == str(demo_id("M-208"))
+    assert candidate["structure"]["determination"] == "ESTABLISHED"
+    assert candidate["availability"] == state
+    evidence = body["evidence"]["tool_results"][0]
+    fact = evidence["current_resource_states"][0]
+    assert fact["supply_state"] == state and fact["version"] == 1
+    assert fact["record_reference"] == {
+        "infrastructure_resource_id": str(demo_id("R-02")),
+        "version": 1,
+    }
+    assert evidence["state_versions"]["InfrastructureResource:" + str(demo_id("R-02"))] == 1
+    assert fact["registered_at"] and evidence["state_observed_at"]

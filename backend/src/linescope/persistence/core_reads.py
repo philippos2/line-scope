@@ -124,6 +124,38 @@ _resource = table(
     column("created_at", DateTime(timezone=True)),
     column("updated_at", DateTime(timezone=True)),
 )
+_supply = table(
+    "infrastructure_supply_state",
+    column("infrastructure_resource_id", PGUUID()),
+    column("supply_state", Text()),
+    column("version", BigInteger()),
+    column("registered_at", DateTime(timezone=True)),
+    column("source", Text()),
+)
+
+
+def _supply_json():
+    return func.jsonb_build_object(
+        "infrastructure_resource_id",
+        _supply.c.infrastructure_resource_id,
+        "supply_state",
+        _supply.c.supply_state,
+        "version",
+        _supply.c.version,
+        "registered_at",
+        _supply.c.registered_at,
+        "source",
+        _supply.c.source,
+        "record_reference",
+        func.jsonb_build_object(
+            "infrastructure_resource_id",
+            _supply.c.infrastructure_resource_id,
+            "version",
+            _supply.c.version,
+        ),
+    )
+
+
 _relation = table(
     "dependency_relation",
     column("dependency_relation_id", PGUUID()),
@@ -158,6 +190,22 @@ def get_record_row(connection, tool: str, identifier: UUID):
     statement = select(target, func.statement_timestamp().label("_observed_at")).where(
         target.c[key] == identifier
     )
+    if tool == "get_infrastructure_resource":
+        supply = (
+            select(_supply_json())
+            .where(_supply.c.infrastructure_resource_id == identifier)
+            .scalar_subquery()
+        )
+        statement = statement.add_columns(
+            func.jsonb_build_object(
+                "supply_state",
+                func.coalesce(supply.op("->>")("supply_state"), "UNKNOWN"),
+                "record",
+                supply,
+                "observed_at",
+                func.statement_timestamp(),
+            ).label("registered_supply_state")
+        )
     compiled = statement.compile(dialect=dialect())
     # Never interpolate compiled.params or enable literal_binds. psycopg adapts
     # UUID and decodes the native result types using the existing dict_row factory.
@@ -192,7 +240,7 @@ def get_operation_by_code(connection, operation_code):
     return connection.execute(str(compiled), compiled.params).fetchone()
 
 
-def get_graph_availability_states(connection, equipment_ids, operation_ids):
+def get_graph_availability_states(connection, equipment_ids, operation_ids, resource_ids=()):
     """Observe both authoritative state sets at one PostgreSQL statement time."""
     equipment_states = (
         select(
@@ -233,8 +281,23 @@ def get_graph_availability_states(connection, equipment_ids, operation_ids):
         )
         .scalar_subquery()
     )
+    resource_states = (
+        select(func.jsonb_agg(_supply_json()))
+        .select_from(
+            _supply.join(
+                _resource,
+                _supply.c.infrastructure_resource_id == _resource.c.infrastructure_resource_id,
+            )
+        )
+        .where(
+            _resource.c.active.is_(True),
+            _supply.c.infrastructure_resource_id.in_([UUID(value) for value in resource_ids]),
+        )
+        .scalar_subquery()
+    )
     statement = select(
         func.statement_timestamp().label("observed_at"),
+        resource_states.label("resources"),
         equipment_states.label("states"),
         operation_states.label("operations"),
     )

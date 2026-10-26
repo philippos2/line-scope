@@ -12,6 +12,7 @@ from sqlalchemy.dialects.postgresql.psycopg import dialect
 from application.test_alternative_analysis import CountingStates
 from linescope.application.reads import ToolError
 from linescope.application.spof_analysis import evaluate_spof_facts
+from linescope.demo_graph_seed import demo_id
 from linescope.graph.analysis_budget import GraphAnalysisBudget
 from linescope.graph.spof_facts import collect_spof_facts
 
@@ -52,7 +53,9 @@ def test_missing_or_historical_replacement_is_indeterminate(reader_world, db, hi
     )
     assert result.historical is historical
     if not historical:
-        assert result.missing_states == (OTHER,)
+        assert result.missing_states == tuple(
+            sorted((OTHER, ("InfrastructureResource", str(demo_id("R-02")))))
+        )
 
 
 def test_unrelated_candidate_is_not_spof(reader_world, db):
@@ -98,7 +101,7 @@ def test_mismatched_facts_fail_before_state_read(reader_world):
         )
 
         class NoStates:
-            def read_availability(self, *args):
+            def read_availability(self, *args, **kwargs):
                 pytest.fail("Mismatched facts must fail before state I/O")
 
         with pytest.raises(ValueError):
@@ -109,8 +112,8 @@ def test_mismatched_facts_fail_before_state_read(reader_world):
 
 def test_final_gate_prevents_publishing_result_after_rebuild_starts(reader_world, db):
     class RebuildingStates(CountingStates):
-        def read_availability(self, equipment_ids, operation_ids, budget):
-            result = super().read_availability(equipment_ids, operation_ids, budget)
+        def read_availability(self, equipment_ids, operation_ids, budget, **kwargs):
+            result = super().read_availability(equipment_ids, operation_ids, budget, **kwargs)
             control = table("graph_projection_control", column("rebuild_flag"))
             statement = update(control).values(rebuild_flag=True).compile(dialect=dialect())
             with db.transaction() as connection:
@@ -120,3 +123,30 @@ def test_final_gate_prevents_publishing_result_after_rebuild_starts(reader_world
     with pytest.raises(ToolError) as caught:
         evaluate(reader_world[0], db, states=RebuildingStates(db))
     assert caught.value.code == "GRAPH_REBUILDING"
+
+
+def test_spof_includes_registered_common_supply_and_evidence(db, adapters):
+    from uuid import uuid4
+
+    from interfaces.test_alternative_api import supply_world
+
+    from linescope.application.graph_analysis import GraphAnalysis
+    from linescope.application.graph_request import GraphLimits
+    from linescope.execution import ExecutionContext
+    from linescope.graph.analysis_reader import GraphAnalysisReader
+    from linescope.graph.analysis_states import GraphStateReader
+
+    args = supply_world(db, adapters, "UNAVAILABLE")
+    result = GraphAnalysis(
+        GraphAnalysisReader(db, adapters[1].driver),
+        GraphStateReader(db),
+        system_limits=GraphLimits(16, 100, 100, 5000),
+        budget_factory=GraphAnalysisBudget,
+    ).call(
+        ExecutionContext("reader", "manager", uuid4()),
+        "find_single_point_failure_candidates",
+        {"important_targets": args["important_targets"], "candidate_nodes": args["excluded_nodes"]},
+    )
+    assert result.evidence["current_resource_states"][0]["supply_state"] == "UNAVAILABLE"
+    assert result.evidence["current_resource_states"][0]["record_reference"]["version"] == 1
+    assert result.data["findings"][0]["alternatives"]["availability"] == "UNAVAILABLE"

@@ -160,7 +160,7 @@ Approvalは保存済みSnapshot Hashに対して成立する。
 
 必須依存の循環を含む評価は、循環が成立すると仮定せずINDETERMINATEとする。循環を許容した到達探索は既訪問制御で続行可能。SPOF候補は重要対象自身を除く必須上流要素から取り、候補除外後に重要対象が成立せず、利用可能な一段代替もない場合とする。複数重要対象は対象ごとに判定する。未知の利用可能性を「代替なし」としない。
 
-Equipmentの現在利用可能性はRUNNING=AVAILABLE、STOPPED / UNDER_MAINTENANCE=UNAVAILABLE、UNKNOWN=UNKNOWNとする。ProductionOperationはPLANNED=AVAILABLE、CANCELLED=UNAVAILABLE（予定上の利用可能性であり実行中状態ではない）。Process / InfrastructureResourceはv1に状態正本がないため構造候補まで、現在利用可能性はUNKNOWN。必須代替の利用可能性がUNKNOWNならSPOFの確定判定はINDETERMINATE。構造成立と運転能力・容量等の保証を混同しない。
+Equipmentの現在利用可能性はRUNNING=AVAILABLE、STOPPED / UNDER_MAINTENANCE=UNAVAILABLE、UNKNOWN=UNKNOWNとする。ProductionOperationはPLANNED=AVAILABLE、CANCELLED=UNAVAILABLE（予定上の利用可能性であり実行中状態ではない）。Processは状態正本がないため現在利用可能性はUNKNOWN。InfrastructureResourceは登録供給状態AVAILABLE / UNAVAILABLE / UNKNOWNを利用し、登録がなければUNKNOWNとする。実際の通電・供給の観測とは区別する。必須代替の利用可能性がUNKNOWNならSPOFの確定判定はINDETERMINATE。構造成立と運転能力・容量等の保証を混同しない。
 
 ### 15.2 Equipment集合変更
 
@@ -243,3 +243,7 @@ EconomicInputの任意`incident_losses`は、修理案のSTOPPAGE項目とは別
 同一scope_keyの全宣言の製品・率・独立性・出典・区分が一致する場合は1回だけ計上する。不一致はその範囲全体を小計から除外する。異なるscope_keyは独立性trueかつ率既知の場合だけ加算する。設備ごと・経路ごとの金額を重ねて合算しない。
 
 対象設備は明示選択する。STOPPEDの設備から到達する各製品について、選択したその設備の経済入力に損失根拠が必要。対象設備ごとに経済入力を1つ選び、比較期間はその共通期間に一致させる。RUNNINGの設備の停止損失は今回の集計対象から除くが、実被害0や復旧認定とはしない。その他の状態は停止損失の適用可否不明とする。全設備RUNNINGや到達製品なしでも、実被害0円という完全合計を作らない。
+
+### 共通必須電源の登録条件（F2）
+
+R-02はM-204とM-208の共通必須電源とする。必須SUPPLIESの供給元も候補自身と同じAND依存評価に含める。候補設備のRUNNINGや能力充足だけで、供給不可・不明を利用可能へ変更しない。構造上の候補であることと、登録条件で利用可能であることは別の判定である。過去時点の供給状態は現在値から推定しない。

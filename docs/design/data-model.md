@@ -472,3 +472,11 @@ cost_recoveryがbeforeまたはafterに含まれるEconomicInputはSnapshot v6�
 EconomicInput.payloadの任意`incident_losses`に、製品UUID・グローバルな損失scope_key・JPY/hourの率・独立性・出典・区分を保存する。JSONBを使用し、既存経済入力のID・設備FK・versionを維持する。製品IDは型検証し、調査時に認可された実Graphの影響候補と照合する。Graphとの対応をLLMや自由文の製品コード解釈で決めない。
 
 migration 013はSnapshot v7の許容を追加する。適用済みmigrationのchecksumは変更しない。仕様・検証はdomain-model、API契約、transaction-designを参照する。
+
+## 登録インフラ供給状態（F2・読み取り専用）
+
+`014_infrastructure_supply_state.sql`で`infrastructure_supply_state`を追加する。`infrastructure_resource_id`は資源FKかつ主キー、`supply_state`はAVAILABLE / UNAVAILABLE / UNKNOWNのみ、`version`は正のBIGINT（初期1）、`registered_at`は初回INSERT時のDB時刻、`source`は空でない初期登録条件の出典とする。資源マスタのversionとは別である。
+
+旧資源への状態行の自動追加はしない。行がなければUNKNOWNであり、version・登録時刻・根拠レコードを作らない。登録時刻は通電観測時刻ではない。各Readの`observed_at`は同一SELECTのDB読取時刻であり、登録時刻とは別に保持する。旧migration・Snapshot・Graph generationを変更しない。
+
+状態は管理者による初期投入専用。製品の更新・承認経路を設けない。JSON v2は明示的な`infrastructure_states`を受け取り、同一状態・同一sourceの再投入は既存version・時刻を保持する。不一致は全transactionをrollbackする。公開済みGraphへの状態・辺の追加も拒否する。v1 JSONは引き続き受け付け、状態を補完しない。

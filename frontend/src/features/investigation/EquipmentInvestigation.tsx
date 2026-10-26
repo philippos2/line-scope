@@ -52,6 +52,39 @@ export function displayPeriod(start: unknown, end: unknown) {
   };
   return `${format(start)}〜${format(end)}（日本時間）`;
 }
+export function InfrastructureSupplyState({ value }: { value: unknown }) {
+  if (!object(value)) return <p>登録供給状態：不明（未取得）</p>;
+  const record = object(value.record) ? value.record : null;
+  const names: Record<string, string> = {
+    AVAILABLE: "供給可能",
+    UNAVAILABLE: "供給不可",
+    UNKNOWN: "不明",
+  };
+  const time = (v: unknown) =>
+    typeof v === "string"
+      ? displayPeriod(v, v).split("〜")[0] + "（日本時間）"
+      : "未取得";
+  return (
+    <section aria-label="登録供給状態">
+      <p>登録供給状態：{names[String(value.supply_state)] ?? "不明"}</p>
+      <p>登録された供給条件です。実際の通電を確認した情報ではありません。</p>
+      {record ? (
+        <dl>
+          <dt>登録元</dt>
+          <dd>{String(record.source)}</dd>
+          <dt>供給状態の版</dt>
+          <dd>{String(record.version)}</dd>
+          <dt>登録時刻</dt>
+          <dd>{time(record.registered_at)}</dd>
+        </dl>
+      ) : (
+        <p>供給状態の登録レコードはありません。</p>
+      )}
+      <p>DB読取時刻：{time(value.observed_at)}</p>
+    </section>
+  );
+}
+
 function Failure({ code, retry }: { code?: string; retry: () => void }) {
   return code ? (
     <div className="read-failure" role="alert">
@@ -701,6 +734,11 @@ export function EquipmentInvestigation({
               <p>
                 登録上の状態：{registeredState(stateOf(selected.entity_id))}
               </p>
+            )}
+            {selected.entity_type === "InfrastructureResource" && (
+              <InfrastructureSupplyState
+                value={selectedData?.registered_supply_state}
+              />
             )}
             <Failure
               code={model.attributeError}

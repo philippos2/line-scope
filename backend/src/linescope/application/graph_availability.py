@@ -4,7 +4,11 @@ from dataclasses import dataclass
 from datetime import datetime
 
 from ..domain.canonical import normalize_uuid
-from ..domain.graph_requirement_rules import equipment_availability, operation_availability
+from ..domain.graph_requirement_rules import (
+    equipment_availability,
+    infrastructure_availability,
+    operation_availability,
+)
 from .reads import ToolError
 
 
@@ -18,8 +22,11 @@ class AvailabilityObservation:
 def observe_availability(nodes, states, budget):
     equipment_ids = sorted(node[1] for node in nodes if node[0] == "Equipment")
     operation_ids = sorted(node[1] for node in nodes if node[0] == "ProductionOperation")
+    resource_ids = sorted(node[1] for node in nodes if node[0] == "InfrastructureResource")
     budget.require()
-    observation = states.read_availability(equipment_ids, operation_ids, budget)
+    observation = states.read_availability(
+        equipment_ids, operation_ids, budget, resource_ids=resource_ids
+    )
     availability = {}
     try:
         observed_at = observation["observed_at"]
@@ -46,6 +53,14 @@ def observe_availability(nodes, states, budget):
                 operation_ids,
                 operation_availability,
             ),
+            (
+                "InfrastructureResource",
+                "resources",
+                "infrastructure_resource_id",
+                "supply_state",
+                resource_ids,
+                infrastructure_availability,
+            ),
         ):
             records = observation[field]
             if records is None:
@@ -63,11 +78,21 @@ def observe_availability(nodes, states, budget):
                     or type(record[state_field]) is not str
                 ):
                     raise ValueError("Invalid authoritative state fact")
+                if kind == "InfrastructureResource":
+                    registered_at = datetime.fromisoformat(record["registered_at"])
+                    if registered_at.tzinfo is None or registered_at.utcoffset() is None:
+                        raise ValueError("Invalid registration time")
+                    if not isinstance(record["source"], str) or not record["source"].strip():
+                        raise ValueError("Missing registration source")
                 availability[node] = convert(record[state_field])
     except (KeyError, TypeError, ValueError) as error:
         raise ToolError("INTERNAL_ERROR", "Authoritative Graph states are inconsistent") from error
     budget.require()
-    stateful = {node for node in nodes if node[0] in {"Equipment", "ProductionOperation"}}
+    stateful = {
+        node
+        for node in nodes
+        if node[0] in {"Equipment", "ProductionOperation", "InfrastructureResource"}
+    }
     return AvailabilityObservation(
         availability, observation, tuple(sorted(stateful - availability.keys()))
     )
