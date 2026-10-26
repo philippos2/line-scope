@@ -47,12 +47,14 @@ def test_agent_api_uses_real_reads_and_server_evidence(seeded):
         LLMReply("M-204はSTOPPEDです", ()),
     )
     with TestClient(create_app(settings(), seeded, llm=llm)) as client:
-        result = client.post("/agent", json={"message": "M-204の状態を教えて"}, headers=HEADERS)
+        result = client.post("/agent", json={"message": "M-204の登録状態を教えて"}, headers=HEADERS)
     assert result.status_code == 200
     body = result.json()
     assert body["status"] == "ok"
-    assert "STOPPED" in body["answer"] and "version 1" in body["answer"]
-    assert "故障原因・安全性・将来状態はこの状態情報から判断できません" in body["answer"]
+    assert (
+        "登録上は停止中" in body["answer"] and "実稼働状態を確認したものではなく" in body["answer"]
+    )
+    assert "故障原因や安全性もこの情報からは判断できません" in body["answer"]
     assert body["data"]["tool_results"][1]["data"]["state_code"] == "STOPPED"
     assert body["evidence"]["tool_results"][1]["source"] == "POSTGRESQL"
     assert len(body["data"]["tool_trace"]) == 2 and not body["errors"]
@@ -94,10 +96,10 @@ def test_no_model_does_not_disable_health():
     )
 
 
-def test_clarification_context_is_owned_and_continues_with_original_message():
+def test_clarification_context_is_owned_and_continues_with_original_message(seeded):
     llm = ScriptedLLM(LLMReply("対象不明", ()), LLMReply("対象不明", ()))
-    with TestClient(create_app(settings(), llm=llm)) as client:
-        first = client.post("/agent", json={"message": "あの設備の状態は？"}, headers=HEADERS)
+    with TestClient(create_app(settings(), seeded, llm=llm)) as client:
+        first = client.post("/agent", json={"message": "この設備の登録状態は？"}, headers=HEADERS)
         identity = first.json()["context_id"]
         assert first.status_code == 200 and first.json()["data"]["needs_input"]
         assert identity
@@ -110,11 +112,9 @@ def test_clarification_context_is_owned_and_continues_with_original_message():
         second = client.post(
             "/agent", json={"message": "M-204", "context_id": identity}, headers=HEADERS
         )
-    assert second.status_code == 200 and second.json()["context_id"] == identity
-    assert [m["content"] for m in llm.requests[1][0] if m["role"] == "user"] == [
-        "あの設備の状態は？",
-        "M-204",
-    ]
+    assert second.status_code == 200 and second.json()["context_id"] is None
+    assert "登録上は停止中" in second.json()["answer"]
+    assert not llm.requests
 
 
 def test_context_expiry_is_409_before_llm():
@@ -180,15 +180,16 @@ def test_replay_revalidates_request_role(seeded):
     "code,status",
     [("DEPENDENCY_UNAVAILABLE", 503), ("AGENT_LIMIT_REACHED", 503), ("INTERNAL_ERROR", 500)],
 )
-def test_llm_failure_envelope(code, status):
+def test_unused_model_failure_cannot_replace_read_dependency_failure(code, status):
     class Broken:
         def complete(self, *args, **kwargs):
             raise LLMError(code, "Fixed diagnostic")
 
     with TestClient(create_app(settings(), llm=Broken())) as client:
         result = client.post("/agent", json={"message": "query"}, headers=HEADERS)
-    assert result.status_code == status
-    assert result.json()["errors"][0]["code"] == code and result.json()["answer"] is None
+    assert result.status_code == 503
+    assert result.json()["errors"][0]["code"] == "DEPENDENCY_UNAVAILABLE"
+    # The no-database read fails before the unused model; LLM adapter errors remain unit-tested.
 
 
 @pytest.mark.parametrize(
@@ -258,15 +259,17 @@ def test_invalid_content_type_and_retry_header(headers):
     assert result.status_code == 400 and not llm.requests
 
 
-def test_partial_result_retains_evidence_and_warning(seeded):
+def test_missing_equipment_is_not_published_as_nonexistence_or_model_facts(seeded):
     llm = ScriptedLLM(
         call("get_equipment_state"),
         call("get_equipment", {"equipment_id": str(UUID(int=999))}),
         LLMReply("取得できた結果のみです", ()),
     )
     with TestClient(create_app(settings(), seeded, llm=llm)) as client:
-        result = client.post("/agent", json={"message": "設備を調べて"}, headers=HEADERS)
+        result = client.post("/agent", json={"message": "M-999の登録状態は？"}, headers=HEADERS)
     assert result.status_code == 200
     body = result.json()
-    assert body["status"] == "partial" and body["warnings"][0]["code"] == "TARGET_NOT_FOUND"
-    assert len(body["data"]["tool_results"]) == len(body["evidence"]["tool_results"]) == 1
+    assert body["data"]["answer_sections"]["read_outcome"] == "TARGET_NOT_FOUND"
+    assert "見つかりません" in body["answer"] and "存在しません" not in body["answer"]
+    assert not llm.requests
+    assert len(body["data"]["tool_results"]) == len(body["evidence"]["tool_results"]) == 0

@@ -19,6 +19,7 @@ from sqlalchemy import (
     bindparam,
     column,
     func,
+    literal_column,
     or_,
     select,
     table,
@@ -26,6 +27,8 @@ from sqlalchemy import (
 )
 from sqlalchemy.dialects.postgresql import UUID as PGUUID
 from sqlalchemy.dialects.postgresql.psycopg import dialect
+
+from ..domain.reference_normalization import SEPARATORS, code_key, name_reference_pattern
 
 _equipment = table(
     "equipment",
@@ -244,6 +247,7 @@ _searches = {
         _equipment,
         "equipment_id",
         {
+            "reference": None,
             "equipment_code": _equipment.c.equipment_code,
             "name": _equipment.c.equipment_name,
         },
@@ -289,7 +293,24 @@ def search_rows(connection, tool: str, filters: dict, page_size: int, after: UUI
     conditions = []
     for field, value in filters.items():
         selected = allowed[field]
-        if isinstance(selected, tuple):
+        if tool == "search_equipment" and field == "reference":
+            # PostgreSQL 18, UTF-8: NFKC + casefold on registered values too.
+            # Query regex is generated from literal text, never supplied as regex.
+            def normalized(column):
+                return func.casefold(
+                    func.normalize(column, literal_column("NFKC")).collate("pg_unicode_fast")
+                )
+
+            conditions.append(
+                or_(
+                    func.regexp_replace(
+                        normalized(_equipment.c.equipment_code), SEPARATORS, "", "g"
+                    )
+                    == code_key(value),
+                    normalized(_equipment.c.equipment_name).op("~")(name_reference_pattern(value)),
+                )
+            )
+        elif isinstance(selected, tuple):
             entity_type, entity_id = selected
             conditions.extend(
                 (entity_type == value["entity_type"], entity_id == value["entity_id"])

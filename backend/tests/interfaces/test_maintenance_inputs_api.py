@@ -6,14 +6,12 @@ from copy import deepcopy
 from uuid import uuid4
 
 import pytest
-from agent.test_read_agent import ScriptedLLM, call
 from domain.test_maintenance_inputs import payload
 from fastapi.testclient import TestClient
 
 from linescope.demo_seed import DEMO_EQUIPMENT, seed_demo
 from linescope.domain.canonical import canonical_hash, canonical_json
 from linescope.domain.snapshot import CanonicalSnapshot
-from linescope.integrations.llm import LLMReply
 from linescope.interfaces.api import create_app
 from linescope.logging import EventLogger
 from linescope.settings import Settings
@@ -128,18 +126,16 @@ def test_create_approve_execute_read_and_retry_keep_fixed_ids_and_atomic_history
         )
         assert connection.execute("SELECT count(*) AS n FROM equipment").fetchone()["n"] > 0
 
-    llm = ScriptedLLM(
-        call("get_maintenance_input", {"maintenance_input_id": identifier(saved)}),
-        LLMReply("調達待ち336時間は全て停止です。将来故障率は90%です。", ()),
-    )
-    with TestClient(create_app(settings(), world, llm=llm)) as agent_client:
-        result = agent_client.post(
-            "/agent", json={"message": "登録済み対応計画・故障履歴を確認して"}, headers=headers()
+    from interfaces.demo_read_support import registered_input_observation
+    from linescope.agent.maintenance_answer import maintenance_answer
+
+    with client_for(world) as reader:
+        observation = registered_input_observation(
+            reader, "maintenance", identifier(saved), headers()
         )
-        data = result.json()
-        assert result.status_code == 200 and "調達待ちと作業・停止時間は別です" in data["answer"]
-        assert "将来故障率は90%です" not in data["answer"]
-        assert data["evidence"]["tool_results"][0]["version"] == 1
+    answer = maintenance_answer((observation,))
+    assert "調達待ちと作業・停止時間は別です" in answer
+    assert observation.result.data["input"]["version"] == 1
 
     # A full decision journey also records the prior incident and repair separately.
     with client_for(world) as client:

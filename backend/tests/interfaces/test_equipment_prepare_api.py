@@ -4,8 +4,10 @@ import pytest
 from agent.test_read_agent import ScriptedLLM, call
 from fastapi.testclient import TestClient
 
+from interfaces.demo_read_support import assert_unconfirmed_prepare_rejected
 from linescope.application.proposals import ProposalError, ProposalStore
 from linescope.demo_seed import DEMO_EQUIPMENT, seed_demo
+from linescope.execution import ExecutionContext
 from linescope.integrations.llm import LLMReply
 from linescope.interfaces.api import create_app
 from linescope.settings import Settings
@@ -109,10 +111,18 @@ def test_unsupported_intent_stays_read_only_even_when_llm_asks_to_prepare(world,
     )
     with TestClient(create_app(settings(), world, llm=llm)) as client:
         result = client.post("/agent", json={"message": message}, headers=HEADERS)
+    assert result.status_code == 200
     assert (
-        result.status_code == 403 and result.json()["errors"][0]["code"] == "AUTHORIZATION_DENIED"
+        all(row["tool"] == "search_equipment" for row in result.json()["data"]["tool_results"])
+        and not llm.requests
     )
-    assert "prepare_equipment_state_update" not in llm.requests[0][1]
+    assert_unconfirmed_prepare_rejected(
+        world,
+        ExecutionContext("maintenance1", "maintenance", uuid4()),
+        message,
+        "prepare_equipment_state_update",
+        {"equipment_id": str(DEMO_EQUIPMENT[0][0]), "state_code": "RUNNING"},
+    )
     with world.transaction() as connection:
         assert connection.execute("SELECT count(*) AS n FROM update_request").fetchone()["n"] == 0
 

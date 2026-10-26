@@ -185,13 +185,17 @@ it("selects equipment through the common search, loads relationships directly an
   await user.click(screen.getByRole("button", { name: "送信" }));
   await waitFor(() =>
     expect(
-      fetcher.mock.calls.some(([, init]) =>
-        String(init.body).includes("調査対象の設備コードはM-208"),
+      fetcher.mock.calls.some(
+        ([, init]) =>
+          typeof init.body === "string" &&
+          JSON.parse(init.body).message === "この設備の状態は？",
       ),
     ).toBe(true),
   );
-  const call = fetcher.mock.calls.find(([, init]) =>
-    String(init.body).includes("調査対象の設備コードはM-208"),
+  const call = fetcher.mock.calls.find(
+    ([, init]) =>
+      typeof init.body === "string" &&
+      JSON.parse(init.body).message === "この設備の状態は？",
   )!;
   expect(JSON.parse(String(call[1].body)).context_id).toBeUndefined();
   const question = "第１加工機の前回のメンテナンス日時はいつか？";
@@ -204,8 +208,7 @@ it("selects equipment through the common search, loads relationships directly an
       fetcher.mock.calls.some(
         ([, init]) =>
           typeof init.body === "string" &&
-          JSON.parse(init.body).message ===
-            `調査対象の設備コードはM-208です。\n${question}`,
+          JSON.parse(init.body).message === question,
       ),
     ).toBe(true),
   );

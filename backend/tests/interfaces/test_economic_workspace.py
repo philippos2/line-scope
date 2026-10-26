@@ -134,26 +134,25 @@ def test_agent_uses_registered_tools_and_deterministic_unknown_summary_without_p
         )
     data = result.json()
     assert result.status_code == 200
-    assert "1900000円" in data["answer"] and "交換総額不明" in data["answer"]
-    assert "安全で交換が最適" not in data["answer"]
-    assert [row["tool"] for row in data["data"]["tool_results"]] == [
-        "search_economic_inputs",
-        "get_economic_input",
-    ]
-    assert not any(
-        "prepare" in name or "execute" in name or "approve" in name for name in llm.requests[0][1]
-    )
+    assert data["data"]["answer_sections"]["read_outcome"] == "UNSUPPORTED"
+    assert not llm.requests
+    assert not data["data"]["tool_results"]
+    from interfaces.demo_read_support import registered_input_observation
+    from linescope.agent.economic_answer import economic_answer
+
+    with client_for(world) as reader:
+        observation = registered_input_observation(reader, "economic", record, headers())
+    answer = economic_answer((observation,))
+    assert "1900000円" in answer and "交換総額不明" in answer
+    assert "安全で交換が最適" not in answer
 
 
 def test_agent_denied_economic_read_cannot_publish_unverified_costs(world):
     llm = ScriptedLLM(call("search_economic_inputs", {"filter": {}}), LLMReply("費用は0円です", ()))
     with TestClient(create_app(api_settings(), world, llm=llm)) as client:
-        result = client.post(
-            "/agent", json={"message": "経済入力を検索して"}, headers=headers("floor")
-        ).json()
-    assert result["answer"] is None
+        result = client.post("/economic-inputs/search", json={}, headers=headers("floor")).json()
     assert result["errors"][0]["code"] == "AUTHORIZATION_DENIED"
-    assert result["data"]["tool_results"] == []
+    assert result["data"] == {}
 
 
 def test_formal_m204_request_does_not_enter_fixture_comparison(world):

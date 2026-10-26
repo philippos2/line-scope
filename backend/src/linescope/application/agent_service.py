@@ -46,7 +46,9 @@ class AgentApplication:
         dependency=None,
         knowledge=None,
         structured=None,
+        questions=None,
     ):
+        self.questions = questions
         self.proposals = proposals
         self.conversations = conversations
         self.commands = (
@@ -89,6 +91,19 @@ class AgentApplication:
             return self.knowledge.run(context, incoming)
         if self.decision_flow is not None and self.decision_flow.matches(incoming.message):
             return self.decision_flow.run(context, incoming)
+        if self.questions is not None and not incoming.message.startswith("関係分析 "):
+            result, pending = self.questions.answer(context, incoming, conversation)
+            context_id = None
+            if pending is not None:
+                stored = {"question": pending}
+                context_id = incoming.context_id
+                if context_id:
+                    self.conversations.update(context, context_id, stored)
+                else:
+                    context_id = self.conversations.create(context, stored)
+            elif incoming.context_id:
+                self.conversations.update(context, incoming.context_id, {})
+            return AnalyzedAgentResult(result, context_id)
         if self.read_agent is None:
             raise ToolError("DEPENDENCY_UNAVAILABLE", "LLM is not configured")
         read_input = incoming

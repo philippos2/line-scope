@@ -9,9 +9,11 @@ from agent.test_read_agent import ScriptedLLM, call
 from application.test_maintenance_prepare import service as maintenance_fixture
 from fastapi.testclient import TestClient
 
+from interfaces.demo_read_support import assert_unconfirmed_prepare_rejected
 from interfaces.test_maintenance_plan_approval_api import client_for, headers
 from linescope.agent.agent_input import AgentInput
 from linescope.agent.update_intent import maintenance_plan_command
+from linescope.execution import ExecutionContext
 from linescope.integrations.llm import LLMReply
 from linescope.interfaces.api import create_app
 from linescope.settings import Settings
@@ -192,9 +194,15 @@ def test_llm_cannot_supply_unconfirmed_or_incomplete_prepare(world, message):
     settings = Settings(users={"requester": {"user_id": "maintenance1", "role": "maintenance"}})
     with TestClient(create_app(settings, world, llm=llm)) as client:
         response = post(client, message)
-        assert response.status_code == 403
-        assert response.json()["errors"][0]["code"] == "AUTHORIZATION_DENIED"
-        assert "prepare_maintenance_plan_update" not in llm.requests[0][1]
+        assert response.status_code == 200
+        assert response.json()["data"]["tool_results"] == [] and not llm.requests
+        assert_unconfirmed_prepare_rejected(
+            world,
+            ExecutionContext("maintenance1", "maintenance", uuid4()),
+            message,
+            "prepare_maintenance_plan_update",
+            {"maintenance_plan_id": str(UUID(int=20)), "patch": {"plan_status": "CANCELLED"}},
+        )
     with world.transaction() as c:
         assert c.execute("SELECT count(*) AS n FROM update_request").fetchone()["n"] == 0
 

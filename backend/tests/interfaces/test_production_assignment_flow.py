@@ -17,6 +17,7 @@ from interfaces.test_graph_business_scenarios import inquire
 from interfaces.test_production_schedule_api import client_for
 from linescope.agent.agent_input import AgentInput
 from linescope.agent.update_intent import production_assignment_command
+from linescope.application.tools import ToolDispatcher
 from linescope.execution import ExecutionContext
 from linescope.graph.administration import GraphAdministration
 from linescope.graph.graph_leadership import graph_leadership
@@ -113,19 +114,17 @@ def test_assignment_input_to_execution_projection_and_api_confirmation(
             for node in data["reached_nodes"]
             if node["entity_type"] == "Equipment"
         } == {str(UUID(int=value)) for value in expected}
-        read = inquire(
-            world,
-            driver,
-            [
-                call(
-                    "get_operation_equipment_assignments",
-                    {"production_operation_id": str(UUID(int=20)), "explicit_as_of": as_of},
-                )
-            ],
-            f"{as_of}におけるOP20の割当を調べて",
+        # Detail remains an authenticated internal Read; Graph HTTP above
+        # independently checks the projected assignments at the same time.
+        assignments = (
+            ToolDispatcher(world)
+            .run(
+                ExecutionContext("production1", "production", uuid4()),
+                "get_operation_equipment_assignments",
+                {"production_operation_id": str(UUID(int=20)), "explicit_as_of": as_of},
+            )
+            .data
         )
-        assert read.status_code == 200
-        assignments = read.json()["data"]["tool_results"][0]["data"]
         assert assignments["parent_version"] == 8
         assert {row["equipment_id"] for row in assignments["items"]} == {
             str(UUID(int=value)) for value in expected

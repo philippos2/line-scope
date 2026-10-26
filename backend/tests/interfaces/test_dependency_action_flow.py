@@ -18,6 +18,7 @@ from interfaces.test_graph_business_scenarios import inquire
 from interfaces.test_production_assignment_flow import count
 from linescope.agent.agent_input import AgentInput
 from linescope.agent.update_intent import dependency_command
+from linescope.application.tools import ToolDispatcher
 from linescope.execution import ExecutionContext
 from linescope.graph.administration import GraphAdministration
 from linescope.graph.graph_leadership import graph_leadership
@@ -77,14 +78,17 @@ def test_dependency_input_to_projection_and_api_read(world, adapters, operation)
         assert worker.run_once(leader).status == "APPLIED"
         assert worker.run_once(leader).status == "IDLE"
     assert ProjectionState(world).observe().status == "CURRENT"
-    observed = inquire(
-        world,
-        driver,
-        [call("get_dependency_relation", {"dependency_relation_id": target["target_id"]})],
-        "保存した依存関係を調べて",
+    # Read the saved relation via the authenticated Tool; projected paths are
+    # verified through the existing explicit Graph HTTP request below.
+    current = (
+        ToolDispatcher(world)
+        .run(
+            ExecutionContext("maintenance1", "maintenance", uuid4()),
+            "get_dependency_relation",
+            {"dependency_relation_id": target["target_id"]},
+        )
+        .data
     )
-    assert observed.status_code == 200
-    current = observed.json()["data"]["tool_results"][0]["data"]
     assert current["dependency_relation_id"] == target["target_id"]
     assert current["version"] == target["after"]["version"]
     assert current["active"] == target["after"]["active"]

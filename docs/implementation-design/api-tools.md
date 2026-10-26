@@ -503,3 +503,9 @@ Agentの比較Tool admissionは、元の問い合わせ中のJSON選択とTool�
 - 率はEconomicInput.payloadの任意`incident_losses`から取得する。配列1〜30件、scope_keyは入力内一意・100文字以内。各項目は`scope_key`、`product_id`（UUID）、`loss_per_hour`（既存の非負十進文字列制約、NULL可）、`independent`（boolean）、`source`（既存bounded text）、`certainty`（ESTIMATED / CONFIRMED）を必須とする。省略は既存payloadを維持し、率を修理案から自動転記しない。
 - 入力は正本から再読込し、共通期間の一致・各停止設備の影響製品の網羅を照合する。率が不明、非独立、同一scopeの宣言不一致、期間不一致等は完全合計をNULLにしてpartialで返す。既知小計は完全合計と区別する。Graph・認可等のerrorは既存status対応に従う。
 - `evidence`に各Graphの根拠、世代・時点、PG観測時刻と状態version、正式入力のID・version・出典を残す。金額は登録条件下の推定。`actual_damage_confirmed=false`、`cumulative_loss=null`、`automatic_state_change=false`を保持する。
+
+## 質問欄の限定照会（PR #277）
+
+`POST /agent`の既存認証・message/context_id契約を維持する。通常の自由文は固定9観点の決定論的照合で処理し、LLMへフォールバックしない。対象の追加確認も同じmessage/context_idで送る。既存の構造化Graph・登録入力比較・明示文書検索・変更準備経路は維持する。
+
+通常照会の出力に`data.answer_sections`を追加する。`version:1`、`read_outcome`（ANSWERED/UNSUPPORTED/TARGET_REQUIRED/TARGET_AMBIGUOUS/TARGET_NOT_FOUND/SEARCH_INCOMPLETE/READ_FAILED）、`selected_field`、根拠参照を持つ`facts`、`unavailable`、`scope`を含む。本文、facts、公開tool_resultsは同じ選択対象・観点に限る。対応外で設備を識別できた場合の公開は名称・コード・IDだけ。業務値の取得失敗は登録なしと扱わず、既存エラーenvelopeを使う。H7のcatalog/execute/suggestion用APIや選択UI契約は追加しない。

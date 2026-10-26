@@ -9,10 +9,12 @@ from agent.test_read_agent import ScriptedLLM, call
 from application.test_production_prepare import service as production_fixture
 from fastapi.testclient import TestClient
 
+from interfaces.demo_read_support import assert_unconfirmed_prepare_rejected
 from interfaces.test_maintenance_plan_approval_api import headers
 from interfaces.test_production_schedule_api import client_for
 from linescope.agent.agent_input import AgentInput
 from linescope.agent.update_intent import production_schedule_command
+from linescope.execution import ExecutionContext
 from linescope.integrations.llm import LLMReply
 from linescope.interfaces.api import create_app
 from linescope.settings import Settings
@@ -205,9 +207,18 @@ def test_llm_cannot_supply_unconfirmed_or_incomplete_prepare(world, message):
     settings = Settings(users={"requester": {"user_id": "production1", "role": "production"}})
     with TestClient(create_app(settings, world, llm=llm)) as client:
         response = post(client, message)
-        assert response.status_code == 403
-        assert response.json()["errors"][0]["code"] == "AUTHORIZATION_DENIED"
-        assert "prepare_production_operation_update" not in llm.requests[0][1]
+        assert response.status_code == 200
+        assert response.json()["data"]["tool_results"] == [] and not llm.requests
+        assert_unconfirmed_prepare_rejected(
+            world,
+            ExecutionContext("production1", "production", uuid4()),
+            message,
+            "prepare_production_operation_update",
+            {
+                "production_operation_id": str(UUID(int=20)),
+                "patch": {"planned_status": "CANCELLED"},
+            },
+        )
     with world.transaction() as c:
         assert c.execute("SELECT count(*) AS n FROM update_request").fetchone()["n"] == 0
 
