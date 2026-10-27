@@ -1,10 +1,10 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1280" height="1070" viewBox="0 0 1280 1070" role="img" aria-labelledby="title desc">
 <title id="title">LineScope アプリ・文書完了、動画第1弾から第2弾へ</title>
-<desc id="desc">アプリとF3は完了。第1弾は絵コンテ承認待ち。承認後を0とする相対作業日0から3.5の暫定制作枠を描く。第2弾は第1弾確認後の別指示が開始条件で期間未定。破線バーは未着手の見積もりで、制作開始・納期確約ではない。</desc>
+<desc id="desc">アプリとF3と第1弾の絵コンテは完了。第2弾の概略企画をレビューしてから第1弾の制作へ進む。第1弾制作開始を0とする相対作業日0から3.5の暫定枠。第2弾の詳細制作は第1弾確認後の別指示が条件で期間未定。破線バーは未着手の見積もりで、制作開始・納期確約ではない。</desc>
 <rect width="1280" height="1070" fill="#f8fafc"/>
 <g font-family="sans-serif" fill="#183247">
 <text x="24" y="38" font-size="24" font-weight="bold">アプリ・F3は完了。追加予定：説明動画 第1弾 → 第2弾</text>
-<text x="24" y="69" font-size="16">現在：V1絵コンテ案の承認待ち。音声・収録・編集と、V2の調査・企画は未着手。</text>
+<text x="24" y="69" font-size="16">現在：V2の概略企画案をレビュー待ち。V1絵コンテは承認・merge済み。収録・音声は未着手。</text>
 <rect x="24" y="91" width="1230" height="90" rx="5" fill="white" stroke="#cbd5e1"/>
 <text x="40" y="117" font-size="16" font-weight="bold">凡例：色は工程種別、破線は未着手の暫定枠、◇は承認・開始条件</text>
 <g font-size="14">
@@ -21,8 +21,8 @@
 <text x="24" y="290">F2 #278・正式環境切替 完了</text><rect x="400" y="270" width="280" height="28" fill="#64748b" rx="4"/>
 <text x="24" y="340">#279 merge・F3 #280 merge 完了</text><rect x="680" y="320" width="280" height="28" fill="#64748b" rx="4"/>
 </g>
-<text x="24" y="401" font-size="17" font-weight="bold">V1制作の概算：絵コンテ承認後の相対作業日（暫定・未着手）</text>
-<text x="24" y="429" font-size="15">◇ 現在の承認ゲート：絵コンテ案を確認。以降の制作を先行しない。</text>
+<text x="24" y="401" font-size="17" font-weight="bold">V1制作の概算：V2企画レビュー後の制作開始からの相対作業日（暫定）</text>
+<text x="24" y="429" font-size="15">◇ 現在のゲート：V2の企画案レビュー → V1制作開始。第1弾の絵コンテは変更しない。</text>
 <g font-size="15"><text x="396" y="468">0</text><text x="505" y="468">0.5</text><text x="631" y="468">1</text><text x="741" y="468">1.5</text><text x="866" y="468">2</text><text x="976" y="468">2.5</text><text x="1101" y="468">3</text><text x="1208" y="468">3.5日</text></g>
 <g stroke="#cbd5e1"><path d="M400 480V718 M517 480V718 M634 480V718 M751 480V718 M868 480V718 M985 480V718 M1102 480V718 M1219 480V718"/></g>
 <g font-size="15" fill-opacity="1">
@@ -33,9 +33,9 @@
 </g>
 <text x="24" y="751" font-size="15">制作2〜3.5作業日程度の仮見積もり（上限側の枠を表示）。レビュー待ち・取り直しは別。</text>
 <rect x="24" y="781" width="1230" height="114" rx="5" fill="white" stroke="#cbd5e1"/>
-<text x="40" y="811" font-size="18" font-weight="bold">V2 アーキテクチャ・設計思想編（予定のみ、未着手）</text>
-<text x="40" y="843" font-size="15">◇ V1の制作・確認 → 開発者の別指示 → V2の企画開始。開始日・制作工数は未確定。</text>
-<text x="40" y="872" font-size="15">想定尺6〜8分も未確定。LLMの境界・技術選定等の追加調査／台本／絵コンテはまだ行わない。</text>
+<text x="40" y="811" font-size="18" font-weight="bold">V2 アーキテクチャ・設計思想編（概略企画レビュー待ち・制作未着手）</text>
+<text x="40" y="843" font-size="15">◇ 先にV2概略企画をレビュー → V1制作・確認 → 別指示でV2詳細制作。日付・工数未定。</text>
+<text x="40" y="872" font-size="15">想定尺6〜8分、案は約7分20秒。コード・記録を静的照合済み。詳細台本／絵コンテは未着手。</text>
 <rect x="24" y="917" width="1230" height="82" rx="5" fill="white" stroke="#cbd5e1"/>
 <text x="40" y="946" font-size="16" font-weight="bold">任意・未採用 O-F2-WRITE：承認付き供給状態変更</text>
 <text x="40" y="978" font-size="15">◇ 採否・時期・工数未定。動画2本の予定とは別。製品機能の追加予定にしない。</text>
