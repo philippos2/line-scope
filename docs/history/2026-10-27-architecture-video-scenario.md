@@ -60,7 +60,7 @@ LineScopeでは、設備、工程、生産作業、製品、インフラを、�
 
 Neo4jは、関係をたどるための派生Graphです。業務データを別々の正本として二重管理するのではなく、PostgreSQLの情報から再構築できる形にしています。状態値は正本から参照し、Graphの接続関係と組み合わせます。
 
-正本の変更と反映イベントは、同じトランザクションで保存します。Outboxに保存されたイベントを、別の処理がGraphへ反映します。その分、反映待ちや復旧の管理が必要です。分析には同期状態の確認を入れ、古いGraphを最新とみなさないようにしています。
+Graphに影響する正本の変更と、その反映イベントは、同じトランザクションで保存します。Outboxに保存されたイベントを、別の処理がGraphへ反映します。その分、反映待ちや復旧の管理が必要です。分析には同期状態の確認を入れ、古いGraphを最新とみなさないようにしています。
 
 文書検索は別の役割です。埋め込みモデルで検索用の数値表現を作り、Qdrantで候補を探します。検索結果は正本と照合し、閲覧できるかも確認します。
 
@@ -157,6 +157,17 @@ LineScopeの変更は、まず変更準備を保存し、保存内容を確認�
 | 5 通常質問・明示Graph・旧生成経路 | [通常入口](../../backend/src/linescope/application/agent_service.py)、[標準組立](../../backend/src/linescope/bootstrap.py)、[明示Graphの先行return](../../backend/src/linescope/agent/read_agent.py)、[現行9観点](../design/demo-question-chat.md) | [旧H6の原記録](https://github.com/philippos2/line-scope/blob/archive/pr276-20261026/docs/history/2026-10-23-agent-question-round2.md)、[#277への変更](2026-10-26-demo-question-restart.md)、[現方式の結果](2026-10-26-demo-question-results.md)。旧方式の未達を現方式の成功で帳消しにしない |
 | 6 更新の統制 | [権限規則](../requirements/access-control.md)、[Transaction](../implementation-design/transaction-design.md)、[実行処理](../../backend/src/linescope/application/execute.py) | [経済入力の実書込み検証](2026-10-20-pr272-live-verification-plan.md)。入力4カテゴリすべての実書込み通し確認が済んだとは説明しない |
 | 7 成果と限界 | [デモ範囲](../requirements/requirements.md)、[検証したこと](../demo/verified-findings.md) | 実装、設計上の性質、自動試験、直接API、ブラウザ観測を区別し、未検証を残す |
+
+## 設計・SQLとの追加照合
+
+シナリオの説明範囲を、正本文書とSQL migration・実行サービスへ再照合した。Graph反映の対象は全業務更新ではないため、章3のナレーションを「Graphに影響する正本の変更」に限定した。設備状態等は正本から参照し、Graphの接続関係と組み合わせる説明を維持する。
+
+- [業務テーブルと設備状態](../../backend/src/linescope/migrations/002_business_schema.sql)：設備・状態・工程・作業・製品・インフラをPostgreSQLに保存する。
+- [要求・承認のDDL](../../backend/src/linescope/migrations/003_update_request_schema.sql)：要求と承認を分離し、承認期限30分と承認消費の時刻条件を制約で保持する。本人・カテゴリ権限の検証は[実行サービス](../../backend/src/linescope/application/execute.py)と[権限規則](../requirements/access-control.md)を併せて確認し、DDLだけが認可を保証すると説明しない。
+- [Outbox・ProjectionのDDL](../../backend/src/linescope/migrations/006_graph_projection_storage.sql)：Graph対象イベントと反映状態・世代を分ける。正本更新と必要Outboxの保存境界、Neo4jへの後続反映を混同しない。
+- [供給状態のDDL](../../backend/src/linescope/migrations/014_infrastructure_supply_state.sql)：三値、正のversion、登録時刻、出典を保持する。[Read組立](../../backend/src/linescope/persistence/core_reads.py)では未登録の状態をUNKNOWNとして返し、登録時刻とDB読取時刻を分ける。
+
+この照合で確認した説明範囲に、残る矛盾は見つかっていない。SQL migrationの実行、DB状態の再検証、全SQLの監査を今回実施したという意味ではない。
 
 ## このPRと次の工程
 
