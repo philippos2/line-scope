@@ -8,11 +8,7 @@
 
 ## デモ動画（約4分50秒）
 
-[![LineScopeの紹介動画：設備停止から影響範囲・代替候補・共通電源をたどる](docs/media/linescope-demo-preview.png)](docs/media/linescope-demo.mp4)
-
-**[▶ デモ動画を見る](docs/media/linescope-demo.mp4)**
-
-https://github.com/user-attachments/assets/ad5519c2-6f8b-4833-b553-d63c5b8262ca
+https://github.com/user-attachments/assets/abb373d0-2375-422a-8f9f-ca6265569202
 
 第1加工機M-204の停止から、工程・製品へのつながり、代替候補M-208、両設備の共通電源R-02を実画面で紹介します。日本語字幕・音声付き（VOICEVOX:ずんだもん）。登録情報に基づく技術検証であり、実際の停止影響や代替運転の保証ではありません。
 
